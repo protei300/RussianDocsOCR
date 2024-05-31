@@ -1,0 +1,42 @@
+{
+    "Name": "model_1",
+    "Type": "BinaryClassification",
+    "Format": "OpenVINO",
+    "File": "model.onnx.ir",
+    "Input": [
+        {
+            "Name": "input_3",
+            "Shape": [
+                128,
+                128,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                0,
+                0,
+                0
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "dense_1/Sigmoid:0",
+            "Shape": [
+                1
+            ]
+        }
+    ],
+    "Labels": [
+        "NO",
+        "GLARE"
+    ],
+    "Threshold": 0.5
+}

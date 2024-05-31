@@ -1,0 +1,1 @@
+from .doc_detector import DocDetector

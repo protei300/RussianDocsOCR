@@ -1,0 +1,42 @@
+{
+    "Name": "model_1",
+    "Type": "BinaryClassification",
+    "Format": "ONNX",
+    "File": "model.onnx",
+    "Input": [
+        {
+            "Name": "input_2",
+            "Shape": [
+                224,
+                224,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                0,
+                0,
+                0
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "dense_1/Sigmoid:0",
+            "Shape": [
+                1
+            ]
+        }
+    ],
+    "Labels": [
+        "FAKE",
+        "REAL"
+    ],
+    "Threshold": 0.5
+}

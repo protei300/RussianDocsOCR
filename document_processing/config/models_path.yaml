@@ -1,0 +1,11 @@
+Angle90: models\Angles90
+DocDetector: models\Borders
+TextFieldsDetector: models\TextFields
+DocType: models\DocType
+Blur: models\Blur
+Glare: models\Glare
+LCDSpoofing: models\LCDSpoofing
+PrintSpoofing: models\PrintSpoofing
+WordsDetector: models\Words
+OCREngNums: models\OCR\eng+nums
+OCRRus: models\OCR\rus

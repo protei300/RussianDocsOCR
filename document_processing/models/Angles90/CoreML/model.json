@@ -1,0 +1,43 @@
+{
+    "Name": "Angle90",
+    "Type": "MultiLabelClassification",
+    "Format": "CoreML",
+    "File": "model.mlmodel",
+    "Input": [
+        {
+            "Name": "Image_input",
+            "Shape": [
+                224,
+                224,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                0,
+                0,
+                0
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "Output/Softmax:0",
+            "Shape": [
+                4
+            ]
+        }
+    ],
+    "Labels": [
+        0,
+        90,
+        180,
+        270
+    ]
+}

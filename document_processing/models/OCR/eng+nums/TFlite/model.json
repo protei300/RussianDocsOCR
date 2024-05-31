@@ -1,0 +1,38 @@
+{
+    "Name": "model_2",
+    "Type": "OCR",
+    "Format": "TFlite",
+    "File": "model.tflite",
+    "Lang": "eng",
+    "Input": [
+        {
+            "Name": "input_1",
+            "Shape": [
+                31,
+                200,
+                1
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                0,
+                0,
+                0
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "decode/PadV2:0",
+            "Shape": [
+                50
+            ]
+        }
+    ]
+}

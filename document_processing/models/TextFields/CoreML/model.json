@@ -1,0 +1,64 @@
+{
+    "Name": "Document_text_fields",
+    "Type": "YoloDetector",
+    "Format": "CoreML",
+    "File": "model.mlmodel",
+    "Input": [
+        {
+            "Name": "Image_input",
+            "Shape": [
+                640,
+                640,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                114,
+                114,
+                114
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "permute/transpose:0",
+            "Shape": [
+                8400,
+                26
+            ]
+        }
+    ],
+    "IOU": 0.2,
+    "CLS": 0.7,
+    "Labels": [
+        "Face",
+        "Last_name_ru",
+        "First_name_ru",
+        "Last_name_en",
+        "First_name_en",
+        "Licence_number",
+        "Issue_date",
+        "Expiration_date",
+        "Driver_class",
+        "Signature",
+        "Birth_date",
+        "Birth_place_ru",
+        "Birth_place_en",
+        "Issue_organization_ru",
+        "Issue_organization_en",
+        "Living_region_ru",
+        "Living_region_en",
+        "Middle_name_ru",
+        "Sex_ru",
+        "Sex_en",
+        "Issue_organisation_code",
+        "Middle_name_en"
+    ]
+}

@@ -1,0 +1,52 @@
+{
+    "Name": "Document_Segmentation",
+    "Type": "YoloSegmentor",
+    "Format": "OpenVINO",
+    "File": "model.onnx.ir",
+    "Input": [
+        {
+            "Name": "Image_input",
+            "Shape": [
+                640,
+                640,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                20,
+                20
+            ],
+            "PaddingColor": [
+                114,
+                114,
+                114
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "Bbox/transpose:0",
+            "Shape": [
+                8400,
+                37
+            ]
+        },
+        {
+            "Name": "Mask/Add:0",
+            "Shape": [
+                160,
+                160,
+                32
+            ]
+        }
+    ],
+    "IOU": 0.2,
+    "CLS": 0.6,
+    "Labels": [
+        "Document"
+    ],
+    "MaskFilter": 0.9
+}

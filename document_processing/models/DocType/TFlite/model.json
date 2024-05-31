@@ -1,0 +1,39 @@
+{
+    "Name": "model",
+    "Type": "Metric",
+    "Format": "TFlite",
+    "File": "model.tflite",
+    "Input": [
+        {
+            "Name": "input_2",
+            "Shape": [
+                224,
+                224,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                0,
+                0,
+                0
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "mobilenetv2_1.00_224/global_average_pooling2d/Mean:0",
+            "Shape": [
+                1280
+            ],
+            "Metric": "cosine"
+        }
+    ],
+    "Centers": "resources\\centers.pkl"
+}

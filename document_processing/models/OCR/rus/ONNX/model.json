@@ -1,0 +1,39 @@
+{
+    "Name": "model",
+    "Type": "OCR",
+    "Format": "ONNX",
+    "File": "model.onnx",
+    "Lang": "rus",
+    "Alphabet": "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ.-",
+    "Input": [
+        {
+            "Name": "input_1",
+            "Shape": [
+                31,
+                200,
+                1
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                0,
+                0,
+                0
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "decode/PadV2:0",
+            "Shape": [
+                50
+            ]
+        }
+    ]
+}

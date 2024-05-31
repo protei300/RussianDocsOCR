@@ -1,0 +1,44 @@
+{
+    "Name": "model_2",
+    "Type": "MultiLabelClassification",
+    "Format": "ONNX",
+    "File": "model.onnx",
+    "Input": [
+        {
+            "Name": "input_6",
+            "Shape": [
+                128,
+                128,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                0,
+                0,
+                0
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "classifier/Softmax:0",
+            "Shape": [
+                5
+            ]
+        }
+    ],
+    "Labels": [
+        "Background",
+        "Blur10",
+        "Blur5",
+        "Faces",
+        "NonBlur"
+    ]
+}

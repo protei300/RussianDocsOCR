@@ -1,0 +1,43 @@
+{
+    "Name": "words_detection",
+    "Type": "YoloDetector",
+    "Format": "TFlite",
+    "File": "model.tflite",
+    "Input": [
+        {
+            "Name": "image_input",
+            "Shape": [
+                640,
+                640,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                114,
+                114,
+                114
+            ]
+        }
+    ],
+    "Output": [
+        {
+            "Name": "permute/transpose:0",
+            "Shape": [
+                8400,
+                5
+            ]
+        }
+    ],
+    "IOU": 0.2,
+    "CLS": 0.6,
+    "Labels": [
+        "Word"
+    ]
+}

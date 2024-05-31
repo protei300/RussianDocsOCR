@@ -1,0 +1,7 @@
+/venv/
+/document_processing/.idea/
+.idea/
+/.idea/
+**/__pycache__/
+**/.idea/
+
