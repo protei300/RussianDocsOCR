@@ -1,8 +1,9 @@
 import pytest
-from document_processing.pipeline_modules import *
-from document_processing.processing.models import ModelLoader
+from russian_docs_ocr.document_processing.pipeline_modules import *
+from russian_docs_ocr.document_processing.processing.models import ModelLoader
 from pathlib import Path
-from document_processing.libs.image_transformation import xywh2xyxy, iou
+# from document_processing.libs.image_transformation import xywh2xyxy, iou
+from russian_docs_ocr.document_processing.pipeline_modules.doc_detector.image_transformation import xywh2xyxy, iou
 import numpy as np
 import cv2
 
@@ -13,13 +14,13 @@ def module():
 @pytest.fixture
 def model():
     model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/Words/ONNX/model.json'))
+    return model_loader(Path('russian_docs_ocr/document_processing/models/Words/ONNX/model.json'))
 
 
 @pytest.fixture
 def load_imgs():
-    imgs = [img for img in Path('images/Words').glob('*/images/*.*')]
-    lbls = [lbl for lbl in Path('images/Words').glob('*/labels/*.txt')]
+    imgs = [img for img in Path('tests/images/Words').glob('*/images/*.*')]
+    lbls = [lbl for lbl in Path('tests/images/Words').glob('*/labels/*.txt')]
     return list(zip(imgs,lbls))
 
 class TestWordsDetector:
@@ -58,7 +59,6 @@ class TestWordsDetector:
         '''
         Testing predict_transform function
         '''
-
         img_file, lbl_file = next(iter(load_imgs))
         result = module.predict_transform(img_file)
 

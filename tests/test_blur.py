@@ -1,12 +1,12 @@
 import glob
 from pathlib import Path
-from document_processing.processing.models import ModelLoader
-from document_processing.pipeline_modules import *
+from russian_docs_ocr.document_processing.processing.models import ModelLoader
+from russian_docs_ocr.document_processing.pipeline_modules import *
 
 
 def test_blur():
     loader = ModelLoader()
-    model = loader(Path('../document_processing/models/Blur/ONNX/model.json'))
+    model = loader(Path('russian_docs_ocr/document_processing/models/Blur/ONNX/model.json'))
     for image_file in glob.glob('images/Blur/*'):
         image_file_path = Path(image_file)
         ground_truth = image_file_path.name.split('.')[0]
@@ -16,7 +16,7 @@ def test_blur():
 
 def test_blur_originals():
     blur = Blur('ONNX')
-    for image_file in glob.glob('../tests/images/Originals/Blur/*'):
+    for image_file in glob.glob('tests/images/Originals/Blur/*'):
         image_file_path = Path(image_file)
         ground_truth = image_file_path.name.split('.')[0].split('_')[0]
         result = blur.predict(image_file_path)['Blur'][0]

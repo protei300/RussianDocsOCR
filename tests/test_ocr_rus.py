@@ -1,6 +1,6 @@
 import pytest
-from document_processing.pipeline_modules import ocr_rus
-from document_processing.processing.models import ModelLoader
+from russian_docs_ocr.document_processing.pipeline_modules import ocr_rus
+from russian_docs_ocr.document_processing.processing.models import ModelLoader
 from pathlib import Path
 import glob
 import numpy as np
@@ -11,7 +11,7 @@ import os
 @pytest.fixture
 def model():
     model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/OCR/rus/ONNX/model.json'))
+    return model_loader(Path('russian_docs_ocr/document_processing/models/OCR/rus/ONNX/model.json'))
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def module():
 
 class TestOCRRus:
     def test_model(self, model):
-        images = glob.glob(f'images/OCRRus/*/*')
+        images = glob.glob(f'tests/images/OCRRus/*/*')
         for img in images:
             gt = os.path.splitext(str(img))[0]
             gt = gt.split(os.path.sep)[-1]
