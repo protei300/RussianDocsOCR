@@ -1,6 +1,6 @@
 import pytest
-from document_processing.pipeline_modules import *
-from document_processing.processing.models import ModelLoader
+from russian_docs_ocr.document_processing.pipeline_modules import *
+from russian_docs_ocr.document_processing.processing.models import ModelLoader
 from pathlib import Path
 
 
@@ -8,7 +8,7 @@ from pathlib import Path
 @pytest.fixture
 def model():
     model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/Angles90/ONNX/model.json'))
+    return model_loader(Path('russian_docs_ocr/document_processing/models/Angles90/ONNX/model.json'))
 
 @pytest.fixture
 def module():
@@ -19,13 +19,13 @@ def module():
 class TestAngle90:
 
     def test_model(self, model):
-        for img in Path('images/Angle90').iterdir():
+        for img in Path('tests/images/Angle90').iterdir():
             angle, conf = model.predict(img)
             angle_expected = int(img.stem.split('_', maxsplit=1)[1])
             assert angle == angle_expected, 'Wrong angle detected'
 
     def test_module(self, module):
-        img = next(iter(Path('images/Angle90').iterdir()))
+        img = next(iter(Path('tests/images/Angle90').iterdir()))
         result = module.predict_transform(img)
 
         assert module.model_name in result.keys(), f'Module name - {module.model_name} not found in result dict'
