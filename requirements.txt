@@ -1,4 +1,4 @@
-coremltools==7.0
+coremltools>=7.0
 matplotlib==3.8.0
 numpy==1.26.1
 onnxruntime-gpu==1.16.1
