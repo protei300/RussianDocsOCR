@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from time import time
@@ -97,69 +98,80 @@ class PipelineResults:
     """Stores results and metadata from a model pipeline.
 
     Attributes:
-        meta_results (dict): Metadata from pipeline stages
+        _meta_results (dict): Metadata from pipeline stages (private)
         _timings (dict): Timing measurements for stages
 
     """
     def __init__(self):
         """Initializes empty result storage."""
 
-        self.meta_results = dict(Quality={})
+        self._meta_results = dict(Quality={})
         self._timings = dict()
+
+    @property
+    def meta_results(self) -> dict:
+        """Gets metadata dict as a deep copy (immutable).
+        
+        Returns a copy to prevent external modification of internal state.
+        
+        Returns:
+            dict: Deep copy of metadata
+        """
+        return deepcopy(self._meta_results)
 
     @property
     def ocr(self) -> Union[Dict, None]:
         """Gets OCR extraction results dict, if available."""
-        if self.meta_results.get('OCR'):
-            return self.meta_results.get('OCR')
+        if self._meta_results.get('OCR'):
+            return deepcopy(self._meta_results.get('OCR'))
         else:
             return None
 
     @property
     def doctype(self) -> Union[str, None]:
         """Gets detected document type, if available."""
-        doctype = self.meta_results.get('DocType')
+        doctype = self._meta_results.get('DocType')
         return doctype
 
     @property
     def quality(self) -> dict:
-        """Gets image quality measurements."""
-        return self.meta_results['Quality']
+        """Gets image quality measurements as a deep copy."""
+        return deepcopy(self._meta_results['Quality'])
 
     @property
     def rotated_image(self) -> np.ndarray:
         """Gets image rotated by the Angle90 stage."""
-        return self.meta_results['Angle90']['warped_img']
+        return self._meta_results['Angle90']['warped_img']
 
     @property
     def img_with_fixed_perspective(self) -> Union[list, None]:
         """Get result from doc detection net"""
-        if self.meta_results.get('DocDetector'):
-            return self.meta_results['DocDetector']['warped_img']
+        if self._meta_results.get('DocDetector'):
+            return self._meta_results['DocDetector']['warped_img']
         else:
             return None
 
     @property
     def text_fields(self) -> Union[Tuple[list, list], None]:
         """Get text field patches with their meta"""
-        if self.meta_results.get('TextFieldsDetector'):
-            return self.meta_results['TextFieldsDetector']['bbox'], self.meta_results['TextFieldsDetector']['warped_img']
+        if self._meta_results.get('TextFieldsDetector'):
+            return self._meta_results['TextFieldsDetector']['bbox'], self._meta_results['TextFieldsDetector']['warped_img']
         else:
             return None
 
     @property
     def text_fields_meta(self) -> Union[Dict, None]:
-        """Get text field meta"""
-        if self.meta_results.get('TextFieldsDetector'):
-            return self.meta_results['TextFieldsDetector']
+        """Get text field meta as a deep copy."""
+        if self._meta_results.get('TextFieldsDetector'):
+            return deepcopy(self._meta_results['TextFieldsDetector'])
         else:
             return None
 
     @property
     def words_patches(self) -> Union[Dict, None]:
-        """Get split words patches"""
-        if self.meta_results.get('WordsDetector'):
-            return self.meta_results['WordsDetector']
+        """Get split words patches as a deep copy."""
+        if self._meta_results.get('WordsDetector'):
+            return deepcopy(self._meta_results['WordsDetector'])
         else:
             return None
 
@@ -322,7 +334,7 @@ class Pipeline:
             np.ndarray: Image with fixed angle.
         """
         result = self.angle90.predict_transform(img)
-        self.results.meta_results = self.results.meta_results | result
+        self.results._meta_results = self.results._meta_results | result
         # return result[self.angle90.model_name]['warped_img']
 
     def _doctype(self, img):
@@ -338,32 +350,32 @@ class Pipeline:
         """
         result = self.doctype.predict(img)
         doc_type, confidence = result[self.doctype.model_name].values()
-        self.results.meta_results['DocType'] = doc_type
-        self.results.meta_results['Quality']['DocConf'] = confidence
+        self.results._meta_results['DocType'] = doc_type
+        self.results._meta_results['Quality']['DocConf'] = confidence
         return doc_type
 
     def _glare(self, img):
         """Check for glare quality"""
         qual, coef = self.glare.predict(img)[self.glare.model_name]
-        self.results.meta_results['Quality']['Glare'] = qual
+        self.results._meta_results['Quality']['Glare'] = qual
         return qual
 
     def _blur(self, img):
         """Check for blur quality."""
         qual, coef = self.blur.predict(img)[self.blur.model_name]
-        self.results.meta_results['Quality']['Blur'] = qual
+        self.results._meta_results['Quality']['Blur'] = qual
         return qual
 
     def _print_spoofing(self, img):
         """Check for print spoofing."""
         qual, coef = self.print_spoofing.predict(img)[self.print_spoofing.model_name]
-        self.results.meta_results['Quality']['PrintSpoofing'] = qual
+        self.results._meta_results['Quality']['PrintSpoofing'] = qual
         return qual
 
     def _lcd_spoofing(self, img):
         """Check for LCD spoofing."""
         qual, coef = self.lcd_spoofing.predict(img)[self.lcd_spoofing.model_name]
-        self.results.meta_results['Quality']['LCDSpoofing'] = qual
+        self.results._meta_results['Quality']['LCDSpoofing'] = qual
         return qual
 
 
@@ -379,7 +391,7 @@ class Pipeline:
             np.ndarray: Image with fixed perspective
         """
         result = self.doc_detector.predict_transform(img)
-        self.results.meta_results = self.results.meta_results | result
+        self.results._meta_results = self.results._meta_results | result
         # img = result[self.doc_detector.model_name]['warped_img']
         # return img
 
@@ -404,7 +416,7 @@ class Pipeline:
                     text_fields['warped_img'][i] = cv2.rotate(text_fields['warped_img'][i],
                                                               cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-        self.results.meta_results = self.results.meta_results | result
+        self.results._meta_results = self.results._meta_results | result
 
 
 
@@ -456,7 +468,7 @@ class Pipeline:
                 result[bbox[-1]] = {'patches': words,
                                     'ocr': []}
 
-        self.results.meta_results[self.words_detector.model_name] = result
+        self.results._meta_results[self.words_detector.model_name] = result
         return result
 
     def _ocr(self, words_dict: dict, doc_type:str):
@@ -500,8 +512,8 @@ class Pipeline:
 
 
         # saving both OCR clear result and OCR of each patch
-        self.results.meta_results['OCR'] = ocr_dict
-        # self.results.meta_results[self.words_detector.model_name] = words_dict
+        self.results._meta_results['OCR'] = ocr_dict
+        # self.results._meta_results[self.words_detector.model_name] = words_dict
 
     def _model_call(self, func, *args, **kwargs):
         """ Wrapper for making timing calculations."""
@@ -525,12 +537,12 @@ class Pipeline:
         if isinstance(img_path, Path):
             img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            self.results.meta_results['image_path'] = img_path.as_posix()
+            self.results._meta_results['image_path'] = img_path.as_posix()
         elif isinstance(img_path, str):
             img_path = Path(img_path)
             img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            self.results.meta_results['image_path'] = img_path
+            self.results._meta_results['image_path'] = img_path
         elif isinstance(img_path, np.ndarray):
             img = img_path
         else:
@@ -542,7 +554,7 @@ class Pipeline:
         new_h, new_w = int(h // ratio), int(w // ratio)
         img = cv2.resize(img, dsize=(new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
-        self.results.meta_results['original_img'] = img
+        self.results._meta_results['original_img'] = img
 
         return img
 
