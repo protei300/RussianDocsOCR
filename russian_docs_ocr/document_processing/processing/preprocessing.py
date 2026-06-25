@@ -259,6 +259,16 @@ class OBBPreprocessing(YoloPreprocessing):
     """
 
     def __call__(self, image_path: Union[Path, str, np.ndarray]):
+        """Runs the YOLO letterbox pipeline and converts the tensor to NCHW /255.
+
+        Args:
+            image_path: Image path, str or array to preprocess.
+
+        Returns:
+            Tuple of the [1, 3, H, W] float tensor normalized to [0, 1] and the
+            padding metadata (pad ratio, extra padding, padding to size, padded
+            image shape) used to map detections back to original coordinates.
+        """
         tensor, pad_ratio, pad_add_extra, pad_add_to_size, padded_image_shape = super().__call__(image_path)
         # tensor: [1, H, W, 3] uint8/float 0-255  ->  [1, 3, H, W] float /255
         tensor = tensor.astype(np.float32).transpose(0, 3, 1, 2) / 255.0

@@ -31,6 +31,7 @@ class DocDeskewer:
         min_angle: float = 0.5,
         scale: float = 0.3,
     ):
+        """Initializes the deskewer (see class docstring for argument meanings)."""
         self.angles = np.linspace(-angle_range, angle_range, angle_steps)
         self.min_angle = min_angle
         self.scale = scale
@@ -56,12 +57,16 @@ class DocDeskewer:
     # ------------------------------------------------------------------
 
     def _deskew_single(self, img: np.ndarray) -> np.ndarray:
+        """Deskew a single page; returns the image unchanged if the detected
+        tilt is below ``min_angle``."""
         angle = self._find_angle(img)
         if abs(angle) < self.min_angle:
             return img
         return self._rotate(img, angle)
 
     def _deskew_two_page(self, img: np.ndarray) -> np.ndarray:
+        """Deskew each vertical half independently (open-passport spine bend),
+        stacking the results back together."""
         h = img.shape[0]
         mid = h // 2
         upper = img[:mid]
@@ -107,6 +112,8 @@ class DocDeskewer:
         return float(self.angles[best_idx])
 
     def _rotate(self, img: np.ndarray, angle: float) -> np.ndarray:
+        """Rotate the image about its center by ``angle`` degrees (replicating
+        border pixels to avoid black corners)."""
         h, w = img.shape[:2]
         M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), angle, 1.0)
         return cv2.warpAffine(img, M, (w, h),

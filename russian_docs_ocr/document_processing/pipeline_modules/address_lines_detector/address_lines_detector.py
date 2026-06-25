@@ -16,6 +16,7 @@ class AddressLinesDetector(BaseModule):
     """
 
     def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool = False):
+        """Initializes the oriented address-line detection model."""
         self.model_name = 'AddressLinesDetector'
         super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose)
 

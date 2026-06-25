@@ -701,9 +701,25 @@ class YOLOOBBDetectionModel(Model):
 
     def __init__(self, model_type, preprocessings: List[OBBPreprocessing], model_inference: ModelInference,
                  postprocessings: List[YOLOOBBDetectorPostprocessing]):
+        """Initialize the OBB detection model.
+
+        Args:
+            model_type (str): Type of the model.
+            preprocessings (List[OBBPreprocessing]): OBB preprocessing.
+            model_inference (ModelInference): Model to make predictions.
+            postprocessings (List[YOLOOBBDetectorPostprocessing]): OBB postprocessing.
+        """
         super().__init__(model_type, preprocessings, model_inference, postprocessings)
 
     def predict(self, img: Union[Path, np.ndarray]):
+        """Runs the OBB detection pipeline with postprocessing.
+
+        Args:
+            img (Union[Path, np.ndarray]): Image to detect oriented boxes in.
+
+        Returns:
+            list: oriented detections in original-image coordinates.
+        """
         tensor, pad_ratio, pad_extra, pad_to_size, _ = self.preprocessings[0](img)
         inf_result = self.inference_model.predict([tensor, ])
 
@@ -717,6 +733,14 @@ class YOLOOBBDetectionModel(Model):
         return result
 
     def predict_fv(self, img: Union[Path, np.ndarray]):
+        """OBB pipeline without postprocessing.
+
+        Args:
+            img (Union[Path, np.ndarray]): Image to predict on.
+
+        Returns:
+            Raw squeezed inference output (the OBB head tensor).
+        """
         tensor, *_ = self.preprocessings[0](img)
         inf_result = self.inference_model.predict([tensor, ])
         return np.squeeze(inf_result[0] if isinstance(inf_result, list) else inf_result)

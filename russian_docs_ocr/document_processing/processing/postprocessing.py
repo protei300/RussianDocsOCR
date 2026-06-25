@@ -416,12 +416,32 @@ class YOLOOBBDetectorPostprocessing(BasePostprocessing):
     """
 
     def __init__(self, labels: list, iou=0.45, cls=0.25, verbose=False):
+        """Initialize OBB postprocessing parameters.
+
+        Args:
+            labels (list): class label names.
+            iou (float): rotated-IoU threshold for NMS.
+            cls (float): confidence threshold.
+            verbose (bool): enable verbose output.
+        """
         super().__init__(verbose)
         self.iou = iou
         self.cls = cls
         self.labels = labels
 
     def __call__(self, vector: np.ndarray, **kwargs):
+        """Decode the raw OBB head output into oriented detections.
+
+        Args:
+            vector (np.ndarray): raw OBB head output, ``[4+nc+1, n_anchors]`` or
+                its transpose.
+            **kwargs: may carry ``padding_meta`` (pad/ratio) to rescale boxes
+                back to original-image coordinates.
+
+        Returns:
+            list: detections ``[cx, cy, w, h, angle, conf, cls_idx, label]`` in
+            original-image coordinates, ordered top-to-bottom then left-to-right.
+        """
         if kwargs.get('padding_meta') is None:
             padding_meta = {'pad_to_size': (0, 0), 'pad_extra': (0, 0), 'ratio': (1, 1)}
         else:
