@@ -152,70 +152,158 @@ def get_len(list_of_coords):
     return approx
 
 
-def fix_perspective(img: np.ndarray, segments: np.ndarray, ):
-    """Fix perspective of doc image using segments.
+def order_points(pts):
+    """Order 4 points as top-left, top-right, bottom-right, bottom-left.
+
+    Uses the coordinate sum/difference method which is robust to rotation:
+    the top-left has the smallest x+y, the bottom-right the largest; the
+    top-right has the smallest y-x, the bottom-left the largest.
 
     Args:
-        img: Input document image
-        segments: Document segment coordinates
+        pts: array-like of 4 (x, y) points.
 
     Returns:
-        warped: Rectified document image
-        border_img: Image with segment borders drawn
+        np.ndarray (4, 2) float32 ordered [TL, TR, BR, BL].
     """
-    cnts, imgs = [], []
+    pts = np.asarray(pts, dtype=np.float32).reshape(-1, 2)
+    rect = np.zeros((4, 2), dtype=np.float32)
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]       # TL: min(x + y)
+    rect[2] = pts[np.argmax(s)]       # BR: max(x + y)
+    d = np.diff(pts, axis=1)[:, 0]    # y - x
+    rect[1] = pts[np.argmin(d)]       # TR: min(y - x)
+    rect[3] = pts[np.argmax(d)]       # BL: max(y - x)
+    return rect
+
+
+def extract_quad(contour):
+    """Extract a 4-point quadrilateral from a segmentation contour.
+
+    Tries convex hull + adaptive polygon approximation; falls back to the
+    minimum-area rotated rectangle (which always yields 4 corners).
+
+    Args:
+        contour: array-like (N, 2) contour points.
+
+    Returns:
+        np.ndarray (4, 2) float32, or None if the contour is degenerate.
+    """
+    cnt = np.asarray(contour, dtype=np.float32).reshape(-1, 2)
+    if len(cnt) < 4:
+        return None
+    hull = cv2.convexHull(cnt)
+    peri = cv2.arcLength(hull, True)
+    for frac in (0.01, 0.02, 0.03, 0.05, 0.08, 0.1, 0.15):
+        approx = cv2.approxPolyDP(hull, frac * peri, True).reshape(-1, 2)
+        if len(approx) == 4:
+            return approx.astype(np.float32)
+    return cv2.boxPoints(cv2.minAreaRect(cnt)).astype(np.float32)
+
+
+def four_point_transform(img: np.ndarray, quad: np.ndarray):
+    """Warp a quadrilateral to an axis-aligned rectangle.
+
+    The output size is derived from the real side lengths of the quad, so the
+    document aspect ratio is preserved (no stretching of tilted documents).
+
+    Args:
+        img: Source image.
+        quad: 4 points (any order — they are canonically reordered).
+
+    Returns:
+        Warped image, or None if the target rectangle is degenerate.
+    """
+    rect = order_points(quad)
+    tl, tr, br, bl = rect
+    width = int(round(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl))))
+    height = int(round(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl))))
+    if width < 2 or height < 2:
+        return None
+    dst = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]],
+                   dtype=np.float32)
+    M = cv2.getPerspectiveTransform(rect, dst)
+    return cv2.warpPerspective(img, M, (width, height), flags=cv2.INTER_LINEAR)
+
+
+def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto'):
+    """Fix perspective of a document image using segmentation contours.
+
+    Each segment is rectified independently with a robust four-point
+    transform. When two documents are present (e.g. a passport spread) they
+    are merged according to ``stack``:
+      - 'auto'       : direction chosen from the pages' actual layout —
+                       side-by-side -> horizontal, stacked -> vertical (default)
+      - 'horizontal' : force left-to-right, common height, np.hstack
+      - 'vertical'   : force top-to-bottom, common width, np.vstack
+
+    Args:
+        img: Input document image (H, W, 3).
+        segments: List of contours (each (N, 2)) from the segmentation model.
+        stack: Multi-document merge direction ('auto', 'horizontal', 'vertical').
+
+    Returns:
+        warped: Rectified image (or the original if no valid quad is found).
+        cnt_img: Original image with the detected quadrilaterals drawn.
+    """
+    quads, warps = [], []
 
     for cnt in segments:
-        peri = cv2.arcLength(cnt, True)
-        approx = cv2.approxPolyDP(cnt, 0.01 * peri, True)
-        approx = approx.reshape(approx.shape[0], -1)
-        approx = sort_coordinates(approx)
-        # print(approx)
-
-
-
-
-        if approx.shape[0] != 4:
-            approx = get_len(approx)
-
-        if approx.shape[0] !=4: #if we fail to find 4 points then just skip
+        quad = extract_quad(cnt)
+        if quad is None:
             continue
-
-        approx[:, 0] = np.where(approx[:, 0] > img.shape[1], img.shape[1], approx[:, 0])
-        approx[:, 1] = np.where(approx[:, 1] > img.shape[0], img.shape[0], approx[:, 1])
-
-        top_left = [0, 0]
-        bottom_right = approx.max(axis=0) - approx.min(axis=0)
-        top_right = [top_left[0], bottom_right[1]]
-        bottom_left = [bottom_right[0], top_left[0]]
-
-        ideal_marks = np.vstack([top_left,
-                                 top_right,
-                                 bottom_right,
-                                 bottom_left], )
-
-
-        M = cv2.getPerspectiveTransform(approx, ideal_marks.astype(np.float32))
-        imgs.append(cv2.warpPerspective(img.copy(), M, bottom_right.astype(np.int32), flags=cv2.INTER_LINEAR))
-        cnts.append(approx)
+        rect = order_points(quad)
+        # clip corners to image bounds
+        rect[:, 0] = np.clip(rect[:, 0], 0, img.shape[1])
+        rect[:, 1] = np.clip(rect[:, 1], 0, img.shape[0])
+        warped = four_point_transform(img, rect)
+        if warped is None:
+            continue
+        quads.append(rect)
+        warps.append(warped)
 
     cnt_img = img.copy()
-    for cnt in cnts:
-        cnt_img = cv2.polylines(cnt_img, [cnt.astype(np.int32)], True, (255, 0, 0), 4)
+    for q in quads:
+        cnt_img = cv2.polylines(cnt_img, [q.astype(np.int32)], True, (255, 0, 0), 4)
 
-    if 1 < len(cnts) :
-        imgs[1] = cv2.resize(imgs[1], imgs[0].shape[:2][::-1], cv2.INTER_LINEAR)
-        if cnts[0][0, 1] > cnts[1][0, 1]:
-            warpimg = np.vstack(imgs[::-1])
-        else:
-            warpimg = np.vstack(imgs)
-    elif len(imgs)>0:
-        warpimg = imgs[0]
+    if not warps:
+        return img, cnt_img
+    if len(warps) == 1:
+        return warps[0], cnt_img
+
+    # multiple documents (two pages of a spread): decide merge direction.
+    # 'auto' picks it from the pages' actual layout — if their centroids are
+    # further apart horizontally than vertically they sit side by side
+    # (stitch left->right), otherwise one above the other (stitch top->bottom).
+    if stack == 'auto':
+        c = [q.mean(axis=0) for q in quads]
+        dx = abs(c[0][0] - c[1][0])
+        dy = abs(c[0][1] - c[1][1])
+        direction = 'horizontal' if dx >= dy else 'vertical'
     else:
-        warpimg = img
+        direction = stack
 
+    if direction == 'horizontal':
+        # side by side, left-to-right by leftmost x, common height
+        order = np.argsort([q[:, 0].min() for q in quads])
+        warps = [warps[i] for i in order]
+        common_h = min(w.shape[0] for w in warps)
+        warps = [
+            cv2.resize(w, (max(1, int(round(w.shape[1] * common_h / w.shape[0]))), common_h),
+                       interpolation=cv2.INTER_LINEAR)
+            for w in warps
+        ]
+        return np.hstack(warps), cnt_img
 
-    return warpimg, cnt_img
+    # vertical: top-to-bottom by topmost y, common width
+    order = np.argsort([q[:, 1].min() for q in quads])
+    warps = [warps[i] for i in order]
+    common_w = min(w.shape[1] for w in warps)
+    warps = [
+        cv2.resize(w, (common_w, max(1, int(round(w.shape[0] * common_w / w.shape[1])))),
+                   interpolation=cv2.INTER_LINEAR)
+        for w in warps
+    ]
+    return np.vstack(warps), cnt_img
 
 
 

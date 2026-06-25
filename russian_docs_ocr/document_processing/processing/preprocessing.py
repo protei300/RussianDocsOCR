@@ -44,17 +44,19 @@ class BasePreprocessing(object):
         Returns:
             Loaded RGB image array
         """
-        if isinstance(image_path, Path) or isinstance(image_path, str):
-            image = cv2.imread(image_path.as_posix() if isinstance(image_path, Path) else image_path)
-            if image is None:
-                raise Exception(f"Not an image {image_path}")
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if isinstance(image_path, Path):
+            img = cv2.imdecode(np.frombuffer(image_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        elif isinstance(image_path, str):
+            img_path = Path(image_path)
+            img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         elif isinstance(image_path, np.ndarray):
-            image = image_path
+            img = image_path
         else:
-            raise Exception("Unsupported Image Type")
+            raise Exception("Unsupported image type")
 
-        return image
+        return img
     def padding(self, img: np.array):
         """Adds padding of padding_size with padding_color.
 
@@ -129,7 +131,6 @@ class ClassificationPreprocessing(BasePreprocessing):
         image = cv2.resize(image, self.image_size[:2])
         if len(image.shape) == 3:
             image = np.expand_dims(image,0)
-
         return image
 
 
@@ -248,6 +249,22 @@ class YoloPreprocessing(BasePreprocessing):
         return im, ratio, (dw, dh)
 
 
+class OBBPreprocessing(YoloPreprocessing):
+    """Preprocessing for YOLO oriented-bbox (OBB) models.
+
+    Reuses the YOLO letterbox pipeline, but emits an NCHW float tensor
+    normalized to [0, 1] (standard ultralytics ONNX export expects
+    channels-first input scaled by 1/255), instead of the NHWC 0-255
+    tensor used by the legacy baked-normalization detectors.
+    """
+
+    def __call__(self, image_path: Union[Path, str, np.ndarray]):
+        tensor, pad_ratio, pad_add_extra, pad_add_to_size, padded_image_shape = super().__call__(image_path)
+        # tensor: [1, H, W, 3] uint8/float 0-255  ->  [1, 3, H, W] float /255
+        tensor = tensor.astype(np.float32).transpose(0, 3, 1, 2) / 255.0
+        return tensor, pad_ratio, pad_add_extra, pad_add_to_size, padded_image_shape
+
+
 class OCRPreprocessing(BasePreprocessing):
     """Preprocessing for OCR models.
 
@@ -285,6 +302,8 @@ class OCRPreprocessing(BasePreprocessing):
         image = super().__call__(image_path)
 
         image = self.padding(image)
+        image = image[None, ..., None]
+
 
         return image
 

@@ -2,7 +2,7 @@ import string
 import numpy as np
 from pathlib import Path
 import cv2
-
+np.set_printoptions(legacy='1.25')
 
 class BasePostprocessing:
     """Base class for postprocessing steps.
@@ -16,6 +16,8 @@ class BasePostprocessing:
         Defaults to False.
 
     """
+    verbose=False
+
 
     def __init__(self, verbose: bool = False):
         """Initialize the postprocessing object.
@@ -69,6 +71,7 @@ class BinaryClassPostprocessing(BasePostprocessing):
             str: Class label
             float: Confidence probability
         """
+        probability = probability.ravel()
         return self.labels[0 if probability[0] < self.threshold else 1], probability[0]
 
 
@@ -109,8 +112,11 @@ class OCRPostprocessing(BasePostprocessing):
             str: Decoded text string
         """
 
-        labels = string.digits + string.ascii_uppercase + "%'(),-./:*#" if self.lang == 'eng' \
-            else "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ.-"
+        labels = string.digits + string.ascii_uppercase + "%'(),-./:*#" if self.lang == 'eng' else \
+            "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ.-"
+
+
+        output_value = np.ravel(output_value)
 
 
         decoded = ''.join([labels[x] for x in output_value if x > -1 ])
@@ -130,7 +136,7 @@ class MetricPostprocessing(BasePostprocessing):
         import pandas as pd
 
         super().__init__(verbose)
-        self.metric = metric
+        self.metric = metric.lower()
         if self.metric == 'cosine':
             self.radius = 1
         elif self.metric == 'euclidean':
@@ -152,9 +158,9 @@ class MetricPostprocessing(BasePostprocessing):
         vector = vector.reshape(1,-1)
 
         pred = nn.radius_neighbors(vector, return_distance=True, sort_results=True)
-        pred_dist = pred[0][0][0]
         pred_label = self.centers.index[pred[1][0][0]]
-        threshold = self.centers.distance[pred_label]
+        pred_dist = float(pred[0][0][0])
+        threshold = float(self.centers.max_distance[pred_label])
         if pred_dist < threshold:
             return pred_label, pred_dist, threshold
         else:
@@ -198,7 +204,7 @@ class MultiClassPostprocessing(BasePostprocessing):
         return self.labels[probability.argmax()], probability.max(initial = 0)
 
 
-class YoloDetectorPostprocessing(BasePostprocessing):
+class YOLODetectorPostprocessing(BasePostprocessing):
     """
     Class for postprocessing YOLO detector predictions
     and preparing detection results
@@ -388,7 +394,107 @@ class YoloDetectorPostprocessing(BasePostprocessing):
         return picked_boxes_index
 
 
-class YoloSegmentorPostprocessing(BasePostprocessing):
+class YOLOOBBDetectorPostprocessing(BasePostprocessing):
+    """Postprocessing for YOLO oriented-bbox (OBB) detectors.
+
+    Decodes the raw ultralytics OBB head output and returns oriented
+    detections in original-image coordinates.
+
+    Raw output layout (after squeeze): ``[4 + n_classes + 1, n_anchors]``
+    or its transpose. Columns per anchor are
+    ``[cx, cy, w, h, cls_0..cls_{n-1}, angle]`` where ``angle`` is in
+    radians (ultralytics convention, clockwise-positive in image space).
+
+    Returns a list of detections, each
+    ``[cx, cy, w, h, angle, conf, cls_idx, label]`` in the coordinate
+    system of the original (pre-letterbox) image.
+
+    Attributes:
+        iou (float): rotated-IoU threshold for NMS.
+        cls (float): confidence threshold.
+        labels (list): class label names.
+    """
+
+    def __init__(self, labels: list, iou=0.45, cls=0.25, verbose=False):
+        super().__init__(verbose)
+        self.iou = iou
+        self.cls = cls
+        self.labels = labels
+
+    def __call__(self, vector: np.ndarray, **kwargs):
+        if kwargs.get('padding_meta') is None:
+            padding_meta = {'pad_to_size': (0, 0), 'pad_extra': (0, 0), 'ratio': (1, 1)}
+        else:
+            padding_meta = kwargs['padding_meta']
+
+        if vector is None or vector.size == 0:
+            return []
+
+        # ensure [n_anchors, features]
+        if vector.shape[0] < vector.shape[1]:
+            vector = vector.T
+
+        n_classes = len(self.labels)
+        box = vector[:, :4]                       # cx, cy, w, h
+        det = vector[:, 4:4 + n_classes]          # class scores
+        angle = vector[:, 4 + n_classes]          # radians
+
+        conf = det.max(axis=1)
+        cls_idx = det.argmax(axis=1)
+
+        m = conf > self.cls
+        if not m.any():
+            return []
+        box, conf, cls_idx, angle = box[m], conf[m], cls_idx[m], angle[m]
+
+        keep = self.rotated_nms(box, angle, conf, self.iou)
+
+        results = []
+        for i in keep:
+            cx, cy, w, h = box[i]
+            a = float(angle[i])
+            # rescale center/size from letterboxed space back to original
+            cx = (cx - padding_meta['pad_to_size'][0]) / padding_meta['ratio'][0] - padding_meta['pad_extra'][0]
+            cy = (cy - padding_meta['pad_to_size'][1]) / padding_meta['ratio'][1] - padding_meta['pad_extra'][1]
+            w = w / padding_meta['ratio'][0]
+            h = h / padding_meta['ratio'][1]
+            label = self.labels[int(cls_idx[i])] if self.labels else int(cls_idx[i])
+            results.append([float(cx), float(cy), float(w), float(h), a,
+                            float(conf[i]), int(cls_idx[i]), label])
+
+        # reading order: top-to-bottom, then left-to-right
+        results.sort(key=lambda r: (round(r[1] / 10), r[0]))
+        return results
+
+    @staticmethod
+    def rotated_iou(a, b):
+        """Rotated-rect IoU via OpenCV intersection.
+
+        a, b: (cx, cy, w, h, angle_rad)
+        """
+        ra = ((a[0], a[1]), (a[2], a[3]), np.degrees(a[4]))
+        rb = ((b[0], b[1]), (b[2], b[3]), np.degrees(b[4]))
+        ret, region = cv2.rotatedRectangleIntersection(ra, rb)
+        if region is None:
+            return 0.0
+        inter = cv2.contourArea(region)
+        union = a[2] * a[3] + b[2] * b[3] - inter
+        return inter / union if union > 0 else 0.0
+
+    @classmethod
+    def rotated_nms(cls, box, angle, conf, iou_thresh):
+        """Greedy NMS using rotated IoU. Returns kept indices."""
+        order = np.argsort(-conf).tolist()
+        kept = []
+        rects = [(box[i][0], box[i][1], box[i][2], box[i][3], angle[i]) for i in range(len(conf))]
+        while order:
+            i = order.pop(0)
+            kept.append(i)
+            order = [j for j in order if cls.rotated_iou(rects[i], rects[j]) < iou_thresh]
+        return kept
+
+
+class YOLOSegmentorPostprocessing(BasePostprocessing):
     """Postprocessing for YOLO segmentation models.
 
     Transforms raw masks into final masks and segments.

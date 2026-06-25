@@ -1,7 +1,8 @@
-Angle90: models\Angles90
 DocDetector: models\Borders
 TextFieldsDetector: models\TextFields
-DocType: models\DocType
+AddressLinesDetector: models\AddressLines
+AddressTextKindClassifier: models\AddressTextKind
+DocTypeAngles: models\DocTypeAngles
 Blur: models\Blur
 Glare: models\Glare
 LCDSpoofing: models\LCDSpoofing

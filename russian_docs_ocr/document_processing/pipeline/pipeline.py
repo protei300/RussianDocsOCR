@@ -29,6 +29,9 @@ class OCROptionsClass:
     """bool: Whether this doc type needs license number rotation."""
     needs_licence_rotation = False
 
+    """bool: Whether this doc type has a multi-line registration address to OCR."""
+    has_address = False
+
 
     @classmethod
     def make_options(cls, doc_type):
@@ -40,7 +43,10 @@ class OCROptionsClass:
         Returns:
             OCROptionsClass instance with options for the document type.
         """
-        if 'intpassport' in doc_type.lower():
+        # NOTE: 'intpassportaddr' contains 'intpassport', so it MUST be checked first.
+        if 'intpassportaddr' in doc_type.lower():
+            return OCROptionsINTPASSPORTADDR()
+        elif 'intpassport' in doc_type.lower():
             return OCROptionsINTPassport()
         elif 'extpassport' in doc_type.lower():
             return OCROptionsEXTPassport()
@@ -60,6 +66,18 @@ class OCROptionsINTPassport(OCROptionsClass):
     ru_fields = ["Last_name_ru", "First_name_ru", "Birth_place_ru", "Issue_organization_ru",
                  "Living_region_ru", "Middle_name_ru", "Sex_ru"]
     needs_licence_rotation = True
+
+class OCROptionsINTPASSPORTADDR(OCROptionsClass):
+    """OCR options for the registration ('place of residence') page of an
+    internal Russian passport. Only the multi-line registration address is
+    recognized (printed text), via the Address_line detections produced by
+    the address-lines detector."""
+
+    needed_split = []
+    en_fields = []
+    ru_fields = []
+    has_address = True
+    needs_licence_rotation = False
 
 class OCROptionsEXTPassport(OCROptionsClass):
     """OCR options for external Russian passports."""
@@ -132,12 +150,17 @@ class PipelineResults:
         return self.meta_results['Angle90']['warped_img']
 
     @property
+    def angle(self):
+        """Gets image angle by the Angle90 stage."""
+        return self.meta_results['Angle90']['angle']
+
+    @property
     def img_with_fixed_perspective(self) -> Union[list, None]:
         """Get result from doc detection net"""
         if self.meta_results.get('DocDetector'):
             return self.meta_results['DocDetector']['warped_img']
         else:
-            return None
+            return self.rotated_image
 
     @property
     def text_fields(self) -> Union[Tuple[list, list], None]:
@@ -208,10 +231,16 @@ class Pipeline:
             verbose (bool): Whether to print debug information.
         """
         print(f'DEVICE: {device}')
-        self.angle90 = Angle90(model_format=model_format, device=device, verbose=verbose)
-        self.doctype = DocType(model_format=model_format, device=device, verbose=verbose)
+        self.doctype_angles = DocTypeAngles(model_format=model_format, device=device, verbose=verbose)
         self.doc_detector = DocDetector(model_format=model_format, device=device, verbose=verbose)
         self.text_fields = TextFieldsDetector(model_format=model_format, device=device, verbose=verbose)
+        # oriented (rotated) address-line detector for the INTPASSPORTADDR page
+        self.address_lines = AddressLinesDetector(model_format='ONNX' if model_format == 'OpenVINO' else model_format,
+                                                  device=device, verbose=verbose)
+        # printed-vs-handwritten classifier for address lines (OCR is printed-only)
+        self.address_textkind = AddressTextKindClassifier(
+            model_format='ONNX' if model_format == 'OpenVINO' else model_format,
+            device=device, verbose=verbose)
         self.words_detector = WordsDetector(model_format=model_format, device=device, verbose=verbose)
         self.ocr_ru = OCRRus(model_format='ONNX' if model_format == 'OpenVINO' else model_format,
                              device=device, verbose=verbose)
@@ -221,6 +250,10 @@ class Pipeline:
         self.print_spoofing = PrintSpoofing(model_format=model_format, device=device, verbose=verbose)
         self.glare = Glare(model_format=model_format, device=device, verbose=verbose)
         self.blur = Blur(model_format=model_format, device=device, verbose=verbose)
+        # residual-tilt correction after perspective fix (projection-profile based).
+        # min_angle=2.0: skip small/noisy estimates (handwriting has irregular
+        # baselines that yield spurious ~1-2deg) and only fix real tilts.
+        self.deskewer = DocDeskewer(angle_range=10.0, angle_steps=101, min_angle=2.0, scale=0.4)
         self.ocr_options = OCROptionsClass
 
     def __call__(self, img_path: Union[Path, str, np.ndarray],
@@ -255,12 +288,10 @@ class Pipeline:
 
         self.time_measure = {}
 
-        #getting angles
-        self._model_call(self._angle, img)
+        # unified doctype + angle classification, then rotate upright
+        self._model_call(self._doctype_angle, img)
         img = self.results.rotated_image
 
-        #getting doctype and conf
-        self._model_call(self._doctype, img)
         doc_type = self.results.doctype
         if doc_type == 'NONE':
             print("[!] The document on picture has unknown type")
@@ -288,6 +319,10 @@ class Pipeline:
         if get_doc_borders:
             self._model_call(self._doc_detector, img)
             img = self.results.img_with_fixed_perspective
+            # correct residual tilt so text lines are horizontal (helps field
+            # detection, line/word splitting and OCR; train==inference)
+            self._model_call(self._deskew, img)
+            img = self.results.img_with_fixed_perspective
 
         # detecting fields
         if find_text_fields:
@@ -298,6 +333,10 @@ class Pipeline:
         else:
             return self.results
 
+        # registration address (INTPASSPORTADDR): detect address lines, order by Y,
+        # split each line into words and OCR (printed text)
+        if ocr and getattr(self.ocr_options, 'has_address', False):
+            self._model_call(self._address_lines, img)
 
         #splitting words
         if text_fields:
@@ -311,36 +350,13 @@ class Pipeline:
         return self.results
 
 
-    def _angle(self, img):
-        """
-        Detect and fix angle of image.
-
-        Args:
-            img: Input image as numpy array.
-
-        Returns:
-            np.ndarray: Image with fixed angle.
-        """
-        result = self.angle90.predict_transform(img)
-        self.results.meta_results = self.results.meta_results | result
-        # return result[self.angle90.model_name]['warped_img']
-
-    def _doctype(self, img):
-        """
-        Detect document type and confidence.
-
-        Args:
-            img: Input image
-
-        Returns:
-            str: Detected document type
-            float: Confidence score
-        """
-        result = self.doctype.predict(img)
-        doc_type, confidence = result[self.doctype.model_name].values()
+    def _doctype_angle(self, img):
+        """Classify document type and its angle, and rotate the image upright."""
+        result = self.doctype_angles.predict_transform(img)
+        doc_type, confidence = result['DocType'].values()
         self.results.meta_results['DocType'] = doc_type
         self.results.meta_results['Quality']['DocConf'] = confidence
-        return doc_type
+        self.results.meta_results['Angle90'] = result['Angle90']
 
     def _glare(self, img):
         """Check for glare quality"""
@@ -378,10 +394,125 @@ class Pipeline:
         Returns:
             np.ndarray: Image with fixed perspective
         """
-        result = self.doc_detector.predict_transform(img)
+        # Only internal passports are photographed as a two-page spread; all
+        # other doc types are single cards/pages, so keep just the largest
+        # segment (prevents background blobs from being stitched in). The
+        # stitch direction is chosen automatically from the pages' layout.
+        doc_type = (self.results.doctype or '')
+        is_spread = 'intpassport' in doc_type.lower()
+        max_pages = 2 if is_spread else 1
+        result = self.doc_detector.predict_transform(img, stack='auto', max_pages=max_pages)
         self.results.meta_results = self.results.meta_results | result
         # img = result[self.doc_detector.model_name]['warped_img']
         # return img
+
+    def _deskew(self, img):
+        """Correct residual tilt of the perspective-fixed canvas and store it
+        back so img_with_fixed_perspective returns the deskewed image."""
+        desk = self.deskewer.deskew(img)
+        if self.results.meta_results.get('DocDetector'):
+            self.results.meta_results['DocDetector']['warped_img'] = desk
+        else:
+            # no doc_detector result (fallback path) -> stash under Angle90
+            self.results.meta_results.setdefault('Angle90', {})['warped_img'] = desk
+        return desk
+
+    def _address_lines(self, img):
+        """
+        Recognize the multi-line registration address (INTPASSPORTADDR).
+
+        Runs the oriented-bbox address-line detector directly on the
+        perspective-fixed canvas (it handles line tilt itself, so no deskew is
+        needed), yielding upright line patches already ordered top-to-bottom.
+        Each line is classified printed-vs-handwritten; printed lines are split
+        into words and OCR'd with the printed Russian model, handwritten lines
+        are flagged (OCR is printed-only) and kept as a placeholder so the line
+        order/structure is preserved.
+
+        Result is stored as results.meta_results['OCR']['Address'] — lines
+        joined by newline. Per-line kinds are stored under
+        meta_results['Address_lines'] and a handwritten flag on the OCR dict.
+
+        Args:
+            img: Perspective-fixed canvas.
+        """
+        result = self.address_lines.predict_transform(img)
+        self.results.meta_results = self.results.meta_results | result
+        line_patches = result[self.address_lines.model_name]['warped_img']
+
+        HW_PLACEHOLDER = '⟨рукопись⟩'
+        address_lines_text = []
+        line_meta = []
+        has_handwritten = False
+        for patch in line_patches:
+            if patch is None or patch.size == 0:
+                continue
+            kind, prob = self.address_textkind.predict(patch)[self.address_textkind.model_name]
+            if kind == 'handwritten':
+                has_handwritten = True
+                address_lines_text.append(HW_PLACEHOLDER)
+                line_meta.append({'kind': 'handwritten', 'p_handwritten': prob, 'text': None})
+                continue
+            # printed line: split into words (left-to-right) and OCR
+            words = self.words_detector.predict_transform(patch)[self.words_detector.model_name]['warped_img']
+            if not words:
+                words = [patch]
+            line_words = []
+            for word in words:
+                if word is None or word.size == 0:
+                    continue
+                text = self._route_word_ocr(word)
+                if text:
+                    line_words.append(text.strip())
+            line_text = ' '.join(line_words)
+            address_lines_text.append(line_text)
+            line_meta.append({'kind': 'printed', 'p_handwritten': prob, 'text': line_text})
+
+        self.results.meta_results['Address_lines'] = line_meta
+        if address_lines_text:
+            ocr_dict = self.results.meta_results.get('OCR') or {}
+            ocr_dict['Address'] = '\n'.join(address_lines_text)
+            ocr_dict['Address_has_handwritten'] = has_handwritten
+            self.results.meta_results['OCR'] = ocr_dict
+
+    def _route_word_ocr(self, word) -> str:
+        """Pick the right OCR model for an address word.
+
+        OCRRus has no digits and OCREngNums has no Cyrillic, so a house/flat
+        number is unreadable by the Russian model and a Cyrillic word is
+        unreadable by the eng+nums model. There is no usable per-model
+        confidence, so we run both and use the eng+nums result only when its
+        output is digit-dominated — the one signal that is reliable, since
+        digits can only come from eng+nums.
+        """
+        ru = self.ocr_ru.predict(word)[self.ocr_ru.model_name]['ocr_output']
+        en = self.ocr_en.predict(word)[self.ocr_en.model_name]['ocr_output']
+        return en if self._is_number_token(en) else ru
+
+    @staticmethod
+    def _is_number_token(en_text: str) -> bool:
+        """True if the eng+nums OCR output is digit-dominated (a number word
+        such as a house/building/flat number), i.e. at least one digit and
+        digits not outnumbered by letters among the alphanumeric characters."""
+        alnum = [c for c in (en_text or '') if c.isalnum()]
+        if not alnum:
+            return False
+        digits = sum(c.isdigit() for c in alnum)
+        letters = len(alnum) - digits
+        return digits >= 1 and digits >= letters
+
+    @staticmethod
+    def _duplicate_field_indices(bboxes, unique_fields) -> set:
+        """For each field that must be unique, return the indices of all but the
+        highest-confidence detection (bbox layout: [x1,y1,x2,y2,conf,cls,label]).
+        Used to drop the duplicate series/number boxes on internal passports."""
+        drop = set()
+        for field in unique_fields:
+            idxs = [i for i, b in enumerate(bboxes) if b[-1] == field]
+            if len(idxs) > 1:
+                best = max(idxs, key=lambda i: bboxes[i][4])
+                drop.update(i for i in idxs if i != best)
+        return drop
 
     def _fields_detector(self, img, rotate_licence=False):
         """
@@ -421,22 +552,14 @@ class Pipeline:
 
         bboxes, patches = text_fields.values()
 
-        # we have 2 licence numbers, saving only best one
-        for block_name in ['Licence_number', 'Issue_organisation_code']:
-            block_number = []
-            for i, block in enumerate(text_fields['bbox']):
-                if block[-1] == block_name:
-                    block_number.append(i)
-            if len(block_number) == 2:
-                conf1 = text_fields['bbox'][block_number[0]][4]
-                conf2 = text_fields['bbox'][block_number[1]][4]
-                if conf1 > conf2:
-                    text_fields['bbox'].pop(block_number[1])
-                    text_fields['warped_img'].pop(block_number[1])
-                else:
-                    text_fields['bbox'].pop(block_number[0])
-                    text_fields['warped_img'].pop(block_number[0])
-
+        # The internal passport prints the series+number (and the FMS code)
+        # twice, so the detector returns duplicate boxes; keep only the
+        # highest-confidence one to avoid OCR'ing the same value twice.
+        UNIQUE_FIELDS = ('Licence_number', 'Issue_organisation_code')
+        drop = self._duplicate_field_indices(bboxes, UNIQUE_FIELDS)
+        if drop:
+            bboxes = [b for i, b in enumerate(bboxes) if i not in drop]
+            patches = [p for i, p in enumerate(patches) if i not in drop]
 
         result = {}
         for i, bbox in enumerate(bboxes):

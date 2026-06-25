@@ -2,6 +2,7 @@ import numpy as np
 from pathlib import Path
 import platform
 from importlib import import_module
+from typing import List
 
 
 class ModelInference:
@@ -86,7 +87,7 @@ class ModelInference:
             raise Exception("Unsupported model type TODO")
 
 
-    def predict(self, tensor:np.ndarray):
+    def predict(self, tensors: List[np.ndarray]):
         """Makes a prediction on the input tensor.
 
         Runs inference on the loaded model.
@@ -98,7 +99,7 @@ class ModelInference:
            numpy.ndarray: Output prediction
 
         """
-        print("[!] Not yet generated")
+        raise NotImplemented("Need to implement this method")
 
     def __load_h5(self, model_path:Path):
         if self.device == 'gpu':
@@ -150,25 +151,17 @@ class ModelInference:
     def __load_onnx(self, model_path: Path):
         onnx_model_path = model_path.as_posix()
         if self.device == 'gpu':
-            if 'CUDAExecutionProvider' not in self.ort.get_available_providers():
-                print(f"[!] {self.device} not found, using cpu")
-                providers = ['CPUExecutionProvider',]
-            else:
-                providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
         else:
             providers = ['CPUExecutionProvider', ]
         self.model = self.ort.InferenceSession(onnx_model_path, providers=providers)
-        inp_shape = self.model.get_inputs()[0].shape[1:]
-        ort_inputs = {self.model.get_inputs()[0].name: np.random.rand(*np.append(1, inp_shape)).astype(np.float32)}
+        inputs = self.model.get_inputs()
+        ort_inputs = {inp.name: np.random.rand(*np.append(1, inp.shape[1:])).astype(np.float32) for inp in inputs}
         self.model.run(None, ort_inputs)
 
     def __load_openvino(self, model_path: Path):
         core = self.openvino.Core()
         ov_model = self.openvino.convert_model(model_path)
-        devices_list = [x.split('.')[0] for x in core.available_devices]
-        if self.device.upper() not in devices_list:
-            print(f"[!] {self.device} not found, using cpu")
-            self.device='cpu'
         self.model = core.compile_model(ov_model, device_name=self.device.upper())
 
     def __load_coreml(self, model_path: Path):
@@ -204,13 +197,13 @@ class ModelInference:
         pred = result[0] if len(result) == 1 else result
         return pred
 
-    def __predict_onnx(self, tensor:  np.ndarray):
-        tensor = tensor.astype(np.float32)
-        ort_inputs = {self.model.get_inputs()[0].name: tensor}
+    def __predict_onnx(self, tensors:  List[np.ndarray]):
+        inputs = self.model.get_inputs()
+        ort_inputs = {inp.name: tensors[i].astype(np.float32) for i, inp in enumerate(inputs)}
 
         result = self.model.run(None, ort_inputs)
-        pred = result[0] if len(result) == 1 else result
-        return pred
+        # pred = result[0] if len(result) == 1 else result
+        return result
 
     def __predict_openvino(self, tensor: np.ndarray):
         result = self.model(tensor)
