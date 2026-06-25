@@ -34,7 +34,7 @@ class PrintSpoofing(BaseModule):
                 float: Confidence score
         """
         self.load_img(img)
-        result, conf = self.model.predict(img)
+        result, conf = self.model.predict(img)[0]
         if conf < self.threshold:
             meta = {
                 self.model_name: ('FAKE', conf)

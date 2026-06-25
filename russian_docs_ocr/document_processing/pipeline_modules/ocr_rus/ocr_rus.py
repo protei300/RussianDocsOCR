@@ -29,7 +29,7 @@ class OCRRus(BaseModule):
         """
         self.load_img(img)
 
-        ocr_output = self.model.predict(img)
+        ocr_output = self.model.predict(img)[0]
         meta = {
             self.model_name: {
                 'ocr_output': ocr_output

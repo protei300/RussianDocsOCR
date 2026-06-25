@@ -32,7 +32,7 @@ class LCDSpoofing(BaseModule):
                float: Confidence (0-1)
         """
         self.load_img(img)
-        result, conf = self.model.predict(img)
+        result, conf = self.model.predict(img)[0]
         meta = {
             self.model_name: (result, conf)
         }

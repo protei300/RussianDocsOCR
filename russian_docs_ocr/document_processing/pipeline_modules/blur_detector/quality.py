@@ -52,7 +52,7 @@ class QualityChecker(object):
                 x = self.window_size * x_step
                 y = self.window_size * y_step
                 frame_image = self.tested_image[y:y + self.window_size, x:x + self.window_size]
-                result = self.model.predict(frame_image)
+                result = self.model.predict(frame_image)[0]
                 # print(result)
                 result_class = result[0]
                 confidence = result[1]
