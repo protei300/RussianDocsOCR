@@ -1,7 +1,8 @@
 import sys
-sys.path.append('..')
-from document_processing import Pipeline
 from pathlib import Path
+# make the package importable when run from a source checkout (no-op once installed)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from russian_docs_ocr import Pipeline
 import pprint
 import argparse
 

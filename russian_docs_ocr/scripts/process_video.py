@@ -1,14 +1,15 @@
 # -*- coding: UTF-8 -*-
 import sys
-sys.path.append('..')
+from pathlib import Path
+# make the package importable when run from a source checkout (no-op once installed)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import cv2
 import os
 import time
-from document_processing import Pipeline
+from russian_docs_ocr import Pipeline
 import argparse
 import warnings
 
-sys.path.append('..')
 warnings.filterwarnings("ignore")
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
