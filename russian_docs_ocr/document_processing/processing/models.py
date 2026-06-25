@@ -144,10 +144,6 @@ class ModelLoader:
                     lang=output_info['Lang'],
                     verbose=self.verbose,
                 )
-            case "OCRFV":
-                return OCRFVPostprocessing(
-                    verbose=self.verbose,
-                )
 
 
 
@@ -613,23 +609,6 @@ class OCRModel(Model):
         inf_result = self.inference_model.predict(tensor)[0]
         result = self.postprocessings[0](inf_result)
         return result
-
-    def predict_fv(self, img: Union[Path, np.ndarray]):
-        """
-        ctc vector
-        """
-        tensor = self.preprocessing(img)
-        inf_result = self.inference_model.predict(np.expand_dims(np.expand_dims(tensor, -1), 0))[0]
-        return inf_result
-
-
-class OCRFVModel(Model):
-    def __init__(self, model_type:str,  preprocessing: OCRPreprocessing, model_inference: ModelInference,
-                 postprocessing: OCRPostprocessing):
-        super().__init__(model_type, preprocessing, model_inference, postprocessing)
-
-    def predict(self, img: Union[Path, np.ndarray]):
-        pass
 
     def predict_fv(self, img: Union[Path, np.ndarray]):
         """
