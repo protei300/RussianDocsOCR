@@ -1,10 +1,10 @@
 {
-    "Name": "model_2",
-    "Type": "MultiLabelClassification",
-    "Format": "OpenVINO",
+    "Name": "Glare",
     "File": "model.ir",
-    "Input": [
+    "ModelType": "UnifiedModel",
+    "Inputs": [
         {
+            "Type": "Classification",
             "Name": "input_6",
             "Shape": [
                 128,
@@ -26,19 +26,20 @@
             ]
         }
     ],
-    "Output": [
+    "Outputs": [
         {
-            "Name": "classifier/Softmax:0",
+            "Name": "classifier",
             "Shape": [
                 5
+            ],
+            "Type": "MultiLabelClassification",
+            "Labels": [
+                "Background",
+                "Blur10",
+                "Blur5",
+                "Faces",
+                "NonBlur"
             ]
         }
-    ],
-    "Labels": [
-        "Background",
-        "Blur10",
-        "Blur5",
-        "Faces",
-        "NonBlur"
     ]
 }

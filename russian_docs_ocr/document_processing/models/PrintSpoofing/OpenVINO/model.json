@@ -1,10 +1,10 @@
 {
-    "Name": "model_3",
-    "Type": "BinaryClassification",
-    "Format": "OpenVINO",
+    "Name": "PrintSpoofing",
     "File": "model.onnx.ir",
-    "Input": [
+    "ModelType": "UnifiedModel",
+    "Inputs": [
         {
+            "Type": "Classification",
             "Name": "input_7",
             "Shape": [
                 224,
@@ -26,17 +26,18 @@
             ]
         }
     ],
-    "Output": [
+    "Outputs": [
         {
-            "Name": "dense_3/Sigmoid:0",
+            "Name": "dense_3",
             "Shape": [
                 1
+            ],
+            "Type": "BinaryClassification",
+            "Threshold": 0.5,
+            "Labels": [
+                "FAKE",
+                "REAL"
             ]
         }
-    ],
-    "Labels": [
-        "FAKE",
-        "REAL"
-    ],
-    "Threshold": 0.5
+    ]
 }

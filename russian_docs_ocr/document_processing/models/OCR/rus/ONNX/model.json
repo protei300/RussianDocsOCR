@@ -1,12 +1,10 @@
 {
-    "Name": "model",
-    "Type": "OCR",
-    "Format": "ONNX",
+    "Name": "OCR_RUS",
     "File": "model.onnx",
-    "Lang": "rus",
-    "Alphabet": "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ.-",
-    "Input": [
+    "ModelType": "UnifiedModel",
+    "Inputs": [
         {
+            "Type": "OCR",
             "Name": "input_1",
             "Shape": [
                 31,
@@ -28,12 +26,14 @@
             ]
         }
     ],
-    "Output": [
+    "Outputs": [
         {
-            "Name": "decode/PadV2:0",
+            "Name": "decode",
             "Shape": [
-                50
-            ]
+                "unk__605"
+            ],
+            "Type": "OCR",
+            "Lang": "rus"
         }
     ]
 }

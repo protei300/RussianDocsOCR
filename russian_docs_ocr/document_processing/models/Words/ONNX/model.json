@@ -1,10 +1,10 @@
 {
-    "Name": "words_detection",
-    "Type": "YoloDetector",
-    "Format": "ONNX",
+    "Name": "Words",
     "File": "model.onnx",
-    "Input": [
+    "ModelType": "YOLODetection",
+    "Inputs": [
         {
+            "Type": "YOLO",
             "Name": "image_input",
             "Shape": [
                 640,
@@ -26,18 +26,19 @@
             ]
         }
     ],
-    "Output": [
+    "Outputs": [
         {
-            "Name": "permute/transpose:0",
+            "Name": "permute",
             "Shape": [
                 8400,
                 5
+            ],
+            "Type": "YOLODetector",
+            "IOU": 0.2,
+            "CLS": 0.2,
+            "Labels": [
+                "Word"
             ]
         }
-    ],
-    "IOU": 0.2,
-    "CLS": 0.6,
-    "Labels": [
-        "Word"
     ]
 }

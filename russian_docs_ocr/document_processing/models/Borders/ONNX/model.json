@@ -1,10 +1,10 @@
 {
-    "Name": "Document_Segmentation",
-    "Type": "YoloSegmentor",
-    "Format": "ONNX",
+    "Name": "Borders",
     "File": "model.onnx",
-    "Input": [
+    "ModelType": "YOLOSegmentation",
+    "Inputs": [
         {
+            "Type": "YOLO",
             "Name": "Image_input",
             "Shape": [
                 640,
@@ -16,8 +16,8 @@
                 1
             ],
             "PaddingSize": [
-                20,
-                20
+                0,
+                0
             ],
             "PaddingColor": [
                 114,
@@ -26,27 +26,29 @@
             ]
         }
     ],
-    "Output": [
+    "Outputs": [
         {
-            "Name": "Bbox/transpose:0",
+            "Name": "Bbox",
             "Shape": [
                 8400,
                 37
+            ],
+            "Type": "YOLODetector",
+            "IOU": 0.5,
+            "CLS": 0.6,
+            "Labels": [
+                "Document"
             ]
         },
         {
-            "Name": "Mask/Add:0",
+            "Name": "Mask",
             "Shape": [
                 160,
                 160,
                 32
-            ]
+            ],
+            "Type": "YOLOSegmentor",
+            "MaskFilter": 0.9
         }
-    ],
-    "IOU": 0.2,
-    "CLS": 0.6,
-    "Labels": [
-        "Document"
-    ],
-    "MaskFilter": 0.9
+    ]
 }

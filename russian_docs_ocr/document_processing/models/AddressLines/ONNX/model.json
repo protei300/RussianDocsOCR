@@ -1,0 +1,44 @@
+{
+    "Name": "AddressLines",
+    "File": "model.onnx",
+    "ModelType": "YOLOOBBDetection",
+    "Inputs": [
+        {
+            "Type": "YOLOOBB",
+            "Name": "images",
+            "Shape": [
+                1024,
+                1024,
+                3
+            ],
+            "Normalization": [
+                0,
+                1
+            ],
+            "PaddingSize": [
+                0,
+                0
+            ],
+            "PaddingColor": [
+                114,
+                114,
+                114
+            ]
+        }
+    ],
+    "Outputs": [
+        {
+            "Name": "output0",
+            "Shape": [
+                6,
+                21504
+            ],
+            "Type": "YOLOOBBDetector",
+            "IOU": 0.45,
+            "CLS": 0.25,
+            "Labels": [
+                "Living_region_ru"
+            ]
+        }
+    ]
+}

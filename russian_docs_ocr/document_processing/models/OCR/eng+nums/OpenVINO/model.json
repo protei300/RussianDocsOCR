@@ -1,11 +1,10 @@
 {
-    "Name": "model_2",
-    "Type": "OCR",
-    "Format": "OpenVINO",
+    "Name": "OCR_ENG_NUMS",
     "File": "model.onnx.ir",
-    "Lang": "eng",
-    "Input": [
+    "ModelType": "UnifiedModel",
+    "Inputs": [
         {
+            "Type": "OCR",
             "Name": "input_1",
             "Shape": [
                 31,
@@ -27,12 +26,14 @@
             ]
         }
     ],
-    "Output": [
+    "Outputs": [
         {
-            "Name": "decode/PadV2:0",
+            "Name": "decode",
             "Shape": [
-                50
-            ]
+                "unk__605"
+            ],
+            "Type": "OCR",
+            "Lang": "eng"
         }
     ]
 }

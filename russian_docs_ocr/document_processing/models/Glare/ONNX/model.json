@@ -1,10 +1,10 @@
 {
-    "Name": "model_1",
-    "Type": "BinaryClassification",
-    "Format": "ONNX",
+    "Name": "Glare",
     "File": "model.onnx",
-    "Input": [
+    "ModelType": "UnifiedModel",
+    "Inputs": [
         {
+            "Type": "Classification",
             "Name": "input_3",
             "Shape": [
                 128,
@@ -26,17 +26,18 @@
             ]
         }
     ],
-    "Output": [
+    "Outputs": [
         {
-            "Name": "dense_1/Sigmoid:0",
+            "Name": "dense_1",
             "Shape": [
                 1
+            ],
+            "Type": "BinaryClassification",
+            "Threshold": 0.5,
+            "Labels": [
+                "NO",
+                "GLARE"
             ]
         }
-    ],
-    "Labels": [
-        "NO",
-        "GLARE"
-    ],
-    "Threshold": 0.5
+    ]
 }
