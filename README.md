@@ -154,7 +154,7 @@ Linux
 
 #### Пример:
 ```python
-from document_processing import Pipeline
+from russian_docs_ocr import Pipeline
 
 pipeline = Pipeline(model_format='OpenVINO', device='cpu')
 result = pipeline(img_path='img.jpg')
@@ -166,7 +166,7 @@ print(result.ocr)
 
 #### Пример:
 ```python
-from document_processing.pipeline_modules import DocTypeAngles
+from russian_docs_ocr.document_processing.pipeline_modules import DocTypeAngles
 
 doctype_angles = DocTypeAngles(model_format='OpenVINO', device='cpu')
 result = doctype_angles.predict(img='img.jpg') # if we want to get only result from net (doctype + angle)
