@@ -26,7 +26,9 @@ class TestOCREngNums:
             gt = os.path.splitext(str(img))[0]
             gt = gt.split(os.path.sep)[-1]
             pred = model.predict(np.array(Image.open(img)))
-            assert pred == gt
+            # raw OCR model returns a single-element list; unwrap to the string
+            pred = pred[0] if isinstance(pred, (list, tuple)) else pred
+            assert pred == gt, f'{img}: {pred!r} != {gt!r}'
 
     def test_dates(self):
         ocr = ocr_engnums.OCREngNums()

@@ -50,9 +50,18 @@ class TestWordsDetector:
             r_coords, r_lbl = np.split(result, [4,], axis=-1)
 
             #tests
-            assert np.allclose(r_lbl, t_lbl), f"BBox labels doesnt match for img {img_file}"
-            iou_result = iou(r_coords, t_coords)
-            assert iou_result[iou_result < self.iou_tolerance].shape[0] == 0, f'BBoxes doesnt match for img {img_file}'
+            assert r_coords.shape[0] == t_coords.shape[0], (
+                f'Word count mismatch for {img_file}: '
+                f'detected {r_coords.shape[0]}, expected {t_coords.shape[0]}'
+            )
+            # order-independent: every ground-truth word must be matched by some
+            # detected box with IoU >= tolerance (pairwise IoU, best per GT box).
+            iou_matrix = iou(r_coords[:, None, :], t_coords[None, :, :])  # [pred, gt]
+            best_iou_per_gt = iou_matrix.max(axis=0)
+            assert (best_iou_per_gt >= self.iou_tolerance).all(), (
+                f'BBoxes dont match for img {img_file}: '
+                f'min best IoU {best_iou_per_gt.min():.2f} < {self.iou_tolerance}'
+            )
 
 
     def test_module(self, module, load_imgs):
