@@ -11,6 +11,8 @@
 5) Водительские права РФ. Версия 2011 года
 6) Водительские права РФ. Версия 2020 года
 7) СНИЛС. Версия 1996 года
+8) СНИЛС. Версия 2019 года (форма АДИ-РЕГ)
+9) Страница регистрации места жительства (прописки) внутреннего паспорта РФ
 
 ## Перечень направлений прикладного использования 
 Данная библиотека может использоваться как основа или составная часть для программных продуктов организаций, работающих с большим количеством посетителей и оказывающих услуги, для оформления которых нужны перечисленные документы граждан РФ. Примеры направлений деятельности таких организаций:
@@ -33,7 +35,7 @@
 - GPU: Nvidia GTX 1060 и выше
 - RAM: 6 GB
 - OS: Windows 10 или Linux Ubuntu 22 lts
-- Python: 3.9+.
+- Python: 3.11+.
 
 
 #### Клонируем библиотеку:
@@ -49,7 +51,7 @@ pip install -r requirements.txt
 ## Описание структуры папок
 Библиотека состоит из 4 основных папок:
 1) `document_processing`. В папке хранятся основные модели, классы их запуска и класс Pipeline.
-2) `samples`. В папке хранятся образцы документов каждого из типов (7 типов) с описанием текстовых значений полей
+2) `samples`. В папке хранятся образцы документов каждого из типов (9 типов) с описанием текстовых значений полей
 3) `scripts`. В папке хранятся различные полезные скрипты, такие как обработка 1 изображения, видео потока и др. Состав может меняться.
 4) `tests`. В папке хранятся юнит-тесты модулей библиотеки 
 
@@ -67,7 +69,7 @@ pip install -r requirements.txt
 Параметры:
 - `-i`, `--img_path` - путь до изображения
 - `-d`, `--device` - какое устройство использовать для инференса. По умолчанию 'cpu'
-- `-f`, `--format` - формат моделей для использования. Допускается 'ONNX', 'OpenVINO', 'CoreML'. По умолчанию 'ONNX'
+- `-f`, `--format` - формат моделей для использования. Допускается 'ONNX', 'OpenVINO'. По умолчанию 'ONNX'
 - `--check_quality` - Нужно ли запускать сети качества, по умолчанию False
 - `--img_size` - максимальный размер изображения по большей стороне, по умолчанию 1500
 
@@ -118,7 +120,7 @@ Linux
 ### Использование основного конвейера библиотеки
 #### Класс Pipeline. 
 Основной класс реализующий конвейер обработки изображений. При создании объекта необязательными параметрами являются:
-- `model_format` - 'ONNX', 'OpenVINO', 'CoreML' 
+- `model_format` - 'ONNX', 'OpenVINO' 
 - `device` - 'cpu', 'gpu'
 
 После создания объекта, в объект передаем изображение. Параметры передаваемые в объект класса Pipeline:
@@ -164,11 +166,11 @@ print(result.ocr)
 
 #### Пример:
 ```python
-from document_processing.pipeline_modules import Angle90
+from document_processing.pipeline_modules import DocTypeAngles
 
-angle90 = Angle90(model_format='OpenVINO', device='cpu')
-result = angle90.predict(img='img.jpg') # if we want to get only result from net
-result_with_warped = angle90.predict_transform(img='img.jpg') # if we want also warp image
+doctype_angles = DocTypeAngles(model_format='OpenVINO', device='cpu')
+result = doctype_angles.predict(img='img.jpg') # if we want to get only result from net (doctype + angle)
+result_with_warped = doctype_angles.predict_transform(img='img.jpg') # if we want also warp image
 ```
 
 ## Об авторах проекта
