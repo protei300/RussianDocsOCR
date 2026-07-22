@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
-from .preprocessing import BasePreprocessing, ClassificationPreprocessing, YoloPreprocessing, OCRPreprocessing, OBBPreprocessing
+from .preprocessing import BasePreprocessing, ClassificationPreprocessing, YoloPreprocessing, OCRPreprocessing, OBBPreprocessing, OCRv2Preprocessing
 from .postprocessing import *
 from .inference import ModelInference
+from ..config.alphabets import allowed_charset
 import json
 from typing import Union, List
 import numpy as np
@@ -99,6 +100,14 @@ class ModelLoader:
                     verbose=self.verbose
                 )
 
+            case 'OCRv2':
+                return OCRv2Preprocessing(
+                    height=input_info.get('Height', 32),
+                    color_order=input_info.get('ColorOrder', 'BGR'),
+                    dtype=input_info.get('Dtype', 'uint8'),
+                    verbose=self.verbose,
+                )
+
     def __load_postprocess(self, output_info:dict):
         output_type = output_info['Type']
         match output_type:
@@ -126,6 +135,13 @@ class ModelLoader:
                     cls=output_info['CLS'],
                     verbose=self.verbose,
                 )
+            case "PerClassYOLODetector":
+                return PerClassYOLODetectorPostprocessing(
+                    labels=output_info['Labels'],
+                    iou=output_info['IOU'],
+                    cls=output_info['CLS'],
+                    verbose=self.verbose,
+                )
             case "YOLOOBBDetector":
                 return YOLOOBBDetectorPostprocessing(
                     labels=output_info['Labels'],
@@ -142,6 +158,16 @@ class ModelLoader:
             case "OCR":
                 return OCRPostprocessing(
                     lang=output_info['Lang'],
+                    verbose=self.verbose,
+                )
+            case "OCRProbs":
+                # Full alphabet lives in the model.json; the allowed mask is
+                # resolved from the vendored per-country config using the output's
+                # Script (+ optional Country, default per-script).
+                return OCRProbsPostprocessing(
+                    alphabet=output_info['Alphabet'],
+                    allowed=allowed_charset(output_info['Script'], output_info.get('Country')),
+                    blank_index=output_info.get('BlankIndex', 0),
                     verbose=self.verbose,
                 )
 
@@ -620,11 +646,11 @@ class OCRModel(Model):
 
 
 class YOLODetectionModel(Model):
-    """YOLODetection model implementation for text recognition.
+    """YOLO object-detection model implementation (e.g. TextFields/Words/Borders).
 
-    Inherits from Model class. Implements text recognition pipeline with
-    predict method utilizing OCR specific preprocessing,
-    inference and postprocessing.
+    Inherits from Model class. Implements the detection pipeline with a
+    predict method utilizing YOLO-specific preprocessing (letterbox resize),
+    inference and postprocessing (NMS + box decoding).
 
     Attributes:
         model_type (str): Type of the model. Inherited from Model.
@@ -633,31 +659,31 @@ class YOLODetectionModel(Model):
         postprocessing (YOLODetectorPostprocessing): YOLO detector specific postprocessing.
 
     Methods:
-        predict: Runs OCR pipeline with preprocessing, model
+        predict: Runs the detection pipeline with preprocessing, model
             inference and postprocessing.
 
     """
 
     def __init__(self, model_type, preprocessings: List[YoloPreprocessing], model_inference: ModelInference,
                  postprocessings: List[YOLODetectorPostprocessing]):
-        """Initialize OCRModel by inheriting from Model
+        """Initialize YOLODetectionModel by inheriting from Model
 
         Args:
-            preprocessings (OCRPreprocessing): OCR specific preprocessing.
+            preprocessings (YoloPreprocessing): YOLO specific preprocessing.
             model_inference (ModelInference): Model to make predictions.
-            postprocessing (OCRPostprocessing): OCR specific postprocessing.
+            postprocessing (YOLODetectorPostprocessing): YOLO detector specific postprocessing.
 
         """
         super().__init__(model_type, preprocessings, model_inference, postprocessings)
 
     def predict(self, img: Union[Path, np.ndarray]):
-        """Runs OCR prediction pipeline.
+        """Runs the detection pipeline (preprocessing + inference + postprocessing).
 
         Args:
-            img (Union[Path, np.ndarray]): Image to recognize text from.
+            img (Union[Path, np.ndarray]): Image to detect objects in.
 
         Returns:
-            Recognized text string.
+            Detected bounding boxes (see YOLODetectorPostprocessing).
         """
         tensor, pad_ratio, pad_extra, pad_to_size, _  = self.preprocessings[0](img)
 
@@ -676,7 +702,7 @@ class YOLODetectionModel(Model):
         return result
 
     def predict_fv(self, img: Union[Path, np.ndarray]):
-        """OCR pipeline without postprocessing.
+        """Detection pipeline without postprocessing (raw boxes, no NMS/decoding).
 
         Args:
             img (Union[Path, np.ndarray]): Image to predict on
@@ -701,25 +727,9 @@ class YOLOOBBDetectionModel(Model):
 
     def __init__(self, model_type, preprocessings: List[OBBPreprocessing], model_inference: ModelInference,
                  postprocessings: List[YOLOOBBDetectorPostprocessing]):
-        """Initialize the OBB detection model.
-
-        Args:
-            model_type (str): Type of the model.
-            preprocessings (List[OBBPreprocessing]): OBB preprocessing.
-            model_inference (ModelInference): Model to make predictions.
-            postprocessings (List[YOLOOBBDetectorPostprocessing]): OBB postprocessing.
-        """
         super().__init__(model_type, preprocessings, model_inference, postprocessings)
 
     def predict(self, img: Union[Path, np.ndarray]):
-        """Runs the OBB detection pipeline with postprocessing.
-
-        Args:
-            img (Union[Path, np.ndarray]): Image to detect oriented boxes in.
-
-        Returns:
-            list: oriented detections in original-image coordinates.
-        """
         tensor, pad_ratio, pad_extra, pad_to_size, _ = self.preprocessings[0](img)
         inf_result = self.inference_model.predict([tensor, ])
 
@@ -733,14 +743,6 @@ class YOLOOBBDetectionModel(Model):
         return result
 
     def predict_fv(self, img: Union[Path, np.ndarray]):
-        """OBB pipeline without postprocessing.
-
-        Args:
-            img (Union[Path, np.ndarray]): Image to predict on.
-
-        Returns:
-            Raw squeezed inference output (the OBB head tensor).
-        """
         tensor, *_ = self.preprocessings[0](img)
         inf_result = self.inference_model.predict([tensor, ])
         return np.squeeze(inf_result[0] if isinstance(inf_result, list) else inf_result)

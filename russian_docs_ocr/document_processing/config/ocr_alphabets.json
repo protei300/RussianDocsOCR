@@ -1,0 +1,28 @@
+{
+  "description": "Allowed alphabets for OCR alphabet-masking, per script and ISO-3 country. Letters only; SPECIALS (digits + punctuation) are always allowed and appended when resolving the mask. The model's full alphabet lives in each model.json; this file only constrains which characters a decode step may emit. Extend letters_per_country to support new countries/scripts.",
+  "specials": "0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
+  "default_country": {
+    "cyrillic": "RUS",
+    "latin": "USA"
+  },
+  "letters_per_country": {
+    "cyrillic": {
+      "RUS": "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ",
+      "UKR": "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ",
+      "BGR": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯ",
+      "BLR": "АБВГДЕЁЖЗІЙКЛМНОПРСТУЎФХЦЧШЫЬЭЮЯ",
+      "KAZ": "АӘБВГҒДЕЁЖЗИІЙКҚЛМНҢОӨПРСТҰУҮФХЦЧШЩЪЫЬЭЮЯҺ",
+      "KGZ": "АБВГДЕЁЖЗИЙКЛМНҢОӨПРСТУҮФХЦЧШЩЪЫЭЮЯ",
+      "TJK": "АБВГҒДЕЁЖЗИЙКҚЛМНОПРСТУӮФХҲЦЧҶШЪЭЮЯ",
+      "UZB": "АБВГҒДЕЁЖЗИЙКҚЛМНОӮПРСТУФХҲЦЧШЪЭЮЯ",
+      "MNG": "АБВГДЕЁЖЗИЙКЛМНОӨПРСТУҮФХЦЧШЩЪЫЬЭЮЯ",
+      "MKD": "АБВГДЃЕЖЗЅИЈКЛЉМНЊОПРСТУФХЦЧЋЏШ",
+      "SRB": "АБВГДЂЕЖЗИЈКЛЉМНЊОПРСТУФХЦЧЋЏШ",
+      "MNE": "АБВГДЂЕЖЗИЈКЛЉМНЊОПРСТУФХЦЧЋЏШ",
+      "BIH": "АБВГДЂЕЖЗИЈКЛЉМНЊОПРСТУФХЦЧЋЏШ"
+    },
+    "latin": {
+      "USA": "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    }
+  }
+}

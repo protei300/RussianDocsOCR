@@ -123,6 +123,70 @@ class OCRPostprocessing(BasePostprocessing):
 
         return decoded
 
+class OCRProbsPostprocessing(BasePostprocessing):
+    """Greedy CTC decode with per-step alphabet masking for the v2 OCR models.
+
+    The v2 models output softmax probabilities ``[batch, T, num_classes]`` with
+    ``blank_index`` (default 0) reserved for the CTC blank; class ``i`` maps to
+    ``alphabet[i - 1]``. ``allowed`` is the set of characters this document is
+    permitted to emit (e.g. RUS Cyrillic + digits/punctuation); characters
+    outside it are *substituted*, not dropped:
+
+      - if the argmax is blank or an allowed char, keep it;
+      - if a disallowed char (a diacritic/near-lookalike) wins, pick the best
+        allowed *non-blank* class instead (blank is a separator, not a letter),
+        so ``Î -> I`` and ``І -> И`` rather than the char being lost.
+
+    Naive column-zeroing before argmax is wrong: blank can win when the model is
+    very confident on the diacritic, silently deleting the character.
+    """
+
+    def __init__(self, alphabet: str, allowed=None, blank_index: int = 0, verbose=False):
+        super().__init__(verbose)
+        self.alphabet = alphabet
+        self.blank_index = blank_index
+        if allowed is None:
+            self._allowed_idx = None
+            self._disallowed_idx = frozenset()
+        else:
+            allowed_set = set(allowed)
+            # class index (1-based over alphabet) -> allowed to emit?
+            self._allowed_idx = frozenset(
+                i + 1 for i, ch in enumerate(alphabet) if ch in allowed_set
+            )
+            self._disallowed_idx = frozenset(
+                range(1, len(alphabet) + 1)
+            ) - self._allowed_idx
+
+    def __call__(self, output_value: np.ndarray) -> str:
+        """probs ``[batch, T, C]`` or ``[T, C]`` -> decoded string."""
+        p = np.asarray(output_value)
+        if p.ndim == 3:
+            p = p[0]
+        blank = self.blank_index
+
+        indices = []
+        if self._allowed_idx is None or not self._disallowed_idx:
+            indices = np.argmax(p, axis=1).tolist()
+        else:
+            for t in range(p.shape[0]):
+                best = int(np.argmax(p[t]))
+                if best == blank or best in self._allowed_idx:
+                    indices.append(best)
+                else:
+                    row = p[t].copy()
+                    row[blank] = -np.inf
+                    for i in self._disallowed_idx:
+                        row[i] = -np.inf
+                    indices.append(int(np.argmax(row)))
+
+        chars, prev = [], -1
+        for idx in indices:
+            if idx != prev and idx != blank:
+                chars.append(self.alphabet[idx - 1])
+            prev = idx
+        return ''.join(chars)
+
 
 class MetricPostprocessing(BasePostprocessing):
     '''
@@ -130,10 +194,13 @@ class MetricPostprocessing(BasePostprocessing):
     '''
     def __init__(self, centers: Path, metric:str, verbose=False):
         '''
-        :param centers: coordinates for counted centers
-        :param metric: type of metric to use, can be either 'cosine' or 'euclidean'
+        :param centers: path to a pickle-free ``.npz`` with arrays
+            ``labels`` (str), ``centers`` (2D float) and ``max_distance`` (float),
+            aligned by row. (Legacy ``.pkl`` pandas DataFrames are no longer used:
+            pickle is a code-execution vector and was numpy-version-fragile.)
+        :param metric: 'cosine' or 'euclidean'
         '''
-        import pandas as pd
+        from sklearn.neighbors import NearestNeighbors
 
         super().__init__(verbose)
         self.metric = metric.lower()
@@ -143,24 +210,31 @@ class MetricPostprocessing(BasePostprocessing):
             self.radius = 10
         else:
             raise Exception('Unsupported metric type')
-        self.centers = pd.read_pickle(centers)
+
+        data = np.load(Path(centers), allow_pickle=False)
+        self.labels = data['labels']
+        self.center_coords = data['centers']
+        self.max_distance = data['max_distance']
+        # build the neighbor index once (was rebuilt on every __call__)
+        self._nn = NearestNeighbors(
+            n_neighbors=1, metric=self.metric, radius=self.radius
+        ).fit(self.center_coords)
 
     def __call__(self, vector, **kwargs):
         '''
         :param vector: embeding from feature vector layer
         :return: tuple of predicted label, distance till center of predicted label, and threshold of that label
         '''
-        from sklearn.neighbors import NearestNeighbors
+        vector = vector.reshape(1, -1)
+        dists, idxs = self._nn.radius_neighbors(vector, return_distance=True, sort_results=True)
+        if len(idxs[0]) == 0:
+            # no center within radius -> unknown document
+            return 'NONE', float('inf'), 0.0
 
-        center_coords = np.stack(self.centers['centers'].values)
-        nn = NearestNeighbors(n_neighbors=1, metric=self.metric, radius=self.radius).fit(center_coords)
-
-        vector = vector.reshape(1,-1)
-
-        pred = nn.radius_neighbors(vector, return_distance=True, sort_results=True)
-        pred_label = self.centers.index[pred[1][0][0]]
-        pred_dist = float(pred[0][0][0])
-        threshold = float(self.centers.max_distance[pred_label])
+        i = int(idxs[0][0])
+        pred_label = str(self.labels[i])
+        pred_dist = float(dists[0][0])
+        threshold = float(self.max_distance[i])
         if pred_dist < threshold:
             return pred_label, pred_dist, threshold
         else:
@@ -168,24 +242,24 @@ class MetricPostprocessing(BasePostprocessing):
 
 
 class MultiClassPostprocessing(BasePostprocessing):
-    """Postprocessing for metric learning models.
+    """Postprocessing for plain multi-class classification models (argmax).
 
-    Supports both euclidean and cosine distance metrics.
-    Classifies input vector against loaded centroid coordinates.
+    Takes a vector of per-class probabilities/scores and returns the label
+    with the highest score, plus that score as a confidence value. (For
+    embedding/centroid-distance classification instead, see
+    MetricPostprocessing.)
 
     Attributes:
-        centers (Path): File path to serialized centroids
-        metric (str): Distance metric to use.
-                      Must be either 'euclidean' or 'cosine'.
+        labels (list): Class labels, indexed the same way as the model's
+            output vector.
 
     """
     def __init__(self, labels: list, verbose=False):
-        """Initializes metric postprocessing.
+        """Initializes multi-class postprocessing.
 
         Args:
-            centers (Path): File path to serialized centroids
-            metric (str): Distance metric to use. Must be
-                          'euclidean' or 'cosine'.
+            labels (list): Class labels, indexed the same way as the model's
+                output vector.
             verbose (bool): Print logging messages if True.
                             Defaults to False.
         """
@@ -193,13 +267,13 @@ class MultiClassPostprocessing(BasePostprocessing):
         self.labels = labels
 
     def __call__(self, probability: np.ndarray, **kwargs):
-        """Classifies vector against loaded centroids.
+        """Picks the highest-scoring class.
 
         Args:
-            vector: Input vector from model
+            probability: Per-class probabilities/scores from the model.
 
         Returns:
-            tuple: Label, distance, threshold
+            tuple: (label, confidence) for the highest-scoring class.
         """
         return self.labels[probability.argmax()], probability.max(initial = 0)
 
@@ -271,7 +345,7 @@ class YOLODetectorPostprocessing(BasePostprocessing):
         box = self.xywh2xyxy(box)  # creating from x,y height, width -> xy xy coords of box
 
         conf, j = det.max(axis=1, keepdims=True), det.argmax(axis=1, keepdims=True)
-        i = self.nms(box, conf, self.iou)  # calculating non maximum suppression
+        i = self.nms_indices(box, conf, j)  # calculating non maximum suppression
         detect_res = np.concatenate((box, conf, j, seg), axis=1)[i]
 
 
@@ -322,6 +396,20 @@ class YOLODetectorPostprocessing(BasePostprocessing):
         y[:, 2] = x[:, 0] + x[:, 2] / 2  # bottom right x
         y[:, 3] = x[:, 1] + x[:, 3] / 2  # bottom right y
         return y
+
+    def nms_indices(self, box: np.ndarray, conf: np.ndarray, cls_ids: np.ndarray):
+        """
+        NMS dispatch hook: which candidate boxes survive suppression.
+        Base behavior is the historical class-agnostic NMS (any box with
+        IOU > threshold suppresses, regardless of class).
+        Args:
+            box (np.ndarray): candidate boxes, xyxy
+            conf (np.ndarray): per-box max class confidence
+            cls_ids (np.ndarray): per-box argmax class index
+        Returns:
+            list: indices of kept boxes
+        """
+        return self.nms(box, conf, self.iou)
 
     @staticmethod
     def nms(bounding_boxes: np.array, confidence_score: np.array, threshold: float):
@@ -394,6 +482,29 @@ class YOLODetectorPostprocessing(BasePostprocessing):
         return picked_boxes_index
 
 
+class PerClassYOLODetectorPostprocessing(YOLODetectorPostprocessing):
+    """YOLO detector postprocessing with per-class NMS (JSON Type
+    "PerClassYOLODetector").
+
+    The base class suppresses any box with IOU > threshold regardless of
+    class. For TextFields that is wrong: boxes of *different* fields
+    legitimately overlap (the ru/en field pairs on external passports sit at
+    IOU 0.2-0.3), and cross-class suppression silently drops one field of
+    the pair. Here NMS runs independently within each predicted class, so a
+    box can only suppress boxes of its own class. Words/Borders keep the
+    class-agnostic base behavior.
+    """
+
+    def nms_indices(self, box: np.ndarray, conf: np.ndarray, cls_ids: np.ndarray):
+        keep = []
+        flat = cls_ids.reshape(-1)
+        for c in np.unique(flat):
+            idx = np.nonzero(flat == c)[0]
+            picked = self.nms(box[idx], conf[idx], self.iou)
+            keep.extend(int(idx[k]) for k in picked)
+        return keep
+
+
 class YOLOOBBDetectorPostprocessing(BasePostprocessing):
     """Postprocessing for YOLO oriented-bbox (OBB) detectors.
 
@@ -416,32 +527,12 @@ class YOLOOBBDetectorPostprocessing(BasePostprocessing):
     """
 
     def __init__(self, labels: list, iou=0.45, cls=0.25, verbose=False):
-        """Initialize OBB postprocessing parameters.
-
-        Args:
-            labels (list): class label names.
-            iou (float): rotated-IoU threshold for NMS.
-            cls (float): confidence threshold.
-            verbose (bool): enable verbose output.
-        """
         super().__init__(verbose)
         self.iou = iou
         self.cls = cls
         self.labels = labels
 
     def __call__(self, vector: np.ndarray, **kwargs):
-        """Decode the raw OBB head output into oriented detections.
-
-        Args:
-            vector (np.ndarray): raw OBB head output, ``[4+nc+1, n_anchors]`` or
-                its transpose.
-            **kwargs: may carry ``padding_meta`` (pad/ratio) to rescale boxes
-                back to original-image coordinates.
-
-        Returns:
-            list: detections ``[cx, cy, w, h, angle, conf, cls_idx, label]`` in
-            original-image coordinates, ordered top-to-bottom then left-to-right.
-        """
         if kwargs.get('padding_meta') is None:
             padding_meta = {'pad_to_size': (0, 0), 'pad_extra': (0, 0), 'ratio': (1, 1)}
         else:

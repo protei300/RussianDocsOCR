@@ -259,16 +259,6 @@ class OBBPreprocessing(YoloPreprocessing):
     """
 
     def __call__(self, image_path: Union[Path, str, np.ndarray]):
-        """Runs the YOLO letterbox pipeline and converts the tensor to NCHW /255.
-
-        Args:
-            image_path: Image path, str or array to preprocess.
-
-        Returns:
-            Tuple of the [1, 3, H, W] float tensor normalized to [0, 1] and the
-            padding metadata (pad ratio, extra padding, padding to size, padded
-            image shape) used to map detections back to original coordinates.
-        """
         tensor, pad_ratio, pad_add_extra, pad_add_to_size, padded_image_shape = super().__call__(image_path)
         # tensor: [1, H, W, 3] uint8/float 0-255  ->  [1, 3, H, W] float /255
         tensor = tensor.astype(np.float32).transpose(0, 3, 1, 2) / 255.0
@@ -368,3 +358,63 @@ class OCRPreprocessing(BasePreprocessing):
                                     borderType=0, value=[color_value, color_value])
 
         return padded
+
+
+class OCRv2Preprocessing(BasePreprocessing):
+    """Preprocessing for the v2 OCR models (latin/cyrillic, mn4/edgenext).
+
+    Unlike :class:`OCRPreprocessing` (grayscale, fixed 31x200, [0,1] norm), the
+    v2 models take a full-color ``[1, H, W, 3]`` uint8 tensor with a fixed height
+    and *dynamic* width (no letterbox padding), and bake normalization into the
+    ONNX graph. Channel order defaults to BGR because the models were trained on
+    OpenCV BGR patches, while the pipeline works in RGB - so RGB input is flipped
+    here.
+    """
+
+    def __init__(self,
+                 image_size=(32, None, 3),
+                 normalization=(0, 1),
+                 padding_size=(0, 0),
+                 padding_color=(0, 0, 0),
+                 height=32,
+                 color_order='BGR',
+                 dtype='uint8',
+                 verbose=False):
+        super().__init__(image_size=image_size,
+                         normalization=normalization,
+                         padding_size=padding_size,
+                         padding_color=padding_color,
+                         verbose=verbose)
+        self.height = height
+        self.color_order = color_order.upper()
+        self.dtype = dtype
+
+    def __call__(self, image_path: Union[Path, str, np.ndarray]) -> np.ndarray:
+        """RGB image (any size) -> ``[1, height, W, 3]`` uint8 NHWC.
+
+        Width scales with the input aspect ratio (min 1px); no padding.
+        """
+        image = super().__call__(image_path)  # RGB ndarray (or decoded->RGB)
+
+        if self.color_order == 'BGR':
+            image = image[..., ::-1]
+
+        h, w = image.shape[:2]
+        if h == 0 or w == 0:
+            # Degenerate (zero-size) crop - a rare detector/splitting edge
+            # case (e.g. a zero-height bbox after clipping) rather than
+            # crashing the whole document on a division by zero. OCR on a
+            # blank patch just decodes to empty text.
+            blank = np.zeros((self.height, 16, 3), dtype=np.uint8)
+            return np.ascontiguousarray(blank[np.newaxis, ...], dtype=np.dtype(self.dtype))
+
+        # Minimum 16px: the EdgeNext ('fast') backbone has 3 internal stride-2
+        # downsample stages and errors out ("Invalid input shape") below this
+        # (measured: fails up to w=15, stable from w=16); MobileNetV4
+        # ('accurate') has no such floor, but 16px is harmless for it too.
+        # No genuine text crop needs less than this.
+        new_w = max(16, round(w * self.height / h))
+        resized = cv2.resize(image, (new_w, self.height), interpolation=cv2.INTER_LINEAR)
+
+        tensor = resized[np.newaxis, ...]
+        return np.ascontiguousarray(tensor, dtype=np.dtype(self.dtype))

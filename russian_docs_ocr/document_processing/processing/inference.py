@@ -5,6 +5,26 @@ from importlib import import_module
 from typing import List
 
 
+# ONNX tensor element type -> numpy dtype. Anything not listed falls back to
+# float32 (the historical default), so existing float models are unaffected while
+# uint8-input models (the v2 OCR nets) get the correct dtype instead of a cast
+# that onnxruntime would reject.
+_ORT_TYPE_TO_NP = {
+    'tensor(float)': np.float32,
+    'tensor(float16)': np.float16,
+    'tensor(double)': np.float64,
+    'tensor(uint8)': np.uint8,
+    'tensor(int8)': np.int8,
+    'tensor(int32)': np.int32,
+    'tensor(int64)': np.int64,
+    'tensor(bool)': np.bool_,
+}
+
+
+def _np_dtype_for(ort_input) -> np.dtype:
+    return np.dtype(_ORT_TYPE_TO_NP.get(ort_input.type, np.float32))
+
+
 class ModelInference:
     """Class for making inferences from different model types.
 
@@ -30,6 +50,7 @@ class ModelInference:
         """
 
         self.device = device
+        self.verbose = verbose
 
         if model_path.suffix == '.h5':
             self.tf = import_module('tensorflow')
@@ -156,8 +177,27 @@ class ModelInference:
             providers = ['CPUExecutionProvider', ]
         self.model = self.ort.InferenceSession(onnx_model_path, providers=providers)
         inputs = self.model.get_inputs()
-        ort_inputs = {inp.name: np.random.rand(*np.append(1, inp.shape[1:])).astype(np.float32) for inp in inputs}
-        self.model.run(None, ort_inputs)
+        ort_inputs = {}
+        for inp in inputs:
+            # batch=1, and replace dynamic axes (None / str names) with a safe size.
+            # 1 is too small for strided OCR backbones (a 1px width collapses to an
+            # empty feature map), so dynamic spatial dims use 320.
+            shape = [1] + [d if isinstance(d, int) else 320 for d in inp.shape[1:]]
+            dtype = _np_dtype_for(inp)
+            if np.issubdtype(dtype, np.integer):
+                ort_inputs[inp.name] = np.random.randint(0, 256, size=shape).astype(dtype)
+            else:
+                ort_inputs[inp.name] = np.random.rand(*shape).astype(dtype)
+        # Warmup is best-effort priming (primes the CUDA graph/kernel-selection
+        # so the first REAL call isn't the one paying that cost) - never let
+        # it block model loading. Always surface a failure, not just under
+        # verbose: a silently-skipped warmup would otherwise look identical to
+        # a slow first real call, which is exactly the kind of thing this is
+        # meant to prevent from going unnoticed.
+        try:
+            self.model.run(None, ort_inputs)
+        except Exception as e:
+            print(f"[!] ONNX warmup skipped for {onnx_model_path}: {e}")
 
     def __load_openvino(self, model_path: Path):
         core = self.openvino.Core()
@@ -199,7 +239,9 @@ class ModelInference:
 
     def __predict_onnx(self, tensors:  List[np.ndarray]):
         inputs = self.model.get_inputs()
-        ort_inputs = {inp.name: tensors[i].astype(np.float32) for i, inp in enumerate(inputs)}
+        # cast each tensor to the dtype the model actually declares (float32 for
+        # the legacy nets, uint8 for the v2 OCR nets) rather than always float32.
+        ort_inputs = {inp.name: tensors[i].astype(_np_dtype_for(inp)) for i, inp in enumerate(inputs)}
 
         result = self.model.run(None, ort_inputs)
         # pred = result[0] if len(result) == 1 else result
