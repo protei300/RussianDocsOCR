@@ -1,12 +1,26 @@
-matplotlib==3.11.0
+# requirements.txt — окружение для RussianDocsOCR.
+#
+# Рекомендуемый Python: 3.11+ (ядро тянет numpy 2.x).
+#
+# Версии ниже проверены на рабочем окружении: полностью проходит
+# ONNX- и OpenVINO-пайплайн и весь тест-набор.
+#
+# Быстрый старт:  pip install -r requirements.txt
+
+# ── ЯДРО: инференс (обязательно) ──────────────────────────────────────────────
 numpy==2.4.6
-onnxruntime-gpu==1.27.0
+onnxruntime-gpu==1.27.0             # GPU-сборка, работает и на CPU.
+                                    # Только CPU: заменить на onnxruntime==1.27.0
 opencv-contrib-python==4.13.0.92
-pandas==3.0.3
-Pillow==12.2.0
-py_cpuinfo==9.0.0
-pytest==9.1.1
 PyYAML==6.0.3
-scikit_learn==1.9.0
-tqdm==4.68.3
-openvino==2026.2.1
+scikit_learn==1.9.0                 # нужен DocTypeAngles (Metric / NearestNeighbors)
+openvino==2026.2.1                  # model_format='OpenVINO' (дефолт в scripts/process_img.py)
+
+# ── Тесты ─────────────────────────────────────────────────────────────────────
+pytest==9.1.1
+Pillow==12.2.0                      # тесты (PIL.Image) и scripts/ocr_patches.py
+
+# ── Скрипты (scripts/: benchmark, process_img, process_video, ocr_patches) ────
+pandas==3.0.3                       # benchmark.py — отчёт
+py_cpuinfo==9.0.0                   # benchmark.py — модель CPU в отчёте
+tqdm==4.68.3                        # ocr_patches.py — прогресс
