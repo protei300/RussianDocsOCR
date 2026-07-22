@@ -33,9 +33,9 @@
                 8400,
                 26
             ],
-            "Type": "YOLODetector",
+            "Type": "PerClassYOLODetector",
             "IOU": 0.2,
-            "CLS": 0.7,
+            "CLS": 0.5,
             "Labels": [
                 "Face",
                 "Last_name_ru",

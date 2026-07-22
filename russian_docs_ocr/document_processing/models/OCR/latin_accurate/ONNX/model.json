@@ -1,0 +1,23 @@
+{
+    "Name": "OCR_LATIN_ACCURATE",
+    "File": "model.onnx",
+    "ModelType": "OCRUnified",
+    "Inputs": [
+        {
+            "Type": "OCRv2",
+            "Name": "image",
+            "Height": 32,
+            "ColorOrder": "BGR",
+            "Dtype": "uint8"
+        }
+    ],
+    "Outputs": [
+        {
+            "Type": "OCRProbs",
+            "Name": "probs",
+            "Script": "latin",
+            "BlankIndex": 0,
+            "Alphabet": "0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~AÀÁÂÃĀĂÄÅǍĄBCĆČÇDĐĎEÈÉÊĒĖËĚĘFGĞĢHIıÌÍÎĪİÏǏĮJKĶLŁĹĽĻMNŃÑŇŅOÒÓÔÕŌÖŐǑPQRŔŘSŚŠȘŞTŤȚUÙÚÛŪÜŮŰǓŲVWXYÝZŹŻŽÆÞẞðØŒƏ"
+        }
+    ]
+}

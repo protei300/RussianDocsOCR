@@ -1,7 +1,7 @@
 {
     "Name": "TypesAnglesModel",
     "File": "model.onnx",
-    "ModelType": "UnifedModel",
+    "ModelType": "UnifiedModel",
     "Inputs": [
         {
             "Type": "Classification",
@@ -34,7 +34,7 @@
             ],
             "Type": "Metric",
             "Metric": "Cosine",
-            "Centers": "resources\\centers.pkl"
+            "Centers": "resources\\centers.npz"
         },
         {
             "Name": "angle",
