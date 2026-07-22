@@ -157,7 +157,7 @@ Linux
 from russian_docs_ocr import Pipeline
 
 pipeline = Pipeline(model_format='OpenVINO', device='cpu')
-result = pipeline(img_path='img.jpg')
+result = pipeline.process_img(img_path='img.jpg')
 print(result.ocr)
 ```
 

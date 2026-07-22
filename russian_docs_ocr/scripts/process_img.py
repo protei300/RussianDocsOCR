@@ -30,7 +30,7 @@ def process_img(**kwargs) -> dict:
 
     pipeline = kwargs.get('pipeline')
 
-    result = pipeline(img_path, check_quality=check_q, img_size=img_size)
+    result = pipeline.process_img(img_path, check_quality=check_q, img_size=img_size)
     pp = pprint.PrettyPrinter(depth=4, indent=4)
     pp.pprint(result.full_report)
     return result
@@ -52,7 +52,7 @@ def main():
     params = vars(args)
 
     pipeline = Pipeline(model_format=params['format'], device=params['device'], )
-    pipeline(params['img_path'], check_quality=params['check_quality'], img_size=params['img_size'])
+    pipeline.process_img(params['img_path'], check_quality=params['check_quality'], img_size=params['img_size'])
 
     params['pipeline'] = pipeline
     process_img(**params)

@@ -39,7 +39,7 @@ def benchmark(**kwargs):
             for img in img_folder.glob('**/*.*'):
                 if img.suffix == '.json':
                     continue
-                result = pipeline(img)
+                result = pipeline.process_img(img)
                 benchmark_list.append(result.timings['total'])
 
         return np.mean(benchmark_list)
@@ -54,7 +54,7 @@ def benchmark(**kwargs):
     doctypes = [folder for folder in images_folder.iterdir() if folder.is_dir()]
 
     #preheat model
-    pipeline(next(iter(images_folder.glob('**/*.jpg'))))
+    pipeline.process_img(next(iter(images_folder.glob('**/*.jpg'))))
 
 
     if benchmark_folder.is_file():

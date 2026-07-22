@@ -46,7 +46,7 @@ def get_patches(*args, **kwargs):
     for img_path in tqdm(folder_from.glob('**/*.*')):
         if img_path.suffix not in ['.jpg', '.png', '.jpeg']:
             continue
-        result = pipeline(img_path,
+        result = pipeline.process_img(img_path,
                           ocr=True,
                           check_quality=False,
                           low_quality=True,
