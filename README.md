@@ -120,10 +120,18 @@ Linux
 ### Использование основного конвейера библиотеки
 #### Класс Pipeline. 
 Основной класс реализующий конвейер обработки изображений. При создании объекта необязательными параметрами являются:
-- `model_format` - 'ONNX', 'OpenVINO' 
-- `device` - 'cpu', 'gpu'
+- `model_format` - 'ONNX', 'OpenVINO'. По умолчанию 'ONNX'
+- `device` - 'cpu', 'gpu' либо `None` (по умолчанию). `None` — автовыбор: 'gpu', если onnxruntime видит CUDA-провайдер, иначе 'cpu'
+- `ocr` - какой OCR-движок использовать: `'accurate'` (по умолчанию, v2 MobileNetV4), `'fast'` (v2 EdgeNext, быстрее и чуть менее точный) или `'legacy'` (исходные модели rus / eng+nums)
+- `ocr_gpu_batch` - по умолчанию False. Экспериментальный батчинг слов для v2-OCR на GPU: даёт ускорение, но результат **не бит-в-бит** совпадает с CPU-путём. Включать осознанно
+- `verbose` - по умолчанию False. Печатать отладочную информацию при загрузке моделей
 
-После создания объекта, в объект передаем изображение. Параметры передаваемые в объект класса Pipeline:
+Опционально можно один раз прогреть модели, чтобы не платить за прогрев на первом реальном запросе:
+```python
+pipeline.warmup()
+```
+
+Распознавание запускается методом `process_img` (объект также остаётся вызываемым: `pipeline(...)` работает как алиас). Параметры `process_img`:
 - `img_path` - Путь до изображение в форматах str, Path, либо изображение в формате np.ndarray. 
 ВАЖНО! При передаче изображения, как np.ndarray, картинка никак не предобрабатывается кроме ресайза до `img_size` по большей стороне
 - `get_doc_borders` - по умолчанию True. Определяет, нужно ли детектировать границы документа на изображении и 
@@ -150,6 +158,13 @@ Linux
 - `@property def text_fields(self) -> Union[Tuple[list, list], None]:` - возваращает кортеж из координат и классов текстовых полей и лоскутов изображений
 - `@property def words_patches(self) -> Union[Dict, None]:` - возвращает словарь в котором ключем является название поля, 
 а значения лоскуты слов и их распознанный аналог (если проводился OCR)
+- `@property def angle(self)` - угол поворота документа (0/90/180/270), определённый DocTypeAngles
+- `@property def timings(self) -> dict:` - время работы каждой стадии конвейера и суммарное (`'total'`)
+- `@property def full_report(self) -> dict:` - сводный отчёт: тип документа, OCR, качество и тайминги
+
+Для страницы регистрации внутреннего паспорта (`INTPASSPORTADDR`) результат распознавания адреса
+кладётся в `result.ocr['Address']` (строки адреса, разделённые переводом строки); признак наличия
+рукописных строк — в `result.ocr['Address_has_handwritten']`.
 
 
 #### Пример:
@@ -172,6 +187,20 @@ doctype_angles = DocTypeAngles(model_format='OpenVINO', device='cpu')
 result = doctype_angles.predict(img='img.jpg') # if we want to get only result from net (doctype + angle)
 result_with_warped = doctype_angles.predict_transform(img='img.jpg') # if we want also warp image
 ```
+
+## Версионирование и история изменений
+
+Проект использует семантическое версионирование (SemVer, `MAJOR.MINOR.PATCH`).
+
+- Единственный источник версии — `__version__` в `russian_docs_ocr/document_processing/__init__.py`;
+  сборка читает его же через `[tool.hatch.version]` в `pyproject.toml`.
+- Все заметные изменения фиксируются в [CHANGELOG.md](CHANGELOG.md).
+- Каждый релиз помечается git-тегом вида `vX.Y.Z`.
+
+Порядок выпуска релиза:
+1. Обновить `__version__`.
+2. Добавить секцию с изменениями в `CHANGELOG.md`.
+3. Поставить и запушить тег: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
 ## Об авторах проекта
 
