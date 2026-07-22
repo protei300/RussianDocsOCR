@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from time import time
@@ -7,6 +8,23 @@ import cv2
 import numpy as np
 
 from ..pipeline_modules import *
+
+
+def _resolve_device(device):
+    """Resolve the inference device.
+
+    ``None`` -> auto: 'gpu' when onnxruntime reports a CUDA provider, else 'cpu'.
+    An explicit 'cpu'/'gpu' is returned unchanged.
+    """
+    if device is not None:
+        return device
+    try:
+        import onnxruntime as ort
+        if 'CUDAExecutionProvider' in ort.get_available_providers():
+            return 'gpu'
+    except Exception:
+        pass
+    return 'cpu'
 
 
 @dataclass(init=False)
@@ -54,6 +72,10 @@ class OCROptionsClass:
             return OCROptionsDL()
         elif 'snils' in doc_type.lower():
             return OCROptionsSNILS()
+        # Unknown type: return the empty base options instead of None, so the
+        # caller's `.needs_licence_rotation`/`.ru_fields` access doesn't crash
+        # (the pipeline then simply produces no OCR fields for it).
+        return OCROptionsClass()
 
 class OCROptionsINTPassport(OCROptionsClass):
     """OCR options for internal Russian passports."""
@@ -71,7 +93,7 @@ class OCROptionsINTPASSPORTADDR(OCROptionsClass):
     """OCR options for the registration ('place of residence') page of an
     internal Russian passport. Only the multi-line registration address is
     recognized (printed text), via the Address_line detections produced by
-    the address-lines detector."""
+    the TextFields detector."""
 
     needed_split = []
     en_fields = []
@@ -221,31 +243,98 @@ class Pipeline:
     to extract text from documents.
     """
 
-    def __init__(self, model_format='ONNX', device='cpu', verbose=False):
+    def __init__(self, model_format='ONNX', device=None, ocr='accurate', verbose=False,
+                 ocr_gpu_batch=False):
         """
         Initialize pipeline.
 
         Args:
             model_format (str): Format of models to use - ONNX, OpenVINO etc.
-            device (str): Device for model inference - cpu, gpu etc.
+            device (str): Device for model inference - 'cpu' or 'gpu'. When None
+                (default) it is auto-detected: 'gpu' if a CUDA provider is
+                available, otherwise 'cpu'. Applies to the detector models;
+                see `ocr_gpu_batch` for how it affects the OCR engines.
+            ocr (str): OCR engine selection.
+                'accurate' (default) - v2 MobileNetV4 models (best quality);
+                'fast'               - v2 EdgeNext models (faster, slightly lower);
+                'legacy'             - the original rus / eng+nums models.
             verbose (bool): Whether to print debug information.
+            ocr_gpu_batch (bool): EXPERIMENTAL, default False. The v2 engines
+                ('accurate'/'fast') are dynamic-width models; on a CUDA
+                provider, running them one word at a time (as the pipeline
+                naturally produces them) forces a graph recompile per distinct
+                width and is measured 400-3700x SLOWER than CPU - not a viable
+                combination. So by default, when device=='gpu' and ocr is not
+                'legacy', the OCR engines run on CPU regardless of `device`
+                (detectors still use GPU) - this default combination is
+                bit-exact and, on real documents, measured *faster* overall
+                than pure CPU (GPU detectors + CPU OCR).
+                Passing ocr_gpu_batch=True instead batches a document's words
+                into a small number of fixed-shape padded batches per engine
+                call (see pipeline_modules/ocr_batch.py for why the shapes
+                must be few and fixed, not dynamic). After a brief per-process
+                warmup (the first few *different* documents - cold calls can
+                take seconds), this reaches ~100-250ms per engine call, faster
+                than the CPU-only default - but at a measured, non-zero
+                accuracy cost from a width-wise global-pooling component in
+                the v2 backbones (Squeeze-and-Excitation-like): on 14 real
+                mixed documents, 5.4% of OCR fields differ from the CPU-exact
+                baseline for 'accurate', 14.1% for 'fast'. Only enable after
+                validating this tradeoff on your own documents/traffic.
+                'legacy' OCR is fixed-size (31x200) and always safe and fast on
+                GPU directly - this flag does not affect it.
         """
-        print(f'DEVICE: {device}')
+        device = _resolve_device(device)
+        self.device = device
+        self.model_format = model_format
+        if ocr not in ('accurate', 'fast', 'legacy'):
+            raise ValueError("ocr must be one of 'accurate', 'fast', 'legacy'")
+        self.ocr_mode = ocr
+        self.ocr_gpu_batch = bool(ocr_gpu_batch)
+
+        # Viable device for the OCR engines specifically (see ocr_gpu_batch
+        # docstring above): legacy is fixed-size and fine on GPU directly;
+        # v2 engines on GPU are only viable batched (opt-in), so they fall
+        # back to CPU here unless the user explicitly asked for the batched
+        # GPU path. Detectors below always use the requested `device`.
+        if device == 'gpu' and ocr != 'legacy' and not self.ocr_gpu_batch:
+            self.ocr_device = 'cpu'
+        else:
+            self.ocr_device = device
+
         self.doctype_angles = DocTypeAngles(model_format=model_format, device=device, verbose=verbose)
         self.doc_detector = DocDetector(model_format=model_format, device=device, verbose=verbose)
         self.text_fields = TextFieldsDetector(model_format=model_format, device=device, verbose=verbose)
+        # OCR-family models are ONNX-only (no OpenVINO IR artifacts), so pin them
+        # to ONNX even when the rest of the pipeline runs OpenVINO.
+        ocr_format = 'ONNX' if model_format == 'OpenVINO' else model_format
         # oriented (rotated) address-line detector for the INTPASSPORTADDR page
-        self.address_lines = AddressLinesDetector(model_format='ONNX' if model_format == 'OpenVINO' else model_format,
-                                                  device=device, verbose=verbose)
+        self.address_lines = AddressLinesDetector(model_format=ocr_format, device=device, verbose=verbose)
         # printed-vs-handwritten classifier for address lines (OCR is printed-only)
-        self.address_textkind = AddressTextKindClassifier(
-            model_format='ONNX' if model_format == 'OpenVINO' else model_format,
-            device=device, verbose=verbose)
+        self.address_textkind = AddressTextKindClassifier(model_format=ocr_format, device=device, verbose=verbose)
         self.words_detector = WordsDetector(model_format=model_format, device=device, verbose=verbose)
-        self.ocr_ru = OCRRus(model_format='ONNX' if model_format == 'OpenVINO' else model_format,
-                             device=device, verbose=verbose)
-        self.ocr_en = OCREngNums(model_format='ONNX' if model_format == 'OpenVINO' else model_format,
-                                 device=device, verbose=verbose)
+
+        # OCR engines. self.ocr_cyr / self.ocr_lat are the ACTIVE Cyrillic and
+        # Latin engines used by _ocr/_route_word_ocr regardless of selection.
+        # Note: these load on self.ocr_device, not necessarily `device` (see above).
+        if ocr == 'legacy':
+            self.ocr_cyr = OCRRus(model_format=ocr_format, device=self.ocr_device, verbose=verbose)
+            self.ocr_lat = OCREngNums(model_format=ocr_format, device=self.ocr_device, verbose=verbose)
+            # backwards-compatible aliases for the historical attribute names
+            self.ocr_ru, self.ocr_en = self.ocr_cyr, self.ocr_lat
+        else:
+            tier = 'accurate' if ocr == 'accurate' else 'fast'
+            self.ocr_cyr = OCRCyrillic(tier=tier, model_format=ocr_format, device=self.ocr_device, verbose=verbose)
+            self.ocr_lat = OCRLatin(tier=tier, model_format=ocr_format, device=self.ocr_device, verbose=verbose)
+            # NOTE: pipeline_modules/ocr_batch.py::warmup_ladder() exists to
+            # pre-warm every (width, count) shape the batched path could ever
+            # produce, but is NOT called automatically here - measured to cost
+            # 15-90+ seconds (large batch x width combos take up to ~7s EACH)
+            # and, even after paying that cost, real documents were still
+            # observed slow on already-warmed shapes. Left as an opt-in
+            # experiment for callers who want to try it themselves; see its
+            # docstring and docs/progress-log.md before using it.
+
         self.lcd_spoofing = LCDSpoofing(model_format=model_format, device=device, verbose=verbose)
         self.print_spoofing = PrintSpoofing(model_format=model_format, device=device, verbose=verbose)
         self.glare = Glare(model_format=model_format, device=device, verbose=verbose)
@@ -256,15 +345,53 @@ class Pipeline:
         self.deskewer = DocDeskewer(angle_range=10.0, angle_steps=101, min_angle=2.0, scale=0.4)
         self.ocr_options = OCROptionsClass
 
-    def __call__(self, img_path: Union[Path, str, np.ndarray],
-                 ocr=True,
-                 get_doc_borders=True,
-                 find_text_fields=True,
-                 check_quality=True,
-                 low_quality=True,
-                 docconf=0.5,
-                 img_size=1500,
-                 ) -> PipelineResults:
+    def warmup(self, img_path: Union[Path, str, np.ndarray] = None) -> None:
+        """Explicitly warm up the pipeline before serving real traffic/benchmarks.
+
+        Each model's ONNX session is already warmed once at construction time
+        (see ``ModelInference.__load_onnx``) with a synthetic tensor at its
+        declared input shape - this primes CUDA graph/kernel selection so the
+        first call on GPU isn't the one paying that cost (verified: the first
+        ``process_img()`` call right after ``Pipeline()`` construction is not
+        meaningfully slower than later ones).
+
+        This method additionally exercises the FULL call chain end-to-end
+        (Python-level pre/postprocessing, OpenCV, deskew, word-splitting, OCR
+        routing) on a real image, which the per-model synthetic warmup above
+        cannot reach on its own. Call this explicitly before starting a timed
+        benchmark or a serving loop, instead of relying on the first few
+        documents of real traffic to happen to warm things up (or - as this
+        codebase's own benchmark scripts used to do inconsistently - an ad-hoc
+        "process a couple of documents and discard the result" loop before
+        every timed run).
+
+        Args:
+            img_path: A real document image to run through ``process_img()``
+                once (result discarded). If omitted, only the doctype/quality
+                stages get exercised - a synthetic non-document image
+                classifies as ``'NONE'`` and short-circuits before the
+                border/field/OCR stages, so there is no synthetic default
+                that warms everything; pass a real sample for a full warmup.
+        """
+        if img_path is None:
+            img_path = np.full((900, 1400, 3), 200, dtype=np.uint8)
+        try:
+            self.process_img(img_path)
+        except Exception as e:
+            print(f"[!] Pipeline.warmup() encountered an error (non-fatal): {e!r}")
+
+    def process_img(
+            self,
+            img_path: Union[Path, str, np.ndarray],
+            ocr=True,
+            get_doc_borders=True,
+            find_text_fields=True,
+            check_quality=True,
+            low_quality=True,
+            docconf=0.5,
+            img_size=1500,
+
+        ) -> PipelineResults:
         """
         Main pipeline processing method.
 
@@ -286,8 +413,6 @@ class Pipeline:
 
         img = self._prepare_image(img_path, img_size=img_size)
 
-        self.time_measure = {}
-
         # unified doctype + angle classification, then rotate upright
         self._model_call(self._doctype_angle, img)
         img = self.results.rotated_image
@@ -296,33 +421,49 @@ class Pipeline:
         if doc_type == 'NONE':
             print("[!] The document on picture has unknown type")
             return self.results
-        doc_type, year = doc_type.rsplit('_', maxsplit=1)
-        self.ocr_options = self.ocr_options.make_options(doc_type)
+        # labels are '<TYPE>_<YEAR>'; tolerate a missing year suffix
+        parts = doc_type.rsplit('_', maxsplit=1)
+        doc_type, year = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], None)
+        self.ocr_options = OCROptionsClass.make_options(doc_type)
 
-        #getting quality
-        if check_quality:
-            self._model_call(self._glare, img)
-            self._model_call(self._blur, img)
-            self._model_call(self._print_spoofing, img)
-            self._model_call(self._lcd_spoofing, img)
-
-        # checking quality of doc
-        if not low_quality:
-            quality = self.results.quality
-            if quality.get('Glare', False) == 'bad' or quality.get('Blur', False) == 'bad' or quality['DocConf'] > docconf:
-                print("[!] Doc quality is too low. You can check using results.quality, "
-                      "or bypass using low_quality=True")
-                return self.results
-
-
-        #detecting doc
-        if get_doc_borders:
-            self._model_call(self._doc_detector, img)
+        # Quality checks (Glare/Blur/PrintSpoofing/LCDSpoofing) and border
+        # detection all take the same rotated image and are mutually
+        # independent, so when low_quality=True (default) - meaning the
+        # quality verdict never gates whether border detection runs - they
+        # run concurrently (see _quality_and_borders_parallel). When
+        # low_quality=False, the quality verdict decides whether to run
+        # (skip) the heavier border detector at all, so that early-exit
+        # optimization requires the original sequential order.
+        if check_quality and get_doc_borders and low_quality:
+            self._quality_and_borders_parallel(img)
             img = self.results.img_with_fixed_perspective
-            # correct residual tilt so text lines are horizontal (helps field
-            # detection, line/word splitting and OCR; train==inference)
             self._model_call(self._deskew, img)
             img = self.results.img_with_fixed_perspective
+        else:
+            #getting quality
+            if check_quality:
+                self._model_call(self._glare, img)
+                self._model_call(self._blur, img)
+                self._model_call(self._print_spoofing, img)
+                self._model_call(self._lcd_spoofing, img)
+
+            # checking quality of doc
+            if not low_quality:
+                quality = self.results.quality
+                if quality.get('Glare', False) == 'bad' or quality.get('Blur', False) == 'bad' or quality['DocConf'] > docconf:
+                    print("[!] Doc quality is too low. You can check using results.quality, "
+                          "or bypass using low_quality=True")
+                    return self.results
+
+
+            #detecting doc
+            if get_doc_borders:
+                self._model_call(self._doc_detector, img)
+                img = self.results.img_with_fixed_perspective
+                # correct residual tilt so text lines are horizontal (helps field
+                # detection, line/word splitting and OCR; train==inference)
+                self._model_call(self._deskew, img)
+                img = self.results.img_with_fixed_perspective
 
         # detecting fields
         if find_text_fields:
@@ -349,14 +490,29 @@ class Pipeline:
 
         return self.results
 
+    # Backwards-compatible alias: the published API is a callable pipeline
+    # (`pipeline(img_path, ...)`, as used by the scripts and the README);
+    # process_img is the canonical name.
+    __call__ = process_img
+
 
     def _doctype_angle(self, img):
-        """Classify document type and its angle, and rotate the image upright."""
-        result = self.doctype_angles.predict_transform(img)
-        doc_type, confidence = result['DocType'].values()
-        self.results.meta_results['DocType'] = doc_type
-        self.results.meta_results['Quality']['DocConf'] = confidence
-        self.results.meta_results['Angle90'] = result['Angle90']
+        """Classify document type and its angle, and rotate the image upright.
+
+        The module returns the standard {model_name: payload} dict; the
+        pipeline-level meta_results keys ('DocType' string, 'Angle90' dict,
+        Quality.DocConf) are kept as-is - they are the public PipelineResults
+        contract."""
+        meta = self.doctype_angles.predict_transform(img)[self.doctype_angles.model_name]
+        self.results.meta_results['DocType'] = meta['doc_type']
+        self.results.meta_results['Quality']['DocConf'] = meta['doc_type_confidence']
+        self.results.meta_results['Angle90'] = {
+            'angle': meta['angle'],
+            'confidence': meta['angle_confidence'],
+            'warped_img': meta['warped_img'],
+        }
+
+
 
     def _glare(self, img):
         """Check for glare quality"""
@@ -382,7 +538,55 @@ class Pipeline:
         self.results.meta_results['Quality']['LCDSpoofing'] = qual
         return qual
 
+    def _quality_and_borders_parallel(self, img):
+        """Run the 4 quality checks and border detection concurrently.
 
+        All five take the same (rotated) image and are mutually independent
+        (different models/sessions, no shared mutable state in the
+        preprocessing/inference/postprocessing layers - verified by code
+        review, see docs/progress-log.md). Only used when low_quality=True:
+        with low_quality=False the quality verdict must be known BEFORE
+        deciding whether to run the heavier border detector at all, which
+        needs the original sequential order (see process_img).
+
+        Every `self.results` write happens here, on the main thread, after
+        gathering all futures - concurrent writes into the shared
+        meta_results dict (particularly _doc_detector's top-level `|` rebind)
+        are not safe to do from worker threads.
+        """
+        doc_type = (self.results.doctype or '')
+        is_spread = 'intpassport' in doc_type.lower()
+        max_pages = 2 if is_spread else 1
+
+        def timed(fn, *args, **kwargs):
+            t0 = time()
+            r = fn(*args, **kwargs)
+            return r, round(time() - t0, 4)
+
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            f_glare = ex.submit(timed, self.glare.predict, img)
+            f_blur = ex.submit(timed, self.blur.predict, img)
+            f_print = ex.submit(timed, self.print_spoofing.predict, img)
+            f_lcd = ex.submit(timed, self.lcd_spoofing.predict, img)
+            f_det = ex.submit(timed, self.doc_detector.predict_transform, img,
+                              stack='auto', max_pages=max_pages)
+
+            glare_res, t_glare = f_glare.result()
+            blur_res, t_blur = f_blur.result()
+            print_res, t_print = f_print.result()
+            lcd_res, t_lcd = f_lcd.result()
+            det_res, t_det = f_det.result()
+
+        self.results.meta_results['Quality']['Glare'] = glare_res[self.glare.model_name][0]
+        self.results.meta_results['Quality']['Blur'] = blur_res[self.blur.model_name][0]
+        self.results.meta_results['Quality']['PrintSpoofing'] = print_res[self.print_spoofing.model_name][0]
+        self.results.meta_results['Quality']['LCDSpoofing'] = lcd_res[self.lcd_spoofing.model_name][0]
+        self.results.meta_results = self.results.meta_results | det_res
+
+        self.results.timings = {
+            '_glare': t_glare, '_blur': t_blur, '_print_spoofing': t_print,
+            '_lcd_spoofing': t_lcd, '_doc_detector': t_det,
+        }
 
     def _doc_detector(self, img):
         """
@@ -417,103 +621,6 @@ class Pipeline:
             self.results.meta_results.setdefault('Angle90', {})['warped_img'] = desk
         return desk
 
-    def _address_lines(self, img):
-        """
-        Recognize the multi-line registration address (INTPASSPORTADDR).
-
-        Runs the oriented-bbox address-line detector directly on the
-        perspective-fixed canvas (it handles line tilt itself, so no deskew is
-        needed), yielding upright line patches already ordered top-to-bottom.
-        Each line is classified printed-vs-handwritten; printed lines are split
-        into words and OCR'd with the printed Russian model, handwritten lines
-        are flagged (OCR is printed-only) and kept as a placeholder so the line
-        order/structure is preserved.
-
-        Result is stored as results.meta_results['OCR']['Address'] — lines
-        joined by newline. Per-line kinds are stored under
-        meta_results['Address_lines'] and a handwritten flag on the OCR dict.
-
-        Args:
-            img: Perspective-fixed canvas.
-        """
-        result = self.address_lines.predict_transform(img)
-        self.results.meta_results = self.results.meta_results | result
-        line_patches = result[self.address_lines.model_name]['warped_img']
-
-        HW_PLACEHOLDER = '⟨рукопись⟩'
-        address_lines_text = []
-        line_meta = []
-        has_handwritten = False
-        for patch in line_patches:
-            if patch is None or patch.size == 0:
-                continue
-            kind, prob = self.address_textkind.predict(patch)[self.address_textkind.model_name]
-            if kind == 'handwritten':
-                has_handwritten = True
-                address_lines_text.append(HW_PLACEHOLDER)
-                line_meta.append({'kind': 'handwritten', 'p_handwritten': prob, 'text': None})
-                continue
-            # printed line: split into words (left-to-right) and OCR
-            words = self.words_detector.predict_transform(patch)[self.words_detector.model_name]['warped_img']
-            if not words:
-                words = [patch]
-            line_words = []
-            for word in words:
-                if word is None or word.size == 0:
-                    continue
-                text = self._route_word_ocr(word)
-                if text:
-                    line_words.append(text.strip())
-            line_text = ' '.join(line_words)
-            address_lines_text.append(line_text)
-            line_meta.append({'kind': 'printed', 'p_handwritten': prob, 'text': line_text})
-
-        self.results.meta_results['Address_lines'] = line_meta
-        if address_lines_text:
-            ocr_dict = self.results.meta_results.get('OCR') or {}
-            ocr_dict['Address'] = '\n'.join(address_lines_text)
-            ocr_dict['Address_has_handwritten'] = has_handwritten
-            self.results.meta_results['OCR'] = ocr_dict
-
-    def _route_word_ocr(self, word) -> str:
-        """Pick the right OCR model for an address word.
-
-        OCRRus has no digits and OCREngNums has no Cyrillic, so a house/flat
-        number is unreadable by the Russian model and a Cyrillic word is
-        unreadable by the eng+nums model. There is no usable per-model
-        confidence, so we run both and use the eng+nums result only when its
-        output is digit-dominated — the one signal that is reliable, since
-        digits can only come from eng+nums.
-        """
-        ru = self.ocr_ru.predict(word)[self.ocr_ru.model_name]['ocr_output']
-        en = self.ocr_en.predict(word)[self.ocr_en.model_name]['ocr_output']
-        return en if self._is_number_token(en) else ru
-
-    @staticmethod
-    def _is_number_token(en_text: str) -> bool:
-        """True if the eng+nums OCR output is digit-dominated (a number word
-        such as a house/building/flat number), i.e. at least one digit and
-        digits not outnumbered by letters among the alphanumeric characters."""
-        alnum = [c for c in (en_text or '') if c.isalnum()]
-        if not alnum:
-            return False
-        digits = sum(c.isdigit() for c in alnum)
-        letters = len(alnum) - digits
-        return digits >= 1 and digits >= letters
-
-    @staticmethod
-    def _duplicate_field_indices(bboxes, unique_fields) -> set:
-        """For each field that must be unique, return the indices of all but the
-        highest-confidence detection (bbox layout: [x1,y1,x2,y2,conf,cls,label]).
-        Used to drop the duplicate series/number boxes on internal passports."""
-        drop = set()
-        for field in unique_fields:
-            idxs = [i for i, b in enumerate(bboxes) if b[-1] == field]
-            if len(idxs) > 1:
-                best = max(idxs, key=lambda i: bboxes[i][4])
-                drop.update(i for i in idxs if i != best)
-        return drop
-
     def _fields_detector(self, img, rotate_licence=False):
         """
         Detect text fields in document.
@@ -534,6 +641,7 @@ class Pipeline:
                 if field[-1] == 'Licence_number':
                     text_fields['warped_img'][i] = cv2.rotate(text_fields['warped_img'][i],
                                                               cv2.ROTATE_90_COUNTERCLOCKWISE)
+
 
         self.results.meta_results = self.results.meta_results | result
 
@@ -561,17 +669,28 @@ class Pipeline:
             bboxes = [b for i, b in enumerate(bboxes) if i not in drop]
             patches = [p for i, p in enumerate(patches) if i not in drop]
 
+        # fields that will actually contribute to `result`, in original order
+        kept = [i for i, bbox in enumerate(bboxes)
+               if bbox[-1] in self.ocr_options.en_fields or bbox[-1] in self.ocr_options.ru_fields]
+
+        # WordsDetector calls are independent (different crop each, same
+        # reused session - ONNX Runtime sessions support concurrent run()
+        # calls; verified no shared mutable state in pre/postprocessing, see
+        # docs/progress-log.md), so dispatch them concurrently instead of one
+        # at a time. Fields that don't need splitting need no call at all.
+        split_idxs = [i for i in kept if bboxes[i][-1] in self.ocr_options.needed_split]
+        words_by_idx = {}
+        if split_idxs:
+            with ThreadPoolExecutor(max_workers=min(8, len(split_idxs))) as ex:
+                futures = {i: ex.submit(self.words_detector.predict_transform, patches[i])
+                          for i in split_idxs}
+                for i, fut in futures.items():
+                    words_by_idx[i] = fut.result()[self.words_detector.model_name]['warped_img']
+
         result = {}
-        for i, bbox in enumerate(bboxes):
-
-            if bbox[-1] not in self.ocr_options.en_fields and bbox[-1] not in self.ocr_options.ru_fields:
-                continue
-
-
-            if bbox[-1] in self.ocr_options.needed_split:
-                words = self.words_detector.predict_transform(patches[i])[self.words_detector.model_name]['warped_img']
-            else:
-                words = [patches[i], ]
+        for i in kept:
+            bbox = bboxes[i]
+            words = words_by_idx[i] if i in words_by_idx else [patches[i]]
 
             if result.get(bbox[-1]):
                 result[bbox[-1]]['patches'].extend(words)
@@ -582,9 +701,143 @@ class Pipeline:
         self.results.meta_results[self.words_detector.model_name] = result
         return result
 
-    def _ocr(self, words_dict: dict, doc_type:str):
+    def _address_lines(self, img):
+        """
+        Recognize the multi-line registration address (INTPASSPORTADDR).
+
+        Runs the oriented-bbox address-line detector directly on the
+        perspective-fixed canvas (it handles line tilt itself, so no deskew is
+        needed), yielding upright line patches already ordered top-to-bottom.
+        Each line is classified printed-vs-handwritten; printed lines are split
+        into words and OCR'd with the printed Russian model, handwritten lines
+        are flagged (OCR is printed-only) and kept as a placeholder so the line
+        order/structure is preserved.
+
+        Result is stored as results.meta_results['OCR']['Address'] — lines
+        joined by newline. Per-line kinds are stored under
+        meta_results['Address_lines'] and a handwritten flag on the OCR dict.
+
+        Args:
+            img: Perspective-fixed canvas.
+        """
+        result = self.address_lines.predict_transform(img)
+        self.results.meta_results = self.results.meta_results | result
+        line_patches = result[self.address_lines.model_name]['warped_img']
+        # ocr_device is only 'gpu' for v2 engines when ocr_gpu_batch=True was
+        # explicitly requested (see __init__) - safe to gate on it directly.
+        use_batch = self.ocr_device == 'gpu' and self.ocr_mode != 'legacy'
+
+        HW_PLACEHOLDER = '⟨рукопись⟩'
+        line_meta = []
+        line_slots = []          # 'hw' or ('printed', index into printed_words)
+        printed_words = []       # list[list[word_patch]], one list per printed line
+        has_handwritten = False
+
+        for patch in line_patches:
+            if patch is None or patch.size == 0:
+                continue
+            kind, prob = self.address_textkind.predict(patch)[self.address_textkind.model_name]
+            if kind == 'handwritten':
+                has_handwritten = True
+                line_meta.append({'kind': 'handwritten', 'p_handwritten': prob, 'text': None})
+                line_slots.append(('hw', None))
+                continue
+            # printed line: split into words (left-to-right); OCR happens below
+            words = self.words_detector.predict_transform(patch)[self.words_detector.model_name]['warped_img']
+            if not words:
+                words = [patch]
+            words = [w for w in words if w is not None and w.size > 0]
+            line_slots.append(('printed', len(printed_words)))
+            printed_words.append(words)
+            line_meta.append({'kind': 'printed', 'p_handwritten': prob, 'text': None})
+
+        if use_batch:
+            # one padded-batch call per engine across ALL address words (see
+            # ocr_batch.py / _ocr_batched for why this matters on GPU).
+            flat = [w for words in printed_words for w in words]
+            cyr_texts = self.ocr_cyr.predict_batch(flat)
+            lat_texts = self.ocr_lat.predict_batch(flat)
+            flat_texts = [lat if self._is_number_token(lat) else ru
+                          for ru, lat in zip(cyr_texts, lat_texts)]
+            texts_by_line = []
+            it = iter(flat_texts)
+            for words in printed_words:
+                texts_by_line.append([next(it) for _ in words])
+        else:
+            texts_by_line = [[self._route_word_ocr(w) for w in words] for words in printed_words]
+
+        address_lines_text = []
+        for slot, meta in zip(line_slots, line_meta):
+            kind, idx = slot
+            if kind == 'hw':
+                address_lines_text.append(HW_PLACEHOLDER)
+                continue
+            line_words = [t.strip() for t in texts_by_line[idx] if t]
+            line_text = ' '.join(line_words)
+            meta['text'] = line_text
+            address_lines_text.append(line_text)
+
+        self.results.meta_results['Address_lines'] = line_meta
+        if address_lines_text:
+            ocr_dict = self.results.meta_results.get('OCR') or {}
+            ocr_dict['Address'] = '\n'.join(address_lines_text)
+            ocr_dict['Address_has_handwritten'] = has_handwritten
+            self.results.meta_results['OCR'] = ocr_dict
+
+    def _route_word_ocr(self, word) -> str:
+        """Pick the right OCR engine for an address word (serial/per-word path;
+        used on CPU and legacy - see _address_lines for the batched GPU path).
+
+        Run both the Cyrillic and Latin engines and keep the Latin result only
+        when it is digit-dominated (a house/building/flat number), otherwise the
+        Cyrillic result. The Latin engine reads digits and Latin letters
+        cleanly, so its digit-dominated output is the reliable signal for
+        numeric tokens; Cyrillic words are taken from the Cyrillic engine.
+        (Legacy engines: OCRRus has no digits and OCREngNums no Cyrillic, so the
+        same rule holds.)
+        """
+        ru = self.ocr_cyr.predict(word)[self.ocr_cyr.model_name]['ocr_output']
+        en = self.ocr_lat.predict(word)[self.ocr_lat.model_name]['ocr_output']
+        return en if self._is_number_token(en) else ru
+
+    @staticmethod
+    def _is_number_token(en_text: str) -> bool:
+        """True if the eng+nums OCR output is digit-dominated (a number word
+        such as a house/building/flat number), i.e. at least one digit and
+        digits not outnumbered by letters among the alphanumeric characters."""
+        alnum = [c for c in (en_text or '') if c.isalnum()]
+        if not alnum:
+            return False
+        digits = sum(c.isdigit() for c in alnum)
+        letters = len(alnum) - digits
+        return digits >= 1 and digits >= letters
+
+    @staticmethod
+    def _duplicate_field_indices(bboxes, unique_fields) -> set:
+        """For each field that must be unique, return the indices of all but the
+        highest-confidence detection (bbox layout: [x1,y1,x2,y2,conf,cls,label]).
+        Used to drop the duplicate series/number boxes on internal passports."""
+        drop = set()
+        for field in unique_fields:
+            idxs = [i for i, b in enumerate(bboxes) if b[-1] == field]
+            if len(idxs) > 1:
+                best = max(idxs, key=lambda i: bboxes[i][4])
+                drop.update(i for i in idxs if i != best)
+        return drop
+
+    def _ocr(self, words_dict: dict, doc_type: str):
         """
         Perform OCR on splitted words.
+
+        With a v2 engine (accurate/fast) AND ocr_gpu_batch=True (so
+        ocr_device=='gpu' - see __init__), routes through the batched path
+        (_ocr_batched): padded-batch inference calls per engine instead of one
+        call per word, which avoids ONNX Runtime recompiling the CUDA graph
+        for every distinct patch width (measured 400-3700x faster on real word
+        crops), at the cost of a small measured decode-drift risk (see
+        pipeline_modules/ocr_batch.py and docs/progress-log.md). Otherwise
+        (CPU, or 'legacy' on either device) uses the per-word path
+        (_ocr_serial), which is exact.
 
         Args:
             words: Text fields splitted into words
@@ -592,39 +845,125 @@ class Pipeline:
         Returns:
             dict: OCR text for input words
         """
+        # ocr_device is only 'gpu' for v2 engines when ocr_gpu_batch=True was
+        # explicitly requested (see __init__) - safe to gate on it directly.
+        if self.ocr_device == 'gpu' and self.ocr_mode != 'legacy':
+            self._ocr_batched(words_dict, doc_type)
+        else:
+            self._ocr_serial(words_dict, doc_type)
+
+    def _ocr_serial(self, words_dict: dict, doc_type: str):
+        """Per-word OCR calls (one predict() per patch). Used for CPU and for
+        'legacy'."""
         ocr_dict = {}
         for field_name, words in words_dict.items():
             ocred_words = []
             for i, word in enumerate(words['patches']):
-                if doc_type == 'SNILS' and 'date' in field_name.lower() and i % 2 == 1 or \
+                # SNILS is the one doc type where a single word-index parity
+                # check decides Cyrillic vs Latin, regardless of field name:
+                # its date fields ("31 октября 1998") are printed as Russian
+                # words interleaved with digits, so odd-indexed words (the
+                # month name) must go to the Cyrillic engine even though the
+                # field itself is en_fields/date-routed below.
+                if doc_type == 'SNILS' and i % 2 == 1 or \
                         field_name in self.ocr_options.ru_fields:
-                    result = self.ocr_ru.predict(word)[self.ocr_ru.model_name]['ocr_output']
-                    result = self.ocr_ru.fix_errors(field_type=field_name, text=result)
+                    result = self.ocr_cyr.predict(word)[self.ocr_cyr.model_name]['ocr_output']
+                    # text-only normalization: Sex_ru -> М/Ж, strip stray leading
+                    # dots on names. CER-validated win.
+                    result = self.ocr_cyr.fix_errors(field_type=field_name, text=result)
+                    words['ocr'].append(result)
+                    ocred_words.append(result)
+                # get formated dates with CTC vector
+                elif 'date' in field_name.lower():
+                    result = self.ocr_lat.predict(word)[self.ocr_lat.model_name]['ocr_output']
+                    if self.ocr_mode != 'legacy':
+                        # v2 engines: normalize date text to dd.mm.yyyy. Legacy keeps
+                        # its historical behavior (raw greedy output in this branch).
+                        result = self.ocr_lat.fix_errors(field_type=field_name, text=result)
                     words['ocr'].append(result)
                     ocred_words.append(result)
                 elif field_name in self.ocr_options.en_fields:
-                    result = self.ocr_en.predict(word)[self.ocr_en.model_name]['ocr_output']
-                    result = self.ocr_en.fix_errors(field_type=field_name, text=result)
+                    result = self.ocr_lat.predict(word)[self.ocr_lat.model_name]['ocr_output']
+                    result = self.ocr_lat.fix_errors(field_type=field_name, text=result)
                     words['ocr'].append(result)
                     ocred_words.append(result)
 
+            self._join_field(ocr_dict, field_name, doc_type, ocred_words)
 
-            if 'date' in field_name.lower() and doc_type != 'SNILS':
-                ocr_dict[field_name] = '.'.join(ocred_words)
-            elif 'date' in field_name.lower() and doc_type == 'SNILS':
-                ocr_dict[field_name] = ' '.join(ocred_words)
-            else:
-                if ocr_dict.get(field_name):
-                    ocr_dict[field_name] += ' ' + ' '.join(ocred_words)
-                else:
-                    ocr_dict[field_name] = ' '.join(ocred_words)
-
-            ocr_dict[field_name] = ocr_dict[field_name].replace('  ', ' ').strip()
-
-
-        # saving both OCR clear result and OCR of each patch
         self.results.meta_results['OCR'] = ocr_dict
-        # self.results.meta_results[self.words_detector.model_name] = words_dict
+
+    def _ocr_batched(self, words_dict: dict, doc_type: str):
+        """Same field/word routing and fix_errors as _ocr_serial, but the OCR
+        calls are batched: every Cyrillic-routed word and every Latin-routed
+        word across ALL fields is collected first, each engine is called ONCE
+        via predict_batch, then results are redistributed. Only called when
+        device=='gpu' and ocr_mode != 'legacy' (guaranteed by _ocr).
+        """
+        items = list(words_dict.items())
+
+        # classify every word without calling predict() yet
+        plans = []
+        for field_name, words in items:
+            plan = []
+            for i, _word in enumerate(words['patches']):
+                # see the matching comment in _ocr_serial: SNILS dates are
+                # written out as Russian words ("26 СЕНТЯБРЯ 1997 ГОДА"), so
+                # odd-indexed words need the Cyrillic engine even though the
+                # field itself is en_fields/date-routed.
+                if doc_type == 'SNILS' and i % 2 == 1 or field_name in self.ocr_options.ru_fields:
+                    plan.append('cyr')
+                elif 'date' in field_name.lower():
+                    plan.append('lat_date')
+                elif field_name in self.ocr_options.en_fields:
+                    plan.append('lat')
+                else:
+                    plan.append(None)
+            plans.append(plan)
+
+        cyr_patches, lat_patches = [], []
+        for (_field_name, words), plan in zip(items, plans):
+            for kind, word in zip(plan, words['patches']):
+                if kind == 'cyr':
+                    cyr_patches.append(word)
+                elif kind in ('lat_date', 'lat'):
+                    lat_patches.append(word)
+
+        cyr_texts = iter(self.ocr_cyr.predict_batch(cyr_patches))
+        lat_texts = iter(self.ocr_lat.predict_batch(lat_patches))
+
+        ocr_dict = {}
+        for (field_name, words), plan in zip(items, plans):
+            ocred_words = []
+            for kind in plan:
+                if kind == 'cyr':
+                    result = self.ocr_cyr.fix_errors(field_type=field_name, text=next(cyr_texts))
+                elif kind == 'lat_date':
+                    result = self.ocr_lat.fix_errors(field_type=field_name, text=next(lat_texts))
+                elif kind == 'lat':
+                    result = self.ocr_lat.fix_errors(field_type=field_name, text=next(lat_texts))
+                else:
+                    continue
+                words['ocr'].append(result)
+                ocred_words.append(result)
+
+            self._join_field(ocr_dict, field_name, doc_type, ocred_words)
+
+        self.results.meta_results['OCR'] = ocr_dict
+
+    @staticmethod
+    def _join_field(ocr_dict: dict, field_name: str, doc_type: str, ocred_words: list):
+        """Join per-word OCR results into the field's final string (dates use
+        '.', SNILS dates use ' ', everything else appends with ' ')."""
+        if 'date' in field_name.lower() and doc_type != 'SNILS':
+            ocr_dict[field_name] = '.'.join(ocred_words)
+        elif 'date' in field_name.lower() and doc_type == 'SNILS':
+            ocr_dict[field_name] = ' '.join(ocred_words)
+        else:
+            if ocr_dict.get(field_name):
+                ocr_dict[field_name] += ' ' + ' '.join(ocred_words)
+            else:
+                ocr_dict[field_name] = ' '.join(ocred_words)
+        ocr_dict[field_name] = ocr_dict[field_name].replace('  ', ' ').strip()
 
     def _model_call(self, func, *args, **kwargs):
         """ Wrapper for making timing calculations."""
@@ -645,15 +984,13 @@ class Pipeline:
             np.ndarray: Loaded and resized image.
         """
 
-        if isinstance(img_path, Path):
-            img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+        if isinstance(img_path, (Path, str)):
+            p = Path(img_path)
+            img = cv2.imdecode(np.frombuffer(p.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+            if img is None:
+                raise ValueError(f"Could not decode image: {p}")
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            self.results.meta_results['image_path'] = img_path.as_posix()
-        elif isinstance(img_path, str):
-            img_path = Path(img_path)
-            img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            self.results.meta_results['image_path'] = img_path
+            self.results.meta_results['image_path'] = p.as_posix()
         elif isinstance(img_path, np.ndarray):
             img = img_path
         else:
