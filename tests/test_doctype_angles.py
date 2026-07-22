@@ -41,14 +41,21 @@ class TestDocTypeAngle:
             assert angle_meta[0] == angle_expected, f'Wrong angle for {img.name}: {angle_meta[0]}'
 
     def test_module(self, module):
-        """predict_transform returns DocType/Angle90 metas and the rotated image."""
+        """predict_transform returns {model_name: flat payload} incl. warped_img."""
         for img in IMAGES.iterdir():
             doctype_expected, angle_expected = _expected(img)
             result = module.predict_transform(img)
 
-            assert 'DocType' in result and 'Angle90' in result, 'Missing DocType/Angle90 keys'
-            assert _family(result['DocType']['doc_type']) == doctype_expected, f'Wrong doctype for {img.name}'
+            assert module.model_name in result, f'Missing {module.model_name!r} key'
+            meta = result[module.model_name]
+            assert _family(meta['doc_type']) == doctype_expected, f'Wrong doctype for {img.name}'
+            assert meta['angle'] == angle_expected, f'Wrong angle for {img.name}'
+            assert 'warped_img' in meta, 'Missing warped_img'
+            assert 'doc_type_confidence' in meta and 'angle_confidence' in meta
 
-            angle_meta = result['Angle90']
-            assert 'angle' in angle_meta and 'warped_img' in angle_meta, 'Missing angle/warped_img'
-            assert angle_meta['angle'] == angle_expected, f'Wrong angle for {img.name}'
+    def test_module_predict_has_no_warped_img(self, module):
+        """predict() returns the same payload minus the rotated image."""
+        img = next(iter(IMAGES.iterdir()))
+        meta = module.predict(img)[module.model_name]
+        assert 'warped_img' not in meta
+        assert _family(meta['doc_type']) == _expected(img)[0]
