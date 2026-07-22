@@ -5,10 +5,21 @@ import numpy as np
 import cv2
 
 class DocTypeAngles(BaseModule):
-    """Detects type of document from image.
+    """Classifies document type and 90-degree rotation angle from an image.
 
-    Identifies whether image contains a passport, driver's license etc.
+    Identifies whether the image contains a passport, driver's license etc.
+    and by how many degrees (multiple of 90) it is rotated.
 
+    Output follows the standard module contract - a single dict keyed by
+    ``model_name`` ('DocTypeAngles') with a flat payload:
+
+        {'DocTypeAngles': {
+            'doc_type': str,                # e.g. 'INTPASSPORT_2011', 'NONE'
+            'doc_type_confidence': float,   # 1 - dist/threshold, rounded
+            'angle': int,                   # 0/90/180/270
+            'angle_confidence': float,
+            'warped_img': np.ndarray,       # predict_transform only: upright image
+        }}
     """
 
     def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool = False):
@@ -16,64 +27,42 @@ class DocTypeAngles(BaseModule):
         self.model_name = 'DocTypeAngles'
         super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose)
 
-    def predict(self, img: Union[str, Path, np.ndarray]) -> dict:
-        """Predicts document type and confidence score.
-
-        Args:
-            img: Input document image
-
-        Returns:
-            Dict with document type string and confidence
-        """
-        self.load_img(img)
-
+    def __predict_meta(self, img: np.ndarray) -> dict:
+        """Runs the model and builds the flat payload dict (no rotation)."""
         doctype_meta, angle_meta = self.model.predict(img)
         doc_type, dist, thresh = doctype_meta
-        doctype_conf = np.round(1 - dist / thresh, 2)
         angle, angle_conf = angle_meta
-        meta = {
-            'DocType':
-                {
-                    'doc_type': doc_type,
-                    'confidence': doctype_conf,
-                },
-            'Angle90':
-                {
-                    'angle': angle,
-                    'confidence': angle_conf,
-                }
+        return {
+            'doc_type': doc_type,
+            'doc_type_confidence': np.round(1 - dist / thresh, 2),
+            'angle': angle,
+            'angle_confidence': angle_conf,
         }
-        return meta
 
-    def predict_transform(self, img: Union[str, Path, np.ndarray]) -> dict:
-        """Predicts document type and confidence score and applies rotation.
+    def predict(self, img: Union[str, Path, np.ndarray]) -> dict:
+        """Predicts document type and rotation angle with confidences.
 
         Args:
             img: Input document image
 
         Returns:
-            dict with angle, confidence and rotated image
+            {'DocTypeAngles': {...}} - see class docstring.
         """
         img = self.load_img(img)
-        doctype_meta, angle_meta = self.model.predict(img)
-        doc_type, dist, thresh = doctype_meta
-        doctype_conf = np.round(1 - dist / thresh, 2)
+        return {self.model_name: self.__predict_meta(img)}
 
-        angle, angle_conf = angle_meta
-        for _ in range(angle // 90):
+    def predict_transform(self, img: Union[str, Path, np.ndarray]) -> dict:
+        """Same as predict(), plus the image rotated upright ('warped_img').
+
+        Args:
+            img: Input document image
+
+        Returns:
+            {'DocTypeAngles': {...}} - see class docstring.
+        """
+        img = self.load_img(img)
+        meta = self.__predict_meta(img)
+        for _ in range(meta['angle'] // 90):
             img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-
-        meta = {
-            'DocType':
-                {
-                    'doc_type': doc_type,
-                    'confidence': doctype_conf,
-                },
-            'Angle90':
-                {
-                    'angle': angle,
-                    'confidence': angle_conf,
-                    'warped_img': img,
-                }
-        }
-        return meta
+        meta['warped_img'] = img
+        return {self.model_name: meta}

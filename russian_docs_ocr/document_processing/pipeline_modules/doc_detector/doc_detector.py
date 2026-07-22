@@ -100,7 +100,7 @@ class DocDetector(BaseModule):
             try:
                 result_img, borders_img = fix_perspective(img=img, segments=segm, stack=stack)
             except Exception as e:
-                print('[!] Failed to fix perspective')
+                print(f'[!] Failed to fix perspective: {e!r}')
                 result_img = borders_img = img
         else:
             result_img = borders_img = img

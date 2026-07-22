@@ -140,6 +140,13 @@ class QualityChecker(object):
             if result == 'NonBlur':
                 result_list.append(0)
         max_level_for_normalization = len(result_list)
+        if max_level_for_normalization == 0:
+            # No patch was classified as Blur5/Blur10/NonBlur (e.g. a
+            # degenerate/untextured input) - no blur evidence either way;
+            # default to "sharp" rather than dividing by zero, since flagging
+            # a document 'bad' on a classifier miss (not an actual blur
+            # signal) would be a false rejection.
+            return 1.0
         quality_level = 0
         for block in result_list:
             quality_level += block

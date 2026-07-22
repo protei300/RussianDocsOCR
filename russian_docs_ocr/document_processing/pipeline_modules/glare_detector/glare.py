@@ -2,7 +2,6 @@ from ..base_module import BaseModule
 from typing import Union
 from pathlib import Path
 import numpy as np
-import cv2
 from .quality import QualityChecker
 
 
@@ -18,7 +17,7 @@ class Glare(BaseModule):
     def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool = False):
         """Initializes glare detection model."""
         self.model_name = 'Glare'
-        super().__init__(self.model_name, model_format=model_format, device=device, verbose=False)
+        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose)
 
     def predict(self, img: Union[str, Path, np.ndarray]) -> dict:
         """Analyzes image and returns glare score.
@@ -57,7 +56,7 @@ class Glare(BaseModule):
         """
         canvas_size = (7, 4)
         checker = QualityChecker(self.model, canvas_size)
-        image = cv2.imread(str(img))
+        image = self.load_img(img)
         quality = checker.check_image_quality(image)
         transformed_image = checker.annotate_image(image)
         if quality > 0.9:

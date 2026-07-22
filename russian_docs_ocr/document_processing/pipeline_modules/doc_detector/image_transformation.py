@@ -60,17 +60,17 @@ def sort_coordinates(list_of_xy_coords):
     return list_of_xy_coords[indices]
 
 def get_angles(list_of_coords):
-    """Calculates angle between adjacent coordinates.
+    """Calculates angle (degrees) between each coordinate and the next one.
 
     Args:
         coords (list): List of (x, y) tuples
 
-    Prints:
-        Angles between adjacent coordinate pairs
+    Returns:
+        np.ndarray: Angles in degrees between adjacent coordinate pairs.
     """
     x, y = list_of_coords.T
     x_shifted, y_shifted = np.roll(list_of_coords,-1, axis=0).T
-    print(np.arctan2(x_shifted-x, y_shifted - y)/np.pi*180)
+    return np.arctan2(x_shifted-x, y_shifted - y)/np.pi*180
 
 
 def perp( a ) :

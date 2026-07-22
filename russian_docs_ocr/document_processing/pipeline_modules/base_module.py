@@ -22,10 +22,20 @@ class BaseModule:
         model_name: Name of machine learning model
 
     """
-    def __init__(self, model_name: str, model_format: str = 'ONNX', device='cpu', verbose: bool = False):
-        """Initializes base model and loads model artifact."""
-        if model_name in DEFAULT_CFG.keys():
-            self.__model_path = Path(DEFAULT_CFG.get(model_name)).joinpath(model_format, 'model.json')
+    def __init__(self, model_name: str, model_format: str = 'ONNX', device='cpu', verbose: bool = False,
+                 cfg_key: str = None):
+        """Initializes base model and loads model artifact.
+
+        Args:
+            model_name: Name used as the result/meta key (and, by default, the
+                models_path.yaml lookup key).
+            cfg_key: Optional models_path.yaml key to load the artifact from, when
+                it differs from model_name (e.g. a tier-specific OCR model that
+                should still report under a stable model_name).
+        """
+        lookup = cfg_key or model_name
+        if lookup in DEFAULT_CFG.keys():
+            self.__model_path = Path(DEFAULT_CFG.get(lookup)).joinpath(model_format, 'model.json')
         else:
             raise Exception("No path for this type of model detected in models_path.yaml")
 
@@ -73,13 +83,14 @@ class BaseModule:
     def load_img(img_path: Union[str, Path, np.ndarray]):
         """Method that loads image and converts it to RGB color mode"""
         if isinstance(img_path, Path):
-            img = cv2.imread(img_path.as_posix())
-            img = cv2.cvtColor(img ,cv2.COLOR_BGR2RGB)
+            img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         elif isinstance(img_path, str):
-            img = cv2.imread(img_path)
+            img_path = Path(img_path)
+            img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         elif isinstance(img_path, np.ndarray):
             img = img_path
         else:
-            raise Exception("Unsupported input type as img")
+            raise Exception("Unsupported image type")
         return img
