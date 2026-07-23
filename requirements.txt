@@ -18,7 +18,7 @@ openvino==2026.2.1                  # model_format='OpenVINO' (дефолт в s
 
 # ── Тесты ─────────────────────────────────────────────────────────────────────
 pytest==9.1.1
-Pillow==12.2.0                      # тесты (PIL.Image) и scripts/ocr_patches.py
+Pillow==12.3.0                      # тесты (PIL.Image) и scripts/ocr_patches.py; >=12.3.0 закрывает CVE-2026-54059/54060/55379
 
 # ── Скрипты (scripts/: benchmark, process_img, process_video, ocr_patches) ────
 pandas==3.0.3                       # benchmark.py — отчёт
