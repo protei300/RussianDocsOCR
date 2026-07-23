@@ -202,6 +202,14 @@ result_with_warped = doctype_angles.predict_transform(img='img.jpg') # if we wan
 2. Добавить секцию с изменениями в `CHANGELOG.md`.
 3. Поставить и запушить тег: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
+## Разработчикам и контрибуторам
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — настройка окружения, запуск тестов, стиль кода, ветки и PR.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — устройство пайплайна, слои, модули, как добавить свой.
+- [`CHANGELOG.md`](CHANGELOG.md) — история изменений.
+- [`SECURITY.md`](SECURITY.md) — как сообщить об уязвимости.
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — кодекс поведения участников.
+
 ## Об авторах проекта
 
 ### Митянина Анастасия Владимировна 
