@@ -9,7 +9,7 @@ recompile/replan (extra Memcpy nodes, no CUDA Graph reuse) - measured at
 ~500-740 ms per single-patch call on an RTX 4070 Ti Super, vs ~1-4 ms/patch
 when all patches in a call share one shape (400-3700x). On CPU the dynamic
 per-patch path is already cheap and batching does not help (measured slower),
-so this is GPU-only - see docs/progress-log.md for the full writeup.
+so this is GPU-only.
 
 `predict_batch_padded` quantizes both axes of the batch tensor to small FIXED
 ladders (`_WIDTH_LADDER` for the width axis, `_COUNT_LADDER` for the
@@ -81,7 +81,7 @@ import numpy as np
 # so many distinct pairs that real (varying) documents rarely repeated one,
 # staying slow (2.5-7s/doc) even after 10 documents of the same type; this
 # coarser ladder recurs reliably within a handful of documents instead - see
-# the module docstring and docs/progress-log.md for the measured numbers.
+# the module docstring for the measured numbers.
 _WIDTH_LADDER = (128, 256, 512, 1024)
 _COUNT_LADDER = (8, 32, 128)
 
@@ -216,7 +216,7 @@ def warmup_ladder(model) -> None:
     - Per-combo cost scales sharply with BOTH width and count, not just
       width - the largest rung (count=128, width=1024) alone took ~7s;
       warming the full 4x3 ladder for one engine measured 15-90+ seconds
-      total (varied across runs - see docs/progress-log.md), an unacceptable
+      total (varied across runs), an unacceptable
       construction-time cost.
     - Worse: even after paying that cost, real documents were observed still
       slow (multi-second OCR stage) on shapes that HAD just been warmed

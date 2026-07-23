@@ -54,8 +54,7 @@ class DocDeskewer:
                 matching the brute-force result whenever the projection-
                 variance curve is unimodal in the coarse window - true for
                 genuine single-peak skew; verified to pick the identical angle
-                as the brute-force search on samples/ (see
-                docs/progress-log.md).
+                as the brute-force search on samples/.
         """
         self.angle_range = angle_range
         self.angle_steps = angle_steps

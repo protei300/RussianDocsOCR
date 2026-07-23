@@ -333,7 +333,7 @@ class Pipeline:
             # and, even after paying that cost, real documents were still
             # observed slow on already-warmed shapes. Left as an opt-in
             # experiment for callers who want to try it themselves; see its
-            # docstring and docs/progress-log.md before using it.
+            # docstring before using it.
 
         self.lcd_spoofing = LCDSpoofing(model_format=model_format, device=device, verbose=verbose)
         self.print_spoofing = PrintSpoofing(model_format=model_format, device=device, verbose=verbose)
@@ -544,7 +544,7 @@ class Pipeline:
         All five take the same (rotated) image and are mutually independent
         (different models/sessions, no shared mutable state in the
         preprocessing/inference/postprocessing layers - verified by code
-        review, see docs/progress-log.md). Only used when low_quality=True:
+        review). Only used when low_quality=True:
         with low_quality=False the quality verdict must be known BEFORE
         deciding whether to run the heavier border detector at all, which
         needs the original sequential order (see process_img).
@@ -675,8 +675,8 @@ class Pipeline:
 
         # WordsDetector calls are independent (different crop each, same
         # reused session - ONNX Runtime sessions support concurrent run()
-        # calls; verified no shared mutable state in pre/postprocessing, see
-        # docs/progress-log.md), so dispatch them concurrently instead of one
+        # calls; verified no shared mutable state in pre/postprocessing),
+        # so dispatch them concurrently instead of one
         # at a time. Fields that don't need splitting need no call at all.
         split_idxs = [i for i in kept if bboxes[i][-1] in self.ocr_options.needed_split]
         words_by_idx = {}
@@ -835,7 +835,7 @@ class Pipeline:
         call per word, which avoids ONNX Runtime recompiling the CUDA graph
         for every distinct patch width (measured 400-3700x faster on real word
         crops), at the cost of a small measured decode-drift risk (see
-        pipeline_modules/ocr_batch.py and docs/progress-log.md). Otherwise
+        pipeline_modules/ocr_batch.py). Otherwise
         (CPU, or 'legacy' on either device) uses the per-word path
         (_ocr_serial), which is exact.
 
