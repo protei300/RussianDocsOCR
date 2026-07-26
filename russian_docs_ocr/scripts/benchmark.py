@@ -95,7 +95,7 @@ def main():
     parser.add_argument('-i', '--images', help='From where to read images', type=str, default='../samples')
     parser.add_argument('-s', '--save_to', help='Where to save result in JSON format', type=str,
                         default=r'bench_results')
-    parser.add_argument('-f', '--format', help='Select model format TFlite, ONNX, OpenVINO', type=str,
+    parser.add_argument('-f', '--format', help='Select model format ONNX, OpenVINO', type=str,
                         default='ONNX')
     parser.add_argument('-d', '--device', help='On which device to run - cpu or gpu', default='cpu', type=str)
     parser.add_argument('--img_size', help='To which max size reshape image', required=False, default=1500, type=int)

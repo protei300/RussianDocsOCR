@@ -32,9 +32,13 @@ class DocTypeAngles(BaseModule):
         doctype_meta, angle_meta = self.model.predict(img)
         doc_type, dist, thresh = doctype_meta
         angle, angle_conf = angle_meta
+        # thresh == 0 is the postprocessing's "no centroid within radius" sentinel
+        # (it also sets dist to inf, so the division would raise ZeroDivisionError).
+        # That case is maximally-unknown, hence confidence 0.0.
+        confidence = np.round(1 - dist / thresh, 2) if thresh > 0 else 0.0
         return {
             'doc_type': doc_type,
-            'doc_type_confidence': np.round(1 - dist / thresh, 2),
+            'doc_type_confidence': confidence,
             'angle': angle,
             'angle_confidence': angle_conf,
         }

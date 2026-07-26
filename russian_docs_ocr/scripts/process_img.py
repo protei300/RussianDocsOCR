@@ -39,7 +39,7 @@ def process_img(**kwargs) -> dict:
 def main():
     parser = argparse.ArgumentParser(description='Benchmark pipeline')
     parser.add_argument('-i', '--img_path', help='Image path', type=Path, default='../samples/DL_2011/1_CR_DL_2010.jpg', )
-    parser.add_argument('-f', '--format', help='Select model format TFlite, ONNX, OpenVINO', type=str,
+    parser.add_argument('-f', '--format', help='Select model format ONNX, OpenVINO', type=str,
                         default='OpenVINO')
     parser.add_argument('-d', '--device', help='On which device to run - cpu or gpu', default='cpu', type=str)
     parser.add_argument('--check_quality',

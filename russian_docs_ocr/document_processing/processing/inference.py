@@ -29,7 +29,7 @@ def _np_dtype_for(ort_input) -> np.dtype:
 class ModelInference:
     """Class for making inferences from different model types.
 
-    This class handles loading models in various formats such as TensorFlow, ONNX,
+    This class handles loading models in various formats such as ONNX,
     OpenVINO etc. and making predictions from them.
 
     Attributes:
@@ -53,35 +53,7 @@ class ModelInference:
         self.device = device
         self.verbose = verbose
 
-        if model_path.suffix == '.h5':
-            self.tf = import_module('tensorflow')
-            self.__load_h5(model_path)
-            self.predict = self.__predict_saved_model
-            if verbose:
-                print("[+] H5 inference loaded")
-
-        elif model_path.is_dir():
-            self.tf = import_module('tensorflow')
-            self.__load_saved_model(model_path)
-            self.predict = self.__predict_saved_model
-            if verbose:
-                print("[+] Saved_model inference loaded")
-
-        elif model_path.suffix == '.pb':
-            self.tf = import_module('tensorflow')
-            self.__load_pb(model_path)
-            self.predict = self.__predict_frozen
-            if verbose:
-                print("[+] PB inference loaded")
-
-        elif model_path.suffix == '.tflite':
-            self.tf = import_module('tensorflow')
-            self.__load_tflite(model_path)
-            self.predict = self.__predict_tflite
-            if verbose:
-                print("[+] TFlite inference loaded")
-
-        elif model_path.suffix == '.onnx':
+        if model_path.suffix == '.onnx':
             self.ort = import_module('onnxruntime')
             self.__load_onnx(model_path)
             self.predict = self.__predict_onnx
@@ -106,7 +78,8 @@ class ModelInference:
                 print("[+] CoreML inference loaded")
 
         else:
-            raise Exception("Unsupported model type TODO")
+            raise Exception(f"Unsupported model type '{model_path.suffix}' ({model_path}). "
+                            f"Supported: .onnx, .ir, .mlmodel")
 
 
     def predict(self, tensors: List[np.ndarray]):
@@ -122,53 +95,6 @@ class ModelInference:
 
         """
         raise NotImplemented("Need to implement this method")
-
-    def __load_h5(self, model_path:Path):
-        if self.device == 'gpu':
-            self.model = self.tf.keras.models.load_model(model_path)
-        else:
-            with self.tf.device('/cpu:0'):
-                self.model = self.tf.keras.models.load_model(model_path)
-        print("[+] H5 model loaded")
-
-    def __load_saved_model(self, model_path:Path):
-        if self.device == 'gpu':
-            self.model = self.tf.saved_model.load(model_path)
-        else:
-            with self.tf.device('/cpu:0'):
-                self.model = self.tf.saved_model.load(model_path)
-
-
-    def __load_pb(self, model_path:Path):
-        graph_path = model_path.as_posix()
-        with self.tf.compat.v1.gfile.GFile(graph_path, "rb") as f:
-            graph_def = self.tf.compat.v1.GraphDef()
-            graph_def.ParseFromString(f.read())
-
-        with self.tf.Graph().as_default() as graph:
-            self.tf.import_graph_def(
-                graph_def,
-            )
-        self.model = graph
-
-        inp_name, inp_shape = self.model.get_operations()[0]._outputs[0].name, \
-            self.model.get_operations()[0]._outputs[0].shape[1:]
-
-
-        self.outp_name = []
-
-        for i, op in enumerate(graph.get_operations()):
-            if op.type == 'Identity':
-                self.outp_name.append(op._outputs[0].name)
-
-
-
-        with self.tf.compat.v1.Session(graph=self.model) as sess:
-            sess.run(self.outp_name, feed_dict={inp_name: np.zeros(np.append(1, np.array(inp_shape)))})
-
-    def __load_tflite(self, model_path: Path):
-        self.model = self.tf.lite.Interpreter(model_path.as_posix())
-        self.outputs = sorted(self.model.get_output_details(), key=lambda d: d['name'])
 
     def __load_onnx(self, model_path: Path):
         onnx_model_path = model_path.as_posix()
@@ -213,35 +139,6 @@ class ModelInference:
     def __load_coreml(self, model_path: Path):
         self.model = self.ct.models.MLModel(model_path.as_posix())
 
-
-    def __predict_saved_model(self, tensor: np.ndarray):
-        if self.device == 'cpu':
-            with self.tf.device('/cpu:0'):
-                result = self.model(tensor).numpy()
-        else:
-            result = self.model(tensor).numpy()
-        pred = result[0] if len(result) == 1 else result
-        return pred
-
-
-    def __predict_frozen(self, tensor: np.ndarray):
-
-        inp_name = self.model.get_operations()[0]._outputs[0].name
-        with self.tf.compat.v1.Session(graph=self.model) as sess:
-            result = sess.run(self.outp_name, feed_dict={inp_name: tensor})
-        pred = result[0] if len(result)==1 else result
-        return pred
-    def __predict_tflite(self, tensor: np.ndarray):
-        tensor = tensor.astype(self.model.get_input_details()[0]['dtype'])
-        self.model.allocate_tensors()
-        self.model.set_tensor(self.model.get_input_details()[0]['index'], tensor)
-        self.model.invoke()
-
-        result = []
-        for output in self.outputs:
-            result.append(self.model.get_tensor(output['index']))
-        pred = result[0] if len(result) == 1 else result
-        return pred
 
     def __predict_onnx(self, tensors:  List[np.ndarray]):
         inputs = self.model.get_inputs()

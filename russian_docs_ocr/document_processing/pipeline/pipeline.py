@@ -146,6 +146,9 @@ class PipelineResults:
 
         self.meta_results = dict(Quality={})
         self._timings = dict()
+        # stage keys that ran inside a concurrent group: kept in the report for
+        # visibility, but excluded from the 'total' sum (see add_concurrent_group)
+        self._concurrent_members = set()
 
     @property
     def ocr(self) -> Union[Dict, None]:
@@ -220,18 +223,40 @@ class PipelineResults:
 
     @property
     def timings(self) -> dict:
-        """Gets per stage timings and total time."""
-        total_time = 0
+        """Gets per stage timings and total time.
+
+        Stages that ran concurrently (see Pipeline._quality_and_borders_parallel)
+        keep their individual wall times in the report, but 'total' counts the
+        group's own elapsed time once instead of summing overlapping members.
+        Summing them would put 'total' above the real processing time and, worse,
+        would keep it flat when parallelisation actually saves time.
+
+        'total' covers timed stages only - image loading/resizing (_prepare_image)
+        is not a timed stage, so wall-clock time is slightly higher.
+        """
         timings = self._timings.copy()
-        for value in timings.values():
-            total_time += value
-        timings['total'] = total_time
+        total_time = sum(v for k, v in timings.items() if k not in self._concurrent_members)
+        timings['total'] = round(total_time, 4)
         return timings
 
     @timings.setter
     def timings(self, value):
         """Sets updated timings."""
         self._timings = self._timings | value
+
+    def add_concurrent_group(self, name: str, wall_time: float, members: dict):
+        """Records a set of stages that ran concurrently with each other.
+
+        Args:
+            name: key for the group's own elapsed time (this is what counts
+                towards 'total').
+            wall_time: elapsed time of the whole group.
+            members: per-stage times inside the group; reported as usual but
+                not summed into 'total'.
+        """
+        self._timings[name] = round(wall_time, 4)
+        self._timings = self._timings | members
+        self._concurrent_members |= set(members)
 
 
 
@@ -450,7 +475,7 @@ class Pipeline:
             # checking quality of doc
             if not low_quality:
                 quality = self.results.quality
-                if quality.get('Glare', False) == 'bad' or quality.get('Blur', False) == 'bad' or quality['DocConf'] > docconf:
+                if quality.get('Glare', False) == 'bad' or quality.get('Blur', False) == 'bad' or quality['DocConf'] < docconf:
                     print("[!] Doc quality is too low. You can check using results.quality, "
                           "or bypass using low_quality=True")
                     return self.results
@@ -563,6 +588,7 @@ class Pipeline:
             r = fn(*args, **kwargs)
             return r, round(time() - t0, 4)
 
+        group_start = time()
         with ThreadPoolExecutor(max_workers=5) as ex:
             f_glare = ex.submit(timed, self.glare.predict, img)
             f_blur = ex.submit(timed, self.blur.predict, img)
@@ -583,10 +609,16 @@ class Pipeline:
         self.results.meta_results['Quality']['LCDSpoofing'] = lcd_res[self.lcd_spoofing.model_name][0]
         self.results.meta_results = self.results.meta_results | det_res
 
-        self.results.timings = {
-            '_glare': t_glare, '_blur': t_blur, '_print_spoofing': t_print,
-            '_lcd_spoofing': t_lcd, '_doc_detector': t_det,
-        }
+        group_elapsed = time() - group_start
+        # these five overlap in time, so only the group's own elapsed time may
+        # count towards timings['total'] - the per-stage numbers stay for detail
+        self.results.add_concurrent_group(
+            '_quality_and_borders', group_elapsed,
+            {
+                '_glare': t_glare, '_blur': t_blur, '_print_spoofing': t_print,
+                '_lcd_spoofing': t_lcd, '_doc_detector': t_det,
+            },
+        )
 
     def _doc_detector(self, img):
         """
@@ -727,7 +759,10 @@ class Pipeline:
         # explicitly requested (see __init__) - safe to gate on it directly.
         use_batch = self.ocr_device == 'gpu' and self.ocr_mode != 'legacy'
 
-        HW_PLACEHOLDER = '⟨рукопись⟩'
+        # ASCII brackets on purpose: the report gets printed to consoles that are
+        # still cp1251/cp866 on Windows, and fancier delimiters (U+27E8/U+27E9)
+        # are not in those codepages - printing the result raised UnicodeEncodeError.
+        HW_PLACEHOLDER = '[рукопись]'
         line_meta = []
         line_slots = []          # 'hw' or ('printed', index into printed_words)
         printed_words = []       # list[list[word_patch]], one list per printed line
@@ -890,7 +925,9 @@ class Pipeline:
 
             self._join_field(ocr_dict, field_name, doc_type, ocred_words)
 
-        self.results.meta_results['OCR'] = ocr_dict
+        # merge, never assign: _address_lines runs earlier and may already have
+        # written OCR['Address'] into the same dict (INTPASSPORTADDR)
+        self.results.meta_results.setdefault('OCR', {}).update(ocr_dict)
 
     def _ocr_batched(self, words_dict: dict, doc_type: str):
         """Same field/word routing and fix_errors as _ocr_serial, but the OCR
@@ -948,7 +985,9 @@ class Pipeline:
 
             self._join_field(ocr_dict, field_name, doc_type, ocred_words)
 
-        self.results.meta_results['OCR'] = ocr_dict
+        # merge, never assign: _address_lines runs earlier and may already have
+        # written OCR['Address'] into the same dict (INTPASSPORTADDR)
+        self.results.meta_results.setdefault('OCR', {}).update(ocr_dict)
 
     @staticmethod
     def _join_field(ocr_dict: dict, field_name: str, doc_type: str, ocred_words: list):
