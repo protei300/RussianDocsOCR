@@ -1,4 +1,5 @@
 import numpy as np
+import threading
 from pathlib import Path
 import platform
 from importlib import import_module
@@ -203,6 +204,11 @@ class ModelInference:
         core = self.openvino.Core()
         ov_model = self.openvino.convert_model(model_path)
         self.model = core.compile_model(ov_model, device_name=self.device.upper())
+        # Calling a CompiledModel directly reuses one shared infer request, which
+        # raises "Infer Request is busy" when the pipeline runs stages
+        # concurrently. Give each thread its own request off the same compiled
+        # model (compilation and weights stay shared).
+        self._ov_local = threading.local()
 
     def __load_coreml(self, model_path: Path):
         self.model = self.ct.models.MLModel(model_path.as_posix())
@@ -248,9 +254,14 @@ class ModelInference:
         return result
 
     def __predict_openvino(self, tensor: np.ndarray):
-        result = self.model(tensor)
-        pred = result[0] if len(result) == 1 else result
-        return pred
+        request = getattr(self._ov_local, 'request', None)
+        if request is None:
+            request = self.model.create_infer_request()
+            self._ov_local.request = request
+        request.infer(tensor)
+        outputs = [request.get_output_tensor(i).data
+                   for i in range(len(self.model.outputs))]
+        return outputs[0] if len(outputs) == 1 else outputs
 
     def __predict_coreml(self, tensor: np.ndarray):
         pred = self.model.predict({'image': tensor})
