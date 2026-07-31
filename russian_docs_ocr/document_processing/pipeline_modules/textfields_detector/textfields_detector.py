@@ -10,10 +10,10 @@ class TextFieldsDetector(BaseModule):
     returns bounding boxes and image patches.
 
     """
-    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool = False):
+    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool=False, runtime: str = None):
         """Initializes the text field detection model."""
         self.model_name = 'TextFieldsDetector'
-        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose)
+        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose, runtime=runtime)
 
     def predict(self, img: Union[str, Path, np.ndarray]) -> dict:
         """Detects text fields, returns bounding boxes.

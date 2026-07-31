@@ -22,10 +22,10 @@ class DocTypeAngles(BaseModule):
         }}
     """
 
-    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool = False):
+    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool=False, runtime: str = None):
         """Initializes document type and angles detection model."""
         self.model_name = 'DocTypeAngles'
-        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose)
+        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose, runtime=runtime)
 
     def __predict_meta(self, img: np.ndarray) -> dict:
         """Runs the model and builds the flat payload dict (no rotation)."""

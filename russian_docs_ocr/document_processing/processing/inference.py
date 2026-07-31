@@ -40,6 +40,7 @@ class ModelInference:
                  model_path: Path,
                  device: str = 'gpu',
                  verbose=False,
+                 runtime: str = None,
                  ):
         """
         Initializes the ModelInference class.
@@ -48,27 +49,25 @@ class ModelInference:
           model_path (Path): Path to model file or directory.
           device (str): Device to use for inference - 'cpu' or 'gpu'.
           verbose (bool): Whether to print debug statements.
+          runtime (str): Which runtime to load the artifact with ('ONNX',
+            'OpenVINO', 'CoreML'). Defaults to picking it from the file
+            extension. OpenVINO reads .onnx directly, so its model.json points
+            at the ONNX artifact and names the runtime explicitly instead of
+            shipping a second copy of the weights under a .ir extension.
         """
 
         self.device = device
         self.verbose = verbose
+        runtime = (runtime or '').lower()
 
-        if model_path.suffix == '.onnx':
-            self.ort = import_module('onnxruntime')
-            self.__load_onnx(model_path)
-            self.predict = self.__predict_onnx
-            if verbose:
-                print("[+] ONNX inference loaded")
-
-        elif model_path.suffix == '.ir':
+        if runtime == 'openvino' or (not runtime and model_path.suffix == '.ir'):
             self.openvino = import_module('openvino')
             self.__load_openvino(model_path)
             self.predict = self.__predict_openvino
             if verbose:
                 print("[+] OpenVINO model loaded")
 
-
-        elif model_path.suffix == '.mlmodel':
+        elif runtime == 'coreml' or (not runtime and model_path.suffix == '.mlmodel'):
             self.ct = import_module('coremltools')
             if platform.system() != 'Darwin':
                 raise Exception("MLModel Not supported on Windows and Linux")
@@ -77,9 +76,18 @@ class ModelInference:
             if verbose:
                 print("[+] CoreML inference loaded")
 
+        elif runtime in ('onnx', '') and model_path.suffix == '.onnx':
+            self.ort = import_module('onnxruntime')
+            self.__load_onnx(model_path)
+            self.predict = self.__predict_onnx
+            if verbose:
+                print("[+] ONNX inference loaded")
+
         else:
-            raise Exception(f"Unsupported model type '{model_path.suffix}' ({model_path}). "
-                            f"Supported: .onnx, .ir, .mlmodel")
+            raise Exception(f"Unsupported model '{model_path}' "
+                            f"(runtime={runtime or 'auto'}, suffix='{model_path.suffix}'). "
+                            f"Supported runtimes: ONNX, OpenVINO, CoreML; "
+                            f"supported files: .onnx, .ir, .mlmodel")
 
 
     def predict(self, tensors: List[np.ndarray]):

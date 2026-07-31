@@ -25,10 +25,10 @@ class DocDetector(BaseModule):
     the document image to fix its perspective.
 
     """
-    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool = False):
+    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool=False, runtime: str = None):
         """Initializes the document detection model"""
         self.model_name = 'DocDetector'
-        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose)
+        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose, runtime=runtime)
 
     def predict(self, img: Union[str, Path, np.ndarray]) -> dict:
         """Predicts document detection outputs.

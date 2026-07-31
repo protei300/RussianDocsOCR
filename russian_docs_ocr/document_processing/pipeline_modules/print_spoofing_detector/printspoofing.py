@@ -16,11 +16,11 @@ class PrintSpoofing(BaseModule):
             for classifying as original (default: 0.9)
 
     """
-    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose=False):
+    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose=False, runtime: str = None):
         """Initializes the anti-spoofing model."""
         self.model_name = 'PrintSpoofing'
         self.threshold = 0.9
-        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose)
+        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose, runtime=runtime)
 
     def predict(self, img: Union[str, Path, np.ndarray]) -> dict:
         """Classifies if image is a spoofed printout.

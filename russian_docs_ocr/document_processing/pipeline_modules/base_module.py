@@ -23,15 +23,23 @@ class BaseModule:
 
     """
     def __init__(self, model_name: str, model_format: str = 'ONNX', device='cpu', verbose: bool = False,
-                 cfg_key: str = None):
+                 cfg_key: str = None, runtime: str = None):
         """Initializes base model and loads model artifact.
 
         Args:
             model_name: Name used as the result/meta key (and, by default, the
                 models_path.yaml lookup key).
+            model_format: WHICH artifact to load - the subfolder under the
+                model's directory ('ONNX', or a variant such as
+                'ONNX_legacy_backup' when comparing checkpoints).
             cfg_key: Optional models_path.yaml key to load the artifact from, when
                 it differs from model_name (e.g. a tier-specific OCR model that
                 should still report under a stable model_name).
+            runtime: HOW to run it - 'ONNX' (onnxruntime) or 'OpenVINO'. These
+                are separate questions: OpenVINO reads the same .onnx artifact,
+                so there is no second copy of the weights and no per-runtime
+                config to drift out of sync. Defaults to the artifact's own
+                format.
         """
         lookup = cfg_key or model_name
         if lookup in DEFAULT_CFG.keys():
@@ -41,7 +49,7 @@ class BaseModule:
 
         self.__model_info = json.loads(self.__model_path.read_bytes())
         print(f'[*] Loading model {model_name}!')
-        self.model = ModelLoader(verbose=verbose)(self.__model_path, device=device)
+        self.model = ModelLoader(verbose=verbose)(self.__model_path, device=device, runtime=runtime)
         # print('[*] Model generated!\n')
 
 

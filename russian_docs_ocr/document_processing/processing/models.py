@@ -25,13 +25,15 @@ class ModelLoader:
         """
         self.verbose = verbose
 
-    def __call__(self, json_file: Path, device='gpu'):
+    def __call__(self, json_file: Path, device='gpu', runtime=None):
         """
         Loads and returns a model based on the JSON config file.
 
         Arguments:
         - json_file (Path): path to JSON config file
         - device (str): device to load model on (gpu/cpu)
+        - runtime (str): execution backend ('ONNX', 'OpenVINO'); overrides the
+          config's own 'Runtime' key. Falls back to the file extension.
 
         Returns: loaded model
         """
@@ -39,6 +41,7 @@ class ModelLoader:
         self.json_file = json.loads(json_file.read_text(encoding="utf8"))
         self.working_dir = json_file.parent
         self.device = device
+        self.runtime = runtime or self.json_file.get('Runtime')
         model = self.load_model()
 
         # if self.json_file['Type'] == 'Metric':
@@ -180,7 +183,8 @@ class ModelLoader:
 
         model_inference = ModelInference(self.working_dir.joinpath(self.json_file['File']),
                                          device=self.device,
-                                         verbose=self.verbose)
+                                         verbose=self.verbose,
+                                         runtime=self.runtime)
 
         postprocessings = []
         for output_info in self.json_file['Outputs']:

@@ -15,10 +15,10 @@ class LCDSpoofing(BaseModule):
 
     """
 
-    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose=False):
+    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose=False, runtime: str = None):
         """Initializes the anti-spoofing model."""
         self.model_name = 'LCDSpoofing'
-        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose)
+        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose, runtime=runtime)
 
     def predict(self, img: Union[str, Path, np.ndarray]) -> dict:
         """Predicts whether image is LCD spoofed or not.
