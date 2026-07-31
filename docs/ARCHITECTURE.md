@@ -50,8 +50,7 @@ russian_docs_ocr/document_processing/
 Основные модули: `doctype_angles_classificator`, `doc_detector`,
 `textfields_detector`, `address_lines_detector`, `address_textkind_classifier`,
 `words_detector`, детекторы качества (`blur`, `glare`, `lcd_spoofing`,
-`print_spoofing`), OCR-движки (`ocr_cyrillic`, `ocr_latin` — v2; `ocr_rus`,
-`ocr_engnums` — legacy), `deskewer`.
+`print_spoofing`), OCR-движки (`ocr_cyrillic`, `ocr_latin`), `deskewer`.
 
 ### `processing/`
 - `models.py` (`ModelLoader`) — собирает модель из JSON-конфига (препроцессинг →
@@ -69,8 +68,7 @@ russian_docs_ocr/document_processing/
   (MobileNetV4) и `fast` (EdgeNext). Вход — цветной BGR, нормализация зашита в
   граф; выход — softmax-матрица, декодируется greedy-CTC с масками алфавита.
   Разрешённый набор символов резолвится из `config/ocr_alphabets.json`.
-- **legacy** — `OCRRus` / `OCREngNums`, `ocr='legacy'`. Grayscale-вход,
-  исходные модели.
+
 
 ## Форматы моделей
 

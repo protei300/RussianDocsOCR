@@ -120,9 +120,9 @@ Linux
 ### Использование основного конвейера библиотеки
 #### Класс Pipeline. 
 Основной класс реализующий конвейер обработки изображений. При создании объекта необязательными параметрами являются:
-- `model_format` - 'ONNX', 'OpenVINO'. По умолчанию 'ONNX'
+- `model_format` - 'ONNX', 'OpenVINO'. По умолчанию 'ONNX'. Это выбор **движка**, а не набора весов: модели поставляются одним артефактом `.onnx`, OpenVINO читает его напрямую
 - `device` - 'cpu', 'gpu' либо `None` (по умолчанию). `None` — автовыбор: 'gpu', если onnxruntime видит CUDA-провайдер, иначе 'cpu'
-- `ocr` - какой OCR-движок использовать: `'accurate'` (по умолчанию, v2 MobileNetV4), `'fast'` (v2 EdgeNext, быстрее и чуть менее точный) или `'legacy'` (исходные модели rus / eng+nums)
+- `ocr` - какой OCR-движок использовать: `'accurate'` (по умолчанию, MobileNetV4) или `'fast'` (EdgeNext, быстрее и чуть менее точный)
 - `ocr_gpu_batch` - по умолчанию False. Экспериментальный батчинг слов для v2-OCR на GPU: даёт ускорение, но результат **не бит-в-бит** совпадает с CPU-путём. Включать осознанно
 - `verbose` - по умолчанию False. Печатать отладочную информацию при загрузке моделей
 
@@ -183,7 +183,8 @@ print(result.ocr)
 ```python
 from russian_docs_ocr.document_processing.pipeline_modules import DocTypeAngles
 
-doctype_angles = DocTypeAngles(model_format='OpenVINO', device='cpu')
+# model_format выбирает папку артефакта, runtime - движок исполнения
+doctype_angles = DocTypeAngles(model_format='ONNX', runtime='OpenVINO', device='cpu')
 result = doctype_angles.predict(img='img.jpg') # if we want to get only result from net (doctype + angle)
 result_with_warped = doctype_angles.predict_transform(img='img.jpg') # if we want also warp image
 ```

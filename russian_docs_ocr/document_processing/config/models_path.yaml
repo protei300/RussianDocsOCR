@@ -8,8 +8,6 @@ Glare: models\Glare
 LCDSpoofing: models\LCDSpoofing
 PrintSpoofing: models\PrintSpoofing
 WordsDetector: models\Words
-OCREngNums: models\OCR\eng+nums
-OCRRus: models\OCR\rus
 OCRLatinAccurate: models\OCR\latin_accurate
 OCRLatinFast: models\OCR\latin_fast
 OCRCyrillicAccurate: models\OCR\cyrillic_accurate

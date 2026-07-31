@@ -7,13 +7,11 @@ from .address_textkind_classifier import AddressTextKindClassifier
 from .lcd_spoofing_detector import LCDSpoofing
 from .print_spoofing_detector import PrintSpoofing
 from .words_detector import WordsDetector
-from .ocr_rus import OCRRus
-from .ocr_engnums import OCREngNums
 from .ocr_cyrillic import OCRCyrillic
 from .ocr_latin import OCRLatin
 from .doctype_angles_classificator import DocTypeAngles
 from .deskewer import DocDeskewer
 
 __all__ = 'DocDetector', 'TextFieldsDetector', 'Blur', 'Glare', 'LCDSpoofing', 'PrintSpoofing', \
-    'WordsDetector', 'OCRRus', 'OCREngNums', 'OCRCyrillic', 'OCRLatin', \
+    'WordsDetector', 'OCRCyrillic', 'OCRLatin', \
     'DocTypeAngles', 'DocDeskewer', 'AddressLinesDetector', 'AddressTextKindClassifier'

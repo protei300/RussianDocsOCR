@@ -230,9 +230,7 @@ def warmup_ladder(model) -> None:
     Left available for callers who want to experiment with it themselves
     (e.g. on a different machine, or with a narrower custom ladder), but do
     not assume it delivers the intended effect without measuring on your own
-    setup first. Not useful on CPU (no per-shape compile cost there) or for
-    the serial/'legacy' paths (fixed 31x200 input, already fully warmed by the
-    one-shot warmup in ``ModelInference.__load_onnx``).
+    setup first. Not useful on CPU (no per-shape compile cost there).
     """
     h = 32  # OCRv2Preprocessing's fixed target height
     for w in _WIDTH_LADDER:

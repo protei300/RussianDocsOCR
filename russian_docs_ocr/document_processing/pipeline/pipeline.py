@@ -281,16 +281,15 @@ class Pipeline:
                 see `ocr_gpu_batch` for how it affects the OCR engines.
             ocr (str): OCR engine selection.
                 'accurate' (default) - v2 MobileNetV4 models (best quality);
-                'fast'               - v2 EdgeNext models (faster, slightly lower);
-                'legacy'             - the original rus / eng+nums models.
+                'fast'               - v2 EdgeNext models (faster, slightly lower).
             verbose (bool): Whether to print debug information.
-            ocr_gpu_batch (bool): EXPERIMENTAL, default False. The v2 engines
-                ('accurate'/'fast') are dynamic-width models; on a CUDA
+            ocr_gpu_batch (bool): EXPERIMENTAL, default False. The OCR engines
+                are dynamic-width models; on a CUDA
                 provider, running them one word at a time (as the pipeline
                 naturally produces them) forces a graph recompile per distinct
                 width and is measured 400-3700x SLOWER than CPU - not a viable
-                combination. So by default, when device=='gpu' and ocr is not
-                'legacy', the OCR engines run on CPU regardless of `device`
+                combination. So by default, when device=='gpu', the OCR
+                engines run on CPU regardless of `device`
                 (detectors still use GPU) - this default combination is
                 bit-exact and, on real documents, measured *faster* overall
                 than pure CPU (GPU detectors + CPU OCR).
@@ -306,64 +305,77 @@ class Pipeline:
                 mixed documents, 5.4% of OCR fields differ from the CPU-exact
                 baseline for 'accurate', 14.1% for 'fast'. Only enable after
                 validating this tradeoff on your own documents/traffic.
-                'legacy' OCR is fixed-size (31x200) and always safe and fast on
-                GPU directly - this flag does not affect it.
         """
         device = _resolve_device(device)
         self.device = device
         self.model_format = model_format
-        if ocr not in ('accurate', 'fast', 'legacy'):
-            raise ValueError("ocr must be one of 'accurate', 'fast', 'legacy'")
+        if ocr == 'legacy':
+            raise ValueError(
+                "ocr='legacy' was removed: the original rus/eng+nums models and the "
+                "CTC beam-search/regex path are gone. Use 'accurate' (default) or 'fast'."
+            )
+        if ocr not in ('accurate', 'fast'):
+            raise ValueError("ocr must be one of 'accurate', 'fast'")
         self.ocr_mode = ocr
         self.ocr_gpu_batch = bool(ocr_gpu_batch)
 
         # Viable device for the OCR engines specifically (see ocr_gpu_batch
-        # docstring above): legacy is fixed-size and fine on GPU directly;
-        # v2 engines on GPU are only viable batched (opt-in), so they fall
-        # back to CPU here unless the user explicitly asked for the batched
-        # GPU path. Detectors below always use the requested `device`.
-        if device == 'gpu' and ocr != 'legacy' and not self.ocr_gpu_batch:
+        # docstring above): the v2 engines on GPU are only viable batched
+        # (opt-in), so they fall back to CPU here unless the user explicitly
+        # asked for the batched GPU path. Detectors below always use `device`.
+        if device == 'gpu' and not self.ocr_gpu_batch:
             self.ocr_device = 'cpu'
         else:
             self.ocr_device = device
 
-        self.doctype_angles = DocTypeAngles(model_format=model_format, device=device, verbose=verbose)
-        self.doc_detector = DocDetector(model_format=model_format, device=device, verbose=verbose)
-        self.text_fields = TextFieldsDetector(model_format=model_format, device=device, verbose=verbose)
-        # OCR-family models are ONNX-only (no OpenVINO IR artifacts), so pin them
-        # to ONNX even when the rest of the pipeline runs OpenVINO.
-        ocr_format = 'ONNX' if model_format == 'OpenVINO' else model_format
+        # `model_format` is the public knob and answers two separate questions:
+        # which artifact to load, and which runtime to run it on. Every model
+        # ships exactly one artifact (.onnx) - OpenVINO reads it directly - so
+        # 'OpenVINO' selects a runtime, not a different set of weights. Keeping
+        # these apart is what stops a per-format config from drifting out of
+        # sync with the deployed model.
+        if model_format == 'OpenVINO':
+            artifact, runtime = 'ONNX', 'OpenVINO'
+        else:
+            artifact, runtime = model_format, None
+
+        self.doctype_angles = DocTypeAngles(model_format=artifact, device=device, verbose=verbose,
+                                            runtime=runtime)
+        self.doc_detector = DocDetector(model_format=artifact, device=device, verbose=verbose,
+                                        runtime=runtime)
+        self.text_fields = TextFieldsDetector(model_format=artifact, device=device, verbose=verbose,
+                                              runtime=runtime)
+        # The OCR family never compiled under OpenVINO, so it stays on
+        # onnxruntime regardless of the requested runtime.
+        ocr_format = artifact
         # oriented (rotated) address-line detector for the INTPASSPORTADDR page
         self.address_lines = AddressLinesDetector(model_format=ocr_format, device=device, verbose=verbose)
         # printed-vs-handwritten classifier for address lines (OCR is printed-only)
         self.address_textkind = AddressTextKindClassifier(model_format=ocr_format, device=device, verbose=verbose)
-        self.words_detector = WordsDetector(model_format=model_format, device=device, verbose=verbose)
+        self.words_detector = WordsDetector(model_format=artifact, device=device, verbose=verbose,
+                                            runtime=runtime)
 
         # OCR engines. self.ocr_cyr / self.ocr_lat are the ACTIVE Cyrillic and
         # Latin engines used by _ocr/_route_word_ocr regardless of selection.
         # Note: these load on self.ocr_device, not necessarily `device` (see above).
-        if ocr == 'legacy':
-            self.ocr_cyr = OCRRus(model_format=ocr_format, device=self.ocr_device, verbose=verbose)
-            self.ocr_lat = OCREngNums(model_format=ocr_format, device=self.ocr_device, verbose=verbose)
-            # backwards-compatible aliases for the historical attribute names
-            self.ocr_ru, self.ocr_en = self.ocr_cyr, self.ocr_lat
-        else:
-            tier = 'accurate' if ocr == 'accurate' else 'fast'
-            self.ocr_cyr = OCRCyrillic(tier=tier, model_format=ocr_format, device=self.ocr_device, verbose=verbose)
-            self.ocr_lat = OCRLatin(tier=tier, model_format=ocr_format, device=self.ocr_device, verbose=verbose)
-            # NOTE: pipeline_modules/ocr_batch.py::warmup_ladder() exists to
-            # pre-warm every (width, count) shape the batched path could ever
-            # produce, but is NOT called automatically here - measured to cost
-            # 15-90+ seconds (large batch x width combos take up to ~7s EACH)
-            # and, even after paying that cost, real documents were still
-            # observed slow on already-warmed shapes. Left as an opt-in
-            # experiment for callers who want to try it themselves; see its
-            # docstring before using it.
+        tier = 'accurate' if ocr == 'accurate' else 'fast'
+        self.ocr_cyr = OCRCyrillic(tier=tier, model_format=ocr_format, device=self.ocr_device, verbose=verbose)
+        self.ocr_lat = OCRLatin(tier=tier, model_format=ocr_format, device=self.ocr_device, verbose=verbose)
+        # NOTE: pipeline_modules/ocr_batch.py::warmup_ladder() exists to
+        # pre-warm every (width, count) shape the batched path could ever
+        # produce, but is NOT called automatically here - measured to cost
+        # 15-90+ seconds (large batch x width combos take up to ~7s EACH)
+        # and, even after paying that cost, real documents were still
+        # observed slow on already-warmed shapes. Left as an opt-in
+        # experiment for callers who want to try it themselves; see its
+        # docstring before using it.
 
-        self.lcd_spoofing = LCDSpoofing(model_format=model_format, device=device, verbose=verbose)
-        self.print_spoofing = PrintSpoofing(model_format=model_format, device=device, verbose=verbose)
-        self.glare = Glare(model_format=model_format, device=device, verbose=verbose)
-        self.blur = Blur(model_format=model_format, device=device, verbose=verbose)
+        self.lcd_spoofing = LCDSpoofing(model_format=artifact, device=device, verbose=verbose,
+                                        runtime=runtime)
+        self.print_spoofing = PrintSpoofing(model_format=artifact, device=device, verbose=verbose,
+                                            runtime=runtime)
+        self.glare = Glare(model_format=artifact, device=device, verbose=verbose, runtime=runtime)
+        self.blur = Blur(model_format=artifact, device=device, verbose=verbose, runtime=runtime)
         # residual-tilt correction after perspective fix (projection-profile based).
         # min_angle=2.0: skip small/noisy estimates (handwriting has irregular
         # baselines that yield spurious ~1-2deg) and only fix real tilts.
@@ -755,9 +767,9 @@ class Pipeline:
         result = self.address_lines.predict_transform(img)
         self.results.meta_results = self.results.meta_results | result
         line_patches = result[self.address_lines.model_name]['warped_img']
-        # ocr_device is only 'gpu' for v2 engines when ocr_gpu_batch=True was
-        # explicitly requested (see __init__) - safe to gate on it directly.
-        use_batch = self.ocr_device == 'gpu' and self.ocr_mode != 'legacy'
+        # ocr_device is only 'gpu' when ocr_gpu_batch=True was explicitly
+        # requested (see __init__) - safe to gate on it directly.
+        use_batch = self.ocr_device == 'gpu'
 
         # ASCII brackets on purpose: the report gets printed to consoles that are
         # still cp1251/cp866 on Windows, and fancier delimiters (U+27E8/U+27E9)
@@ -828,8 +840,6 @@ class Pipeline:
         Cyrillic result. The Latin engine reads digits and Latin letters
         cleanly, so its digit-dominated output is the reliable signal for
         numeric tokens; Cyrillic words are taken from the Cyrillic engine.
-        (Legacy engines: OCRRus has no digits and OCREngNums no Cyrillic, so the
-        same rule holds.)
         """
         ru = self.ocr_cyr.predict(word)[self.ocr_cyr.model_name]['ocr_output']
         en = self.ocr_lat.predict(word)[self.ocr_lat.model_name]['ocr_output']
@@ -870,9 +880,8 @@ class Pipeline:
         call per word, which avoids ONNX Runtime recompiling the CUDA graph
         for every distinct patch width (measured 400-3700x faster on real word
         crops), at the cost of a small measured decode-drift risk (see
-        pipeline_modules/ocr_batch.py). Otherwise
-        (CPU, or 'legacy' on either device) uses the per-word path
-        (_ocr_serial), which is exact.
+        pipeline_modules/ocr_batch.py). Otherwise (CPU) uses the per-word
+        path (_ocr_serial), which is exact.
 
         Args:
             words: Text fields splitted into words
@@ -880,16 +889,15 @@ class Pipeline:
         Returns:
             dict: OCR text for input words
         """
-        # ocr_device is only 'gpu' for v2 engines when ocr_gpu_batch=True was
-        # explicitly requested (see __init__) - safe to gate on it directly.
-        if self.ocr_device == 'gpu' and self.ocr_mode != 'legacy':
+        # ocr_device is only 'gpu' when ocr_gpu_batch=True was explicitly
+        # requested (see __init__) - safe to gate on it directly.
+        if self.ocr_device == 'gpu':
             self._ocr_batched(words_dict, doc_type)
         else:
             self._ocr_serial(words_dict, doc_type)
 
     def _ocr_serial(self, words_dict: dict, doc_type: str):
-        """Per-word OCR calls (one predict() per patch). Used for CPU and for
-        'legacy'."""
+        """Per-word OCR calls (one predict() per patch). Used on CPU."""
         ocr_dict = {}
         for field_name, words in words_dict.items():
             ocred_words = []
@@ -911,10 +919,8 @@ class Pipeline:
                 # get formated dates with CTC vector
                 elif 'date' in field_name.lower():
                     result = self.ocr_lat.predict(word)[self.ocr_lat.model_name]['ocr_output']
-                    if self.ocr_mode != 'legacy':
-                        # v2 engines: normalize date text to dd.mm.yyyy. Legacy keeps
-                        # its historical behavior (raw greedy output in this branch).
-                        result = self.ocr_lat.fix_errors(field_type=field_name, text=result)
+                    # normalize date text to dd.mm.yyyy
+                    result = self.ocr_lat.fix_errors(field_type=field_name, text=result)
                     words['ocr'].append(result)
                     ocred_words.append(result)
                 elif field_name in self.ocr_options.en_fields:
@@ -934,7 +940,7 @@ class Pipeline:
         calls are batched: every Cyrillic-routed word and every Latin-routed
         word across ALL fields is collected first, each engine is called ONCE
         via predict_batch, then results are redistributed. Only called when
-        device=='gpu' and ocr_mode != 'legacy' (guaranteed by _ocr).
+        device=='gpu' (guaranteed by _ocr).
         """
         items = list(words_dict.items())
 

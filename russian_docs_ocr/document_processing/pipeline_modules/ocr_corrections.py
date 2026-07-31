@@ -1,10 +1,8 @@
-"""Field-level text corrections shared by the v2 OCR engines.
+"""Field-level text corrections shared by the OCR engines.
 
 These are the semantic post-OCR fixes (date formatting, sex normalization,
 driver-class filtering, stray-dot stripping) applied on top of the raw decoded
-string. The legacy OCRRus/OCREngNums modules keep their own equivalent copies;
-these pure functions are the single source used by the new OCRLatin/OCRCyrillic
-engines.
+string - the single source used by OCRLatin/OCRCyrillic.
 """
 from datetime import datetime
 

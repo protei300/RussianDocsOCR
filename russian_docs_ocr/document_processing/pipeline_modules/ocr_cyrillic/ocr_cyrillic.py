@@ -52,13 +52,8 @@ class OCRCyrillic(BaseModule):
         """
         return predict_batch_padded(self.model, patches)
 
-    def fix_errors(self, field_type: str, text: str, ctc_vector=None) -> str:
-        """Apply field-specific corrections (sex, stray dots on names).
-
-        ``ctc_vector`` is accepted for interface parity with the legacy engine
-        (regex-constrained decoding on the raw CTC matrix); the v2 default is
-        greedy + alphabet masking, so it is currently unused here.
-        """
+    def fix_errors(self, field_type: str, text: str) -> str:
+        """Apply field-specific corrections (sex, stray dots on names)."""
         if field_type == 'Sex_ru':
             return check_rus_sex(text)
         if field_type in _RU_NAME_FIELDS:
