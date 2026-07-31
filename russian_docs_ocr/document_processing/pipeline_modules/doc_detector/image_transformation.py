@@ -225,7 +225,38 @@ def four_point_transform(img: np.ndarray, quad: np.ndarray):
     return cv2.warpPerspective(img, M, (width, height), flags=cv2.INTER_LINEAR)
 
 
-def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto'):
+# The segmentation contour hugs the document, and the retrained Borders model
+# (#19) sits measurably INSIDE the true edge: on internal passports its polygon
+# is ~1.5-2% of the document size in from every side (mean 1.65-1.70% left and
+# right, up to 3.0%; ~8.5% of the area) compared with the pre-#19 weights. That
+# clips content printed at the very edge - notably the internal passport's
+# series/number strip along the right border, reported as issue #10. Pushing the
+# quad back out here fixes it for every doc type without retraining, and cannot
+# pull in background: the corners are clipped to the image bounds right after.
+# Lowering the mask binarisation threshold was measured as a weaker lever - even
+# MaskFilter 0.3 recovers only ~70% of the lost area.
+DOC_MARGIN_FRAC = 0.02
+
+
+def expand_quad(quad: np.ndarray, margin: float) -> np.ndarray:
+    """Push a quad's corners outward from its centroid.
+
+    Args:
+        quad: 4 points (N, 2).
+        margin: fraction of the document's OWN size each edge moves out by, so
+            the applied scale factor is 1 + 2*margin.
+
+    Returns:
+        The expanded quad (the input is returned unchanged for margin <= 0).
+    """
+    if margin <= 0:
+        return quad
+    centre = quad.mean(axis=0)
+    return centre + (quad - centre) * (1.0 + 2.0 * margin)
+
+
+def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
+                    margin: float = DOC_MARGIN_FRAC):
     """Fix perspective of a document image using segmentation contours.
 
     Each segment is rectified independently with a robust four-point
@@ -240,6 +271,8 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto'):
         img: Input document image (H, W, 3).
         segments: List of contours (each (N, 2)) from the segmentation model.
         stack: Multi-document merge direction ('auto', 'horizontal', 'vertical').
+        margin: outward margin applied to each detected quad, as a fraction of
+            the document's own size (see DOC_MARGIN_FRAC). Pass 0 to disable.
 
     Returns:
         warped: Rectified image (or the original if no valid quad is found).
@@ -252,6 +285,7 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto'):
         if quad is None:
             continue
         rect = order_points(quad)
+        rect = expand_quad(rect, margin)
         # clip corners to image bounds
         rect[:, 0] = np.clip(rect[:, 0], 0, img.shape[1])
         rect[:, 1] = np.clip(rect[:, 1], 0, img.shape[0])
