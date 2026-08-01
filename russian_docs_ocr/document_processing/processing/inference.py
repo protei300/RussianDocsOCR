@@ -60,6 +60,18 @@ class ModelInference:
         self.verbose = verbose
         runtime = (runtime or '').lower()
 
+        # Concurrent Run() on ONE CUDA session wedges the GPU: reproduced by
+        # hammering the words detector from 8 threads, which hangs at ~200 calls
+        # with the GPU pinned at 100%, or dies with
+        # "CUDA error cudaErrorIllegalAddress" mid-graph. Serialised through this
+        # lock the same 2400 calls pass in 22s. The lock is PER SESSION, so
+        # stages that run different models concurrently
+        # (Pipeline._quality_and_borders_parallel) keep their speedup; only
+        # repeated calls into the same model (Pipeline._split_words) queue up.
+        # CPU sessions are left unlocked - the failure is CUDA-specific and a
+        # lock there would only cost throughput.
+        self._run_lock = threading.Lock() if device == 'gpu' else None
+
         if runtime == 'openvino' or (not runtime and model_path.suffix == '.ir'):
             self.openvino = import_module('openvino')
             self.__load_openvino(model_path)
@@ -151,12 +163,13 @@ class ModelInference:
     def __predict_onnx(self, tensors:  List[np.ndarray]):
         inputs = self.model.get_inputs()
         # cast each tensor to the dtype the model actually declares (float32 for
-        # the legacy nets, uint8 for the v2 OCR nets) rather than always float32.
+        # the detectors, uint8 for the OCR nets) rather than always float32.
         ort_inputs = {inp.name: tensors[i].astype(_np_dtype_for(inp)) for i, inp in enumerate(inputs)}
 
-        result = self.model.run(None, ort_inputs)
-        # pred = result[0] if len(result) == 1 else result
-        return result
+        if self._run_lock is None:
+            return self.model.run(None, ort_inputs)
+        with self._run_lock:                      # CUDA only - see __init__
+            return self.model.run(None, ort_inputs)
 
     def __predict_openvino(self, tensor: np.ndarray):
         request = getattr(self._ov_local, 'request', None)
