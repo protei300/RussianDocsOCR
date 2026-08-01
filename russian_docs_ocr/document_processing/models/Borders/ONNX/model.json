@@ -48,7 +48,7 @@
                 32
             ],
             "Type": "YOLOSegmentor",
-            "MaskFilter": 0.9
+            "MaskFilter": 0.5
         }
     ]
 }

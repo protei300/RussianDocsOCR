@@ -225,17 +225,19 @@ def four_point_transform(img: np.ndarray, quad: np.ndarray):
     return cv2.warpPerspective(img, M, (width, height), flags=cv2.INTER_LINEAR)
 
 
-# The segmentation contour hugs the document, and the retrained Borders model
-# (#19) sits measurably INSIDE the true edge: on internal passports its polygon
-# is ~1.5-2% of the document size in from every side (mean 1.65-1.70% left and
-# right, up to 3.0%; ~8.5% of the area) compared with the pre-#19 weights. That
-# clips content printed at the very edge - notably the internal passport's
-# series/number strip along the right border, reported as issue #10. Pushing the
-# quad back out here fixes it for every doc type without retraining, and cannot
-# pull in background: the corners are clipped to the image bounds right after.
-# Lowering the mask binarisation threshold was measured as a weaker lever - even
-# MaskFilter 0.3 recovers only ~70% of the lost area.
-DOC_MARGIN_FRAC = 0.02
+# Small outward cushion on the document quad, on top of the mask threshold.
+#
+# Most of the crop regression behind issue #10 was a mis-calibrated threshold:
+# Borders/model.json kept MaskFilter=0.9 from the previous checkpoint, which
+# eroded the retrained model's mask down to 0.937 of the human-drawn GT. That is
+# fixed at source (MaskFilter=0.5 -> 0.989 of GT), so this constant no longer
+# carries the correction - it only restores the slight over-coverage the pre-#19
+# model happened to have (1.031 of GT), which is what kept edge-printed content
+# such as the internal passport's series/number inside the crop. 0.989 * 1.0404
+# = ~1.03, i.e. the same cushion. Applied before the corners are clipped to the
+# image bounds, so it can never pull in area from outside the frame; pass
+# margin=0 to disable.
+DOC_MARGIN_FRAC = 0.01
 
 
 def expand_quad(quad: np.ndarray, margin: float) -> np.ndarray:
