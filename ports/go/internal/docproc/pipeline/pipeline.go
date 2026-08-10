@@ -434,13 +434,22 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	FixFms(texts, bareType)
 	out.Words = texts
 
+	// Ruler cleanup applies to the FINAL per-field values only: the reference
+	// emits `join` from the raw dict and cleans meta_results['OCR'] afterwards
+	// (pipeline.py:1058), so the conformance payload stays raw here too.
+	cleanRulers := strings.Contains(strings.ToLower(meta.DocType), "birthcert")
+
 	joined := make(map[string]any, len(texts))
 	for _, ft := range texts {
 		if err := sink.Emit("ocr."+ft.Label+".words", ft.Words); err != nil {
 			return fail(err)
 		}
 		joined[ft.Label] = ft.Value
-		out.Ocr[ft.Label] = ft.Value
+		value := ft.Value
+		if cleanRulers {
+			value = CleanRulerArtifacts(value)
+		}
+		out.Ocr[ft.Label] = value
 	}
 	if err := sink.Emit("join", joined); err != nil {
 		return fail(err)

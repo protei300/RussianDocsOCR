@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/modules"
@@ -12,6 +13,32 @@ import (
 // the order of the view model's `fields` array and of the service's search text. Go
 // randomises map iteration, so an order that lives only in a map is not an order
 // (CONVENTIONS §1).
+// rulerRuns matches the dotted ruler lines the 1998 birth-certificate form prints
+// under every value; they land inside the field crops and OCR emits runs of
+// dots/dashes/underscores around the real words.
+var rulerRuns = regexp.MustCompile(`[._\-]{2,}`)
+
+// CleanRulerArtifacts collapses ruler-dot runs out of a joined field value.
+// Port of Pipeline._clean_ruler_artifacts (pipeline.py:1061-1076). The reference
+// also drops LONE separators with a lookaround pattern Go's RE2 cannot express
+// ((?:^|(?<=\s))[._\-](?=\s|$)); splitting into whitespace tokens, dropping
+// tokens that are exactly one separator rune and re-joining is equivalent,
+// because the reference finishes by collapsing all whitespace and trimming.
+// Single in-word dots - the digit birth date, abbreviations - stay untouched,
+// exactly as in the reference.
+func CleanRulerArtifacts(value string) string {
+	t := rulerRuns.ReplaceAllString(value, " ")
+	fields := strings.Fields(t)
+	kept := fields[:0]
+	for _, tok := range fields {
+		if tok == "." || tok == "_" || tok == "-" {
+			continue
+		}
+		kept = append(kept, tok)
+	}
+	return strings.Join(kept, " ")
+}
+
 type FieldText struct {
 	Label string
 	Words []string
