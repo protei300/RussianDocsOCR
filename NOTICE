@@ -1,0 +1,73 @@
+RussianDocs OCR — third-party components and the scope of the licence
+=====================================================================
+
+This file exists because `LICENSE` cannot answer two questions on its own: what the
+MIT grant covers besides source code, and what in this repository is somebody else's
+work under other terms. Nothing here modifies `LICENSE`; adding conditions inside
+the MIT text would stop it from being MIT.
+
+
+1. WHAT THE MIT LICENCE COVERS
+------------------------------
+
+The MIT licence in `LICENSE` covers BOTH:
+
+  * the source code — `document_processing/`, `service/`, `web/`, `ports/`,
+    `conformance/`, `scripts/`, `tests/`;
+
+  * the TRAINED MODEL WEIGHTS shipped with it — everything under
+    `document_processing/models/`, which is about 215 MB: the `.onnx` files, the
+    `model.json` configuration beside each of them, and `centers.npz`.
+
+The second point is stated explicitly because weights are not code and a licence on
+a repository is not automatically a licence on the artefacts inside it. A reader who
+wants to use this in a product needs the answer, and the answer is: **the weights are
+under the same MIT terms as the code** — use, modify, redistribute, including
+commercially, with the copyright notice preserved.
+
+Note what this does NOT claim: nothing is said here about the datasets the models were
+trained on. Those are not distributed with this repository, and no rights to them are
+granted or implied.
+
+
+2. THIRD-PARTY COMPONENTS INCLUDED IN THIS REPOSITORY
+-----------------------------------------------------
+
+Fonts, in `web/public/fonts/` — self-hosted so that a deployment beside a GPU with no
+outbound internet renders the interface it was tested with, rather than silently
+falling back to a system font:
+
+  * Inter — SIL Open Font License 1.1
+    Copyright (c) 2016 The Inter Project Authors
+    https://github.com/rsms/inter
+    Licence text: `web/public/fonts/LICENSE-Inter.txt`
+
+  * JetBrains Mono — SIL Open Font License 1.1
+    Copyright 2020 The JetBrains Mono Project Authors
+    https://github.com/JetBrains/JetBrainsMono
+    Licence text: `web/public/fonts/LICENSE-JetBrainsMono.txt`
+
+Both licence files are copied VERBATIM from each project's own upstream licence file, which is what the
+OFL requires: clause 2 says every copy of the font software must carry the copyright notice and this
+licence. Each font's file contains its own copyright line, so they are kept separate rather than merged —
+merging them would mean deciding which notice belongs to which file, and getting that wrong is exactly
+the failure the clause exists to prevent.
+
+No other third-party source, binary or asset is vendored here. Runtime dependencies
+are declared in `requirements2026.txt`, `requirements-service.txt`, `web/package.json`
+and each port's manifest, and are fetched from their own repositories under their own
+terms — they are not redistributed by this project.
+
+Previously vendored and REMOVED (2026-08-07): a set of proprietary .NET assemblies
+under `document_processing/ctc/OcrLib462_2024/`, imported by nothing and incompatible
+with an MIT distribution. They remain in earlier commits; see
+`docs/merge-ports-to-main.md` for the history rewrite that is planned before the
+public merge.
+
+
+3. SUPPORT
+----------
+
+Developed with the support of the Foundation for Assistance to Small Innovative
+Enterprises (Фонд содействия инновациям, FASIE). Publication under the MIT licence is
+consistent with the terms of that support, confirmed by the copyright holders.

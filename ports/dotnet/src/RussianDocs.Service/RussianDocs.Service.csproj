@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    The web service. One executable serving the REST API and the SPA out of web/dist.
+
+    Microsoft.NET.Sdk.Web, and no package reference for the framework: ASP.NET Core ships with the
+    SDK. The whole service therefore adds ZERO dependencies beyond what the library already needs —
+    the JWT is hand-rolled in Auth/Auth.cs precisely so this stays true, which matters for a
+    reference project somebody has to audit.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      The name matches the Go port's binary, so the two deployments read alike and a compose file
+      differs only in the image tag.
+    -->
+    <AssemblyName>rdocs-service</AssemblyName>
+    <RootNamespace>RussianDocs.Service</RootNamespace>
+
+    <!--
+      The SPA is SERVED from web/dist at the repository root and never copied into the build: one
+      built frontend serves the Python service, the Go service and this one, and a copy would be the
+      version that quietly goes stale. Program.cs resolves the directory at startup.
+    -->
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RussianDocs.DocumentProcessing\RussianDocs.DocumentProcessing.csproj" />
+  </ItemGroup>
+
+</Project>

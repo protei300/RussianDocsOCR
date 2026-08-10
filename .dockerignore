@@ -1,0 +1,86 @@
+# =============================================================================
+# Build context — ALLOWLIST, not a blocklist.
+#
+# Deliberately inverted compared to the sibling services, whose .dockerignore
+# opens with `*.json`, `*.png`, `*.txt`. Copied here as-is, those three lines
+# would silently drop `document_processing/models/*/ONNX/model.json` — the input
+# shapes, class lists and pre/post-processing steps for every model. The image
+# would build, push and start, and die on the first `Pipeline()`.
+#
+# So: exclude everything, then name what the image needs. A new dependency fails
+# loudly at build time instead of being quietly omitted, and the Dockerfile
+# asserts the model count as a second line of defence.
+# =============================================================================
+*
+
+# The library and the service that wraps it.
+!document_processing/
+!service/
+
+# Anonymised documents. Needed at runtime, not just for tests: the startup
+# warmup uses one, and the pre-computed seed manifest references them by path.
+# Only ever these — never a real user document (see CLAUDE.md).
+!samples/
+
+# Frontend sources for the build stage. Its own artefacts are re-excluded below.
+!web/
+
+!requirements2026.txt
+!requirements-service.txt
+
+# The ports. This file predates them, and the allowlist is exactly as strict as
+# advertised: the first `docker build` of the Go image failed with
+# `"/ports/go": not found` — the context simply had no such directory. Loud, at
+# build time, which is what the inverted list is for.
+!ports/
+
+# ---- Re-excluded from the allowlist above ----------------------------------
+web/node_modules
+web/dist
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+service/seed_data/**/*.tmp.*
+
+# HOST build output under ports/ must never enter the context. bin/ holds a
+# 19 MB Windows binary plus the four MSYS2 DLLs that D-09 requires beside it —
+# useless to a Linux image, and shipping a stale host binary into a container is
+# a genuinely confusing failure. The image builds its own from source.
+ports/*/bin/
+ports/**/*.exe
+ports/**/*.dll
+ports/**/*.so
+
+# .NET build output, and `**/` is LOAD-BEARING: a .dockerignore pattern is matched
+# against the whole path, so a bare `obj/` matches only a top-level directory and
+# every ports/dotnet/src/*/obj/ would sail straight into the context.
+#
+# That is not hypothetical — it cost the first .NET build. The host's Windows
+# project.assets.json landed on top of the container's freshly restored one, and
+# `dotnet publish` then failed with "Package OpenCvSharp4 was not found. It might
+# have been deleted since NuGet restore", because the assets file it was handed
+# pointed at C:\Users\...\.nuget and at the WINDOWS native runtime package. A
+# message about a missing package, whose actual cause was packaging.
+#
+# obj/ also records the package feed URL, which is a second reason it must not
+# travel: this repository is public and the host's feed is not.
+# JVM build output, and `**/` is LOAD-BEARING for exactly the reason the .NET rules
+# below spell out: a bare `build/` matches only a top-level directory, so every
+# ports/java/*/build/ would travel into the context — 657 MB of fat jar per module,
+# and a Gradle build directory carrying absolute HOST paths that the container build
+# would then resolve against nothing.
+#
+# .gradle/ is the daemon's own state, including the local file-dependency path to
+# RDOCS_OPENCV_HOME, which is a Windows path. .kotlin/ is the compiler's session
+# directory. Neither means anything inside an image.
+ports/java/**/build/
+ports/java/**/.gradle/
+ports/java/**/.kotlin/
+ports/java/.gradle/
+ports/java/.kotlin/
+
+ports/dotnet/**/bin/
+ports/dotnet/**/obj/
+**/project.assets.json
+**/*.nuget.g.props
+**/*.nuget.g.targets

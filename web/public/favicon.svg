@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="7" fill="#0D1A2D"/>
+  <!-- An ID document, not a generic file: a card outline with a portrait and
+       two text lines. Chosen over a page-with-lines glyph because at 16 px the
+       portrait circle is the only element that still reads as "identity
+       document" rather than "any attachment", which is what this service
+       recognises. Three text lines were tried and mush together at 16 px. -->
+  <g fill="none" stroke="#F27405" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5" y="7.5" width="22" height="17" rx="2.5"/>
+    <circle cx="11.5" cy="14" r="2.5"/>
+    <path d="M8.5 20.5h6"/>
+    <path d="M18 13h5.5"/>
+    <path d="M18 17.5h5.5"/>
+  </g>
+</svg>

@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Registered implementations. Each entry's `cmd` is the executable the checker",
+    "drives through the contract in spec/cli.md.",
+    "Placeholders: {python} becomes the interpreter running the checker, {repo}",
+    "the repository root. Both exist so this file needs no absolute paths and",
+    "works unchanged on Windows, Linux and in CI.",
+    "`python` is the REFERENCE: grading it against its own goldens must report",
+    "exactly zero differences, which is how the harness proves it can pass.",
+    "Ports appear here as they gain a binary; until then the checker simply",
+    "reports them as unknown."
+  ],
+  "python": {
+    "cmd": ["{python}", "-m", "conformance.refcli"],
+    "note": "the reference implementation"
+  },
+  "go": {
+    "cmd": ["{repo}/ports/go/bin/rdocs-conform"],
+    "note": "complete: 44/44 stages on 7 cases, cpu and gpu profiles"
+  },
+  "dotnet": {
+    "cmd": ["{repo}/ports/dotnet/src/RussianDocs.Conform/bin/Release/net8.0/rdocs-conform"],
+    "note": "complete: 44/44 stages on 7 cases, cpu and gpu profiles"
+  },
+  "java": {
+    "cmd": ["java", "-jar", "{repo}/ports/java/conform/build/dist/rdocs-conform.jar"],
+    "note": "Complete: 44/44 stages on cpu and gpu. Needs RDOCS_OPENCV_HOME, and on Windows RDOCS_TOOLCHAIN_BIN plus a JDK whose bundled C runtime is current — see ports/java/DEVIATIONS.md J-01 and J-16"
+  }
+}

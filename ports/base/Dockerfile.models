@@ -1,0 +1,82 @@
+# syntax=docker/dockerfile:1.7
+# =============================================================================
+# The model artifacts, as their own image.
+#
+# WHY THIS EXISTS. Every port's runtime image needs the same 215 MB of ONNX
+# weights. Copying them into each one means the layer is built once per port and
+# PULLED once per port — four ports on one host is 860 MB of identical bytes.
+# Built once here, every runtime image does `COPY --from=russiandocs-models`
+# and Docker shares the layer.
+#
+# Build (from the repository root):
+#   docker build -f ports/base/Dockerfile.models -t russiandocs-models:latest .
+#
+# Tag it with the commit when it matters. The weights change rarely, so a
+# floating `latest` is usually right — but a runtime image built against a
+# different set of weights than the goldens were generated with is exactly the
+# kind of divergence the conformance harness cannot see, because it never looks
+# inside a container.
+# =============================================================================
+# =============================================================================
+# Fetch the weights. They are NOT in git — they live as assets of the public
+# repo's release, pinned by the tag inside models.lock.json, and the downloader
+# verifies every file's SHA-256 before it counts as present.
+#
+# Only two files are copied in, so editing anything else in the repository does
+# not invalidate this layer: a rebuild re-downloads 215 MB only when the
+# manifest itself changed.
+#
+# Air-gapped build: mirror the assets internally and pass
+#   --build-arg RDOCS_MODELS_URL=https://mirror.internal/rdocs/models/
+# No code changes, no network to github.com.
+# =============================================================================
+FROM python:3.12-slim AS fetch
+ARG RDOCS_MODELS_URL=""
+ENV RDOCS_MODELS_URL=${RDOCS_MODELS_URL}
+WORKDIR /src
+COPY document_processing/models.lock.json document_processing/models.lock.json
+COPY scripts/fetch_models.py scripts/fetch_models.py
+# stdlib only by design — no pip install needed here
+RUN python scripts/fetch_models.py --jobs 8
+
+FROM scratch AS models
+
+# Only the artifacts. Not samples/, not the Python package: this image is data.
+COPY --from=fetch /src/document_processing/models /models
+COPY document_processing/config /config
+
+# =============================================================================
+# A stage that can actually run, for verifying the copy.
+#
+# `scratch` has no shell, so the assertion below cannot live in the stage above.
+# The check is worth having: the .dockerignore trap that bites hardest on this
+# project is a broad `*.json` rule silently excluding every model.json — the
+# image then builds, and the service dies on its first Pipeline() with an error
+# that says nothing about packaging.
+# =============================================================================
+FROM debian:bookworm-slim AS verify
+COPY --from=models /models /models
+RUN set -eu; \
+    onnx=$(find /models -name '*.onnx' | wc -l); \
+    json=$(find /models -name 'model.json' | wc -l); \
+    echo "found $onnx .onnx and $json model.json"; \
+    [ "$onnx" -ge 10 ] || { echo "FAIL: only $onnx .onnx files — check .dockerignore"; exit 1; }; \
+    [ "$json" -ge 10 ] || { echo "FAIL: only $json model.json files — check .dockerignore"; exit 1; }; \
+    [ -f /models/DocTypeAngles/ONNX/resources/centers.npz ] || \
+        { echo "FAIL: centers.npz missing — DocTypeAngles cannot construct"; exit 1; }
+
+# =============================================================================
+# The default target: the data, but reached THROUGH the verifier.
+#
+# `FROM models` was here, and it made the check above dead weight — BuildKit only
+# builds stages the target depends on, so a plain `docker build` skipped verify
+# entirely and reported success. Found by running the stage by hand and noticing
+# it had never run at all.
+#
+# Copying /models out of `verify` rather than out of `models` puts the assertion
+# on the default path: the RUN must succeed before this stage can copy from it.
+# /config comes straight from `models` because nothing checks it.
+# =============================================================================
+FROM scratch
+COPY --from=verify /models /models
+COPY --from=models /config /config

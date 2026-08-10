@@ -1,0 +1,16 @@
+{
+  "slug": "DL_2011-10_BG_DL_2010",
+  "sample": "samples/DL_2011/10_BG_DL_2010.jpg",
+  "doc_type": "DL_2011",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "DL_2011"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

@@ -1,0 +1,445 @@
+{
+  "address": null,
+  "boxes": [
+    {
+      "ambiguous": false,
+      "cls": 5,
+      "conf": 0.935,
+      "display": "Document number",
+      "id": "b0",
+      "kind": "text",
+      "label": "Licence_number",
+      "text": "76 1921099",
+      "x1": 538,
+      "x2": 686,
+      "y1": 56,
+      "y2": 83
+    },
+    {
+      "ambiguous": false,
+      "cls": 1,
+      "conf": 0.926,
+      "display": "Last name",
+      "id": "b1",
+      "kind": "text",
+      "label": "Last_name_ru",
+      "text": "ЗОЛКИНА",
+      "x1": 260,
+      "x2": 368,
+      "y1": 95,
+      "y2": 121
+    },
+    {
+      "ambiguous": false,
+      "cls": 0,
+      "conf": 0.957,
+      "display": "Photo",
+      "id": "b2",
+      "kind": "visual",
+      "label": "Face",
+      "text": null,
+      "x1": 24,
+      "x2": 249,
+      "y1": 106,
+      "y2": 377
+    },
+    {
+      "ambiguous": false,
+      "cls": 3,
+      "conf": 0.93,
+      "display": "Last name",
+      "id": "b3",
+      "kind": "text",
+      "label": "Last_name_en",
+      "text": "ZOLKINA",
+      "x1": 259,
+      "x2": 358,
+      "y1": 116,
+      "y2": 139
+    },
+    {
+      "ambiguous": false,
+      "cls": 17,
+      "conf": 0.929,
+      "display": "Middle name",
+      "id": "b4",
+      "kind": "text",
+      "label": "Middle_name_ru",
+      "text": "АЛЕКСАНДРОВНА",
+      "x1": 376,
+      "x2": 571,
+      "y1": 151,
+      "y2": 178
+    },
+    {
+      "ambiguous": false,
+      "cls": 2,
+      "conf": 0.926,
+      "display": "First name",
+      "id": "b5",
+      "kind": "text",
+      "label": "First_name_ru",
+      "text": "КРИСТИНА",
+      "x1": 262,
+      "x2": 378,
+      "y1": 153,
+      "y2": 178
+    },
+    {
+      "ambiguous": false,
+      "cls": 4,
+      "conf": 0.914,
+      "display": "First name",
+      "id": "b6",
+      "kind": "text",
+      "label": "First_name_en",
+      "text": "KRISTINA",
+      "x1": 261,
+      "x2": 369,
+      "y1": 172,
+      "y2": 197
+    },
+    {
+      "ambiguous": false,
+      "cls": 10,
+      "conf": 0.923,
+      "display": "Date of birth",
+      "id": "b7",
+      "kind": "text",
+      "label": "Birth_date",
+      "text": "04.11.1986",
+      "x1": 261,
+      "x2": 360,
+      "y1": 235,
+      "y2": 259
+    },
+    {
+      "ambiguous": false,
+      "cls": 18,
+      "conf": 0.912,
+      "display": "Sex",
+      "id": "b8",
+      "kind": "text",
+      "label": "Sex_ru",
+      "text": "Ж",
+      "x1": 259,
+      "x2": 287,
+      "y1": 264,
+      "y2": 296
+    },
+    {
+      "ambiguous": false,
+      "cls": 11,
+      "conf": 0.884,
+      "display": "Place of birth",
+      "id": "b9",
+      "kind": "text",
+      "label": "Birth_place_ru",
+      "text": "КАБАРДИНО-БАЛКАРСКАЯ АССР",
+      "x1": 360,
+      "x2": 643,
+      "y1": 265,
+      "y2": 295
+    },
+    {
+      "ambiguous": false,
+      "cls": 12,
+      "conf": 0.911,
+      "display": "Place of birth",
+      "id": "b10",
+      "kind": "text",
+      "label": "Birth_place_en",
+      "text": "USSR",
+      "x1": 651,
+      "x2": 710,
+      "y1": 266,
+      "y2": 291
+    },
+    {
+      "ambiguous": false,
+      "cls": 19,
+      "conf": 0.881,
+      "display": "Sex",
+      "id": "b11",
+      "kind": "text",
+      "label": "Sex_en",
+      "text": "F",
+      "x1": 287,
+      "x2": 315,
+      "y1": 267,
+      "y2": 296
+    },
+    {
+      "ambiguous": false,
+      "cls": 6,
+      "conf": 0.928,
+      "display": "Date of issue",
+      "id": "b12",
+      "kind": "text",
+      "label": "Issue_date",
+      "text": "14.11.2019",
+      "x1": 262,
+      "x2": 358,
+      "y1": 301,
+      "y2": 328
+    },
+    {
+      "ambiguous": false,
+      "cls": 20,
+      "conf": 0.908,
+      "display": "Authority code",
+      "id": "b13",
+      "kind": "text",
+      "label": "Issue_organisation_code",
+      "text": "78039",
+      "x1": 586,
+      "x2": 638,
+      "y1": 302,
+      "y2": 322
+    },
+    {
+      "ambiguous": false,
+      "cls": 13,
+      "conf": 0.904,
+      "display": "Issuing authority",
+      "id": "b14",
+      "kind": "text",
+      "label": "Issue_organization_ru",
+      "text": "МВД",
+      "x1": 544,
+      "x2": 588,
+      "y1": 302,
+      "y2": 323
+    },
+    {
+      "ambiguous": false,
+      "cls": 9,
+      "conf": 0.939,
+      "display": "Signature",
+      "id": "b15",
+      "kind": "visual",
+      "label": "Signature",
+      "text": null,
+      "x1": 579,
+      "x2": 746,
+      "y1": 337,
+      "y2": 407
+    },
+    {
+      "ambiguous": false,
+      "cls": 7,
+      "conf": 0.93,
+      "display": "Valid until",
+      "id": "b16",
+      "kind": "text",
+      "label": "Expiration_date",
+      "text": "14.11.2029",
+      "x1": 263,
+      "x2": 359,
+      "y1": 347,
+      "y2": 372
+    }
+  ],
+  "canvas": {
+    "height": 572,
+    "is_fallback": false,
+    "width": 831
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "device": "cpu",
+  "doc_type": "EXTPASSPORTBIO_2007",
+  "doc_type_base": "EXTPASSPORTBIO",
+  "doc_type_era": "2007",
+  "fields": [
+    {
+      "box_ids": [
+        "b1"
+      ],
+      "conf": 0.926,
+      "display": "Last name",
+      "name": "Last_name_ru",
+      "script": "ru",
+      "value": "ЗОЛКИНА"
+    },
+    {
+      "box_ids": [
+        "b3"
+      ],
+      "conf": 0.93,
+      "display": "Last name",
+      "name": "Last_name_en",
+      "script": "en",
+      "value": "ZOLKINA"
+    },
+    {
+      "box_ids": [
+        "b5"
+      ],
+      "conf": 0.926,
+      "display": "First name",
+      "name": "First_name_ru",
+      "script": "ru",
+      "value": "КРИСТИНА"
+    },
+    {
+      "box_ids": [
+        "b6"
+      ],
+      "conf": 0.914,
+      "display": "First name",
+      "name": "First_name_en",
+      "script": "en",
+      "value": "KRISTINA"
+    },
+    {
+      "box_ids": [
+        "b4"
+      ],
+      "conf": 0.929,
+      "display": "Middle name",
+      "name": "Middle_name_ru",
+      "script": "ru",
+      "value": "АЛЕКСАНДРОВНА"
+    },
+    {
+      "box_ids": [
+        "b8"
+      ],
+      "conf": 0.912,
+      "display": "Sex",
+      "name": "Sex_ru",
+      "script": "ru",
+      "value": "Ж"
+    },
+    {
+      "box_ids": [
+        "b11"
+      ],
+      "conf": 0.881,
+      "display": "Sex",
+      "name": "Sex_en",
+      "script": "en",
+      "value": "F"
+    },
+    {
+      "box_ids": [
+        "b7"
+      ],
+      "conf": 0.923,
+      "display": "Date of birth",
+      "name": "Birth_date",
+      "script": "num",
+      "value": "04.11.1986"
+    },
+    {
+      "box_ids": [
+        "b9"
+      ],
+      "conf": 0.884,
+      "display": "Place of birth",
+      "name": "Birth_place_ru",
+      "script": "ru",
+      "value": "КАБАРДИНО-БАЛКАРСКАЯ АССР"
+    },
+    {
+      "box_ids": [
+        "b10"
+      ],
+      "conf": 0.911,
+      "display": "Place of birth",
+      "name": "Birth_place_en",
+      "script": "en",
+      "value": "USSR"
+    },
+    {
+      "box_ids": [
+        "b0"
+      ],
+      "conf": 0.935,
+      "display": "Document number",
+      "name": "Licence_number",
+      "script": "num",
+      "value": "76 1921099"
+    },
+    {
+      "box_ids": [
+        "b12"
+      ],
+      "conf": 0.928,
+      "display": "Date of issue",
+      "name": "Issue_date",
+      "script": "num",
+      "value": "14.11.2019"
+    },
+    {
+      "box_ids": [
+        "b16"
+      ],
+      "conf": 0.93,
+      "display": "Valid until",
+      "name": "Expiration_date",
+      "script": "num",
+      "value": "14.11.2029"
+    },
+    {
+      "box_ids": [
+        "b14"
+      ],
+      "conf": 0.904,
+      "display": "Issuing authority",
+      "name": "Issue_organization_ru",
+      "script": "ru",
+      "value": "МВД"
+    },
+    {
+      "box_ids": [
+        "b13"
+      ],
+      "conf": 0.908,
+      "display": "Authority code",
+      "name": "Issue_organisation_code",
+      "script": "num",
+      "value": "78039"
+    }
+  ],
+  "ocr": {
+    "Birth_date": "04.11.1986",
+    "Birth_place_en": "USSR",
+    "Birth_place_ru": "КАБАРДИНО-БАЛКАРСКАЯ АССР",
+    "Expiration_date": "14.11.2029",
+    "First_name_en": "KRISTINA",
+    "First_name_ru": "КРИСТИНА",
+    "Issue_date": "14.11.2019",
+    "Issue_organisation_code": "78039",
+    "Issue_organization_ru": "МВД",
+    "Last_name_en": "ZOLKINA",
+    "Last_name_ru": "ЗОЛКИНА",
+    "Licence_number": "76 1921099",
+    "Middle_name_ru": "АЛЕКСАНДРОВНА",
+    "Sex_en": "F",
+    "Sex_ru": "Ж"
+  },
+  "quality": {
+    "Blur": "good",
+    "DocConf": 0.99,
+    "Glare": "good",
+    "LCDSpoofing": "FAKE",
+    "PrintSpoofing": "REAL"
+  },
+  "recognised": true,
+  "timings": {
+    "_blur": 0.036,
+    "_deskew": 0.0089,
+    "_doc_detector": 0.1739,
+    "_doctype_angle": 0.005,
+    "_fields_detector": 0.1079,
+    "_glare": 0.079,
+    "_lcd_spoofing": 0.013,
+    "_ocr": 0.2776,
+    "_print_spoofing": 0.058,
+    "_quality_and_borders": 0.2649,
+    "_split_words": 0.1163,
+    "total": 0.7806
+  }
+}

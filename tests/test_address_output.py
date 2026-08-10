@@ -17,10 +17,10 @@ from pathlib import Path
 
 import pytest
 
-from russian_docs_ocr.document_processing import Pipeline
-from russian_docs_ocr.document_processing.pipeline.pipeline import PipelineResults
+from document_processing import Pipeline
+from document_processing.pipeline.pipeline import PipelineResults
 
-CANVASES = sorted(Path('tests/images/AddressLines').glob('canvas_*.png'))
+CANVASES = sorted(Path('images/AddressLines').glob('canvas_*.png'))
 
 
 @pytest.fixture(scope='module')

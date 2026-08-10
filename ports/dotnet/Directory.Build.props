@@ -1,0 +1,50 @@
+<Project>
+
+  <!--
+    Shared build properties for every project in the port.
+
+    Shaped after the sibling Faces solution's Directory.Build.props, which is where the
+    company keeps this kind of thing — but with none of its dependencies. Style is free to
+    borrow; an internal package feed is not, because this repository is public and MIT and a
+    port that cannot be built outside the company is not a reference implementation.
+  -->
+
+  <PropertyGroup>
+    <Product>RussianDocs OCR</Product>
+    <Version Condition="'$(Version)' == ''">3.0.2.0</Version>
+
+    <!--
+      net8.0, SINGLE-target. Deliberately not multi-targeting the way Faces does: that costs
+      build time and buys reach for a library nobody consumes as a NuGet package yet. Also not
+      chasing net10.0 — the machine has SDK 8.0.101 and the newest runtime buys nothing here.
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!--
+      **InvariantGlobalization is a CORRECTNESS setting here, not a size optimisation.**
+      CONVENTIONS §6.16: `double.ToString()` is culture-sensitive, so a machine whose default
+      culture is ru-RU writes `0,904` where the wire contract requires `0.904` — every float in
+      the view model, silently, and only on that machine. An English CI runner never reproduces
+      it. This makes the whole process invariant so the bug cannot exist; formatting boundaries
+      still pass CultureInfo.InvariantCulture explicitly, because a reader should not have to
+      know this property is set.
+    -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      A restore lock file: the .NET analogue of package-lock.json, and the reason it is safe to
+      commit is that it records resolved VERSIONS and content hashes, not feed URLs. That
+      distinction is exactly what went wrong with web/package-lock.json, which named a private
+      mirror 132 times. Asserted, not assumed — the file is grepped for internal hosts in CI.
+    -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+</Project>

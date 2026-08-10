@@ -1,0 +1,208 @@
+# The ports, graded against the reference.
+#
+# **Separate from `ci.yml`, on a schedule and on demand, and that is a deliberate trade.** Every port
+# needs a native toolchain: OpenCV 4.13 built from source for Go and Kotlin (ten to twenty-five
+# minutes), a GTK stack for .NET's prebuilt native, and ONNX Runtime for each. Putting that on every
+# pull request would make the fast checks slow and the slow checks ignored.
+#
+# What this loses, stated plainly: **a change to the library can break a port and nobody learns until
+# the weekly run.** That is acceptable only because the reference's own conformance run (in `ci.yml`)
+# catches the change that matters most — a moved golden — on the pull request itself. If the ports
+# start breaking often, promote this to `pull_request` and pay the minutes.
+#
+# 4.13.0 is not a preference: contour approximation changed in OpenCV 4.8 and the goldens encode 4.13
+# behaviour. A port built against 4.9 fails `borders.segments` for a reason nothing in the code
+# explains.
+#
+# HONEST NOTE ON PROVENANCE: **this workflow has never run.** The commands are the ones used on a
+# development machine, where all three ports pass 44/44; the YAML is untested and the OpenCV build
+# step in particular is the kind that needs one real attempt to settle. Treat a first red run as a
+# packaging problem, not a port regression, and check `ports/<lang>/README.md` for what that port
+# needs from the machine.
+name: ports
+
+on:
+  schedule:
+    # Weekly, Monday 03:00 UTC. Cheap to move; the point is that it runs without anyone asking.
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      port:
+        description: Which port to grade
+        required: true
+        default: all
+        type: choice
+        options: [all, go, dotnet, java]
+
+env:
+  OPENCV_VERSION: 4.13.0
+
+jobs:
+  # ─── Go ────────────────────────────────────────────────────────────────────
+  go:
+    name: go — 44/44 stages on 7 cases
+    if: ${{ github.event_name == 'schedule' || inputs.port == 'all' || inputs.port == 'go' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: ports/go/go.sum
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      # gocv links OpenCV through cgo, and Ubuntu's packaged version is too old — see the note in the
+      # header about 4.8. The apt package is used anyway for its dependencies, then overridden by the
+      # source build in the cache step below.
+      - name: OpenCV development packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config libopencv-dev
+
+      - name: ONNX Runtime
+        run: |
+          curl -fsSL -o ort.tgz \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.21.1/onnxruntime-linux-x64-1.21.1.tgz
+          tar xzf ort.tgz
+          echo "ORT_SO=$PWD/onnxruntime-linux-x64-1.21.1/lib/libonnxruntime.so" >> "$GITHUB_ENV"
+
+      - name: Install the reference (the checker is Python)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements2026.txt
+
+      # The ports read the weights from the same directory the reference does
+      # (RDOCS_MODELS_ROOT); since 3.0.2 they are fetched, not checked out.
+      - uses: ./.github/actions/fetch-models
+
+      - name: Build
+        working-directory: ports/go
+        run: go build ./... && go vet ./...
+
+      - name: Unit tests
+        working-directory: ports/go
+        run: go test ./...
+
+      - name: Conformance
+        run: python -m conformance.runner run --port go
+
+  # ─── .NET ──────────────────────────────────────────────────────────────────
+  dotnet:
+    name: dotnet — 44/44 stages on 7 cases
+    if: ${{ github.event_name == 'schedule' || inputs.port == 'all' || inputs.port == 'dotnet' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      # **OpenCvSharp4.official.runtime.linux-x64 is NOT headless**, which was assumed and is wrong:
+      # `ldd` on the shipped native wants GTK 3, Pango, Cairo, ATK, X11 and FreeType. Without them the
+      # load fails as "The type initializer for OpenCvSharp.Internal.NativeMethods threw an exception",
+      # which names neither OpenCV nor a library. This list is the one the .NET image had to install.
+      - name: The native's shared libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgomp1 libatomic1
+          sudo apt-get install -y --no-install-recommends libgtk-3-0 libgdk-pixbuf-2.0-0
+          sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangocairo-1.0-0
+          sudo apt-get install -y --no-install-recommends libcairo2 libcairo-gobject2 libatk1.0-0
+          sudo apt-get install -y --no-install-recommends libglib2.0-0 libfreetype6 libharfbuzz0b
+          sudo apt-get install -y --no-install-recommends libx11-6 libdrm2
+
+      - name: Install the reference (the checker is Python)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements2026.txt
+
+      # The ports read the weights from the same directory the reference does
+      # (RDOCS_MODELS_ROOT); since 3.0.2 they are fetched, not checked out.
+      - uses: ./.github/actions/fetch-models
+
+      - name: Build and test
+        working-directory: ports/dotnet
+        run: |
+          dotnet build RussianDocs.sln -c Release
+          dotnet test RussianDocs.sln -c Release --no-build
+
+      - name: Conformance
+        run: python -m conformance.runner run --port dotnet
+
+  # ─── Kotlin/JVM ────────────────────────────────────────────────────────────
+  #
+  # The expensive one: there is no `org.opencv` artefact on Maven Central at all, so OpenCV is built
+  # from source with `-DBUILD_JAVA=ON`. The cmake line is kept identical to `tools/build-opencv.sh`
+  # and to the Docker stage — two builds that both claim 4.13.0 while differing in configuration is
+  # the hardest divergence to find, because every version string agrees.
+  java:
+    name: java — 44/44 stages on 7 cases
+    if: ${{ github.event_name == 'schedule' || inputs.port == 'all' || inputs.port == 'java' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build
+          sudo apt-get install -y --no-install-recommends curl unzip
+
+      # Cached on the version alone: the build depends on nothing else in the repository, and it is
+      # twenty minutes that must not be paid weekly.
+      - name: Cache the OpenCV build
+        id: opencv-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/opencv-build/build
+          key: opencv-java-${{ env.OPENCV_VERSION }}-${{ runner.os }}
+
+      - name: Build OpenCV with the Java bindings
+        if: steps.opencv-cache.outputs.cache-hit != 'true'
+        run: ports/java/tools/build-opencv.sh ~/opencv-build
+
+      - name: Install the reference (the checker is Python)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements2026.txt
+
+      # The ports read the weights from the same directory the reference does
+      # (RDOCS_MODELS_ROOT); since 3.0.2 they are fetched, not checked out.
+      - uses: ./.github/actions/fetch-models
+
+      # RDOCS_TOOLCHAIN_BIN is Windows-only (System32 shadowing a MinGW soname) and deliberately unset
+      # here. Neither Windows native-loading trap — J-01 or J-16 — can occur on Linux.
+      - name: Build and test
+        working-directory: ports/java
+        env:
+          RDOCS_OPENCV_HOME: ${{ github.workspace }}/../opencv-build/build
+        run: ./gradlew --no-daemon build
+
+      - name: Conformance
+        env:
+          RDOCS_OPENCV_HOME: ${{ github.workspace }}/../opencv-build/build
+        run: python -m conformance.runner run --port java

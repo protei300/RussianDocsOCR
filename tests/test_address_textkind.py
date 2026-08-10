@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from russian_docs_ocr.document_processing.pipeline_modules import AddressTextKindClassifier
+from document_processing.pipeline_modules import *
 
 
 @pytest.fixture
@@ -11,7 +11,7 @@ def module():
 class TestAddressTextKindClassifier:
     def test_module_contract(self, module):
         """predict() returns (label, probability) under the module name."""
-        img_file = next(Path('tests/images/AddressTextKind').iterdir())
+        img_file = next(Path('images/AddressTextKind').iterdir())
         result = module.predict(img_file)
         assert module.model_name in result, f'Key {module.model_name!r} missing'
         label, prob = result[module.model_name]
@@ -20,7 +20,7 @@ class TestAddressTextKindClassifier:
 
     def test_classification(self, module):
         """Each fixture is classified to the kind encoded in its filename."""
-        files = list(Path('tests/images/AddressTextKind').glob('*.png'))
+        files = list(Path('images/AddressTextKind').glob('*.png'))
         assert files, 'No AddressTextKind fixtures found'
         for img_file in files:
             ground_truth = img_file.stem.split('_')[0]  # 'printed' | 'handwritten'

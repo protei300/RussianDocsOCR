@@ -1,0 +1,16 @@
+{
+  "slug": "DL_2020-10_CR_DL_2019",
+  "sample": "samples/DL_2020/10_CR_DL_2019.jpg",
+  "doc_type": "DL_2020",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "DL_2020"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

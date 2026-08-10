@@ -1,0 +1,8 @@
+# Reference image pixels, regenerated on demand with:
+#     python -m conformance.refcli regen --with-pixels
+# Committed goldens hold a sha256 digest instead -- 50+ MB of binary per
+# regeneration is not something to keep in git. See spec/tolerances.md R-02.
+cases/*/stages/*.npy
+
+# Checker output. Reports are a record of a run, not of the contract.
+report/

@@ -1,0 +1,74 @@
+# The Kotlin/JVM service, CPU and GPU.
+#
+# Run from the REPOSITORY ROOT, because the build context is the whole repository — the images
+# need document_processing/models, samples/, service/seed_data/ and web/, none of which live
+# under ports/java/:
+#
+#   docker build -f ports/base/Dockerfile.models -t russiandocs-models:latest .
+#   docker compose -f ports/java/docker/docker-compose.yaml up rdocs-java-cpu
+#
+# The models image is built SEPARATELY and on purpose: compose has no way to express "build
+# this once and share the layer with several services", and doing it by hand keeps the 215 MB
+# out of every rebuild — and out of all four ports' images, which copy from it.
+#
+# **NOT RUN YET.** There was no Docker daemon on the machine this port was developed on. The
+# Dockerfile names the three places most likely to need a fix on a first real build.
+#
+# **There is no volume for /app/data.** That is not an omission — see DATA_WIPE_ON_START. Note
+# that removing the volume alone would not make the store ephemeral either: `docker restart`
+# keeps the writable layer, so the wipe at startup is what makes the promise true.
+#
+# Port 8005, so all four services can run side by side: Python 8002, Go 8003, .NET 8004,
+# Kotlin 8005.
+
+services:
+  rdocs-java-cpu:
+    build:
+      context: ../../..
+      dockerfile: ports/java/docker/Dockerfile
+      target: runtime-cpu
+    image: russiandocs-java:cpu
+    ports:
+      - "8005:8005"
+    environment:
+      # SET THESE. The defaults are a warning, not a configuration: the service logs loudly
+      # about the built-in JWT secret, and an unset DEFAULT_API_KEY means a random key that
+      # changes on every restart and has to be read out of the log.
+      AUTH_PIN: "1234"
+      JWT_SECRET: "change-me"
+      DEFAULT_API_KEY: "change-me-too"
+      COMPUTE_DEVICE: "cpu"
+      DATA_WIPE_ON_START: "true"
+      # 0 means "every sample in the manifest", so the log demonstrates real results on first
+      # load. Only ever anonymised repository samples.
+      SEED_SAMPLES: "0"
+    restart: unless-stopped
+
+  rdocs-java-gpu:
+    build:
+      context: ../../..
+      dockerfile: ports/java/docker/Dockerfile
+      target: runtime-gpu
+    image: russiandocs-java:gpu
+    ports:
+      - "8005:8005"
+    environment:
+      AUTH_PIN: "1234"
+      JWT_SECRET: "change-me"
+      DEFAULT_API_KEY: "change-me-too"
+      # `auto` rather than `gpu`: the device-node probe then decides, and a host without a
+      # passed-through GPU gets CPU with a log line saying why instead of a segfault.
+      COMPUTE_DEVICE: "auto"
+      DATA_WIPE_ON_START: "true"
+      SEED_SAMPLES: "0"
+    # Without this the CUDA provider has no device to find. It is also what the device-node
+    # probe looks for: /dev/nvidiactl and friends only exist inside the container when the
+    # runtime has mapped them.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped

@@ -1,0 +1,36 @@
+# =============================================================================
+# Materialise the model weights into document_processing/models.
+#
+# WHY THIS EXISTS. Since 3.0.2 the weights are not in the repository — they are
+# release assets pinned by SHA-256 in document_processing/models.lock.json. Five
+# jobs need them (library tests, the reference conformance run, and one per
+# port), and a copy-pasted download block in five files is five places to drift.
+#
+# The cache key is the manifest's hash, so 215 MB moves only when the pinned set
+# actually changes. The fetch runs on a cache hit as well: it verifies every
+# checksum and is a no-op when they match, which turns a corrupted or partially
+# restored cache into a named failure instead of a puzzling one later.
+# =============================================================================
+name: Fetch model weights
+description: Download and verify the ONNX weights pinned in models.lock.json
+
+inputs:
+  jobs:
+    description: Parallel downloads
+    required: false
+    default: '8'
+
+runs:
+  using: composite
+  steps:
+    - name: Cache model weights
+      uses: actions/cache@v4
+      with:
+        path: document_processing/models
+        key: models-${{ hashFiles('document_processing/models.lock.json') }}
+
+    # The downloader is standard library only, on purpose: it must work before
+    # `pip install` has run, which is the case in the port jobs.
+    - name: Fetch and verify
+      shell: bash
+      run: python scripts/fetch_models.py --jobs ${{ inputs.jobs }}

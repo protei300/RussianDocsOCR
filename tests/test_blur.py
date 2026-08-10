@@ -1,27 +1,20 @@
-import glob
+import pytest
 from pathlib import Path
-from russian_docs_ocr.document_processing.processing.models import ModelLoader
-from russian_docs_ocr.document_processing.pipeline_modules import *
+from document_processing.processing.models import ModelLoader
+from document_processing.pipeline_modules import *
 
 
-def test_blur():
-    loader = ModelLoader()
-    model = loader(Path('russian_docs_ocr/document_processing/models/Blur/ONNX/model.json'))
-    for image_file in glob.glob('images/Blur/*'):
-        image_file_path = Path(image_file)
-        ground_truth = image_file_path.name.split('.')[0]
-        result = model.predict(image_file_path)[0]
-        assert ground_truth == result
+@pytest.fixture
+def module():
+    return Blur(model_format='ONNX', device='cpu')
 
 
-def test_blur_originals():
-    blur = Blur('ONNX')
-    for image_file in glob.glob('tests/images/Originals/Blur/*'):
-        image_file_path = Path(image_file)
-        ground_truth = image_file_path.name.split('.')[0].split('_')[0]
-        result = blur.predict(image_file_path)['Blur'][0]
-        assert ground_truth == result
-
-
-
-
+class TestBlur:
+    def test_module(self, module):
+        for image_file in Path('images/Originals/Blur').iterdir():
+            ground_truth = image_file.stem.split('_')[0]  # 'good' or 'bad'
+            result = module.predict(image_file)
+            assert module.model_name in result, f'Key {module.model_name!r} missing'
+            status, quality = result[module.model_name]
+            assert status == ground_truth, f'{image_file.name}: expected {ground_truth!r}, got {status!r}'
+            assert 0.0 <= quality <= 1.0, f'Quality score out of range: {quality}'

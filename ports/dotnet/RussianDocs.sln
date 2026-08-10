@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C4418D63-EEE5-46E8-BDC2-845A8DCD1509}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RussianDocs.DocumentProcessing", "src\RussianDocs.DocumentProcessing\RussianDocs.DocumentProcessing.csproj", "{692CAB9E-396E-4E62-A752-C3FA91D2C3A2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RussianDocs.Conform", "src\RussianDocs.Conform\RussianDocs.Conform.csproj", "{16813296-A59B-4FD1-B62D-E24129652785}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{C5B1AA8E-7EEB-494E-AA0F-36CE5E84AC02}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RussianDocs.DocumentProcessing.Tests", "tests\RussianDocs.DocumentProcessing.Tests\RussianDocs.DocumentProcessing.Tests.csproj", "{3110320D-6DCA-4CB8-97DF-72F9C92230F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RussianDocs.Service", "src\RussianDocs.Service\RussianDocs.Service.csproj", "{4E0F18E9-296D-426A-96BA-AFA4E788C94E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RussianDocs.Service.Tests", "tests\RussianDocs.Service.Tests\RussianDocs.Service.Tests.csproj", "{769D2FCA-8470-43B2-A892-628A1992DA02}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{692CAB9E-396E-4E62-A752-C3FA91D2C3A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{692CAB9E-396E-4E62-A752-C3FA91D2C3A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{692CAB9E-396E-4E62-A752-C3FA91D2C3A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{692CAB9E-396E-4E62-A752-C3FA91D2C3A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16813296-A59B-4FD1-B62D-E24129652785}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16813296-A59B-4FD1-B62D-E24129652785}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16813296-A59B-4FD1-B62D-E24129652785}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16813296-A59B-4FD1-B62D-E24129652785}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3110320D-6DCA-4CB8-97DF-72F9C92230F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3110320D-6DCA-4CB8-97DF-72F9C92230F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3110320D-6DCA-4CB8-97DF-72F9C92230F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3110320D-6DCA-4CB8-97DF-72F9C92230F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E0F18E9-296D-426A-96BA-AFA4E788C94E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E0F18E9-296D-426A-96BA-AFA4E788C94E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E0F18E9-296D-426A-96BA-AFA4E788C94E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E0F18E9-296D-426A-96BA-AFA4E788C94E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{769D2FCA-8470-43B2-A892-628A1992DA02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{769D2FCA-8470-43B2-A892-628A1992DA02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{769D2FCA-8470-43B2-A892-628A1992DA02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{769D2FCA-8470-43B2-A892-628A1992DA02}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{692CAB9E-396E-4E62-A752-C3FA91D2C3A2} = {C4418D63-EEE5-46E8-BDC2-845A8DCD1509}
+		{16813296-A59B-4FD1-B62D-E24129652785} = {C4418D63-EEE5-46E8-BDC2-845A8DCD1509}
+		{3110320D-6DCA-4CB8-97DF-72F9C92230F5} = {C5B1AA8E-7EEB-494E-AA0F-36CE5E84AC02}
+		{4E0F18E9-296D-426A-96BA-AFA4E788C94E} = {C4418D63-EEE5-46E8-BDC2-845A8DCD1509}
+		{769D2FCA-8470-43B2-A892-628A1992DA02} = {C5B1AA8E-7EEB-494E-AA0F-36CE5E84AC02}
+	EndGlobalSection
+EndGlobal

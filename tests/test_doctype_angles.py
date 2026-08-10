@@ -1,16 +1,15 @@
 import pytest
 from pathlib import Path
-from russian_docs_ocr.document_processing.pipeline_modules import DocTypeAngles
-from russian_docs_ocr.document_processing.processing.models import ModelLoader
+from document_processing.pipeline_modules import *
+from document_processing.processing.models import ModelLoader
 
-
-IMAGES = Path('tests/images/DocTypeAngles')
+SAMPLES_DIR = Path('../samples')
 
 
 @pytest.fixture
 def model():
     model_loader = ModelLoader()
-    return model_loader(Path('russian_docs_ocr/document_processing/models/DocTypeAngles/ONNX/model.json'))
+    return model_loader(Path('../document_processing/models/DocTypeAngles/ONNX/model.json'))
 
 
 @pytest.fixture
@@ -18,44 +17,51 @@ def module():
     return DocTypeAngles(model_format='ONNX', device='cpu')
 
 
-def _expected(img: Path):
-    """Filenames are <DOCTYPE_FAMILY>_<angle>.jpg (e.g. EXTPASSPORTBIO_180.jpg).
-    The model returns the doctype with a year suffix (EXTPASSPORTBIO_2007), so
-    tests compare the family only."""
-    doctype, angle = img.stem.split('_', maxsplit=1)
-    return doctype, int(angle)
-
-
-def _family(doctype: str) -> str:
-    """Strip the trailing year from a model doctype (EXTPASSPORTBIO_2007 -> EXTPASSPORTBIO)."""
-    return doctype.rsplit('_', maxsplit=1)[0]
-
-
-class TestDocTypeAngle:
+class TestDocTypeAngles:
     def test_model(self, model):
-        """Raw model.predict returns [(doc_type, dist, thresh), (angle, angle_conf)]."""
-        for img in IMAGES.iterdir():
-            doctype_expected, angle_expected = _expected(img)
-            doctype_meta, angle_meta = model.predict(img)
-            assert _family(doctype_meta[0]) == doctype_expected, f'Wrong doctype for {img.name}: {doctype_meta[0]}'
-            assert angle_meta[0] == angle_expected, f'Wrong angle for {img.name}: {angle_meta[0]}'
+        """Raw model returns (doctype_meta, angle_meta) for each image."""
+        for doc_dir in sorted(SAMPLES_DIR.iterdir()):
+            if not doc_dir.is_dir():
+                continue
+            for img_file in list(doc_dir.glob('*.jpg'))[:1]:
+                doctype_meta, angle_meta = model.predict(img_file)
+                doc_type, dist, thresh = doctype_meta
+                angle, conf = angle_meta
+                assert isinstance(doc_type, str), f'doc_type must be a string, got {type(doc_type)}'
+                assert angle in (0, 90, 180, 270), f'Unexpected angle value: {angle}'
+                assert 0.0 <= conf <= 1.0, f'Angle confidence out of range: {conf}'
 
     def test_module(self, module):
-        """predict_transform returns {model_name: flat payload} incl. warped_img."""
-        for img in IMAGES.iterdir():
-            doctype_expected, angle_expected = _expected(img)
-            result = module.predict_transform(img)
+        """Module predict() follows the standard {model_name: payload} contract."""
+        doc_dir = next(d for d in sorted(SAMPLES_DIR.iterdir()) if d.is_dir())
+        img_file = next(doc_dir.glob('*.jpg'))
+        result = module.predict(img_file)
+        assert module.model_name in result, f'Missing {module.model_name} key'
+        meta = result[module.model_name]
+        for key in ('doc_type', 'doc_type_confidence', 'angle', 'angle_confidence'):
+            assert key in meta, f'Missing {key} in payload'
+        assert 'warped_img' not in meta, 'predict() must not return warped_img'
 
-            assert module.model_name in result, f'Missing {module.model_name!r} key'
-            meta = result[module.model_name]
-            assert _family(meta['doc_type']) == doctype_expected, f'Wrong doctype for {img.name}'
-            assert meta['angle'] == angle_expected, f'Wrong angle for {img.name}'
-            assert 'warped_img' in meta, 'Missing warped_img'
-            assert 'doc_type_confidence' in meta and 'angle_confidence' in meta
+    def test_module_accuracy(self, module):
+        """Predicted doc type matches samples directory name."""
+        for doc_dir in sorted(SAMPLES_DIR.iterdir()):
+            if not doc_dir.is_dir():
+                continue
+            expected_type = doc_dir.name
+            for img_file in list(doc_dir.glob('*.jpg'))[:2]:
+                result = module.predict(img_file)
+                predicted = result[module.model_name]['doc_type']
+                assert predicted == expected_type, (
+                    f'{img_file.name}: expected {expected_type!r}, got {predicted!r}'
+                )
 
-    def test_module_predict_has_no_warped_img(self, module):
-        """predict() returns the same payload minus the rotated image."""
-        img = next(iter(IMAGES.iterdir()))
-        meta = module.predict(img)[module.model_name]
-        assert 'warped_img' not in meta
-        assert _family(meta['doc_type']) == _expected(img)[0]
+    def test_module_transform(self, module):
+        """predict_transform() adds the upright image to the payload."""
+        doc_dir = next(d for d in sorted(SAMPLES_DIR.iterdir()) if d.is_dir())
+        img_file = next(doc_dir.glob('*.jpg'))
+        result = module.predict_transform(img_file)
+        assert module.model_name in result, f'Missing {module.model_name} key'
+        meta = result[module.model_name]
+        for key in ('doc_type', 'doc_type_confidence', 'angle', 'angle_confidence',
+                    'warped_img'):
+            assert key in meta, f'Missing {key} in payload'

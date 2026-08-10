@@ -1,0 +1,247 @@
+{
+  "address": null,
+  "boxes": [
+    {
+      "ambiguous": false,
+      "cls": 5,
+      "conf": 0.936,
+      "display": "Document number",
+      "id": "b0",
+      "kind": "text",
+      "label": "Licence_number",
+      "text": "127-432-979 79",
+      "x1": 371,
+      "x2": 637,
+      "y1": 225,
+      "y2": 270
+    },
+    {
+      "ambiguous": false,
+      "cls": 1,
+      "conf": 0.93,
+      "display": "Last name",
+      "id": "b1",
+      "kind": "text",
+      "label": "Last_name_ru",
+      "text": "ВАСИЛЬЕВА",
+      "x1": 258,
+      "x2": 454,
+      "y1": 268,
+      "y2": 308
+    },
+    {
+      "ambiguous": false,
+      "cls": 2,
+      "conf": 0.925,
+      "display": "First name",
+      "id": "b2",
+      "kind": "text",
+      "label": "First_name_ru",
+      "text": "САМАНТА",
+      "x1": 259,
+      "x2": 418,
+      "y1": 305,
+      "y2": 340
+    },
+    {
+      "ambiguous": false,
+      "cls": 17,
+      "conf": 0.93,
+      "display": "Middle name",
+      "id": "b3",
+      "kind": "text",
+      "label": "Middle_name_ru",
+      "text": "ВЯЧЕСЛАВОВНА",
+      "x1": 258,
+      "x2": 519,
+      "y1": 336,
+      "y2": 378
+    },
+    {
+      "ambiguous": false,
+      "cls": 10,
+      "conf": 0.927,
+      "display": "Date of birth",
+      "id": "b4",
+      "kind": "text",
+      "label": "Birth_date",
+      "text": "26 СЕНТЯБРЯ 1997 ГОДА",
+      "x1": 472,
+      "x2": 803,
+      "y1": 380,
+      "y2": 420
+    },
+    {
+      "ambiguous": false,
+      "cls": 11,
+      "conf": 0.936,
+      "display": "Place of birth",
+      "id": "b5",
+      "kind": "text",
+      "label": "Birth_place_ru",
+      "text": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
+      "x1": 260,
+      "x2": 410,
+      "y1": 424,
+      "y2": 463
+    },
+    {
+      "ambiguous": true,
+      "cls": 11,
+      "conf": 0.897,
+      "display": "Place of birth",
+      "id": "b6",
+      "kind": "text",
+      "label": "Birth_place_ru",
+      "text": null,
+      "x1": 259,
+      "x2": 730,
+      "y1": 454,
+      "y2": 504
+    },
+    {
+      "ambiguous": true,
+      "cls": 11,
+      "conf": 0.892,
+      "display": "Place of birth",
+      "id": "b7",
+      "kind": "text",
+      "label": "Birth_place_ru",
+      "text": null,
+      "x1": 257,
+      "x2": 701,
+      "y1": 490,
+      "y2": 538
+    },
+    {
+      "ambiguous": false,
+      "cls": 18,
+      "conf": 0.928,
+      "display": "Sex",
+      "id": "b8",
+      "kind": "text",
+      "label": "Sex_ru",
+      "text": "Ж",
+      "x1": 255,
+      "x2": 384,
+      "y1": 554,
+      "y2": 587
+    }
+  ],
+  "canvas": {
+    "height": 622,
+    "is_fallback": false,
+    "width": 904
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "device": "cpu",
+  "doc_type": "SNILS_1996",
+  "doc_type_base": "SNILS",
+  "doc_type_era": "1996",
+  "fields": [
+    {
+      "box_ids": [
+        "b1"
+      ],
+      "conf": 0.93,
+      "display": "Last name",
+      "name": "Last_name_ru",
+      "script": "ru",
+      "value": "ВАСИЛЬЕВА"
+    },
+    {
+      "box_ids": [
+        "b2"
+      ],
+      "conf": 0.925,
+      "display": "First name",
+      "name": "First_name_ru",
+      "script": "ru",
+      "value": "САМАНТА"
+    },
+    {
+      "box_ids": [
+        "b3"
+      ],
+      "conf": 0.93,
+      "display": "Middle name",
+      "name": "Middle_name_ru",
+      "script": "ru",
+      "value": "ВЯЧЕСЛАВОВНА"
+    },
+    {
+      "box_ids": [
+        "b8"
+      ],
+      "conf": 0.928,
+      "display": "Sex",
+      "name": "Sex_ru",
+      "script": "ru",
+      "value": "Ж"
+    },
+    {
+      "box_ids": [
+        "b4"
+      ],
+      "conf": 0.927,
+      "display": "Date of birth",
+      "name": "Birth_date",
+      "script": "num",
+      "value": "26 СЕНТЯБРЯ 1997 ГОДА"
+    },
+    {
+      "box_ids": [
+        "b5",
+        "b6",
+        "b7"
+      ],
+      "conf": 0.936,
+      "display": "Place of birth",
+      "name": "Birth_place_ru",
+      "script": "ru",
+      "value": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ"
+    },
+    {
+      "box_ids": [
+        "b0"
+      ],
+      "conf": 0.936,
+      "display": "Document number",
+      "name": "Licence_number",
+      "script": "num",
+      "value": "127-432-979 79"
+    }
+  ],
+  "ocr": {
+    "Birth_date": "26 СЕНТЯБРЯ 1997 ГОДА",
+    "Birth_place_ru": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
+    "First_name_ru": "САМАНТА",
+    "Last_name_ru": "ВАСИЛЬЕВА",
+    "Licence_number": "127-432-979 79",
+    "Middle_name_ru": "ВЯЧЕСЛАВОВНА",
+    "Sex_ru": "Ж"
+  },
+  "quality": {
+    "Blur": "good",
+    "DocConf": 0.98,
+    "Glare": "good",
+    "LCDSpoofing": "REAL",
+    "PrintSpoofing": "FAKE"
+  },
+  "recognised": true,
+  "timings": {
+    "_blur": 0.039,
+    "_deskew": 0.009,
+    "_doc_detector": 0.272,
+    "_doctype_angle": 0.0052,
+    "_fields_detector": 0.1019,
+    "_glare": 0.1783,
+    "_lcd_spoofing": 0.044,
+    "_ocr": 0.251,
+    "_print_spoofing": 0.061,
+    "_quality_and_borders": 0.312,
+    "_split_words": 0.2777,
+    "total": 0.9568
+  }
+}

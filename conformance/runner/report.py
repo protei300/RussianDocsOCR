@@ -1,0 +1,140 @@
+"""Rendering of conformance results.
+
+The headline is the FIRST DIVERGENT STAGE per case, not a pass count: a count
+tells you how bad things are, the stage tells you what to fix. Everything here is
+plain ASCII — these reports get read in PowerShell, in Git Bash and in CI logs,
+and box-drawing characters survive none of those reliably.
+"""
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+
+from conformance.runner.compare import Diff, StageResult
+
+
+@dataclass
+class CaseReport:
+    slug: str
+    doc_type: str | None
+    stages: list[StageResult] = field(default_factory=list)
+    error: str | None = None
+
+    @property
+    def first_divergence(self) -> str | None:
+        for s in self.stages:
+            if not s.ok and not s.skipped:
+                return s.stage
+        return None
+
+    @property
+    def ok(self) -> bool:
+        return self.error is None and self.first_divergence is None
+
+    def counts(self) -> tuple[int, int, int]:
+        passed = sum(1 for s in self.stages if s.ok and not s.skipped)
+        failed = sum(1 for s in self.stages if not s.ok and not s.skipped)
+        skipped = sum(1 for s in self.stages if s.skipped)
+        return passed, failed, skipped
+
+
+@dataclass
+class RunReport:
+    port: str
+    profile: str
+    cases: list[CaseReport] = field(default_factory=list)
+    info: dict | None = None
+
+    @property
+    def ok(self) -> bool:
+        return bool(self.cases) and all(c.ok for c in self.cases)
+
+
+def render(run: RunReport, verbose: bool = False) -> str:
+    lines: list[str] = []
+    lines.append(f"port    : {run.port}")
+    lines.append(f"profile : {run.profile}")
+    if run.info:
+        v = run.info.get("versions", {})
+        lines.append(f"impl    : {run.info.get('language')} "
+                     f"ort={v.get('onnxruntime')} opencv={v.get('opencv')} "
+                     f"commit={run.info.get('commit')}")
+    lines.append("")
+
+    width = max((len(c.slug) for c in run.cases), default=10)
+    lines.append(f"{'case'.ljust(width)}  {'pass':>5} {'fail':>5} {'skip':>5}  first divergence")
+    lines.append("-" * (width + 34))
+    for c in run.cases:
+        p, f, s = c.counts()
+        if c.error:
+            marker = f"ERROR: {c.error}"
+        else:
+            marker = c.first_divergence or "-"
+        lines.append(f"{c.slug.ljust(width)}  {p:5d} {f:5d} {s:5d}  {marker}")
+    lines.append("")
+
+    failing = [c for c in run.cases if not c.ok]
+    if failing:
+        lines.append("details")
+        lines.append("=======")
+        for c in failing:
+            lines.append(f"\n{c.slug}")
+            if c.error:
+                lines.append(f"  ERROR {c.error}")
+            for st in c.stages:
+                if st.ok or st.skipped:
+                    continue
+                lines.append(f"  [{st.stage}]")
+                shown = st.diffs if verbose else st.diffs[:8]
+                for d in shown:
+                    lines.append(f"      {d}")
+                if len(st.diffs) > len(shown):
+                    lines.append(f"      ... {len(st.diffs) - len(shown)} more "
+                                 f"(pass --verbose to see all)")
+
+    # Stages that passed with a caveat: either the golden proves nothing, or only part
+    # of the payload was verified. Never a failure, but a green tick here means less
+    # than it looks, so they are always listed.
+    vacuous = [(c.slug, s) for c in run.cases for s in c.stages if s.warn and not s.skipped]
+    if vacuous:
+        lines.append(f"warnings: {len(vacuous)} stage(s) passed with a caveat")
+        lines.append("=" * 52)
+        seen: set[str] = set()
+        for slug, s in vacuous:
+            if s.stage in seen:
+                continue
+            seen.add(s.stage)
+            lines.append(f"  {s.stage}: {s.warn}")
+        # The advice only fits a VACUOUS golden. Printing it under an R-02 warning --
+        # where the comparison was substantive and simply not bit-exact -- reads as
+        # "something is broken here" and sends the reader after a non-problem.
+        if any("compares nothing" in s.warn for _, s in vacuous):
+            lines.append("  (fix the emission and regenerate, or accept that the stage is"
+                         " legitimately absent for these documents)")
+        lines.append("")
+
+    lines.append("VERDICT: " + ("PASS" if run.ok else "FAIL"))
+    return "\n".join(lines)
+
+
+def save(run: RunReport, directory: Path) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    path = directory / f"{run.port}-{stamp}.json"
+
+    def _stage(s: StageResult) -> dict:
+        return {"stage": s.stage, "ok": s.ok, "skipped": s.skipped, "warn": s.warn,
+                "diffs": [asdict(d) for d in s.diffs]}
+
+    payload = {
+        "port": run.port, "profile": run.profile, "utc": stamp,
+        "ok": run.ok, "info": run.info,
+        "cases": [{"slug": c.slug, "doc_type": c.doc_type, "error": c.error,
+                   "first_divergence": c.first_divergence,
+                   "stages": [_stage(s) for s in c.stages]}
+                  for c in run.cases],
+    }
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return path

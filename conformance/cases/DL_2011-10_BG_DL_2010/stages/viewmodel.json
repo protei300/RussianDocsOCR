@@ -1,0 +1,510 @@
+{
+  "doc_type": "DL_2011",
+  "doc_type_base": "DL",
+  "doc_type_era": "2011",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 1483,
+    "height": 875,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [
+    {
+      "id": "b0",
+      "label": "Last_name_ru",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 603,
+      "y1": 185,
+      "x2": 932,
+      "y2": 234,
+      "conf": 0.921,
+      "cls": 1,
+      "text": "СТАРОСТЕНКО",
+      "ambiguous": false
+    },
+    {
+      "id": "b1",
+      "label": "Face",
+      "display": "Photo",
+      "kind": "visual",
+      "x1": 77,
+      "y1": 221,
+      "x2": 456,
+      "y2": 728,
+      "conf": 0.959,
+      "cls": 0,
+      "text": null,
+      "ambiguous": false
+    },
+    {
+      "id": "b2",
+      "label": "Last_name_en",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 605,
+      "y1": 223,
+      "x2": 891,
+      "y2": 267,
+      "conf": 0.882,
+      "cls": 3,
+      "text": "STAROSTENKO",
+      "ambiguous": false
+    },
+    {
+      "id": "b3",
+      "label": "Middle_name_ru",
+      "display": "Middle name",
+      "kind": "text",
+      "x1": 824,
+      "y1": 265,
+      "x2": 1156,
+      "y2": 313,
+      "conf": 0.904,
+      "cls": 17,
+      "text": "ГЕННАДЬЕВИЧ",
+      "ambiguous": false
+    },
+    {
+      "id": "b4",
+      "label": "First_name_ru",
+      "display": "First name",
+      "kind": "text",
+      "x1": 606,
+      "y1": 268,
+      "x2": 821,
+      "y2": 313,
+      "conf": 0.909,
+      "cls": 2,
+      "text": "ЕВГЕНИЙ",
+      "ambiguous": false
+    },
+    {
+      "id": "b5",
+      "label": "Middle_name_en",
+      "display": "Middle name",
+      "kind": "text",
+      "x1": 760,
+      "y1": 304,
+      "x2": 1046,
+      "y2": 348,
+      "conf": 0.909,
+      "cls": 21,
+      "text": "GENNAD'EVICH",
+      "ambiguous": false
+    },
+    {
+      "id": "b6",
+      "label": "First_name_en",
+      "display": "First name",
+      "kind": "text",
+      "x1": 606,
+      "y1": 308,
+      "x2": 758,
+      "y2": 346,
+      "conf": 0.919,
+      "cls": 4,
+      "text": "EVGENII",
+      "ambiguous": false
+    },
+    {
+      "id": "b7",
+      "label": "Birth_date",
+      "display": "Date of birth",
+      "kind": "text",
+      "x1": 609,
+      "y1": 352,
+      "x2": 830,
+      "y2": 396,
+      "conf": 0.925,
+      "cls": 10,
+      "text": "06.01.1985",
+      "ambiguous": false
+    },
+    {
+      "id": "b8",
+      "label": "Birth_place_ru",
+      "display": "Place of birth",
+      "kind": "text",
+      "x1": 606,
+      "y1": 389,
+      "x2": 1034,
+      "y2": 440,
+      "conf": 0.914,
+      "cls": 11,
+      "text": "САРАТОВСКАЯ ОБЛ",
+      "ambiguous": false
+    },
+    {
+      "id": "b9",
+      "label": "Birth_place_en",
+      "display": "Place of birth",
+      "kind": "text",
+      "x1": 605,
+      "y1": 431,
+      "x2": 981,
+      "y2": 480,
+      "conf": 0.895,
+      "cls": 12,
+      "text": "SARATOVSKAIA OBL",
+      "ambiguous": false
+    },
+    {
+      "id": "b10",
+      "label": "Issue_date",
+      "display": "Date of issue",
+      "kind": "text",
+      "x1": 609,
+      "y1": 483,
+      "x2": 830,
+      "y2": 528,
+      "conf": 0.916,
+      "cls": 6,
+      "text": "28.06.2016",
+      "ambiguous": false
+    },
+    {
+      "id": "b11",
+      "label": "Expiration_date",
+      "display": "Valid until",
+      "kind": "text",
+      "x1": 990,
+      "y1": 485,
+      "x2": 1219,
+      "y2": 528,
+      "conf": 0.916,
+      "cls": 7,
+      "text": "28.06.2026",
+      "ambiguous": false
+    },
+    {
+      "id": "b12",
+      "label": "Issue_organization_ru",
+      "display": "Issuing authority",
+      "kind": "text",
+      "x1": 608,
+      "y1": 532,
+      "x2": 759,
+      "y2": 576,
+      "conf": 0.904,
+      "cls": 13,
+      "text": "ГИБДД",
+      "ambiguous": false
+    },
+    {
+      "id": "b13",
+      "label": "Issue_organisation_code",
+      "display": "Authority code",
+      "kind": "text",
+      "x1": 758,
+      "y1": 533,
+      "x2": 864,
+      "y2": 573,
+      "conf": 0.9,
+      "cls": 20,
+      "text": "6409",
+      "ambiguous": false
+    },
+    {
+      "id": "b14",
+      "label": "Issue_organization_en",
+      "display": "Issuing authority",
+      "kind": "text",
+      "x1": 610,
+      "y1": 571,
+      "x2": 735,
+      "y2": 610,
+      "conf": 0.932,
+      "cls": 14,
+      "text": "GIBDD",
+      "ambiguous": false
+    },
+    {
+      "id": "b15",
+      "label": "Issue_organisation_code",
+      "display": "Authority code",
+      "kind": "text",
+      "x1": 731,
+      "y1": 571,
+      "x2": 819,
+      "y2": 609,
+      "conf": 0.895,
+      "cls": 20,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b16",
+      "label": "Living_region_ru",
+      "display": "Place of residence",
+      "kind": "text",
+      "x1": 608,
+      "y1": 661,
+      "x2": 928,
+      "y2": 711,
+      "conf": 0.881,
+      "cls": 15,
+      "text": "САРАГОВСКАЯ",
+      "ambiguous": false
+    },
+    {
+      "id": "b17",
+      "label": "Living_region_en",
+      "display": "Place of residence",
+      "kind": "text",
+      "x1": 608,
+      "y1": 700,
+      "x2": 921,
+      "y2": 746,
+      "conf": 0.916,
+      "cls": 16,
+      "text": "SARATOVSKAIA O",
+      "ambiguous": false
+    },
+    {
+      "id": "b18",
+      "label": "Signature",
+      "display": "Signature",
+      "kind": "visual",
+      "x1": 130,
+      "y1": 709,
+      "x2": 458,
+      "y2": 860,
+      "conf": 0.93,
+      "cls": 9,
+      "text": null,
+      "ambiguous": false
+    },
+    {
+      "id": "b19",
+      "label": "Driver_class",
+      "display": "Categories",
+      "kind": "text",
+      "x1": 607,
+      "y1": 765,
+      "x2": 1236,
+      "y2": 837,
+      "conf": 0.89,
+      "cls": 8,
+      "text": "B B1 C C1 D D1 CE C1E",
+      "ambiguous": false
+    }
+  ],
+  "fields": [
+    {
+      "name": "Last_name_ru",
+      "display": "Last name",
+      "value": "СТАРОСТЕНКО",
+      "script": "ru",
+      "conf": 0.921,
+      "box_ids": [
+        "b0"
+      ]
+    },
+    {
+      "name": "Last_name_en",
+      "display": "Last name",
+      "value": "STAROSTENKO",
+      "script": "en",
+      "conf": 0.882,
+      "box_ids": [
+        "b2"
+      ]
+    },
+    {
+      "name": "First_name_ru",
+      "display": "First name",
+      "value": "ЕВГЕНИЙ",
+      "script": "ru",
+      "conf": 0.909,
+      "box_ids": [
+        "b4"
+      ]
+    },
+    {
+      "name": "First_name_en",
+      "display": "First name",
+      "value": "EVGENII",
+      "script": "en",
+      "conf": 0.919,
+      "box_ids": [
+        "b6"
+      ]
+    },
+    {
+      "name": "Middle_name_ru",
+      "display": "Middle name",
+      "value": "ГЕННАДЬЕВИЧ",
+      "script": "ru",
+      "conf": 0.904,
+      "box_ids": [
+        "b3"
+      ]
+    },
+    {
+      "name": "Middle_name_en",
+      "display": "Middle name",
+      "value": "GENNAD'EVICH",
+      "script": "en",
+      "conf": 0.909,
+      "box_ids": [
+        "b5"
+      ]
+    },
+    {
+      "name": "Birth_date",
+      "display": "Date of birth",
+      "value": "06.01.1985",
+      "script": "num",
+      "conf": 0.925,
+      "box_ids": [
+        "b7"
+      ]
+    },
+    {
+      "name": "Birth_place_ru",
+      "display": "Place of birth",
+      "value": "САРАТОВСКАЯ ОБЛ",
+      "script": "ru",
+      "conf": 0.914,
+      "box_ids": [
+        "b8"
+      ]
+    },
+    {
+      "name": "Birth_place_en",
+      "display": "Place of birth",
+      "value": "SARATOVSKAIA OBL",
+      "script": "en",
+      "conf": 0.895,
+      "box_ids": [
+        "b9"
+      ]
+    },
+    {
+      "name": "Issue_date",
+      "display": "Date of issue",
+      "value": "28.06.2016",
+      "script": "num",
+      "conf": 0.916,
+      "box_ids": [
+        "b10"
+      ]
+    },
+    {
+      "name": "Expiration_date",
+      "display": "Valid until",
+      "value": "28.06.2026",
+      "script": "num",
+      "conf": 0.916,
+      "box_ids": [
+        "b11"
+      ]
+    },
+    {
+      "name": "Issue_organization_ru",
+      "display": "Issuing authority",
+      "value": "ГИБДД",
+      "script": "ru",
+      "conf": 0.904,
+      "box_ids": [
+        "b12"
+      ]
+    },
+    {
+      "name": "Issue_organization_en",
+      "display": "Issuing authority",
+      "value": "GIBDD",
+      "script": "en",
+      "conf": 0.932,
+      "box_ids": [
+        "b14"
+      ]
+    },
+    {
+      "name": "Issue_organisation_code",
+      "display": "Authority code",
+      "value": "6409",
+      "script": "num",
+      "conf": 0.9,
+      "box_ids": [
+        "b13",
+        "b15"
+      ]
+    },
+    {
+      "name": "Living_region_ru",
+      "display": "Place of residence",
+      "value": "САРАГОВСКАЯ",
+      "script": "ru",
+      "conf": 0.881,
+      "box_ids": [
+        "b16"
+      ]
+    },
+    {
+      "name": "Living_region_en",
+      "display": "Place of residence",
+      "value": "SARATOVSKAIA O",
+      "script": "en",
+      "conf": 0.916,
+      "box_ids": [
+        "b17"
+      ]
+    },
+    {
+      "name": "Driver_class",
+      "display": "Categories",
+      "value": "B B1 C C1 D D1 CE C1E",
+      "script": "ru",
+      "conf": 0.89,
+      "box_ids": [
+        "b19"
+      ]
+    }
+  ],
+  "ocr": {
+    "Last_name_ru": "СТАРОСТЕНКО",
+    "Last_name_en": "STAROSTENKO",
+    "Middle_name_ru": "ГЕННАДЬЕВИЧ",
+    "First_name_ru": "ЕВГЕНИЙ",
+    "Middle_name_en": "GENNAD'EVICH",
+    "First_name_en": "EVGENII",
+    "Birth_date": "06.01.1985",
+    "Birth_place_ru": "САРАТОВСКАЯ ОБЛ",
+    "Birth_place_en": "SARATOVSKAIA OBL",
+    "Issue_date": "28.06.2016",
+    "Expiration_date": "28.06.2026",
+    "Issue_organisation_code": "6409",
+    "Issue_organization_ru": "ГИБДД",
+    "Issue_organization_en": "GIBDD",
+    "Living_region_ru": "САРАГОВСКАЯ",
+    "Living_region_en": "SARATOVSKAIA O",
+    "Driver_class": "B B1 C C1 D D1 CE C1E"
+  },
+  "quality": {
+    "DocConf": 0.99,
+    "Glare": "good",
+    "Blur": "good",
+    "PrintSpoofing": "REAL",
+    "LCDSpoofing": "REAL"
+  },
+  "timings": {
+    "_doctype_angle": 0.006,
+    "_quality_and_borders": 0.3513,
+    "_glare": 0.0418,
+    "_blur": 0.1248,
+    "_print_spoofing": 0.0345,
+    "_lcd_spoofing": 0.0065,
+    "_doc_detector": 0.27,
+    "_deskew": 0.014,
+    "_fields_detector": 0.1022,
+    "_split_words": 0.1607,
+    "_ocr": 0.4363,
+    "total": 1.0705
+  },
+  "address": null
+}

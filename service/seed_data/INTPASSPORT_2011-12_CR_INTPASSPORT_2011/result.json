@@ -1,0 +1,365 @@
+{
+ "doc_type": "INTPASSPORT_2011",
+ "doc_type_base": "INTPASSPORT",
+ "doc_type_era": "2011",
+ "recognised": true,
+ "device": "gpu",
+ "canvas": {
+  "width": 505,
+  "height": 701,
+  "is_fallback": false
+ },
+ "coord_space": "canvas",
+ "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+ "boxes": [
+  {
+   "id": "b0",
+   "label": "Issue_organization_ru",
+   "display": "Issuing authority",
+   "kind": "text",
+   "x1": 118,
+   "y1": 43,
+   "x2": 453,
+   "y2": 83,
+   "conf": 0.88,
+   "cls": 13,
+   "text": "УМВД РОССИИ ПО ТОМСКОЙ ОБЛАСТИ",
+   "ambiguous": false
+  },
+  {
+   "id": "b1",
+   "label": "Licence_number",
+   "display": "Document number",
+   "kind": "text",
+   "x1": 467,
+   "y1": 90,
+   "x2": 496,
+   "y2": 261,
+   "conf": 0.905,
+   "cls": 5,
+   "text": null,
+   "ambiguous": true
+  },
+  {
+   "id": "b2",
+   "label": "Issue_date",
+   "display": "Date of issue",
+   "kind": "text",
+   "x1": 77,
+   "y1": 132,
+   "x2": 197,
+   "y2": 162,
+   "conf": 0.934,
+   "cls": 6,
+   "text": "22.05.2018",
+   "ambiguous": false
+  },
+  {
+   "id": "b3",
+   "label": "Issue_organisation_code",
+   "display": "Authority code",
+   "kind": "text",
+   "x1": 333,
+   "y1": 135,
+   "x2": 421,
+   "y2": 164,
+   "conf": 0.925,
+   "cls": 20,
+   "text": "700-014",
+   "ambiguous": false
+  },
+  {
+   "id": "b4",
+   "label": "Signature",
+   "display": "Signature",
+   "kind": "visual",
+   "x1": 301,
+   "y1": 237,
+   "x2": 396,
+   "y2": 289,
+   "conf": 0.932,
+   "cls": 9,
+   "text": null,
+   "ambiguous": false
+  },
+  {
+   "id": "b5",
+   "label": "Last_name_ru",
+   "display": "Last name",
+   "kind": "text",
+   "x1": 300,
+   "y1": 385,
+   "x2": 403,
+   "y2": 411,
+   "conf": 0.925,
+   "cls": 1,
+   "text": "БАТУРИНА",
+   "ambiguous": false
+  },
+  {
+   "id": "b6",
+   "label": "Face",
+   "display": "Photo",
+   "kind": "visual",
+   "x1": 0,
+   "y1": 408,
+   "x2": 147,
+   "y2": 615,
+   "conf": 0.957,
+   "cls": 0,
+   "text": null,
+   "ambiguous": false
+  },
+  {
+   "id": "b7",
+   "label": "Licence_number",
+   "display": "Document number",
+   "kind": "text",
+   "x1": 471,
+   "y1": 418,
+   "x2": 504,
+   "y2": 592,
+   "conf": 0.917,
+   "cls": 5,
+   "text": "69 18 812211",
+   "ambiguous": false
+  },
+  {
+   "id": "b8",
+   "label": "First_name_ru",
+   "display": "First name",
+   "kind": "text",
+   "x1": 295,
+   "y1": 434,
+   "x2": 410,
+   "y2": 463,
+   "conf": 0.927,
+   "cls": 2,
+   "text": "ЕКАТЕРИНА",
+   "ambiguous": false
+  },
+  {
+   "id": "b9",
+   "label": "Middle_name_ru",
+   "display": "Middle name",
+   "kind": "text",
+   "x1": 271,
+   "y1": 462,
+   "x2": 433,
+   "y2": 495,
+   "conf": 0.914,
+   "cls": 17,
+   "text": "АЛЕКСАНДРОВНА",
+   "ambiguous": false
+  },
+  {
+   "id": "b10",
+   "label": "Birth_date",
+   "display": "Date of birth",
+   "kind": "text",
+   "x1": 335,
+   "y1": 494,
+   "x2": 459,
+   "y2": 523,
+   "conf": 0.903,
+   "cls": 10,
+   "text": "24.04.1998",
+   "ambiguous": false
+  },
+  {
+   "id": "b11",
+   "label": "Sex_ru",
+   "display": "Sex",
+   "kind": "text",
+   "x1": 178,
+   "y1": 501,
+   "x2": 229,
+   "y2": 526,
+   "conf": 0.904,
+   "cls": 18,
+   "text": "Ж",
+   "ambiguous": false
+  },
+  {
+   "id": "b12",
+   "label": "Birth_place_ru",
+   "display": "Place of birth",
+   "kind": "text",
+   "x1": 268,
+   "y1": 521,
+   "x2": 431,
+   "y2": 551,
+   "conf": 0.897,
+   "cls": 11,
+   "text": null,
+   "ambiguous": true
+  },
+  {
+   "id": "b13",
+   "label": "Birth_place_ru",
+   "display": "Place of birth",
+   "kind": "text",
+   "x1": 257,
+   "y1": 547,
+   "x2": 439,
+   "y2": 578,
+   "conf": 0.899,
+   "cls": 11,
+   "text": "С МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ",
+   "ambiguous": false
+  },
+  {
+   "id": "b14",
+   "label": "Birth_place_ru",
+   "display": "Place of birth",
+   "kind": "text",
+   "x1": 221,
+   "y1": 578,
+   "x2": 481,
+   "y2": 613,
+   "conf": 0.897,
+   "cls": 11,
+   "text": null,
+   "ambiguous": true
+  }
+ ],
+ "fields": [
+  {
+   "name": "Last_name_ru",
+   "display": "Last name",
+   "value": "БАТУРИНА",
+   "script": "ru",
+   "conf": 0.925,
+   "box_ids": [
+    "b5"
+   ]
+  },
+  {
+   "name": "First_name_ru",
+   "display": "First name",
+   "value": "ЕКАТЕРИНА",
+   "script": "ru",
+   "conf": 0.927,
+   "box_ids": [
+    "b8"
+   ]
+  },
+  {
+   "name": "Middle_name_ru",
+   "display": "Middle name",
+   "value": "АЛЕКСАНДРОВНА",
+   "script": "ru",
+   "conf": 0.914,
+   "box_ids": [
+    "b9"
+   ]
+  },
+  {
+   "name": "Sex_ru",
+   "display": "Sex",
+   "value": "Ж",
+   "script": "ru",
+   "conf": 0.904,
+   "box_ids": [
+    "b11"
+   ]
+  },
+  {
+   "name": "Birth_date",
+   "display": "Date of birth",
+   "value": "24.04.1998",
+   "script": "num",
+   "conf": 0.903,
+   "box_ids": [
+    "b10"
+   ]
+  },
+  {
+   "name": "Birth_place_ru",
+   "display": "Place of birth",
+   "value": "С МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ",
+   "script": "ru",
+   "conf": 0.899,
+   "box_ids": [
+    "b12",
+    "b13",
+    "b14"
+   ]
+  },
+  {
+   "name": "Licence_number",
+   "display": "Document number",
+   "value": "69 18 812211",
+   "script": "num",
+   "conf": 0.917,
+   "box_ids": [
+    "b1",
+    "b7"
+   ]
+  },
+  {
+   "name": "Issue_date",
+   "display": "Date of issue",
+   "value": "22.05.2018",
+   "script": "num",
+   "conf": 0.934,
+   "box_ids": [
+    "b2"
+   ]
+  },
+  {
+   "name": "Issue_organization_ru",
+   "display": "Issuing authority",
+   "value": "УМВД РОССИИ ПО ТОМСКОЙ ОБЛАСТИ",
+   "script": "ru",
+   "conf": 0.88,
+   "box_ids": [
+    "b0"
+   ]
+  },
+  {
+   "name": "Issue_organisation_code",
+   "display": "Authority code",
+   "value": "700-014",
+   "script": "num",
+   "conf": 0.925,
+   "box_ids": [
+    "b3"
+   ]
+  }
+ ],
+ "ocr": {
+  "Issue_organization_ru": "УМВД РОССИИ ПО ТОМСКОЙ ОБЛАСТИ",
+  "Issue_date": "22.05.2018",
+  "Issue_organisation_code": "700-014",
+  "Last_name_ru": "БАТУРИНА",
+  "Licence_number": "69 18 812211",
+  "First_name_ru": "ЕКАТЕРИНА",
+  "Middle_name_ru": "АЛЕКСАНДРОВНА",
+  "Birth_date": "24.04.1998",
+  "Sex_ru": "Ж",
+  "Birth_place_ru": "С МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ"
+ },
+ "quality": {
+  "DocConf": 0.98,
+  "Glare": "good",
+  "Blur": "good",
+  "PrintSpoofing": "REAL",
+  "LCDSpoofing": "REAL"
+ },
+ "timings": {
+  "_doctype_angle": 0.003,
+  "_quality_and_borders": 0.051,
+  "_glare": 0.049,
+  "_blur": 0.05,
+  "_print_spoofing": 0.005,
+  "_lcd_spoofing": 0.006,
+  "_doc_detector": 0.029,
+  "_deskew": 0.003,
+  "_fields_detector": 0.007,
+  "_split_words": 0.019,
+  "_ocr": 0.1651,
+  "total": 0.2481
+ },
+ "address": null
+}

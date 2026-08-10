@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Port of document_processing/ — the library. Must NOT reference the service project: that is
+    rule 10 of service/ml/runtime.py ("only this module imports the library") turned into a
+    compile-time fact, and it is what lets the service be tested without 215 MB of models.
+    An architecture test asserts it, because a project reference is one IDE click away.
+
+    TargetFramework, Nullable and ImplicitUsings come from Directory.Build.props — repeating them
+    here is how two projects quietly end up on different settings.
+  -->
+
+  <ItemGroup>
+    <!--
+      The GPU package ALONE, and this is a decision rather than an oversight.
+
+      Microsoft.ML.OnnxRuntime.Gpu contains the CPU execution provider as well, so ONE build
+      serves both devices — which is what the deployment needs ("GPU if available, else CPU") and
+      what the Python service already does with a single onnxruntime-gpu wheel. Referencing both
+      packages would place two copies of the native runtime in the output and let the loader pick
+      unpredictably.
+
+      This is where .NET differs usefully from Go: Go links one specific libonnxruntime, so the
+      Go port needs two Docker images. .NET needs one.
+
+      A host without CUDA is not an error — the runtime falls back, and the device-selection
+      logic reports the provider it actually got rather than the ones merely listed.
+    -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu" />
+
+    <PackageReference Include="OpenCvSharp4" />
+    <!--
+      Native OpenCV, per platform. Conditioned so a Linux build does not carry Windows DLLs and
+      vice versa. Both are pinned to the same four-part version as the managed wrapper: the two
+      halves of OpenCvSharp are released together, and a mismatch fails at load time with a
+      message about a missing entry point rather than about versions.
+    -->
+    <PackageReference Include="OpenCvSharp4.runtime.win" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="OpenCvSharp4.official.runtime.linux-x64" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+  </ItemGroup>
+
+</Project>

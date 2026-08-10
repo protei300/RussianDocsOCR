@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The conformance CLI — this port's side of conformance/spec/cli.md. One executable, three
+    subcommands, driven by the checker with exec.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      The assembly name is part of the CONTRACT, not a preference: conformance/ports.json points
+      at `rdocs-conform`, the same name every port uses, so the checker's command line is
+      identical across implementations.
+    -->
+    <AssemblyName>rdocs-conform</AssemblyName>
+    <RootNamespace>RussianDocs.Conform</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RussianDocs.DocumentProcessing\RussianDocs.DocumentProcessing.csproj" />
+  </ItemGroup>
+
+</Project>

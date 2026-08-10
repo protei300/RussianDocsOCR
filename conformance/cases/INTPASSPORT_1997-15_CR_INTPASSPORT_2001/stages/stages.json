@@ -1,0 +1,180 @@
+{
+  "upto": null,
+  "stopped_early": false,
+  "stages": [
+    {
+      "stage": "prepare",
+      "file": "prepare.digest.json",
+      "kind": "digest",
+      "dtype": "uint8",
+      "shape": [
+        712,
+        532,
+        3
+      ]
+    },
+    {
+      "stage": "doctype.label",
+      "file": "doctype.label.json",
+      "kind": "json"
+    },
+    {
+      "stage": "rotate",
+      "file": "rotate.digest.json",
+      "kind": "digest",
+      "dtype": "uint8",
+      "shape": [
+        712,
+        532,
+        3
+      ]
+    },
+    {
+      "stage": "quality",
+      "file": "quality.json",
+      "kind": "json"
+    },
+    {
+      "stage": "borders.segments",
+      "file": "borders.segments.json",
+      "kind": "json"
+    },
+    {
+      "stage": "borders.canvas",
+      "file": "borders.canvas.digest.json",
+      "kind": "digest",
+      "dtype": "uint8",
+      "shape": [
+        701,
+        515,
+        3
+      ]
+    },
+    {
+      "stage": "deskew.canvas",
+      "file": "deskew.canvas.digest.json",
+      "kind": "digest",
+      "dtype": "uint8",
+      "shape": [
+        701,
+        515,
+        3
+      ]
+    },
+    {
+      "stage": "fields.bbox",
+      "file": "fields.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Issue_organization_ru.bbox",
+      "file": "words.Issue_organization_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Issue_date.bbox",
+      "file": "words.Issue_date.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Issue_organisation_code.bbox",
+      "file": "words.Issue_organisation_code.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Licence_number.bbox",
+      "file": "words.Licence_number.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Last_name_ru.bbox",
+      "file": "words.Last_name_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.First_name_ru.bbox",
+      "file": "words.First_name_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Middle_name_ru.bbox",
+      "file": "words.Middle_name_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Sex_ru.bbox",
+      "file": "words.Sex_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Birth_date.bbox",
+      "file": "words.Birth_date.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Birth_place_ru.bbox",
+      "file": "words.Birth_place_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Issue_organization_ru.words",
+      "file": "ocr.Issue_organization_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Issue_date.words",
+      "file": "ocr.Issue_date.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Issue_organisation_code.words",
+      "file": "ocr.Issue_organisation_code.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Licence_number.words",
+      "file": "ocr.Licence_number.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Last_name_ru.words",
+      "file": "ocr.Last_name_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.First_name_ru.words",
+      "file": "ocr.First_name_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Middle_name_ru.words",
+      "file": "ocr.Middle_name_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Sex_ru.words",
+      "file": "ocr.Sex_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Birth_date.words",
+      "file": "ocr.Birth_date.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Birth_place_ru.words",
+      "file": "ocr.Birth_place_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "join",
+      "file": "join.json",
+      "kind": "json"
+    },
+    {
+      "stage": "viewmodel",
+      "file": "viewmodel.json",
+      "kind": "json"
+    }
+  ]
+}

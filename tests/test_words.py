@@ -1,9 +1,8 @@
 import pytest
-from russian_docs_ocr.document_processing.pipeline_modules import *
-from russian_docs_ocr.document_processing.processing.models import ModelLoader
+from document_processing.pipeline_modules import *
+from document_processing.processing.models import ModelLoader
 from pathlib import Path
-# from document_processing.libs.image_transformation import xywh2xyxy, iou
-from russian_docs_ocr.document_processing.pipeline_modules.doc_detector.image_transformation import xywh2xyxy, iou
+from document_processing.pipeline_modules.doc_detector.image_transformation import xywh2xyxy, iou
 import numpy as np
 import cv2
 
@@ -14,14 +13,28 @@ def module():
 @pytest.fixture
 def model():
     model_loader = ModelLoader()
-    return model_loader(Path('russian_docs_ocr/document_processing/models/Words/ONNX/model.json'))
+    return model_loader(Path('../document_processing/models/Words/ONNX/model.json'))
 
 
 @pytest.fixture
 def load_imgs():
-    imgs = [img for img in Path('tests/images/Words').glob('*/images/*.*')]
-    lbls = [lbl for lbl in Path('tests/images/Words').glob('*/labels/*.txt')]
-    return list(zip(imgs,lbls))
+    """Pair each image with ITS label, by name.
+
+    This used to zip two independent globs together. Path.glob returns entries in
+    filesystem order, which is neither sorted nor the same across platforms, so the
+    Nth image was matched with whatever label happened to be Nth - on Linux that
+    graded DL_2020/6.jpg against another document's 9 words while the local run
+    passed on lucky ordering. Deriving the label from the image makes the pairing
+    a fact rather than a coincidence, and the assertions below turn a missing or
+    stray fixture into a named failure.
+    """
+    pairs = []
+    for img in sorted(Path('images/Words').glob('*/images/*.*')):
+        lbl = img.parent.parent / 'labels' / f'{img.stem}.txt'
+        assert lbl.is_file(), f'no label for {img}'
+        pairs.append((img, lbl))
+    assert pairs, 'no word fixtures under images/Words'
+    return pairs
 
 class TestWordsDetector:
 
@@ -68,6 +81,7 @@ class TestWordsDetector:
         '''
         Testing predict_transform function
         '''
+
         img_file, lbl_file = next(iter(load_imgs))
         result = module.predict_transform(img_file)
 

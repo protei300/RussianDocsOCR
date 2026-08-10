@@ -1,0 +1,16 @@
+{
+  "slug": "INTPASSPORT_1997-15_CR_INTPASSPORT_2001",
+  "sample": "samples/INTPASSPORT_1997/15_CR_INTPASSPORT_2001.jpg",
+  "doc_type": "INTPASSPORT_1997",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "INTPASSPORT_1997"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

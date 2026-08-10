@@ -1,0 +1,471 @@
+{
+  "address": null,
+  "boxes": [
+    {
+      "ambiguous": false,
+      "cls": 1,
+      "conf": 0.925,
+      "display": "Last name",
+      "id": "b0",
+      "kind": "text",
+      "label": "Last_name_ru",
+      "text": "КРАСЕНКОВ",
+      "x1": 236,
+      "x2": 340,
+      "y1": 75,
+      "y2": 95
+    },
+    {
+      "ambiguous": false,
+      "cls": 0,
+      "conf": 0.93,
+      "display": "Photo",
+      "id": "b1",
+      "kind": "visual",
+      "label": "Face",
+      "text": null,
+      "x1": 16,
+      "x2": 177,
+      "y1": 89,
+      "y2": 308
+    },
+    {
+      "ambiguous": false,
+      "cls": 3,
+      "conf": 0.925,
+      "display": "Last name",
+      "id": "b2",
+      "kind": "text",
+      "label": "Last_name_en",
+      "text": "KRASENKOV",
+      "x1": 236,
+      "x2": 329,
+      "y1": 92,
+      "y2": 109
+    },
+    {
+      "ambiguous": false,
+      "cls": 17,
+      "conf": 0.922,
+      "display": "Middle name",
+      "id": "b3",
+      "kind": "text",
+      "label": "Middle_name_ru",
+      "text": "СЕРГЕЕВИЧ",
+      "x1": 295,
+      "x2": 401,
+      "y1": 110,
+      "y2": 128
+    },
+    {
+      "ambiguous": false,
+      "cls": 2,
+      "conf": 0.917,
+      "display": "First name",
+      "id": "b4",
+      "kind": "text",
+      "label": "First_name_ru",
+      "text": "КАРЕН",
+      "x1": 236,
+      "x2": 297,
+      "y1": 111,
+      "y2": 129
+    },
+    {
+      "ambiguous": false,
+      "cls": 21,
+      "conf": 0.902,
+      "display": "Middle name",
+      "id": "b5",
+      "kind": "text",
+      "label": "Middle_name_en",
+      "text": "SERGEEVICH",
+      "x1": 287,
+      "x2": 385,
+      "y1": 126,
+      "y2": 142
+    },
+    {
+      "ambiguous": false,
+      "cls": 4,
+      "conf": 0.922,
+      "display": "First name",
+      "id": "b6",
+      "kind": "text",
+      "label": "First_name_en",
+      "text": "KAREN",
+      "x1": 236,
+      "x2": 290,
+      "y1": 127,
+      "y2": 143
+    },
+    {
+      "ambiguous": false,
+      "cls": 11,
+      "conf": 0.886,
+      "display": "Place of birth",
+      "id": "b7",
+      "kind": "text",
+      "label": "Birth_place_ru",
+      "text": "РОСТОВСКАЯ ОБЛ",
+      "x1": 237,
+      "x2": 396,
+      "y1": 161,
+      "y2": 181
+    },
+    {
+      "ambiguous": false,
+      "cls": 12,
+      "conf": 0.906,
+      "display": "Place of birth",
+      "id": "b8",
+      "kind": "text",
+      "label": "Birth_place_en",
+      "text": "ROSTOVSKAIA OBLAST",
+      "x1": 236,
+      "x2": 406,
+      "y1": 178,
+      "y2": 198
+    },
+    {
+      "ambiguous": false,
+      "cls": 7,
+      "conf": 0.936,
+      "display": "Valid until",
+      "id": "b9",
+      "kind": "text",
+      "label": "Expiration_date",
+      "text": "15.02.2030",
+      "x1": 393,
+      "x2": 483,
+      "y1": 199,
+      "y2": 217
+    },
+    {
+      "ambiguous": false,
+      "cls": 6,
+      "conf": 0.933,
+      "display": "Date of issue",
+      "id": "b10",
+      "kind": "text",
+      "label": "Issue_date",
+      "text": "15.02.2020",
+      "x1": 238,
+      "x2": 325,
+      "y1": 199,
+      "y2": 219
+    },
+    {
+      "ambiguous": false,
+      "cls": 13,
+      "conf": 0.907,
+      "display": "Issuing authority",
+      "id": "b11",
+      "kind": "text",
+      "label": "Issue_organization_ru",
+      "text": "ГИБДД",
+      "x1": 237,
+      "x2": 298,
+      "y1": 220,
+      "y2": 239
+    },
+    {
+      "ambiguous": false,
+      "cls": 20,
+      "conf": 0.906,
+      "display": "Authority code",
+      "id": "b12",
+      "kind": "text",
+      "label": "Issue_organisation_code",
+      "text": "6100",
+      "x1": 295,
+      "x2": 338,
+      "y1": 221,
+      "y2": 238
+    },
+    {
+      "ambiguous": true,
+      "cls": 20,
+      "conf": 0.88,
+      "display": "Authority code",
+      "id": "b13",
+      "kind": "text",
+      "label": "Issue_organisation_code",
+      "text": null,
+      "x1": 285,
+      "x2": 321,
+      "y1": 237,
+      "y2": 252
+    },
+    {
+      "ambiguous": false,
+      "cls": 14,
+      "conf": 0.896,
+      "display": "Issuing authority",
+      "id": "b14",
+      "kind": "text",
+      "label": "Issue_organization_en",
+      "text": "GIBDD",
+      "x1": 238,
+      "x2": 287,
+      "y1": 237,
+      "y2": 253
+    },
+    {
+      "ambiguous": false,
+      "cls": 15,
+      "conf": 0.928,
+      "display": "Place of residence",
+      "id": "b15",
+      "kind": "text",
+      "label": "Living_region_ru",
+      "text": "РОСТОВСКАЯ ОБЛ",
+      "x1": 237,
+      "x2": 397,
+      "y1": 274,
+      "y2": 295
+    },
+    {
+      "ambiguous": false,
+      "cls": 16,
+      "conf": 0.887,
+      "display": "Place of residence",
+      "id": "b16",
+      "kind": "text",
+      "label": "Living_region_en",
+      "text": "ROSTOVSKAIA OBL",
+      "x1": 237,
+      "x2": 380,
+      "y1": 292,
+      "y2": 309
+    },
+    {
+      "ambiguous": false,
+      "cls": 8,
+      "conf": 0.923,
+      "display": "Categories",
+      "id": "b17",
+      "kind": "text",
+      "label": "Driver_class",
+      "text": "B B1 M",
+      "x1": 238,
+      "x2": 321,
+      "y1": 321,
+      "y2": 347
+    }
+  ],
+  "canvas": {
+    "height": 375,
+    "is_fallback": false,
+    "width": 604
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "device": "cpu",
+  "doc_type": "DL_2020",
+  "doc_type_base": "DL",
+  "doc_type_era": "2020",
+  "fields": [
+    {
+      "box_ids": [
+        "b0"
+      ],
+      "conf": 0.925,
+      "display": "Last name",
+      "name": "Last_name_ru",
+      "script": "ru",
+      "value": "КРАСЕНКОВ"
+    },
+    {
+      "box_ids": [
+        "b2"
+      ],
+      "conf": 0.925,
+      "display": "Last name",
+      "name": "Last_name_en",
+      "script": "en",
+      "value": "KRASENKOV"
+    },
+    {
+      "box_ids": [
+        "b4"
+      ],
+      "conf": 0.917,
+      "display": "First name",
+      "name": "First_name_ru",
+      "script": "ru",
+      "value": "КАРЕН"
+    },
+    {
+      "box_ids": [
+        "b6"
+      ],
+      "conf": 0.922,
+      "display": "First name",
+      "name": "First_name_en",
+      "script": "en",
+      "value": "KAREN"
+    },
+    {
+      "box_ids": [
+        "b3"
+      ],
+      "conf": 0.922,
+      "display": "Middle name",
+      "name": "Middle_name_ru",
+      "script": "ru",
+      "value": "СЕРГЕЕВИЧ"
+    },
+    {
+      "box_ids": [
+        "b5"
+      ],
+      "conf": 0.902,
+      "display": "Middle name",
+      "name": "Middle_name_en",
+      "script": "en",
+      "value": "SERGEEVICH"
+    },
+    {
+      "box_ids": [
+        "b7"
+      ],
+      "conf": 0.886,
+      "display": "Place of birth",
+      "name": "Birth_place_ru",
+      "script": "ru",
+      "value": "РОСТОВСКАЯ ОБЛ"
+    },
+    {
+      "box_ids": [
+        "b8"
+      ],
+      "conf": 0.906,
+      "display": "Place of birth",
+      "name": "Birth_place_en",
+      "script": "en",
+      "value": "ROSTOVSKAIA OBLAST"
+    },
+    {
+      "box_ids": [
+        "b10"
+      ],
+      "conf": 0.933,
+      "display": "Date of issue",
+      "name": "Issue_date",
+      "script": "num",
+      "value": "15.02.2020"
+    },
+    {
+      "box_ids": [
+        "b9"
+      ],
+      "conf": 0.936,
+      "display": "Valid until",
+      "name": "Expiration_date",
+      "script": "num",
+      "value": "15.02.2030"
+    },
+    {
+      "box_ids": [
+        "b11"
+      ],
+      "conf": 0.907,
+      "display": "Issuing authority",
+      "name": "Issue_organization_ru",
+      "script": "ru",
+      "value": "ГИБДД"
+    },
+    {
+      "box_ids": [
+        "b14"
+      ],
+      "conf": 0.896,
+      "display": "Issuing authority",
+      "name": "Issue_organization_en",
+      "script": "en",
+      "value": "GIBDD"
+    },
+    {
+      "box_ids": [
+        "b12",
+        "b13"
+      ],
+      "conf": 0.906,
+      "display": "Authority code",
+      "name": "Issue_organisation_code",
+      "script": "num",
+      "value": "6100"
+    },
+    {
+      "box_ids": [
+        "b15"
+      ],
+      "conf": 0.928,
+      "display": "Place of residence",
+      "name": "Living_region_ru",
+      "script": "ru",
+      "value": "РОСТОВСКАЯ ОБЛ"
+    },
+    {
+      "box_ids": [
+        "b16"
+      ],
+      "conf": 0.887,
+      "display": "Place of residence",
+      "name": "Living_region_en",
+      "script": "en",
+      "value": "ROSTOVSKAIA OBL"
+    },
+    {
+      "box_ids": [
+        "b17"
+      ],
+      "conf": 0.923,
+      "display": "Categories",
+      "name": "Driver_class",
+      "script": "ru",
+      "value": "B B1 M"
+    }
+  ],
+  "ocr": {
+    "Birth_place_en": "ROSTOVSKAIA OBLAST",
+    "Birth_place_ru": "РОСТОВСКАЯ ОБЛ",
+    "Driver_class": "B B1 M",
+    "Expiration_date": "15.02.2030",
+    "First_name_en": "KAREN",
+    "First_name_ru": "КАРЕН",
+    "Issue_date": "15.02.2020",
+    "Issue_organisation_code": "6100",
+    "Issue_organization_en": "GIBDD",
+    "Issue_organization_ru": "ГИБДД",
+    "Last_name_en": "KRASENKOV",
+    "Last_name_ru": "КРАСЕНКОВ",
+    "Living_region_en": "ROSTOVSKAIA OBL",
+    "Living_region_ru": "РОСТОВСКАЯ ОБЛ",
+    "Middle_name_en": "SERGEEVICH",
+    "Middle_name_ru": "СЕРГЕЕВИЧ"
+  },
+  "quality": {
+    "Blur": "good",
+    "DocConf": 0.97,
+    "Glare": "good",
+    "LCDSpoofing": "REAL",
+    "PrintSpoofing": "REAL"
+  },
+  "recognised": true,
+  "timings": {
+    "_blur": 0.0596,
+    "_deskew": 0.006,
+    "_doc_detector": 0.2829,
+    "_doctype_angle": 0.0035,
+    "_fields_detector": 0.0963,
+    "_glare": 0.0766,
+    "_lcd_spoofing": 0.006,
+    "_ocr": 0.3661,
+    "_print_spoofing": 0.0886,
+    "_quality_and_borders": 0.2919,
+    "_split_words": 0.1699,
+    "total": 0.9337
+  }
+}

@@ -1,0 +1,57 @@
+# The version catalogue — every version in ONE place.
+#
+# The analogue of Directory.Packages.props in the .NET port and go.mod in the Go one, and it exists
+# for the same reason a lockfile does: two modules silently resolving different versions of ONNX
+# Runtime would produce two different sets of numbers, and the conformance harness would report a
+# divergence with no visible cause.
+#
+# **Public artefacts only.** Nothing from an internal feed, and no repository declaration anywhere in
+# this build names a private host: this repository is public, and a port that cannot be built outside
+# one company is not a reference implementation.
+
+[versions]
+# 1.21.1 — the EXACT version the Python reference runs, and this is the one port that can say that.
+# Both `onnxruntime` and `onnxruntime_gpu` publish 1.21.1 on Maven Central, so the CPU/GPU asymmetry
+# that forced Go and .NET down to 1.21.0 does not exist here. Verified against the registry and then
+# on a real run: the spike measured bit-identical outputs against the reference on Glare and both
+# DocTypeAngles heads.
+onnxruntime = "1.21.1"
+
+# 4.13.0 is MANDATORY, not preferred: contour approximation changed in OpenCV 4.8, and the goldens
+# encode 4.13 behaviour. There is no official `org.opencv` artefact on Maven Central at all — every
+# republisher stops at 4.9/4.10 — so this port BUILDS OpenCV itself with -DBUILD_JAVA=ON and puts the
+# jar on the classpath as a file dependency. See README.md for the exact cmake line, which is kept
+# identical to the Docker stage's so the two cannot drift while both claim 4.13.0.
+opencv = "4.13.0"
+
+kotlin = "2.4.10"
+# kotlinx.serialization rather than Jackson or Gson, and the reason is in DEVIATIONS.md N-04: this is
+# the serializer whose null handling can be made EXPLICIT, and the 14-key view-model contract needs
+# nulls written rather than omitted.
+serialization = "1.11.0"
+# Boot 4.1 is the first line that supports Gradle 9 and JDK 21 without a compatibility flag.
+springBoot = "4.1.0"
+
+[libraries]
+onnxruntime = { module = "com.microsoft.onnxruntime:onnxruntime", version.ref = "onnxruntime" }
+onnxruntimeGpu = { module = "com.microsoft.onnxruntime:onnxruntime_gpu", version.ref = "onnxruntime" }
+kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+kotlinTest = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
+
+# **The BOM is not optional, and the Boot plugin does not supply it.** Since Boot 2.x the
+# `org.springframework.boot` Gradle plugin no longer applies dependency management on its own, so a
+# `spring-boot-starter-web` without a version resolves to nothing at all — the failure reads
+# "Could not find org.springframework.boot:spring-boot-starter-web:" with an empty version, which
+# looks like a repository problem rather than a missing platform. Importing the BOM as a platform is
+# the version-catalogue equivalent of the `io.spring.dependency-management` plugin, without adding a
+# second plugin whose own version has to be tracked.
+springBootBom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
+springBootStarterWeb = { module = "org.springframework.boot:spring-boot-starter-web", version = "" }
+springBootStarterTest = { module = "org.springframework.boot:spring-boot-starter-test", version = "" }
+jacksonModuleKotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version = "" }
+junitPlatformLauncher = { module = "org.junit.platform:junit-platform-launcher", version = "1.11.4" }
+
+[plugins]
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }

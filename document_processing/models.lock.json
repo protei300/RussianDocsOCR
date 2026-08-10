@@ -1,0 +1,180 @@
+{
+  "models_version": "v4",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v4/",
+  "files": [
+    {
+      "path": "AddressLines/ONNX/model.json",
+      "asset": "AddressLines__ONNX__model.json",
+      "size": 884,
+      "sha256": "4216b9ff499cd38ebbcd33f18632800468403f1791a033adb2de686fd356b861"
+    },
+    {
+      "path": "AddressLines/ONNX/model.onnx",
+      "asset": "AddressLines__ONNX__model.onnx",
+      "size": 39173488,
+      "sha256": "8e4541531ba30d5fb2e4d963dcc4dadd9adf185818e65e92be43029e25c21aa6"
+    },
+    {
+      "path": "AddressTextKind/ONNX/model.json",
+      "asset": "AddressTextKind__ONNX__model.json",
+      "size": 876,
+      "sha256": "b3b1bd4fc6736eef7b01a1aeee7dd6a58209c8a91d642a1ccef55fac0f9c8d8f"
+    },
+    {
+      "path": "AddressTextKind/ONNX/model.onnx",
+      "asset": "AddressTextKind__ONNX__model.onnx",
+      "size": 6086110,
+      "sha256": "b1e37eaae8bebc163508958463b8017215c128988217e5b3e0d511551457d151"
+    },
+    {
+      "path": "Blur/ONNX/model.json",
+      "asset": "Blur__ONNX__model.json",
+      "size": 952,
+      "sha256": "788f1878a41a75cb4faf18da9ff30147c4f046bd6e2aa4cca00e73cb8680ea26"
+    },
+    {
+      "path": "Blur/ONNX/model.onnx",
+      "asset": "Blur__ONNX__model.onnx",
+      "size": 1636151,
+      "sha256": "24bf2274df92fa3d8e9747223397835a298a27a943a24b2fe3b4c6217adb269b"
+    },
+    {
+      "path": "Borders/ONNX/model.json",
+      "asset": "Borders__ONNX__model.json",
+      "size": 1130,
+      "sha256": "8be728d0efb2d51340988e941d1b49894a71c28a939259900949e23d63212605"
+    },
+    {
+      "path": "Borders/ONNX/model.onnx",
+      "asset": "Borders__ONNX__model.onnx",
+      "size": 40401449,
+      "sha256": "e43bb1315cfaf7cdc75a0b8d4d2bdaac5becb8694f06f0a7db86318d35330278"
+    },
+    {
+      "path": "DocTypeAngles/ONNX/model.json",
+      "asset": "DocTypeAngles__ONNX__model.json",
+      "size": 1142,
+      "sha256": "6017dc07b7b06b5d5980212af2ccc551df45e73e7c3599036dc444f0a5eac172"
+    },
+    {
+      "path": "DocTypeAngles/ONNX/model.onnx",
+      "asset": "DocTypeAngles__ONNX__model.onnx",
+      "size": 9967217,
+      "sha256": "30f798f0627f1327441eddfa22a872234102b2ba31046ce960ef269801370815"
+    },
+    {
+      "path": "DocTypeAngles/ONNX/resources/centers.npz",
+      "asset": "DocTypeAngles__ONNX__resources__centers.npz",
+      "size": 50048,
+      "sha256": "0027d2eb9464dc56a5d518f279146503b6e1b1c7ea8f6314f09d823b00a522c0"
+    },
+    {
+      "path": "Glare/ONNX/model.json",
+      "asset": "Glare__ONNX__model.json",
+      "size": 887,
+      "sha256": "0fd86ffebedc7ac7a71a253d8e27b74e9770236f700e24636cc3f3288eb4ff53"
+    },
+    {
+      "path": "Glare/ONNX/model.onnx",
+      "asset": "Glare__ONNX__model.onnx",
+      "size": 1615439,
+      "sha256": "5d08fc28e328fb2fc15359a709575998b01793d2b8dbbc31641d654e88ad1766"
+    },
+    {
+      "path": "LCDSpoofing/ONNX/model.json",
+      "asset": "LCDSpoofing__ONNX__model.json",
+      "size": 894,
+      "sha256": "c8b4725517bd3e46b71b51227eff254ec73a10ee9e2ab81e2c054bb0d39cec0b"
+    },
+    {
+      "path": "LCDSpoofing/ONNX/model.onnx",
+      "asset": "LCDSpoofing__ONNX__model.onnx",
+      "size": 1615367,
+      "sha256": "2b626084be8eed5d4f0e73a22272e9d056063c9edccfffa39142577542ff842a"
+    },
+    {
+      "path": "OCR/cyrillic_accurate/ONNX/model.json",
+      "asset": "OCR__cyrillic_accurate__ONNX__model.json",
+      "size": 666,
+      "sha256": "f23e60c46271e45b6c8b4c020d65d1c201e603d129caa65cffc125f24ac6f75b"
+    },
+    {
+      "path": "OCR/cyrillic_accurate/ONNX/model.onnx",
+      "asset": "OCR__cyrillic_accurate__ONNX__model.onnx",
+      "size": 21530379,
+      "sha256": "72216720d78d12582f4a38127a0ac5358c49cbe2eea07170604715ee34b9f3e8"
+    },
+    {
+      "path": "OCR/cyrillic_fast/ONNX/model.json",
+      "asset": "OCR__cyrillic_fast__ONNX__model.json",
+      "size": 662,
+      "sha256": "46d8bf48542c8745fb7042761c35c64d1725a73523904a167290ec1e119fcd2c"
+    },
+    {
+      "path": "OCR/cyrillic_fast/ONNX/model.onnx",
+      "asset": "OCR__cyrillic_fast__ONNX__model.onnx",
+      "size": 14813867,
+      "sha256": "b990c112745cbfd76d7ab88f89bc3ab15f7f08d76828835cda0cd8ad149163ac"
+    },
+    {
+      "path": "OCR/latin_accurate/ONNX/model.json",
+      "asset": "OCR__latin_accurate__ONNX__model.json",
+      "size": 725,
+      "sha256": "383713c6cc317a50f2d8116237666d1e99a84303f3c0f64597a991b101c86c9a"
+    },
+    {
+      "path": "OCR/latin_accurate/ONNX/model.onnx",
+      "asset": "OCR__latin_accurate__ONNX__model.onnx",
+      "size": 21630958,
+      "sha256": "b496bff0c31535e91bab5c718f74e05ea4704ababea7208ce948dc272d4d865e"
+    },
+    {
+      "path": "OCR/latin_fast/ONNX/model.json",
+      "asset": "OCR__latin_fast__ONNX__model.json",
+      "size": 721,
+      "sha256": "a0b62a1e6e7c3543f883f7ed9ab2dc72ebe23f1944de74554c8465a85f29df35"
+    },
+    {
+      "path": "OCR/latin_fast/ONNX/model.onnx",
+      "asset": "OCR__latin_fast__ONNX__model.onnx",
+      "size": 14906210,
+      "sha256": "61f8ae8e5636e9f88dcedaf86c57bc1e8c9a99eb6987fea0bfbd578519973b9c"
+    },
+    {
+      "path": "PrintSpoofing/ONNX/model.json",
+      "asset": "PrintSpoofing__ONNX__model.json",
+      "size": 896,
+      "sha256": "b2940e7f6a5714478ff6a898309153026d084a206ead1d437eca314411a7514b"
+    },
+    {
+      "path": "PrintSpoofing/ONNX/model.onnx",
+      "asset": "PrintSpoofing__ONNX__model.onnx",
+      "size": 1615583,
+      "sha256": "79a1a3d8a23329fe25e1593b740d33a1bab4262f93ccd4df32a4e5b8b059deca"
+    },
+    {
+      "path": "TextFields/ONNX/model.json",
+      "asset": "TextFields__ONNX__model.json",
+      "size": 1804,
+      "sha256": "0e079aa3c0e45a2268b7027dabdead46713e4e496916aa8e975c8aa407274c53"
+    },
+    {
+      "path": "TextFields/ONNX/model.onnx",
+      "asset": "TextFields__ONNX__model.onnx",
+      "size": 37815170,
+      "sha256": "781d53d32f6d910e7b235079396fb2fec56bbb384d4d534557c14513a72c974b"
+    },
+    {
+      "path": "Words/ONNX/model.json",
+      "asset": "Words__ONNX__model.json",
+      "size": 898,
+      "sha256": "f2a17441b6db796077767597d1de606033c0034930e92f4026197c437aec089d"
+    },
+    {
+      "path": "Words/ONNX/model.onnx",
+      "asset": "Words__ONNX__model.onnx",
+      "size": 12231567,
+      "sha256": "06bc0ceecdea6edb342dcd3c1b181c3a13b76e728c5a1045a1d7d8242b08d3e7"
+    }
+  ]
+}

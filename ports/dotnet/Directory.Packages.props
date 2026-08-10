@@ -1,0 +1,59 @@
+<Project>
+
+  <!--
+    Central Package Management: every version lives here, projects reference packages without
+    one. Borrowed from the sibling Faces solution, and the reason it is worth having is the same
+    reason a lockfile is: two projects silently resolving different versions of ONNX Runtime
+    would produce two different sets of numbers, and the conformance harness would report a
+    divergence with no visible cause.
+
+    **Public packages only.** Nothing from an internal feed, and no NuGet.config is committed:
+    on a developer machine restore follows whatever source that machine has configured, and
+    outside it follows nuget.org. Neither ends up recorded in the repository.
+  -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+
+    <!--
+      1.21.0, and the choice is forced rather than preferred.
+
+      The reference runs 1.21.1, but `Microsoft.ML.OnnxRuntime` (CPU) has no 1.21.1 on
+      nuget.org — only 1.21.0 — while the GPU package has 1.21.0/1.21.1/1.21.2. That is the
+      SAME asymmetry that broke the Go image, where the 1.21.1 release publishes a linux-x64 GPU
+      tarball and no CPU one. Checked against the registry rather than assumed.
+
+      Safe on evidence already gathered: the spike measured ORT 1.21.1 against 1.28.0 on CPU and
+      got bit-identical tensors across seven outputs, so a patch step inside 1.21 cannot move
+      numbers that two minor versions did not.
+
+      1.21.x is also required, not merely convenient — the goldens were generated with it.
+    -->
+    <OnnxRuntimeVersion>1.21.0</OnnxRuntimeVersion>
+
+    <!--
+      4.13.0 is MANDATORY: contour approximation changed in OpenCV 4.8, and the goldens encode
+      4.13 behaviour. This is the same version the Go port is verified against, which is the
+      single largest piece of luck available to this port.
+
+      All four parts are pinned on purpose. OpenCvSharp numbers releases <opencv>.<date>, and
+      there are 18 distinct 4.13.0.* builds — pinning "4.13.0" pins nothing.
+    -->
+    <OpenCvSharpVersion>4.13.0.20260627</OpenCvSharpVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="$(OnnxRuntimeVersion)" />
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime.Gpu" Version="$(OnnxRuntimeVersion)" />
+    <PackageVersion Include="OpenCvSharp4" Version="$(OpenCvSharpVersion)" />
+    <PackageVersion Include="OpenCvSharp4.official.runtime.linux-x64" Version="$(OpenCvSharpVersion)" />
+    <PackageVersion Include="OpenCvSharp4.runtime.win" Version="$(OpenCvSharpVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Label="Tests">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageVersion Include="NUnit" Version="4.2.2" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- lang="en": the interface is English. Recognised values carry lang="ru"
+     individually, which is what tells the browser's font matcher and screen
+     readers to switch language for those strings. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RussianDocs OCR</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <!-- Applied before first paint so the page never flashes light then dark. -->
+  <script>
+    if (localStorage.getItem('dark') === '1' ||
+        (localStorage.getItem('dark') === null &&
+         window.matchMedia('(prefers-color-scheme:dark)').matches)) {
+      document.documentElement.classList.add('dark')
+    }
+  </script>
+  <!-- Fonts are self-hosted inside this stylesheet; no CDN request is made, so
+       the UI renders identically on a machine with no outbound internet. -->
+  <link rel="stylesheet" href="/_shared.css">
+  <!-- Brand overlay: overrides only, so _shared.css stays identical to the copy
+       in the sibling services. Delete this one line to revert the look. -->
+  <link rel="stylesheet" href="/_brand.css">
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

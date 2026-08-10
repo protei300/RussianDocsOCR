@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The service's tests. Chiefly the WIRE CONTRACT of the operator pages.
+
+    No Mvc.Testing and no TestHost package: the tests start the REAL routing table on a real
+    Kestrel socket and talk to it with HttpClient. A FrameworkReference is all that needs, so the
+    test project adds no dependency the service does not already have — and what it exercises is
+    the actual server, not a substitute pipeline that could diverge from it.
+  -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>RussianDocs.Service.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RussianDocs.Service\RussianDocs.Service.csproj" />
+  </ItemGroup>
+
+</Project>

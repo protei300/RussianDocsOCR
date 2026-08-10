@@ -1,0 +1,16 @@
+{
+  "slug": "SNILS_1996-105_BG_SNILS_2003",
+  "sample": "samples/SNILS_1996/105_BG_SNILS_2003.jpg",
+  "doc_type": "SNILS_1996",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "SNILS_1996"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

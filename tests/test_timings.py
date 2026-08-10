@@ -14,10 +14,10 @@ from time import time
 
 import pytest
 
-from russian_docs_ocr.document_processing import Pipeline
-from russian_docs_ocr.document_processing.pipeline.pipeline import PipelineResults
+from document_processing import Pipeline
+from document_processing.pipeline.pipeline import PipelineResults
 
-SAMPLES_DIR = Path('samples')
+SAMPLES_DIR = Path('../samples')
 
 
 class TestTimingAccounting:

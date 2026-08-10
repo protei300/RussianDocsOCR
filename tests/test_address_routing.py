@@ -1,5 +1,5 @@
 import pytest
-from russian_docs_ocr.document_processing.pipeline.pipeline import Pipeline
+from document_processing.pipeline.pipeline import Pipeline
 
 
 class TestAddressDigitRouting:

@@ -1,0 +1,16 @@
+{
+  "slug": "INTPASSPORT_2011-12_CR_INTPASSPORT_2011",
+  "sample": "samples/INTPASSPORT_2011/12_CR_INTPASSPORT_2011.jpg",
+  "doc_type": "INTPASSPORT_2011",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "INTPASSPORT_2011"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

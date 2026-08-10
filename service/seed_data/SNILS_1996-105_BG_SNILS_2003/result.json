@@ -1,0 +1,247 @@
+{
+ "doc_type": "SNILS_1996",
+ "doc_type_base": "SNILS",
+ "doc_type_era": "1996",
+ "recognised": true,
+ "device": "gpu",
+ "canvas": {
+  "width": 910,
+  "height": 617,
+  "is_fallback": false
+ },
+ "coord_space": "canvas",
+ "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+ "boxes": [
+  {
+   "id": "b0",
+   "label": "Licence_number",
+   "display": "Document number",
+   "kind": "text",
+   "x1": 376,
+   "y1": 224,
+   "x2": 643,
+   "y2": 268,
+   "conf": 0.927,
+   "cls": 5,
+   "text": "127-432-979 79",
+   "ambiguous": false
+  },
+  {
+   "id": "b1",
+   "label": "Last_name_ru",
+   "display": "Last name",
+   "kind": "text",
+   "x1": 262,
+   "y1": 266,
+   "x2": 461,
+   "y2": 306,
+   "conf": 0.937,
+   "cls": 1,
+   "text": "ВАСИЛЬЕВА",
+   "ambiguous": false
+  },
+  {
+   "id": "b2",
+   "label": "First_name_ru",
+   "display": "First name",
+   "kind": "text",
+   "x1": 265,
+   "y1": 302,
+   "x2": 425,
+   "y2": 339,
+   "conf": 0.923,
+   "cls": 2,
+   "text": "САМАНТА",
+   "ambiguous": false
+  },
+  {
+   "id": "b3",
+   "label": "Middle_name_ru",
+   "display": "Middle name",
+   "kind": "text",
+   "x1": 264,
+   "y1": 334,
+   "x2": 525,
+   "y2": 376,
+   "conf": 0.931,
+   "cls": 17,
+   "text": "ВЯЧЕСЛАВОВНА",
+   "ambiguous": false
+  },
+  {
+   "id": "b4",
+   "label": "Birth_date",
+   "display": "Date of birth",
+   "kind": "text",
+   "x1": 479,
+   "y1": 378,
+   "x2": 808,
+   "y2": 418,
+   "conf": 0.915,
+   "cls": 10,
+   "text": "26 СЕНТЯБРЯ 1997 ГОДА",
+   "ambiguous": false
+  },
+  {
+   "id": "b5",
+   "label": "Birth_place_ru",
+   "display": "Place of birth",
+   "kind": "text",
+   "x1": 267,
+   "y1": 422,
+   "x2": 416,
+   "y2": 461,
+   "conf": 0.922,
+   "cls": 11,
+   "text": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
+   "ambiguous": false
+  },
+  {
+   "id": "b6",
+   "label": "Birth_place_ru",
+   "display": "Place of birth",
+   "kind": "text",
+   "x1": 266,
+   "y1": 451,
+   "x2": 736,
+   "y2": 501,
+   "conf": 0.872,
+   "cls": 11,
+   "text": null,
+   "ambiguous": true
+  },
+  {
+   "id": "b7",
+   "label": "Birth_place_ru",
+   "display": "Place of birth",
+   "kind": "text",
+   "x1": 264,
+   "y1": 488,
+   "x2": 705,
+   "y2": 536,
+   "conf": 0.909,
+   "cls": 11,
+   "text": null,
+   "ambiguous": true
+  },
+  {
+   "id": "b8",
+   "label": "Sex_ru",
+   "display": "Sex",
+   "kind": "text",
+   "x1": 261,
+   "y1": 551,
+   "x2": 391,
+   "y2": 584,
+   "conf": 0.92,
+   "cls": 18,
+   "text": "Ж",
+   "ambiguous": false
+  }
+ ],
+ "fields": [
+  {
+   "name": "Last_name_ru",
+   "display": "Last name",
+   "value": "ВАСИЛЬЕВА",
+   "script": "ru",
+   "conf": 0.937,
+   "box_ids": [
+    "b1"
+   ]
+  },
+  {
+   "name": "First_name_ru",
+   "display": "First name",
+   "value": "САМАНТА",
+   "script": "ru",
+   "conf": 0.923,
+   "box_ids": [
+    "b2"
+   ]
+  },
+  {
+   "name": "Middle_name_ru",
+   "display": "Middle name",
+   "value": "ВЯЧЕСЛАВОВНА",
+   "script": "ru",
+   "conf": 0.931,
+   "box_ids": [
+    "b3"
+   ]
+  },
+  {
+   "name": "Sex_ru",
+   "display": "Sex",
+   "value": "Ж",
+   "script": "ru",
+   "conf": 0.92,
+   "box_ids": [
+    "b8"
+   ]
+  },
+  {
+   "name": "Birth_date",
+   "display": "Date of birth",
+   "value": "26 СЕНТЯБРЯ 1997 ГОДА",
+   "script": "num",
+   "conf": 0.915,
+   "box_ids": [
+    "b4"
+   ]
+  },
+  {
+   "name": "Birth_place_ru",
+   "display": "Place of birth",
+   "value": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
+   "script": "ru",
+   "conf": 0.922,
+   "box_ids": [
+    "b5",
+    "b6",
+    "b7"
+   ]
+  },
+  {
+   "name": "Licence_number",
+   "display": "Document number",
+   "value": "127-432-979 79",
+   "script": "num",
+   "conf": 0.927,
+   "box_ids": [
+    "b0"
+   ]
+  }
+ ],
+ "ocr": {
+  "Licence_number": "127-432-979 79",
+  "Last_name_ru": "ВАСИЛЬЕВА",
+  "First_name_ru": "САМАНТА",
+  "Middle_name_ru": "ВЯЧЕСЛАВОВНА",
+  "Birth_date": "26 СЕНТЯБРЯ 1997 ГОДА",
+  "Birth_place_ru": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
+  "Sex_ru": "Ж"
+ },
+ "quality": {
+  "DocConf": 0.99,
+  "Glare": "good",
+  "Blur": "good",
+  "PrintSpoofing": "FAKE",
+  "LCDSpoofing": "REAL"
+ },
+ "timings": {
+  "_doctype_angle": 0.004,
+  "_quality_and_borders": 0.0498,
+  "_glare": 0.0498,
+  "_blur": 0.0488,
+  "_print_spoofing": 0.008,
+  "_lcd_spoofing": 0.007,
+  "_doc_detector": 0.0333,
+  "_deskew": 0.005,
+  "_fields_detector": 0.007,
+  "_split_words": 0.033,
+  "_ocr": 0.2036,
+  "total": 0.3024
+ },
+ "address": null
+}

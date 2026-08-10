@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from pathlib import Path
-from russian_docs_ocr.document_processing.pipeline_modules import AddressLinesDetector
+from document_processing.pipeline_modules import *
 
 
 @pytest.fixture
@@ -11,7 +11,7 @@ def module():
 
 @pytest.fixture
 def canvases():
-    imgs = list(Path('tests/images/AddressLines').glob('canvas_*.png'))
+    imgs = list(Path('images/AddressLines').glob('canvas_*.png'))
     assert imgs, 'No AddressLines canvas fixtures found'
     return imgs
 

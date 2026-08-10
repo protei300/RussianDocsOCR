@@ -1,0 +1,76 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net8.0": {
+      "Microsoft.ML.OnnxRuntime.Gpu.Linux": {
+        "type": "Transitive",
+        "resolved": "1.21.0",
+        "contentHash": "hF3vrn8nOq/kyedjKEULdAkfgHXrmXTbpNwkDq1DnIZoZOSxmpVkD4JsO+eLlVjvs4IF52u7ROhqq79RJg66zg==",
+        "dependencies": {
+          "Microsoft.ML.OnnxRuntime.Managed": "1.21.0"
+        }
+      },
+      "Microsoft.ML.OnnxRuntime.Gpu.Windows": {
+        "type": "Transitive",
+        "resolved": "1.21.0",
+        "contentHash": "dB0RmUmJnmHdMSb7CMboMvMldeOLZ4iENuE9XYu6n8GtxsmW0kt93+Fym5tmcLc+XGanzC7HMGLlnQ7DVFysIg==",
+        "dependencies": {
+          "Microsoft.ML.OnnxRuntime.Managed": "1.21.0"
+        }
+      },
+      "Microsoft.ML.OnnxRuntime.Managed": {
+        "type": "Transitive",
+        "resolved": "1.21.0",
+        "contentHash": "Pp4PFhCELCMO8dWNbGK9Ge+Zh09xPVknmjvAgXIrLsfAgmv1It5aATP3UJTG/GBVzcvshDL/UI+KV9O8YQzkkQ==",
+        "dependencies": {
+          "System.Memory": "4.5.5",
+          "System.Numerics.Tensors": "9.0.0"
+        }
+      },
+      "System.Memory": {
+        "type": "Transitive",
+        "resolved": "4.6.3",
+        "contentHash": "qdcDOgnFZY40+Q9876JUHnlHu7bosOHX8XISRoH94fwk6hgaeQGSgfZd8srWRZNt5bV9ZW2TljcegDNxsf+96A=="
+      },
+      "System.Numerics.Tensors": {
+        "type": "Transitive",
+        "resolved": "9.0.0",
+        "contentHash": "hyJB4UlpAi19Xr9AXzu2NuagKC4lPfHObNMEAA0HmqFz2rX7wKgzeYzO/jM/eBHDhnUGFFEjk5cOoJaxqg5J4A=="
+      },
+      "russiandocs.documentprocessing": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.ML.OnnxRuntime.Gpu": "[1.21.0, )",
+          "OpenCvSharp4": "[4.13.0.20260627, )",
+          "OpenCvSharp4.runtime.win": "[4.13.0.20260627, )"
+        }
+      },
+      "Microsoft.ML.OnnxRuntime.Gpu": {
+        "type": "CentralTransitive",
+        "requested": "[1.21.0, )",
+        "resolved": "1.21.0",
+        "contentHash": "JWs0FTw5O/6ZMyvqfTZHkNohyTQSK49WAPYl6MgYA+Wmyp+wxD5ThyxoHTWyjLJKGpnHxmAU5tGfr0jrl30Cmg==",
+        "dependencies": {
+          "Microsoft.ML.OnnxRuntime.Gpu.Linux": "1.21.0",
+          "Microsoft.ML.OnnxRuntime.Gpu.Windows": "1.21.0",
+          "Microsoft.ML.OnnxRuntime.Managed": "1.21.0"
+        }
+      },
+      "OpenCvSharp4": {
+        "type": "CentralTransitive",
+        "requested": "[4.13.0.20260627, )",
+        "resolved": "4.13.0.20260627",
+        "contentHash": "nYk95jkyYY9f0sF5KqZ3OB1SWkmqsfV7eN0ROiQds/rxpSn0v1G0QIedMbwuqbdPhvQnOIG2DDmpkLnHEJMh8Q==",
+        "dependencies": {
+          "System.Memory": "4.6.3"
+        }
+      },
+      "OpenCvSharp4.runtime.win": {
+        "type": "CentralTransitive",
+        "requested": "[4.13.0.20260627, )",
+        "resolved": "4.13.0.20260627",
+        "contentHash": "POIxR+CTpwHJIdam6wd8U2fprWv5QnIUw50jw79WEGb37He3T1h11SdtwSj9p2PLSfrzonMjO2t71wqi5uFsoQ=="
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+# Build output. The binaries are large and platform-specific, and bin/ also holds the
+# four Windows runtime DLLs that build.ps1 copies there (DEVIATIONS D-09).
+bin/
+
+# Hard rule, worth restating where it is easy to violate: NOTHING under ports/ may
+# contain a model, a sample image, or a copy of any model.json. The data lives once,
+# in document_processing/, and is located via RDOCS_MODELS_ROOT or by walking up from
+# the executable. The instinctive fix when path resolution fails is to copy the models
+# next to the binary -- and then 215 MB times four ports is in git history forever.
+*.onnx
+*.npz
+*.npy
+model.json

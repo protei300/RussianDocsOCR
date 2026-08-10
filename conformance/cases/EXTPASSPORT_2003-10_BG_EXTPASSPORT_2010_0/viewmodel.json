@@ -1,0 +1,431 @@
+{
+  "address": null,
+  "boxes": [
+    {
+      "ambiguous": false,
+      "cls": 5,
+      "conf": 0.935,
+      "display": "Document number",
+      "id": "b0",
+      "kind": "text",
+      "label": "Licence_number",
+      "text": "62 1483828",
+      "x1": 579,
+      "x2": 792,
+      "y1": 74,
+      "y2": 109
+    },
+    {
+      "ambiguous": false,
+      "cls": 1,
+      "conf": 0.918,
+      "display": "Last name",
+      "id": "b1",
+      "kind": "text",
+      "label": "Last_name_ru",
+      "text": "ПРУДНИКОВА",
+      "x1": 324,
+      "x2": 515,
+      "y1": 99,
+      "y2": 130
+    },
+    {
+      "ambiguous": false,
+      "cls": 0,
+      "conf": 0.942,
+      "display": "Photo",
+      "id": "b2",
+      "kind": "visual",
+      "label": "Face",
+      "text": null,
+      "x1": 5,
+      "x2": 284,
+      "y1": 101,
+      "y2": 436
+    },
+    {
+      "ambiguous": false,
+      "cls": 3,
+      "conf": 0.919,
+      "display": "Last name",
+      "id": "b3",
+      "kind": "text",
+      "label": "Last_name_en",
+      "text": "PRUDNIKOVA",
+      "x1": 325,
+      "x2": 518,
+      "y1": 125,
+      "y2": 153
+    },
+    {
+      "ambiguous": false,
+      "cls": 17,
+      "conf": 0.923,
+      "display": "Middle name",
+      "id": "b4",
+      "kind": "text",
+      "label": "Middle_name_ru",
+      "text": "ЮРЬЕВНА",
+      "x1": 472,
+      "x2": 608,
+      "y1": 167,
+      "y2": 193
+    },
+    {
+      "ambiguous": false,
+      "cls": 2,
+      "conf": 0.903,
+      "display": "First name",
+      "id": "b5",
+      "kind": "text",
+      "label": "First_name_ru",
+      "text": "НАТАЛЬЯ",
+      "x1": 324,
+      "x2": 465,
+      "y1": 169,
+      "y2": 193
+    },
+    {
+      "ambiguous": false,
+      "cls": 4,
+      "conf": 0.905,
+      "display": "First name",
+      "id": "b6",
+      "kind": "text",
+      "label": "First_name_en",
+      "text": "NATALIA",
+      "x1": 324,
+      "x2": 466,
+      "y1": 191,
+      "y2": 219
+    },
+    {
+      "ambiguous": false,
+      "cls": 11,
+      "conf": 0.914,
+      "display": "Place of birth",
+      "id": "b7",
+      "kind": "text",
+      "label": "Birth_place_ru",
+      "text": "ТОМСКАЯ ОБЛ",
+      "x1": 547,
+      "x2": 766,
+      "y1": 282,
+      "y2": 310
+    },
+    {
+      "ambiguous": false,
+      "cls": 10,
+      "conf": 0.915,
+      "display": "Date of birth",
+      "id": "b8",
+      "kind": "text",
+      "label": "Birth_date",
+      "text": "18.03.1967",
+      "x1": 325,
+      "x2": 514,
+      "y1": 282,
+      "y2": 313
+    },
+    {
+      "ambiguous": false,
+      "cls": 18,
+      "conf": 0.828,
+      "display": "Sex",
+      "id": "b9",
+      "kind": "text",
+      "label": "Sex_ru",
+      "text": "Ж",
+      "x1": 325,
+      "x2": 350,
+      "y1": 327,
+      "y2": 358
+    },
+    {
+      "ambiguous": false,
+      "cls": 12,
+      "conf": 0.907,
+      "display": "Place of birth",
+      "id": "b10",
+      "kind": "text",
+      "label": "Birth_place_en",
+      "text": "USSR",
+      "x1": 547,
+      "x2": 634,
+      "y1": 327,
+      "y2": 354
+    },
+    {
+      "ambiguous": false,
+      "cls": 19,
+      "conf": 0.832,
+      "display": "Sex",
+      "id": "b11",
+      "kind": "text",
+      "label": "Sex_en",
+      "text": "F",
+      "x1": 362,
+      "x2": 387,
+      "y1": 329,
+      "y2": 357
+    },
+    {
+      "ambiguous": false,
+      "cls": 7,
+      "conf": 0.905,
+      "display": "Valid until",
+      "id": "b12",
+      "kind": "text",
+      "label": "Expiration_date",
+      "text": "06.08.2009",
+      "x1": 581,
+      "x2": 779,
+      "y1": 373,
+      "y2": 401
+    },
+    {
+      "ambiguous": false,
+      "cls": 6,
+      "conf": 0.923,
+      "display": "Date of issue",
+      "id": "b13",
+      "kind": "text",
+      "label": "Issue_date",
+      "text": "06.08.2004",
+      "x1": 326,
+      "x2": 519,
+      "y1": 374,
+      "y2": 404
+    },
+    {
+      "ambiguous": false,
+      "cls": 13,
+      "conf": 0.878,
+      "display": "Issuing authority",
+      "id": "b14",
+      "kind": "text",
+      "label": "Issue_organization_ru",
+      "text": "УВД",
+      "x1": 327,
+      "x2": 390,
+      "y1": 423,
+      "y2": 448
+    },
+    {
+      "ambiguous": false,
+      "cls": 20,
+      "conf": 0.905,
+      "display": "Authority code",
+      "id": "b15",
+      "kind": "text",
+      "label": "Issue_organisation_code",
+      "text": "365",
+      "x1": 402,
+      "x2": 464,
+      "y1": 424,
+      "y2": 448
+    }
+  ],
+  "canvas": {
+    "height": 615,
+    "is_fallback": false,
+    "width": 914
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "device": "cpu",
+  "doc_type": "EXTPASSPORT_2003",
+  "doc_type_base": "EXTPASSPORT",
+  "doc_type_era": "2003",
+  "fields": [
+    {
+      "box_ids": [
+        "b1"
+      ],
+      "conf": 0.918,
+      "display": "Last name",
+      "name": "Last_name_ru",
+      "script": "ru",
+      "value": "ПРУДНИКОВА"
+    },
+    {
+      "box_ids": [
+        "b3"
+      ],
+      "conf": 0.919,
+      "display": "Last name",
+      "name": "Last_name_en",
+      "script": "en",
+      "value": "PRUDNIKOVA"
+    },
+    {
+      "box_ids": [
+        "b5"
+      ],
+      "conf": 0.903,
+      "display": "First name",
+      "name": "First_name_ru",
+      "script": "ru",
+      "value": "НАТАЛЬЯ"
+    },
+    {
+      "box_ids": [
+        "b6"
+      ],
+      "conf": 0.905,
+      "display": "First name",
+      "name": "First_name_en",
+      "script": "en",
+      "value": "NATALIA"
+    },
+    {
+      "box_ids": [
+        "b4"
+      ],
+      "conf": 0.923,
+      "display": "Middle name",
+      "name": "Middle_name_ru",
+      "script": "ru",
+      "value": "ЮРЬЕВНА"
+    },
+    {
+      "box_ids": [
+        "b9"
+      ],
+      "conf": 0.828,
+      "display": "Sex",
+      "name": "Sex_ru",
+      "script": "ru",
+      "value": "Ж"
+    },
+    {
+      "box_ids": [
+        "b11"
+      ],
+      "conf": 0.832,
+      "display": "Sex",
+      "name": "Sex_en",
+      "script": "en",
+      "value": "F"
+    },
+    {
+      "box_ids": [
+        "b8"
+      ],
+      "conf": 0.915,
+      "display": "Date of birth",
+      "name": "Birth_date",
+      "script": "num",
+      "value": "18.03.1967"
+    },
+    {
+      "box_ids": [
+        "b7"
+      ],
+      "conf": 0.914,
+      "display": "Place of birth",
+      "name": "Birth_place_ru",
+      "script": "ru",
+      "value": "ТОМСКАЯ ОБЛ"
+    },
+    {
+      "box_ids": [
+        "b10"
+      ],
+      "conf": 0.907,
+      "display": "Place of birth",
+      "name": "Birth_place_en",
+      "script": "en",
+      "value": "USSR"
+    },
+    {
+      "box_ids": [
+        "b0"
+      ],
+      "conf": 0.935,
+      "display": "Document number",
+      "name": "Licence_number",
+      "script": "num",
+      "value": "62 1483828"
+    },
+    {
+      "box_ids": [
+        "b13"
+      ],
+      "conf": 0.923,
+      "display": "Date of issue",
+      "name": "Issue_date",
+      "script": "num",
+      "value": "06.08.2004"
+    },
+    {
+      "box_ids": [
+        "b12"
+      ],
+      "conf": 0.905,
+      "display": "Valid until",
+      "name": "Expiration_date",
+      "script": "num",
+      "value": "06.08.2009"
+    },
+    {
+      "box_ids": [
+        "b14"
+      ],
+      "conf": 0.878,
+      "display": "Issuing authority",
+      "name": "Issue_organization_ru",
+      "script": "ru",
+      "value": "УВД"
+    },
+    {
+      "box_ids": [
+        "b15"
+      ],
+      "conf": 0.905,
+      "display": "Authority code",
+      "name": "Issue_organisation_code",
+      "script": "num",
+      "value": "365"
+    }
+  ],
+  "ocr": {
+    "Birth_date": "18.03.1967",
+    "Birth_place_en": "USSR",
+    "Birth_place_ru": "ТОМСКАЯ ОБЛ",
+    "Expiration_date": "06.08.2009",
+    "First_name_en": "NATALIA",
+    "First_name_ru": "НАТАЛЬЯ",
+    "Issue_date": "06.08.2004",
+    "Issue_organisation_code": "365",
+    "Issue_organization_ru": "УВД",
+    "Last_name_en": "PRUDNIKOVA",
+    "Last_name_ru": "ПРУДНИКОВА",
+    "Licence_number": "62 1483828",
+    "Middle_name_ru": "ЮРЬЕВНА",
+    "Sex_en": "F",
+    "Sex_ru": "Ж"
+  },
+  "quality": {
+    "Blur": "good",
+    "DocConf": 0.96,
+    "Glare": "good",
+    "LCDSpoofing": "REAL",
+    "PrintSpoofing": "REAL"
+  },
+  "recognised": true,
+  "timings": {
+    "_blur": 0.061,
+    "_deskew": 0.0081,
+    "_doc_detector": 0.2693,
+    "_doctype_angle": 0.006,
+    "_fields_detector": 0.1133,
+    "_glare": 0.129,
+    "_lcd_spoofing": 0.01,
+    "_ocr": 0.3704,
+    "_print_spoofing": 0.01,
+    "_quality_and_borders": 0.2997,
+    "_split_words": 0.1178,
+    "total": 0.9153
+  }
+}

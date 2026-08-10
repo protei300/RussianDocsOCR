@@ -1,12 +1,65 @@
 /venv/
-/russian_docs_ocr/document_processing/.idea/
+/document_processing/.idea/
 .idea/
 /.idea/
 **/__pycache__/
-**/.idea/
-dist/*
-.DS_Store
+**/.idea/out/
 
-# build artifacts
-*.egg-info/
-build/
+# Веса моделей больше НЕ хранятся в git. Они лежат ассетами релиза публичного
+# репозитория и качаются по контрольным суммам:
+#
+#   python scripts/fetch_models.py
+#
+# Список файлов, их размеры и SHA-256 зафиксированы в
+# document_processing/models.lock.json — он в git и остаётся единственным
+# источником правды о том, из чего состоит набор. Правило ниже заодно
+# закрывает локальные варианты для A/B (ONNX_old, ONNX_legacy_backup,
+# свипы порогов), которые раньше перечислялись поимённо.
+document_processing/models/
+
+# Стейджинг ассетов релиза (scripts/stage_release_assets.py) — те же веса под
+# плоскими именами, готовые к заливке в Releases. Хардлинки на models/.
+/dist/
+
+# Локальные артефакты прогонов и отладки (не версионируем)
+/out/
+/runs/
+/deskew_debug/
+/tps_debug/
+/test_out.txt
+
+# Веса, скачиваемые ultralytics при обучении/экспорте
+*.pt
+
+# --- Веб-сервис (service/, web/) ---
+web/node_modules/
+# сборка SPA: делается npm run build и стадией 1 Dockerfile
+web/dist/
+.env
+.env.*
+
+# Хранилище сервиса: сюда попадают ЗАГРУЖЕННЫЕ документы, то есть персональные
+# данные. Не коммитить ни при каких условиях. В докере это /app/data внутри
+# контейнера; локально — каталог из DATA_DIR.
+/data/
+service/data/
+
+# ---- .NET build output ------------------------------------------------------
+# NOT merely noise: obj/ holds NuGet restore artifacts (project.assets.json,
+# *.nuget.g.props) that record the FULL URL of whichever feed restored them. On a
+# machine configured with a private mirror that is an internal hostname, and this
+# repository is public. Verified before the first commit of ports/dotnet — the
+# files did contain it.
+[Bb]in/
+[Oo]bj/
+*.user
+
+# ---- JVM / Gradle build output ----------------------------------------------
+# Same reasoning as obj/ above, plus one of its own: a fat jar under
+# ports/java/conform/build/dist is 534 MB (the GPU ONNX Runtime artefact is 468 MB
+# of it), and no port may carry binaries. ports/java/gradle/wrapper/ IS committed —
+# the wrapper jar is 47 KB and is what lets somebody build without installing
+# Gradle first.
+ports/java/**/build/
+ports/java/.gradle/
+ports/java/.kotlin/

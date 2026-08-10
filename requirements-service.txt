@@ -1,0 +1,31 @@
+# Web-service dependencies — install ON TOP of requirements2026.txt.
+#
+#   pip install -r requirements2026.txt -r requirements-service.txt
+#
+# For a GPU host, swap the CPU onnxruntime from requirements2026.txt:
+#   pip uninstall -y onnxruntime && pip install onnxruntime-gpu==1.21.1
+# On Windows the CUDA/cuDNN DLLs are taken from torch/lib by
+# document_processing/__init__.py::_enable_cuda_dlls(), so torch must be
+# installed there too (it is not used for inference). On Linux the base image
+# supplies CUDA instead — see the Dockerfile.
+#
+# Versions are pinned to the set already proven in the sibling services
+# of an internal reference service, so the projects stay on one stack.
+
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
+python-multipart==0.0.29          # multipart upload parsing
+python-jose[cryptography]==3.5.0  # JWT for the browser session
+pydantic-settings==2.14.1
+python-json-logger==4.1.0         # structured stdout logs
+psutil==7.2.2                     # CPU/RAM/disk for the status page
+nvidia-ml-py==13.610.43           # GPU stats; provides the `pynvml` module
+
+# --- Optional: persistent storage -------------------------------------------
+# Without a connection string the service uses temporary on-disk storage that is
+# erased at every start. Install the driver for whichever database you point
+# RUSSIANDOCS_DATABASE_CONNECTIONSTRING at.
+SQLAlchemy==2.0.41
+alembic==1.14.0
+pyodbc==5.2.0                     # MS SQL Server (needs the ODBC driver on the host)
+psycopg[binary]==3.2.3            # PostgreSQL

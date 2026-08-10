@@ -1,0 +1,65 @@
+[
+ {
+  "slug": "INTPASSPORT_2011-12_CR_INTPASSPORT_2011",
+  "sample": "samples/INTPASSPORT_2011/12_CR_INTPASSPORT_2011.jpg",
+  "filename": "sample-INTPASSPORT_2011-12_CR_INTPASSPORT_2011.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 115841,
+  "search_text": "sample-intpassport_2011-12_cr_intpassport_2011.jpg intpassport_2011 умвд россии по томской области 22.05.2018 700-014 батурина 69 18 812211 екатерина александровна 24.04.1998 ж с мельниково шегарский район томская область россия"
+ },
+ {
+  "slug": "DL_2011-10_BG_DL_2010",
+  "sample": "samples/DL_2011/10_BG_DL_2010.jpg",
+  "filename": "sample-DL_2011-10_BG_DL_2010.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 677339,
+  "search_text": "sample-dl_2011-10_bg_dl_2010.jpg dl_2011 старостенко starostenko геннадьевич евгений gennad'evich evgenii 06.01.1985 саратовская обл saratovskaia obl 28.06.2016 28.06.2026 гибдд gibdd 6409 сараговская в в1 с с1 ь 1 се с1е saratovskaia obl b b1 c c1 d d1 ce c1e"
+ },
+ {
+  "slug": "SNILS_1996-105_BG_SNILS_2003",
+  "sample": "samples/SNILS_1996/105_BG_SNILS_2003.jpg",
+  "filename": "sample-SNILS_1996-105_BG_SNILS_2003.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 305168,
+  "search_text": "sample-snils_1996-105_bg_snils_2003.jpg snils_1996 127-432-979 79 васильева саманта вячеславовна 26 сентября 1997 года лазазеи дальнеконстантиновский нижегородская область ж"
+ },
+ {
+  "slug": "EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0",
+  "sample": "samples/EXTPASSPORTBIO_2007/10_BG_EXTPASSPORTBIO_2010_0.jpg",
+  "filename": "sample-EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 407375,
+  "search_text": "sample-extpassportbio_2007-10_bg_extpassportbio_2010_0.jpg extpassportbio_2007 76 1921099 золкина zolkina александровна кристина kristina 04.11.1986 ж кабардино-балкарская асср ussr f 78039 14.11.2019 мвд 14.11.2029"
+ },
+ {
+  "slug": "INTPASSPORT_1997-15_CR_INTPASSPORT_2001",
+  "sample": "samples/INTPASSPORT_1997/15_CR_INTPASSPORT_2001.jpg",
+  "filename": "sample-INTPASSPORT_1997-15_CR_INTPASSPORT_2001.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 108947,
+  "search_text": "sample-intpassport_1997-15_cr_intpassport_2001.jpg intpassport_1997 отделом уфмс россии по иркутской области шелеховского района 03.10.2005 123-005 василева 13 05 300353 марина алексевна ж 03.abryct пос моты иркутская обл"
+ },
+ {
+  "slug": "DL_2020-10_CR_DL_2019",
+  "sample": "samples/DL_2020/10_CR_DL_2019.jpg",
+  "filename": "sample-DL_2020-10_CR_DL_2019.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 82887,
+  "search_text": "sample-dl_2020-10_cr_dl_2019.jpg dl_2020 красенков krasenkov сергеевич карен sergeevich karen ростовская обл rostovskaia oblast 15.02.2020 15.02.2030 гибдд gibdd 6100 ростовская обл rostovskaia obl b b1 m"
+ },
+ {
+  "slug": "EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0",
+  "sample": "samples/EXTPASSPORT_2003/10_BG_EXTPASSPORT_2010_0.jpg",
+  "filename": "sample-EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 320812,
+  "search_text": "sample-extpassport_2003-10_bg_extpassport_2010_0.jpg extpassport_2003 62 1488828 прудникова prudnikova юрьевна наталья natalia 18.03.1967 томская обл ж ussr f 06.08.2004 06.08.2009 увд 365"
+ }
+]

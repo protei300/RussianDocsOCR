@@ -1,0 +1,45 @@
+# requirements2026.txt — обновлённое окружение (2026).
+# Старый requirements.txt НЕ трогаем — он оставлен как есть для обратной совместимости.
+#
+# Рекомендуемый Python: 3.10–3.12.
+#
+# Версии в секции «ЯДРО» проверены на рабочем окружении, где полностью прогоняется
+# ONNX-пайплайн и весь тест-набор (numpy 2.2 / onnxruntime 1.21 / opencv 4.12 /
+# scikit-learn 1.7 / PyYAML 6.0). Остальные секции — опциональные, ставьте по мере надобности.
+#
+# Быстрый старт (CPU):   pip install -r requirements2026.txt
+# GPU:                   заменить onnxruntime -> onnxruntime-gpu (см. секцию GPU)
+
+# ── ЯДРО: инференс по ONNX (обязательно) ──────────────────────────────────────
+numpy==2.2.6
+onnxruntime==1.21.1                 # CPU-сборка. Для GPU — см. секцию GPU ниже.
+opencv-python-headless==4.12.0.88
+PyYAML==6.0.2
+scikit-learn==1.7.0                 # нужен DocTypeAngles (Metric / NearestNeighbors)
+
+# ── Тесты ─────────────────────────────────────────────────────────────────────
+pytest==8.3.4
+Pillow==12.3.0                      # используется тестами (PIL.Image); >=12.3.0 закрывает CVE-2026-54059/54060/55379 (font decompression bomb)
+
+# ── Скрипты (scripts/: benchmark, process_img, process_video) ─────────────────
+pandas==2.3.1                       # benchmark.py — вывод CSV
+py-cpuinfo==9.0.0                   # benchmark.py — модель CPU в отчёте
+
+# ── GPU (опционально) ─────────────────────────────────────────────────────────
+# Убрать onnxruntime выше и поставить GPU-сборку той же версии.
+# Требует CUDA 12.x + cuDNN 9 (напр. RTX 40xx). Библиотека сама подхватывает
+# CUDA/cuDNN DLL из torch/lib, если torch установлен (Windows).
+# onnxruntime-gpu==1.21.1
+
+# ── Доп. форматы моделей (опционально; НЕ нужны для ONNX-инференса) ────────────
+# Подгружаются лениво в processing/inference.py по расширению файла модели.
+# openvino>=2024.0                  # model_format='OpenVINO' (.ir); быстрее на Intel CPU
+# coremltools>=8.0                  # только macOS (.mlmodel)
+
+# ── Обучение / экспорт моделей (опционально; НЕ нужно для инференса) ───────────
+# ultralytics>=8.3                  # переобучение/экспорт YOLO-детекторов; тянет torch
+
+# ── Эксперименты Melnikov/ и eval-харнесы (опционально) ───────────────────────
+# scipy==1.16.0
+# matplotlib>=3.9
+# tqdm==4.67.1

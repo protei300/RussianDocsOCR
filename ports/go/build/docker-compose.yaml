@@ -1,0 +1,73 @@
+# The Go service, CPU and GPU.
+#
+# Run from the REPOSITORY ROOT, because the build context is the whole repository — the
+# images need document_processing/models, samples/ and web/, none of which live under
+# ports/go/:
+#
+#   docker build -f ports/base/Dockerfile.models -t russiandocs-models:latest .
+#   docker compose -f ports/go/build/docker-compose.yaml up rdocs-go-cpu
+#
+# The models image is built SEPARATELY and on purpose: compose has no way to express "build
+# this once and share the layer with several services", and doing it by hand keeps the 215 MB
+# out of every rebuild.
+#
+# **There is no volume for /app/data.** That is not an omission — see DATA_WIPE_ON_START.
+# Note that removing the volume alone would not make the store ephemeral either: `docker
+# restart` keeps the writable layer, so the wipe at startup is what makes the promise true.
+
+services:
+  rdocs-go-cpu:
+    build:
+      context: ../../..
+      dockerfile: ports/go/build/Dockerfile
+      target: runtime-cpu
+    image: russiandocs-go:cpu
+    ports:
+      - "8003:8003"
+    environment:
+      # SET THESE. The defaults are a warning, not a configuration: the service logs loudly
+      # about the built-in JWT secret, and an unset DEFAULT_API_KEY means a random key that
+      # changes on every restart and has to be read out of the log.
+      JWT_SECRET: "change-me"
+      DEFAULT_API_KEY: "change-me"
+      AUTH_PIN: "1234"
+      COMPUTE_DEVICE: "cpu"
+      LOG_LEVEL: "INFO"
+      DATA_WIPE_ON_START: "true"
+    # tini as PID 1. Not strictly needed on CPU, but kept identical to the GPU service so the
+    # two behave the same under `docker stop`.
+    init: true
+    restart: unless-stopped
+
+  rdocs-go-gpu:
+    build:
+      context: ../../..
+      dockerfile: ports/go/build/Dockerfile
+      target: runtime-gpu
+    image: russiandocs-go:gpu
+    ports:
+      - "8003:8003"
+    environment:
+      JWT_SECRET: "change-me"
+      DEFAULT_API_KEY: "change-me"
+      AUTH_PIN: "1234"
+      # `auto` rather than `gpu`: the service probes for a device and falls back to CPU with
+      # an explicit log line. Asking for `gpu` on a host that has none is refused before the
+      # attempt, because building a CUDA session without a device TERMINATES the process
+      # instead of returning an error.
+      COMPUTE_DEVICE: "auto"
+      LOG_LEVEL: "INFO"
+      DATA_WIPE_ON_START: "true"
+    # REQUIRED for the GPU path, and D-12 is the reason it is not merely tidy: the CUDA
+    # provider is reported to overwrite Go's signal handlers, so SIGTERM may never reach the
+    # process. tini forwards signals from PID 1 and reaps children, which bounds the damage
+    # even if the in-process handler is gone.
+    init: true
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

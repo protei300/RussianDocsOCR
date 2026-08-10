@@ -1,0 +1,16 @@
+{
+  "slug": "EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0",
+  "sample": "samples/EXTPASSPORTBIO_2007/10_BG_EXTPASSPORTBIO_2010_0.jpg",
+  "doc_type": "EXTPASSPORTBIO_2007",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "EXTPASSPORTBIO_2007"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

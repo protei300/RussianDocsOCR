@@ -1,0 +1,69 @@
+/* ============================================================================
+   RussianDocs OCR — brand overlay
+   ============================================================================
+
+   Deliberately a SEPARATE file, loaded after `_shared.css`, containing nothing
+   but overrides. The design system is shared with the other services and is
+   copied between them verbatim; forking it to make this one look different
+   would mean the next person copying it inherits our divergence. Keeping the
+   difference in an overlay means `_shared.css` stays byte-comparable with the
+   other projects, and this service still reads as its own product.
+
+   TO REVERT: delete the `_brand.css` <link> from `web/index.html`.
+   Nothing else references this file, and `_shared.css` is untouched.
+
+   What is changed, and only this:
+     1. Accent hue — the most recognisable single cue. Indigo instead of the
+        shared blue.
+     2. Type — slightly tighter tracking, slightly looser leading, and Inter's
+        alternate letterforms where the font subset carries them.
+     3. Corner radii — a touch softer, which changes the silhouette of cards,
+        buttons and inputs without moving any layout.
+   Spacing, sizes and structure are untouched on purpose: those are what make
+   the tables and forms read well, and they are not what makes two products
+   look alike.
+   ============================================================================ */
+
+:root{
+  /* Indigo. Distinct from the shared #0067F5 at a glance, still sober enough
+     for a tool that shows people's identity documents. */
+  --color-primary:#4338CA;
+  --color-primary-dark:#312BA0;
+  --color-primary-light:#ECEBFB;
+
+  --radius-card:12px;
+  --radius-btn:8px;
+  --radius-input:8px;
+}
+
+html.dark{
+  /* Lifted, because the shared indigo goes muddy against the dark card. */
+  --color-primary:#7C74F0;
+  --color-primary-dark:#5B52D6;
+  --color-primary-light:#1C1B3A;
+}
+
+/* ---- Type -----------------------------------------------------------------
+   Inter ships stylistic sets that swap in single-storey letterforms and a
+   tailed 'l'. They render only if the woff2 subsets kept their feature tables,
+   which could not be verified offline here — so the perceptible change does
+   not depend on them: the tracking and leading below carry it on their own.
+   Digits stay tabular so numeric columns keep lining up. */
+html,body{
+  font-feature-settings:'cv05' 1,'cv11' 1,'ss03' 1;
+  letter-spacing:-0.004em;
+  line-height:1.55;
+}
+
+/* Headings a little tighter than body text — standard optical correction, and
+   the thing that most changes the "voice" of a page at a glance. */
+.page-title{letter-spacing:-0.5px;}
+.card-head,.sidebar-brand .title{letter-spacing:-0.3px;}
+
+/* Small uppercase labels get the opposite treatment: at 10-11px, tracking is
+   what makes them legible rather than cramped. */
+.nav-section,.sidebar-brand .sub,.card-head>span:first-child{letter-spacing:0.9px;}
+
+/* Numbers, codes and JSON keep their own metrics — tracking applied to a
+   monospace column defeats the point of using one. */
+.u-mono,code,pre{letter-spacing:0;font-feature-settings:normal;}

@@ -1,0 +1,8 @@
+# Narrow by design. The trap this file exists to avoid is the opposite one: a broad
+# `*.json` rule silently excludes every model.json, the image builds, and the service
+# dies on its first Pipeline() with an error that says nothing about packaging. The
+# models image asserts its own contents for the same reason.
+bin/
+*.exe
+*.test.exe
+*.dll
