@@ -46,6 +46,14 @@ SEED_DIR = _ROOT / "service" / "seed_data"
 
 #: Order the types appear in. Internal passport first: it is the richest example
 #: (ten fields, split fields, plus photo and signature boxes).
+#:
+#: THIS TUPLE IS WHAT MAKES A TYPE VISIBLE TO THE TEST SUITE. The seed builder
+#: walks it, and conformance derives its case list from the seed manifest
+#: (conformance/cases.py), so a supported type missing here has no seed document
+#: and no conformance case. That is how birth certificates reached production
+#: with two of the four ports silently returning zero fields: every port was
+#: "44/44 green" while not implementing the type at all. Add the type here in the
+#: same change that adds its sample.
 _TYPE_ORDER = (
     "INTPASSPORT_2011",
     "DL_2011",
@@ -54,6 +62,7 @@ _TYPE_ORDER = (
     "INTPASSPORT_1997",
     "DL_2020",
     "EXTPASSPORT_2003",
+    "BIRTHCERT_1998",
 )
 
 SEED_PREFIX = "sample"

@@ -1,0 +1,11 @@
+{
+  "stage": "rotate",
+  "dtype": "uint8",
+  "shape": [
+    1280,
+    960,
+    3
+  ],
+  "sha256": "7a7ce87ddefeb7999efbda0bbe3cf09cb1e0d3f954104bc1463fcfd5eb5cdfc6",
+  "note": "pixels are not committed; regenerate with `python -m conformance.refcli regen --with-pixels` to compare magnitudes"
+}

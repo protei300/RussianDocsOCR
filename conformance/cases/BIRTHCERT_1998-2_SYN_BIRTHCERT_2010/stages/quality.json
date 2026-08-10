@@ -1,0 +1,7 @@
+{
+  "DocConf": 1.0,
+  "Glare": "good",
+  "Blur": "good",
+  "PrintSpoofing": "FAKE",
+  "LCDSpoofing": "FAKE"
+}

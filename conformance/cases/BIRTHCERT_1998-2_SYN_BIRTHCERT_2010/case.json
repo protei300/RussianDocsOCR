@@ -1,0 +1,16 @@
+{
+  "slug": "BIRTHCERT_1998-2_SYN_BIRTHCERT_2010",
+  "sample": "samples/BIRTHCERT_1998/2_SYN_BIRTHCERT_2010.jpg",
+  "doc_type": "BIRTHCERT_1998",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "BIRTHCERT_1998"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

@@ -1,0 +1,362 @@
+{
+  "doc_type": "BIRTHCERT_1998",
+  "doc_type_base": "BIRTHCERT",
+  "doc_type_era": "1998",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 673,
+    "height": 937,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [
+    {
+      "id": "b0",
+      "label": "Last_name_ru",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 301,
+      "y1": 205,
+      "x2": 368,
+      "y2": 221,
+      "conf": 0.928,
+      "cls": 1,
+      "text": "БОРИСОВА",
+      "ambiguous": false
+    },
+    {
+      "id": "b1",
+      "label": "First_name_ru",
+      "display": "First name",
+      "kind": "text",
+      "x1": 254,
+      "y1": 226,
+      "x2": 401,
+      "y2": 242,
+      "conf": 0.863,
+      "cls": 2,
+      "text": "АНАСТАСИЯ 1ЛЕКСЕЕВНА",
+      "ambiguous": false
+    },
+    {
+      "id": "b2",
+      "label": "Birth_date",
+      "display": "Date of birth",
+      "kind": "text",
+      "x1": 352,
+      "y1": 249,
+      "x2": 427,
+      "y2": 262,
+      "conf": 0.909,
+      "cls": 10,
+      "text": "22.06.2010",
+      "ambiguous": false
+    },
+    {
+      "id": "b3",
+      "label": "Birth_place_ru",
+      "display": "Place of birth",
+      "kind": "text",
+      "x1": 304,
+      "y1": 324,
+      "x2": 400,
+      "y2": 344,
+      "conf": 0.92,
+      "cls": 11,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b4",
+      "label": "Birth_place_ru",
+      "display": "Place of birth",
+      "kind": "text",
+      "x1": 270,
+      "y1": 350,
+      "x2": 434,
+      "y2": 369,
+      "conf": 0.92,
+      "cls": 11,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b5",
+      "label": "Birth_place_ru",
+      "display": "Place of birth",
+      "kind": "text",
+      "x1": 316,
+      "y1": 374,
+      "x2": 365,
+      "y2": 385,
+      "conf": 0.926,
+      "cls": 11,
+      "text": "2 ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ, РОССИЯ",
+      "ambiguous": false
+    },
+    {
+      "id": "b6",
+      "label": "Father_last_name_ru",
+      "display": "Father_last_name_ru",
+      "kind": "text",
+      "x1": 308,
+      "y1": 446,
+      "x2": 372,
+      "y2": 463,
+      "conf": 0.931,
+      "cls": 22,
+      "text": "БОРИСОВ",
+      "ambiguous": false
+    },
+    {
+      "id": "b7",
+      "label": "Father_first_middle_ru",
+      "display": "Father_first_middle_ru",
+      "kind": "text",
+      "x1": 258,
+      "y1": 470,
+      "x2": 399,
+      "y2": 485,
+      "conf": 0.875,
+      "cls": 23,
+      "text": "АЛЕКСЕЙ ОЛЕГОВИЧ",
+      "ambiguous": false
+    },
+    {
+      "id": "b8",
+      "label": "Mother_last_name_ru",
+      "display": "Mother_last_name_ru",
+      "kind": "text",
+      "x1": 301,
+      "y1": 547,
+      "x2": 374,
+      "y2": 563,
+      "conf": 0.929,
+      "cls": 24,
+      "text": "БОРИСОВА",
+      "ambiguous": false
+    },
+    {
+      "id": "b9",
+      "label": "Mother_first_middle_ru",
+      "display": "Mother_first_middle_ru",
+      "kind": "text",
+      "x1": 257,
+      "y1": 571,
+      "x2": 395,
+      "y2": 586,
+      "conf": 0.893,
+      "cls": 25,
+      "text": "АННА НИКИТИЧНА",
+      "ambiguous": false
+    },
+    {
+      "id": "b10",
+      "label": "Issue_organization_ru",
+      "display": "Issuing authority",
+      "kind": "text",
+      "x1": 172,
+      "y1": 667,
+      "x2": 508,
+      "y2": 687,
+      "conf": 0.808,
+      "cls": 13,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b11",
+      "label": "Issue_organization_ru",
+      "display": "Issuing authority",
+      "kind": "text",
+      "x1": 161,
+      "y1": 692,
+      "x2": 506,
+      "y2": 712,
+      "conf": 0.81,
+      "cls": 13,
+      "text": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2 ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГСИРКУТСКОЙ ОБЛАСТ",
+      "ambiguous": false
+    },
+    {
+      "id": "b12",
+      "label": "Issue_date",
+      "display": "Date of issue",
+      "kind": "text",
+      "x1": 277,
+      "y1": 727,
+      "x2": 589,
+      "y2": 745,
+      "conf": 0.818,
+      "cls": 6,
+      "text": "28., ИЮЛЯ 2010",
+      "ambiguous": false
+    },
+    {
+      "id": "b13",
+      "label": "Licence_number",
+      "display": "Document number",
+      "kind": "text",
+      "x1": 281,
+      "y1": 834,
+      "x2": 433,
+      "y2": 848,
+      "conf": 0.906,
+      "cls": 5,
+      "text": "П-МЮ 715330",
+      "ambiguous": false
+    }
+  ],
+  "fields": [
+    {
+      "name": "Birth_date",
+      "display": "Date of birth",
+      "value": "22.06.2010",
+      "script": "num",
+      "conf": 0.909,
+      "box_ids": [
+        "b2"
+      ]
+    },
+    {
+      "name": "Birth_place_ru",
+      "display": "Place of birth",
+      "value": "2 ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ, РОССИЯ",
+      "script": "ru",
+      "conf": 0.926,
+      "box_ids": [
+        "b3",
+        "b4",
+        "b5"
+      ]
+    },
+    {
+      "name": "Father_first_middle_ru",
+      "display": "Father_first_middle_ru",
+      "value": "АЛЕКСЕЙ ОЛЕГОВИЧ",
+      "script": "ru",
+      "conf": 0.875,
+      "box_ids": [
+        "b7"
+      ]
+    },
+    {
+      "name": "Father_last_name_ru",
+      "display": "Father_last_name_ru",
+      "value": "БОРИСОВ",
+      "script": "ru",
+      "conf": 0.931,
+      "box_ids": [
+        "b6"
+      ]
+    },
+    {
+      "name": "First_name_ru",
+      "display": "First name",
+      "value": "АНАСТАСИЯ 1ЛЕКСЕЕВНА",
+      "script": "ru",
+      "conf": 0.863,
+      "box_ids": [
+        "b1"
+      ]
+    },
+    {
+      "name": "Issue_date",
+      "display": "Date of issue",
+      "value": "28., ИЮЛЯ 2010",
+      "script": "num",
+      "conf": 0.818,
+      "box_ids": [
+        "b12"
+      ]
+    },
+    {
+      "name": "Issue_organization_ru",
+      "display": "Issuing authority",
+      "value": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2 ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГСИРКУТСКОЙ ОБЛАСТ",
+      "script": "ru",
+      "conf": 0.81,
+      "box_ids": [
+        "b10",
+        "b11"
+      ]
+    },
+    {
+      "name": "Last_name_ru",
+      "display": "Last name",
+      "value": "БОРИСОВА",
+      "script": "ru",
+      "conf": 0.928,
+      "box_ids": [
+        "b0"
+      ]
+    },
+    {
+      "name": "Licence_number",
+      "display": "Document number",
+      "value": "П-МЮ 715330",
+      "script": "num",
+      "conf": 0.906,
+      "box_ids": [
+        "b13"
+      ]
+    },
+    {
+      "name": "Mother_first_middle_ru",
+      "display": "Mother_first_middle_ru",
+      "value": "АННА НИКИТИЧНА",
+      "script": "ru",
+      "conf": 0.893,
+      "box_ids": [
+        "b9"
+      ]
+    },
+    {
+      "name": "Mother_last_name_ru",
+      "display": "Mother_last_name_ru",
+      "value": "БОРИСОВА",
+      "script": "ru",
+      "conf": 0.929,
+      "box_ids": [
+        "b8"
+      ]
+    }
+  ],
+  "ocr": {
+    "Last_name_ru": "БОРИСОВА",
+    "First_name_ru": "АНАСТАСИЯ 1ЛЕКСЕЕВНА",
+    "Birth_date": "22.06.2010",
+    "Birth_place_ru": "2 ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ, РОССИЯ",
+    "Father_last_name_ru": "БОРИСОВ",
+    "Father_first_middle_ru": "АЛЕКСЕЙ ОЛЕГОВИЧ",
+    "Mother_last_name_ru": "БОРИСОВА",
+    "Mother_first_middle_ru": "АННА НИКИТИЧНА",
+    "Issue_organization_ru": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2 ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГСИРКУТСКОЙ ОБЛАСТ",
+    "Issue_date": "28., ИЮЛЯ 2010",
+    "Licence_number": "П-МЮ 715330"
+  },
+  "quality": {
+    "DocConf": 1.0,
+    "Glare": "good",
+    "Blur": "good",
+    "PrintSpoofing": "FAKE",
+    "LCDSpoofing": "FAKE"
+  },
+  "timings": {
+    "_doctype_angle": 0.0061,
+    "_quality_and_borders": 0.2469,
+    "_glare": 0.0196,
+    "_blur": 0.0812,
+    "_print_spoofing": 0.0068,
+    "_lcd_spoofing": 0.017,
+    "_doc_detector": 0.2223,
+    "_deskew": 0.0076,
+    "_fields_detector": 0.0944,
+    "_split_words": 0.2904,
+    "_ocr": 0.4643,
+    "total": 1.1097
+  },
+  "address": null
+}

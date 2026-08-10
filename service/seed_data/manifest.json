@@ -6,7 +6,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 115841,
-  "search_text": "sample-intpassport_2011-12_cr_intpassport_2011.jpg intpassport_2011 умвд россии по томской области 22.05.2018 700-014 батурина 69 18 812211 екатерина александровна 24.04.1998 ж с мельниково шегарский район томская область россия"
+  "search_text": "sample-intpassport_2011-12_cr_intpassport_2011.jpg intpassport_2011 умвд россии по томской области 22.05.2018 700-014 батурина екатерина александровна 69 18 812211 24.04.1998 ж ос. мельниково шегарский район томская область россия"
  },
  {
   "slug": "DL_2011-10_BG_DL_2010",
@@ -15,7 +15,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 677339,
-  "search_text": "sample-dl_2011-10_bg_dl_2010.jpg dl_2011 старостенко starostenko геннадьевич евгений gennad'evich evgenii 06.01.1985 саратовская обл saratovskaia obl 28.06.2016 28.06.2026 гибдд gibdd 6409 сараговская в в1 с с1 ь 1 се с1е saratovskaia obl b b1 c c1 d d1 ce c1e"
+  "search_text": "sample-dl_2011-10_bg_dl_2010.jpg dl_2011 старостенко starostenko геннадьевич евгений gennad'evich evgenii 06.01.1985 саратовская обл saratovskaia obl 28.06.2016 28.06.2026 6409 гибдд gibdd сараговская saratovskaia o b b1 c c1 d d1 ce c1e"
  },
  {
   "slug": "SNILS_1996-105_BG_SNILS_2003",
@@ -33,7 +33,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 407375,
-  "search_text": "sample-extpassportbio_2007-10_bg_extpassportbio_2010_0.jpg extpassportbio_2007 76 1921099 золкина zolkina александровна кристина kristina 04.11.1986 ж кабардино-балкарская асср ussr f 78039 14.11.2019 мвд 14.11.2029"
+  "search_text": "sample-extpassportbio_2007-10_bg_extpassportbio_2010_0.jpg extpassportbio_2007 76 1921099 золкина zolkina александровна кристина kristina 04.11.1986 ussr ж кабардино-балкарская асср f 78039 мвд 14.11.2019 14.11.2029"
  },
  {
   "slug": "INTPASSPORT_1997-15_CR_INTPASSPORT_2001",
@@ -42,7 +42,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 108947,
-  "search_text": "sample-intpassport_1997-15_cr_intpassport_2001.jpg intpassport_1997 отделом уфмс россии по иркутской области шелеховского района 03.10.2005 123-005 василева 13 05 300353 марина алексевна ж 03.abryct пос моты иркутская обл"
+  "search_text": "sample-intpassport_1997-15_cr_intpassport_2001.jpg intpassport_1997 отделом уфмс россии по иркутской области шелеховского района 03.10.2005 123-005 13 05 300353 василева марина алексевна ж 03.abryct пос моты иркутская обл"
  },
  {
   "slug": "DL_2020-10_CR_DL_2019",
@@ -51,7 +51,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 82887,
-  "search_text": "sample-dl_2020-10_cr_dl_2019.jpg dl_2020 красенков krasenkov сергеевич карен sergeevich karen ростовская обл rostovskaia oblast 15.02.2020 15.02.2030 гибдд gibdd 6100 ростовская обл rostovskaia obl b b1 m"
+  "search_text": "sample-dl_2020-10_cr_dl_2019.jpg dl_2020 красенков krasenkov сергеевич карен sergeevich karen ростовская обл rostovskaia oblast 15.02.2030 15.02.2020 гибдд 6100 gibdd ростовская обл rostovskaia obl b b1 m"
  },
  {
   "slug": "EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0",
@@ -60,6 +60,15 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 320812,
-  "search_text": "sample-extpassport_2003-10_bg_extpassport_2010_0.jpg extpassport_2003 62 1488828 прудникова prudnikova юрьевна наталья natalia 18.03.1967 томская обл ж ussr f 06.08.2004 06.08.2009 увд 365"
+  "search_text": "sample-extpassport_2003-10_bg_extpassport_2010_0.jpg extpassport_2003 62 1483828 прудникова prudnikova юрьевна наталья natalia томская обл 18.03.1967 ussr ж f 06.08.2009 06.08.2004 увд 365"
+ },
+ {
+  "slug": "BIRTHCERT_1998-2_SYN_BIRTHCERT_2010",
+  "sample": "samples/BIRTHCERT_1998/2_SYN_BIRTHCERT_2010.jpg",
+  "filename": "sample-BIRTHCERT_1998-2_SYN_BIRTHCERT_2010.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 301378,
+  "search_text": "sample-birthcert_1998-2_syn_birthcert_2010.jpg birthcert_1998 борисова анастасия 1лексеевна 22.06.2010 2 иркутск, иркутская область, россия борисов алексей олегович борисова анна никитична отдел загс заводского района 2 иркутск правления по делам загсиркутской област 28., июля 2010 п-мю 715330"
  }
 ]
