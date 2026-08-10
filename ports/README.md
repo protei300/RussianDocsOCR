@@ -89,6 +89,33 @@ Two rules with no exceptions:
   is `exec` plus stdout plus a dump directory; the checker is Python because Python is the reference,
   and generating a golden and checking against one must be one code path.
 
+### Without a single installed toolchain
+
+Every port can be graded formally on a machine that has neither Go, nor .NET, nor a JDK —
+proven in practice on a Windows host where none of the three was installed (2026-08-10):
+
+- **Go** — the runtime image already contains the conformance CLI next to the service
+  binary. Extract it into the (gitignored) host path the runner expects and run the
+  runner in the same container, with python added on top:
+
+  ```bash
+  printf 'FROM russiandocs-go:cpu
+USER root
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends python3 python3-numpy
+' > gopy.Dockerfile
+  docker build -f gopy.Dockerfile -t rdocs-go-conform:check .
+  docker run --rm -v <repo>:/host -w /host --entrypoint sh rdocs-go-conform:check -c     "cp /usr/local/bin/rdocs-conform /host/ports/go/bin/ && chmod +x /host/ports/go/bin/rdocs-conform && python3 -m conformance.runner run --port go"
+  ```
+
+- **.NET** — build and evaluate in `mcr.microsoft.com/dotnet/sdk:8.0-jammy` with
+  GTK/Pango/Cairo installed (the OpenCvSharp native package is not headless). Watch one
+  trap: the Linux restore rewrites `packages.lock.json` to `linux-x64` runtime packages —
+  do not let that reach a commit, it breaks every Windows build.
+- **Kotlin** — build in the port's own builder image, where OpenCV is already compiled;
+  the JNI library needs `LD_LIBRARY_PATH=/opt/opencv/lib` to find its own neighbours.
+
+`ports/*/bin/` is gitignored, so an extracted binary cannot reach a commit.
+
 ## Where the shared frontend fits
 
 `web/` is one Vue SPA, served unchanged by all four services — a third of the project that is not
