@@ -126,9 +126,12 @@ public static class Ocr
     ///
     /// <para>
     /// Port of <c>Pipeline._clean_ruler_artifacts</c> (pipeline.py:1061). The rulers land inside the
-    /// field crops and OCR emits runs of dots, dashes and underscores around the real words; they
-    /// carry no information on this form. Single in-word dots — the digit birth date, abbreviations —
-    /// are left alone, exactly as in the reference.
+    /// field crops and OCR emits runs of those marks around the real words; they carry no information
+    /// on this form. Commas and quotes are in the set because that is what the engine emits on this
+    /// form («28., ИЮЛЯ 2010», «"""СЕМ","" ПОННИЛОВИЧ»), not because they were expected. Only runs of
+    /// two or more and marks standing alone are removed, which is what keeps real punctuation: the
+    /// comma in «Г. ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ» is attached to a word and the hyphen in «II-МЮ» sits
+    /// between letters, so neither matches. Exactly as in the reference.
     /// </para>
     ///
     /// <para>
@@ -144,10 +147,10 @@ public static class Ocr
     }
 
     private static readonly System.Text.RegularExpressions.Regex RulerRuns =
-        new(@"[._\-]{2,}", System.Text.RegularExpressions.RegexOptions.Compiled);
+        new(@"[.,_\-""]{2,}", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     private static readonly System.Text.RegularExpressions.Regex LoneSeparator =
-        new(@"(?:^|(?<=\s))[._\-](?=\s|$)", System.Text.RegularExpressions.RegexOptions.Compiled);
+        new(@"(?:^|(?<=\s))[.,_\-""](?=\s|$)", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     private static readonly System.Text.RegularExpressions.Regex Whitespace =
         new(@"\s+", System.Text.RegularExpressions.RegexOptions.Compiled);

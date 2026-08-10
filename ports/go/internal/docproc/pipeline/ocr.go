@@ -16,7 +16,14 @@ import (
 // rulerRuns matches the dotted ruler lines the 1998 birth-certificate form prints
 // under every value; they land inside the field crops and OCR emits runs of
 // dots/dashes/underscores around the real words.
-var rulerRuns = regexp.MustCompile(`[._\-]{2,}`)
+// The marks the ruler dots come back as. Commas and quotes are in the set
+// because that is what the engine actually emits on this form («28., ИЮЛЯ 2010»,
+// «08.,.АВГУСТА.,.2008», «"""СЕМ","" ПОННИЛОВИЧ»), not because they were
+// expected. Mirrors Pipeline._RULER_MARKS.
+var rulerRuns = regexp.MustCompile(`[.,_\-"]{2,}`)
+
+// rulerLone is the same set, for the token filter below.
+var rulerLone = map[string]bool{".": true, ",": true, "_": true, "-": true, `"`: true}
 
 // CleanRulerArtifacts collapses ruler-dot runs out of a joined field value.
 // Port of Pipeline._clean_ruler_artifacts (pipeline.py:1061-1076). The reference
@@ -31,7 +38,7 @@ func CleanRulerArtifacts(value string) string {
 	fields := strings.Fields(t)
 	kept := fields[:0]
 	for _, tok := range fields {
-		if tok == "." || tok == "_" || tok == "-" {
+		if rulerLone[tok] {
 			continue
 		}
 		kept = append(kept, tok)

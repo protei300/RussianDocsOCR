@@ -191,7 +191,7 @@
       "y2": 745,
       "conf": 0.818,
       "cls": 6,
-      "text": "28., ИЮЛЯ 2010",
+      "text": "28 ИЮЛЯ 2010",
       "ambiguous": false
     },
     {
@@ -265,7 +265,7 @@
     {
       "name": "Issue_date",
       "display": "Date of issue",
-      "value": "28., ИЮЛЯ 2010",
+      "value": "28 ИЮЛЯ 2010",
       "script": "num",
       "conf": 0.818,
       "box_ids": [
@@ -334,7 +334,7 @@
     "Mother_last_name_ru": "БОРИСОВА",
     "Mother_first_middle_ru": "АННА НИКИТИЧНА",
     "Issue_organization_ru": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2 ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГСИРКУТСКОЙ ОБЛАСТ",
-    "Issue_date": "28., ИЮЛЯ 2010",
+    "Issue_date": "28 ИЮЛЯ 2010",
     "Licence_number": "П-МЮ 715330"
   },
   "quality": {
@@ -345,18 +345,18 @@
     "LCDSpoofing": "FAKE"
   },
   "timings": {
-    "_doctype_angle": 0.0061,
-    "_quality_and_borders": 0.2469,
-    "_glare": 0.0196,
-    "_blur": 0.0812,
-    "_print_spoofing": 0.0068,
-    "_lcd_spoofing": 0.017,
-    "_doc_detector": 0.2223,
-    "_deskew": 0.0076,
-    "_fields_detector": 0.0944,
-    "_split_words": 0.2904,
-    "_ocr": 0.4643,
-    "total": 1.1097
+    "_doctype_angle": 0.0063,
+    "_quality_and_borders": 0.3281,
+    "_glare": 0.097,
+    "_blur": 0.0918,
+    "_print_spoofing": 0.01,
+    "_lcd_spoofing": 0.004,
+    "_doc_detector": 0.2081,
+    "_deskew": 0.0079,
+    "_fields_detector": 0.1092,
+    "_split_words": 0.3153,
+    "_ocr": 0.5154,
+    "total": 1.2822
   },
   "address": null
 }

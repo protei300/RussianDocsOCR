@@ -105,10 +105,10 @@ public object Ocr {
     }
 
     /** Runs of the ruler dots the 1998 birth-certificate form prints under every value. */
-    private val RULER_RUNS = Regex("""[._\-]{2,}""")
+    private val RULER_RUNS = Regex("""[.,_\-"]{2,}""")
 
     /** A separator standing alone between spaces, or at either end of the string. */
-    private val LONE_SEPARATOR = Regex("""(?:^|(?<=\s))[._\-](?=\s|$)""")
+    private val LONE_SEPARATOR = Regex("""(?:^|(?<=\s))[.,_\-"](?=\s|$)""")
 
     private val WHITESPACE = Regex("""\s+""")
 
@@ -116,8 +116,11 @@ public object Ocr {
      * Collapses the dotted ruler lines out of a joined field value.
      *
      * Port of `Pipeline._clean_ruler_artifacts` (pipeline.py:1061). The rulers land inside the field crops
-     * and OCR emits runs of dots, dashes and underscores around the real words; they carry no information
-     * on this form. Single in-word dots — the digit birth date, abbreviations — are left alone, exactly as
+     * and OCR emits runs of those marks around the real words; they carry no information on this form.
+     * Commas and quotes are in the set because that is what the engine emits here («28., ИЮЛЯ 2010»,
+     * «"""СЕМ","" ПОННИЛОВИЧ»), not because they were expected. Only runs of two or more and marks standing
+     * alone are removed, which is what keeps real punctuation: the comma in «Г. ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ»
+     * is attached to a word and the hyphen in «II-МЮ» sits between letters, so neither matches. Exactly as
      * in the reference.
      *
      * Both reference patterns are ported verbatim: `java.util.regex` supports the lookbehind the second one

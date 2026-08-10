@@ -177,7 +177,7 @@
       "id": "b12",
       "kind": "text",
       "label": "Issue_date",
-      "text": "28., ИЮЛЯ 2010",
+      "text": "28 ИЮЛЯ 2010",
       "x1": 277,
       "x2": 589,
       "y1": 727,
@@ -270,7 +270,7 @@
       "display": "Date of issue",
       "name": "Issue_date",
       "script": "num",
-      "value": "28., ИЮЛЯ 2010"
+      "value": "28 ИЮЛЯ 2010"
     },
     {
       "box_ids": [
@@ -330,7 +330,7 @@
     "Father_first_middle_ru": "АЛЕКСЕЙ ОЛЕГОВИЧ",
     "Father_last_name_ru": "БОРИСОВ",
     "First_name_ru": "АНАСТАСИЯ 1ЛЕКСЕЕВНА",
-    "Issue_date": "28., ИЮЛЯ 2010",
+    "Issue_date": "28 ИЮЛЯ 2010",
     "Issue_organization_ru": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2 ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГСИРКУТСКОЙ ОБЛАСТ",
     "Last_name_ru": "БОРИСОВА",
     "Licence_number": "П-МЮ 715330",
@@ -346,17 +346,17 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.0812,
-    "_deskew": 0.0076,
-    "_doc_detector": 0.2223,
-    "_doctype_angle": 0.0061,
-    "_fields_detector": 0.0944,
-    "_glare": 0.0196,
-    "_lcd_spoofing": 0.017,
-    "_ocr": 0.4643,
-    "_print_spoofing": 0.0068,
-    "_quality_and_borders": 0.2469,
-    "_split_words": 0.2904,
-    "total": 1.1097
+    "_blur": 0.0918,
+    "_deskew": 0.0079,
+    "_doc_detector": 0.2081,
+    "_doctype_angle": 0.0063,
+    "_fields_detector": 0.1092,
+    "_glare": 0.097,
+    "_lcd_spoofing": 0.004,
+    "_ocr": 0.5154,
+    "_print_spoofing": 0.01,
+    "_quality_and_borders": 0.3281,
+    "_split_words": 0.3153,
+    "total": 1.2822
   }
 }

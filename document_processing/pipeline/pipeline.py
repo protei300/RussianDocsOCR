@@ -1057,20 +1057,38 @@ class Pipeline:
         if 'birthcert' in doc_type.lower():
             self._clean_ruler_artifacts()
 
+    #: Characters the ruler dots come back as. Dots, dashes and underscores were
+    #: the obvious ones; commas and quotes were added after looking at what the
+    #: engine actually emits on this form - «28., ИЮЛЯ 2010», «08.,.АВГУСТА.,.2008»,
+    #: «"""СЕМ","" ПОННИЛОВИЧ». The set is deliberately limited to marks observed
+    #: as artifacts: every character added here is one that can no longer survive
+    #: on its own in a birth-certificate field.
+    _RULER_MARKS = r'.,_\-"'
+
     def _clean_ruler_artifacts(self):
         """The 1998 birth-certificate form prints dotted ruler lines under
         every field value; they land inside the field crops and OCR emits runs
-        of dots/dashes/underscores around the real words. Those runs carry no
-        information on this form, so collapse them (single in-word dots - the
-        digit birth date, abbreviations - are left untouched)."""
+        of those marks around the real words. They carry no information on this
+        form, so collapse them (single in-word dots - the digit birth date,
+        abbreviations - are left untouched).
+
+        Only runs of two or more, plus marks standing alone between spaces, are
+        removed. That is what keeps real punctuation: the comma in
+        «Г. ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ» is attached to a word, and the hyphen in
+        a series like «II-МЮ» sits between letters, so neither matches.
+
+        Runs only for birth certificates (see _ocr), so no other document type is
+        affected by what is in _RULER_MARKS."""
         ocr = self.results.meta_results.get('OCR')
         if not ocr:
             return
+        runs = re.compile(f'[{self._RULER_MARKS}]{{2,}}')
+        lone = re.compile(f'(?:^|(?<=\\s))[{self._RULER_MARKS}](?=\\s|$)')
         for key, value in list(ocr.items()):
             if not isinstance(value, str):
                 continue
-            text = re.sub(r'[._\-]{2,}', ' ', value)      # runs of ruler dots
-            text = re.sub(r'(?:^|(?<=\s))[._\-](?=\s|$)', ' ', text)  # lone separators
+            text = runs.sub(' ', value)       # runs of ruler marks
+            text = lone.sub(' ', text)        # marks standing alone
             ocr[key] = re.sub(r'\s+', ' ', text).strip()
 
     def _ocr_serial(self, words_dict: dict, doc_type: str):
