@@ -1,0 +1,75 @@
+# Установка библиотеки как pip-пакета. Два важных отличия от 3.x:
+#
+#   * импорт — `from document_processing import Pipeline` (пакет верхнего
+#     уровня; обёртки `russian_docs_ocr.` больше нет);
+#   * веса моделей в дистрибутив НЕ входят (они не в git и весят ~215 МБ) —
+#     после установки один раз выполните `rdocs-fetch-models`: веса скачаются
+#     в установленный пакет (site-packages/document_processing/models) и
+#     проверятся по SHA-256 из models.lock.json.
+#
+# Сервис (service/), порты (ports/) и conformance-харнесс в пакет не входят —
+# это репозиторные артефакты; пакет — только библиотека распознавания.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "russian_docs_ocr"
+dynamic = ["version"]
+authors = [
+    {name = "Митянина Анастасия Владимировна", email = "av.mityanina@zbrsk.ru"},
+    {name = "Мельников Виталий Андреевич", email = "protei300@gmail.com"},
+    {name = "Валуев Дмитрий Валерьевич", email = "dee-mon@mail.ru"},
+    {name = "Карпич Александр Владимирович", email = "avkarpich@gmail.com"},
+]
+description = "Библиотека распознавания документов РФ (паспорт, ВУ, СНИЛС, загранпаспорт, свидетельство о рождении)"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["ocr", "russian", "documents", "passport", "driver-license", "snils"]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+# Пины совпадают с requirements2026.txt — проверенным набором проекта.
+# pandas/py-cpuinfo/pytest из него не входят: они нужны только скриптам
+# бенчмарка и тестам, которые в пакет не пакуются.
+dependencies = [
+    "numpy==2.2.6",
+    "onnxruntime==1.21.1",
+    "opencv-python-headless==4.12.0.88",
+    "PyYAML==6.0.2",
+    "scikit-learn==1.7.0",
+    "Pillow==12.3.0",
+]
+
+[project.optional-dependencies]
+# GPU: extra не объявляем — onnxruntime и onnxruntime-gpu конфликтуют как
+# один и тот же пакет под разными именами, extras не умеют заменять зависимость.
+# Рецепт (см. README, раздел GPU): pip uninstall onnxruntime && pip install onnxruntime-gpu==1.21.1
+openvino = ["openvino>=2023.1"]
+dev = ["pytest==8.3.4"]
+
+[project.urls]
+Documentation = "https://github.com/protei300/RussianDocsOCR"
+Repository = "https://github.com/protei300/RussianDocsOCR"
+Changelog = "https://github.com/protei300/RussianDocsOCR/blob/main/CHANGELOG.md"
+
+[project.scripts]
+rdocs-fetch-models = "document_processing.fetch_models:main"
+
+[tool.hatch.version]
+path = "document_processing/__init__.py"
+
+# Веса исключаются из обоих дистрибутивов: локальная сборка из чекаута, где
+# они уже скачаны, иначе даст колесо на ~300 МБ. models.lock.json — НЕ под
+# models/, он остаётся в пакете (по нему rdocs-fetch-models качает и проверяет).
+[tool.hatch.build.targets.wheel]
+packages = ["document_processing"]
+exclude = ["document_processing/models/**"]
+
+[tool.hatch.build.targets.sdist]
+include = ["document_processing", "README.md", "LICENSE", "NOTICE"]
+exclude = ["document_processing/models/**"]

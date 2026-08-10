@@ -22,9 +22,10 @@
 # repo's release, pinned by the tag inside models.lock.json, and the downloader
 # verifies every file's SHA-256 before it counts as present.
 #
-# Only two files are copied in, so editing anything else in the repository does
-# not invalidate this layer: a rebuild re-downloads 215 MB only when the
-# manifest itself changed.
+# Only three files are copied in, so editing anything else in the repository
+# does not invalidate this layer: a rebuild re-downloads 215 MB only when the
+# manifest itself changed. (scripts/fetch_models.py is a path-loading wrapper
+# around the in-package implementation, hence the third COPY.)
 #
 # Air-gapped build: mirror the assets internally and pass
 #   --build-arg RDOCS_MODELS_URL=https://mirror.internal/rdocs/models/
@@ -35,6 +36,7 @@ ARG RDOCS_MODELS_URL=""
 ENV RDOCS_MODELS_URL=${RDOCS_MODELS_URL}
 WORKDIR /src
 COPY document_processing/models.lock.json document_processing/models.lock.json
+COPY document_processing/fetch_models.py document_processing/fetch_models.py
 COPY scripts/fetch_models.py scripts/fetch_models.py
 # stdlib only by design — no pip install needed here
 RUN python scripts/fetch_models.py --jobs 8
