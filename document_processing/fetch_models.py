@@ -110,7 +110,10 @@ def main():
     if not MANIFEST.exists():
         sys.exit(f'no manifest at {MANIFEST} - run scripts/build_models_manifest.py')
     manifest = json.loads(MANIFEST.read_text(encoding='utf8'))
-    base_url = os.environ.get('RDOCS_MODELS_URL', manifest['base_url'])
+    # `or`, not a get() default: the Docker model stage exports the variable as
+    # an EMPTY string via `ENV RDOCS_MODELS_URL=${RDOCS_MODELS_URL}`, and an empty
+    # base URL turns every asset into "unknown url type: '/<asset>'".
+    base_url = os.environ.get('RDOCS_MODELS_URL') or manifest['base_url']
     if not base_url.endswith('/'):
         base_url += '/'
 
