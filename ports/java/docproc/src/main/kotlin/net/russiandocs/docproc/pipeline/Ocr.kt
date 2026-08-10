@@ -103,4 +103,29 @@ public object Ocr {
     public fun fixFms(fields: List<FieldText>, docType: String) {
         // Intentionally empty. See the note above.
     }
+
+    /** Runs of the ruler dots the 1998 birth-certificate form prints under every value. */
+    private val RULER_RUNS = Regex("""[._\-]{2,}""")
+
+    /** A separator standing alone between spaces, or at either end of the string. */
+    private val LONE_SEPARATOR = Regex("""(?:^|(?<=\s))[._\-](?=\s|$)""")
+
+    private val WHITESPACE = Regex("""\s+""")
+
+    /**
+     * Collapses the dotted ruler lines out of a joined field value.
+     *
+     * Port of `Pipeline._clean_ruler_artifacts` (pipeline.py:1061). The rulers land inside the field crops
+     * and OCR emits runs of dots, dashes and underscores around the real words; they carry no information
+     * on this form. Single in-word dots — the digit birth date, abbreviations — are left alone, exactly as
+     * in the reference.
+     *
+     * Both reference patterns are ported verbatim: `java.util.regex` supports the lookbehind the second one
+     * needs. (The Go port had to substitute token filtering — RE2 has no lookaround.)
+     */
+    public fun cleanRulerArtifacts(value: String): String {
+        var text = RULER_RUNS.replace(value, " ")
+        text = LONE_SEPARATOR.replace(text, " ")
+        return WHITESPACE.replace(text, " ").trim()
+    }
 }

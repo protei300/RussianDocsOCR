@@ -272,12 +272,19 @@ public sealed class Recognizer : IDisposable
                         () => Ocr.Run(fieldWords, bareType, ocrOptions, _cyrillic, _latin));
                     Ocr.FixFms(texts, bareType);
 
+                    // Ruler cleanup applies to the FINAL per-field values only: the reference emits
+                    // `join` from the raw dict and cleans meta_results['OCR'] afterwards
+                    // (pipeline.py:1058), so the conformance payload stays raw here too.
+                    bool cleanRulers = bareType.Contains("birthcert", StringComparison.OrdinalIgnoreCase);
+
                     var joined = new Dictionary<string, string>(StringComparer.Ordinal);
                     foreach (FieldText text in texts)
                     {
                         options.Sink.Emit($"ocr.{text.Label}.words", text.Words);
                         joined[text.Label] = text.Value;
-                        results.Ocr[text.Label] = text.Value;
+                        results.Ocr[text.Label] = cleanRulers
+                            ? Ocr.CleanRulerArtifacts(text.Value)
+                            : text.Value;
                     }
                     options.Sink.Emit("join", joined);
                     results.Words = texts;

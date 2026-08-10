@@ -334,6 +334,11 @@ public class Recognizer(
                     results.timings[TIMING_OCR] = (System.nanoTime() - ocrStart) / 1e9
                     Ocr.fixFms(texts, bareType)
 
+                    // Ruler cleanup applies to the FINAL per-field values only: the reference emits
+                    // `join` from the raw dict and cleans meta_results['OCR'] afterwards
+                    // (pipeline.py:1058), so the conformance payload stays raw here too.
+                    val cleanRulers = bareType.lowercase().contains("birthcert")
+
                     val joined = LinkedHashMap<String, String>()
                     for (text in texts) {
                         options.sink.emit(
@@ -341,7 +346,8 @@ public class Recognizer(
                             JsonArray(text.words.map { JsonPrimitive(it) }),
                         )
                         joined[text.label] = text.value
-                        results.ocr[text.label] = text.value
+                        results.ocr[text.label] =
+                            if (cleanRulers) Ocr.cleanRulerArtifacts(text.value) else text.value
                     }
                     options.sink.emit(
                         "join",

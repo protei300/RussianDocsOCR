@@ -113,6 +113,25 @@ public sealed record OcrOptions
                     "Sex_ru"],
             };
         }
+        if (t.Contains("birthcert", StringComparison.Ordinal))
+        {
+            // Birth certificates (OCROptionsBIRTHCERT, pipeline.py:134). Dates on this form spell
+            // the month in Cyrillic («16 декабря 2001»), so Issue_date is a RU field — RuFields wins
+            // over the date route here exactly as in the reference. Only the digit-form birth date
+            // takes the Latin engine. Licence_number mixes a Roman-numeral series with Cyrillic and
+            // «№»; routed Cyrillic as the lesser evil, same as the reference.
+            return new OcrOptions
+            {
+                NeededSplit = ["First_name_ru", "Birth_place_ru", "Issue_organization_ru",
+                    "Issue_date", "Licence_number",
+                    "Father_first_middle_ru", "Mother_first_middle_ru"],
+                EnFields = ["Birth_date"],
+                RuFields = ["Last_name_ru", "First_name_ru", "Birth_place_ru",
+                    "Issue_organization_ru", "Issue_date", "Licence_number",
+                    "Father_last_name_ru", "Father_first_middle_ru",
+                    "Mother_last_name_ru", "Mother_first_middle_ru"],
+            };
+        }
         return new OcrOptions();
     }
 }

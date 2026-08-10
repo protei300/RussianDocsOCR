@@ -120,4 +120,35 @@ public static class Ocr
     {
         // Intentionally empty. See the note above.
     }
+
+    /// <summary>
+    /// Collapses the dotted ruler lines the 1998 birth-certificate form prints under every value.
+    ///
+    /// <para>
+    /// Port of <c>Pipeline._clean_ruler_artifacts</c> (pipeline.py:1061). The rulers land inside the
+    /// field crops and OCR emits runs of dots, dashes and underscores around the real words; they
+    /// carry no information on this form. Single in-word dots — the digit birth date, abbreviations —
+    /// are left alone, exactly as in the reference.
+    /// </para>
+    ///
+    /// <para>
+    /// The reference's second pattern uses a lookbehind, which .NET supports, so both patterns are
+    /// ported verbatim. (The Go port had to replace it with token filtering: RE2 has no lookaround.)
+    /// </para>
+    /// </summary>
+    public static string CleanRulerArtifacts(string value)
+    {
+        string text = RulerRuns.Replace(value, " ");
+        text = LoneSeparator.Replace(text, " ");
+        return Whitespace.Replace(text, " ").Trim();
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex RulerRuns =
+        new(@"[._\-]{2,}", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly System.Text.RegularExpressions.Regex LoneSeparator =
+        new(@"(?:^|(?<=\s))[._\-](?=\s|$)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly System.Text.RegularExpressions.Regex Whitespace =
+        new(@"\s+", System.Text.RegularExpressions.RegexOptions.Compiled);
 }
