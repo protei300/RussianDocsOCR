@@ -4,6 +4,7 @@
 изображению (фото с телефона или скан) — без специального оборудования.
 
 Проект: [github.com/protei300/RussianDocsOCR](https://github.com/protei300/RussianDocsOCR) ·
+[**Вики**](https://github.com/protei300/RussianDocsOCR/wiki) — карта проекта, рецепты интеграции, FAQ ·
 Лицензия [**MIT**](LICENSE) — она покрывает и код, и **обученные веса моделей** (215 МБ, качаются
 [отдельным шагом](#установка) в `document_processing/models/`); подробности и сторонние
 компоненты — в [`NOTICE`](NOTICE) ·
