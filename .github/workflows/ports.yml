@@ -36,6 +36,9 @@ on:
 
 env:
   OPENCV_VERSION: 4.13.0
+  # See the ONNX Runtime step in the Go job for why this is 1.21.0 and not the
+  # reference's 1.21.1. Kept in step with ports/go/build/Dockerfile's ARG.
+  ONNXRUNTIME_VERSION: 1.21.0
 
 jobs:
   # ─── Go ────────────────────────────────────────────────────────────────────
@@ -65,12 +68,21 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config libopencv-dev
 
+      # 1.21.x is REQUIRED, not preferred: onnxruntime_go v1.19.0 vendors ORT_API_VERSION 21 and a
+      # newer runtime rejects the handshake. 1.21.**0** rather than the reference's 1.21.1 because
+      # **1.21.1 publishes no CPU tarball** — that release ships only
+      # onnxruntime-linux-x64-gpu-1.21.1.tgz, so this step 404'd on its first real run. The same
+      # discovery is already recorded in ports/go/build/Dockerfile, which pins 1.21.0 for the same
+      # reason; the version now lives in one place at the top of this file so the two cannot drift.
+      # The patch difference against the reference is safe on evidence: the spike measured 1.21.1
+      # against 1.28.0 on CPU and got bit-identical tensors, so a patch bump inside 1.21 cannot move
+      # numbers that two minor versions did not.
       - name: ONNX Runtime
         run: |
           curl -fsSL -o ort.tgz \
-            https://github.com/microsoft/onnxruntime/releases/download/v1.21.1/onnxruntime-linux-x64-1.21.1.tgz
+            "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
           tar xzf ort.tgz
-          echo "ORT_SO=$PWD/onnxruntime-linux-x64-1.21.1/lib/libonnxruntime.so" >> "$GITHUB_ENV"
+          echo "ORT_SO=$PWD/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}/lib/libonnxruntime.so" >> "$GITHUB_ENV"
 
       - name: Install the reference (the checker is Python)
         run: |
@@ -185,6 +197,16 @@ jobs:
         if: steps.opencv-cache.outputs.cache-hit != 'true'
         run: ports/java/tools/build-opencv.sh ~/opencv-build
 
+      # Separate from the build above because that one is skipped on a cache hit, and the variable is
+      # needed either way. Exported through $GITHUB_ENV rather than a step-level `env:` on purpose:
+      # Actions does NOT expand shell variables in `env:` values, so `RDOCS_OPENCV_HOME: $HOME/...`
+      # reaches Gradle as the literal seven characters "$HOME/…" and the build fails claiming OpenCV
+      # is missing. It was written that way, pointing at ${{ github.workspace }}/../opencv-build —
+      # which is /home/runner/work/<repo>/opencv-build, while the script installs into
+      # ~/opencv-build. Two separate reasons the same path could never resolve.
+      - name: Locate the OpenCV build
+        run: echo "RDOCS_OPENCV_HOME=$HOME/opencv-build/build" >> "$GITHUB_ENV"
+
       - name: Install the reference (the checker is Python)
         run: |
           python -m pip install --upgrade pip
@@ -198,11 +220,7 @@ jobs:
       # here. Neither Windows native-loading trap — J-01 or J-16 — can occur on Linux.
       - name: Build and test
         working-directory: ports/java
-        env:
-          RDOCS_OPENCV_HOME: ${{ github.workspace }}/../opencv-build/build
         run: ./gradlew --no-daemon build
 
       - name: Conformance
-        env:
-          RDOCS_OPENCV_HOME: ${{ github.workspace }}/../opencv-build/build
         run: python -m conformance.runner run --port java
