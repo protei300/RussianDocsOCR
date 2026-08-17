@@ -14,11 +14,25 @@
 # behaviour. A port built against 4.9 fails `borders.segments` for a reason nothing in the code
 # explains.
 #
-# HONEST NOTE ON PROVENANCE: **this workflow has never run.** The commands are the ones used on a
-# development machine, where all three ports pass 44/44; the YAML is untested and the OpenCV build
-# step in particular is the kind that needs one real attempt to settle. Treat a first red run as a
-# packaging problem, not a port regression, and check `ports/<lang>/README.md` for what that port
-# needs from the machine.
+# PROVENANCE: this ran red twice before it ran at all, and every cause was packaging — the note
+# that used to stand here predicted exactly that and was right. What it cost, so that a fourth port
+# does not pay it again:
+#
+#   1. ONNX Runtime 1.21.1 publishes no linux-x64 CPU tarball; the download 404'd. Already recorded
+#      in ports/go/build/Dockerfile, which had met it and pinned 1.21.0 — but the workflow had its
+#      own copy of the version. Both now read the `env:` block below.
+#   2. Every shell script in the repository was mode 100644. `Permission denied`, exit 126.
+#   3. `RDOCS_OPENCV_HOME` could not resolve for two independent reasons at once: it named
+#      ${{ github.workspace }}/../opencv-build while the script installs into ~/opencv-build, and it
+#      was set in a step-level `env:`, where Actions does not expand `$HOME`.
+#   4. The Go job installed apt's libopencv-dev under a comment claiming a source build "below"
+#      overrode it. There was no such step — it had been carried over from the Kotlin job — and 4.6
+#      does not merely differ from 4.13, it fails to COMPILE gocv. See that job for the detail.
+#   5. `go build ./...` produced no binary, so Conformance would have failed on a missing
+#      ports/go/bin/rdocs-conform even had the compile succeeded.
+#
+# The pattern in 1, 4 and 5 is the same one: the workflow restated what a port's own build recipe
+# already knew, instead of calling it. Prefer `ports/<lang>/…` scripts over inline commands here.
 name: ports
 
 on:
@@ -59,14 +73,52 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      # gocv links OpenCV through cgo, and Ubuntu's packaged version is too old — see the note in the
-      # header about 4.8. The apt package is used anyway for its dependencies, then overridden by the
-      # source build in the cache step below.
-      - name: OpenCV development packages
+      # NO libopencv-dev. It was here, with a comment claiming the apt package was "overridden by the
+      # source build in the cache step below" — there was no such step in this job; the sentence was
+      # carried over from the Kotlin one. What actually happened on the first real run is worse than
+      # a wrong version at conformance time: gocv 0.43.0 does not COMPILE against Ubuntu 24.04's
+      # OpenCV 4.6, because its aruco.cpp needs `cv::aruco`, which moved out of contrib into
+      # objdetect in 4.7. Fifty lines of "'aruco' in namespace 'cv' does not name a type", naming no
+      # version. Go needs the same source build Kotlin does.
+      - name: Build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake pkg-config libopencv-dev
+            build-essential cmake ninja-build pkg-config curl unzip zlib1g-dev
+
+      # Cached on the version alone: the build depends on nothing else in the repository, and it is
+      # a quarter of an hour that must not be paid weekly. Separate from the Kotlin job's cache on
+      # purpose — that one is configured with -DBUILD_JAVA=ON and a narrower module list, and one
+      # cache serving two different configurations is precisely the divergence the header warns
+      # about.
+      - name: Cache the OpenCV build
+        id: opencv-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/opencv-go/install
+          key: opencv-go-${{ env.OPENCV_VERSION }}-${{ runner.os }}
+
+      - name: Build OpenCV
+        if: steps.opencv-cache.outputs.cache-hit != 'true'
+        run: ports/go/tools/build-opencv.sh ~/opencv-go
+
+      # Separate from the build above because that one is skipped on a cache hit, and both variables
+      # are needed either way. Through $GITHUB_ENV rather than a step-level `env:` because Actions
+      # does not expand shell variables in `env:` values — see the same note in the Kotlin job.
+      # gocv's cgo directives say `pkg-config: opencv4` on Linux, so PKG_CONFIG_PATH is how the
+      # compiler finds the headers; LD_LIBRARY_PATH is how the finished binary finds the .so files,
+      # which are under $HOME rather than in the loader's default search path.
+      #
+      # PREPENDED, not assigned. setup-python has already put its own directories in both — and
+      # LD_LIBRARY_PATH is where the interpreter finds libpython, so overwriting it would break the
+      # conformance step (whose checker is Python) several steps later, in a way that would look
+      # like anything but this.
+      - name: Locate the OpenCV build
+        run: |
+          {
+            echo "PKG_CONFIG_PATH=$HOME/opencv-go/install/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+            echo "LD_LIBRARY_PATH=$HOME/opencv-go/install/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          } >> "$GITHUB_ENV"
 
       # 1.21.x is REQUIRED, not preferred: onnxruntime_go v1.19.0 vendors ORT_API_VERSION 21 and a
       # newer runtime rejects the handshake. 1.21.**0** rather than the reference's 1.21.1 because
@@ -93,13 +145,20 @@ jobs:
       # (RDOCS_MODELS_ROOT); since 3.0.2 they are fetched, not checked out.
       - uses: ./.github/actions/fetch-models
 
+      # The port's own script, not a bare `go build ./...`. That was here and would have failed the
+      # Conformance step even after compiling cleanly: conformance/ports.json drives
+      # ports/go/bin/rdocs-conform, and `go build ./...` writes no binary anywhere. build.sh also
+      # asserts the OpenCV version pkg-config reports, which is the check that would have named the
+      # real problem on the first run.
       - name: Build
         working-directory: ports/go
-        run: go build ./... && go vet ./...
+        run: ./build.sh
 
       - name: Unit tests
         working-directory: ports/go
-        run: go test ./...
+        run: |
+          go vet ./...
+          go test ./...
 
       - name: Conformance
         run: python -m conformance.runner run --port go
