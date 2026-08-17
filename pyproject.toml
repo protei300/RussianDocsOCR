@@ -50,7 +50,7 @@ dependencies = [
 # один и тот же пакет под разными именами, extras не умеют заменять зависимость.
 # Рецепт (см. README, раздел GPU): pip uninstall onnxruntime && pip install onnxruntime-gpu==1.21.1
 openvino = ["openvino>=2023.1"]
-dev = ["pytest==8.3.4"]
+dev = ["pytest==9.0.3"]
 
 [project.urls]
 Documentation = "https://github.com/protei300/RussianDocsOCR"
