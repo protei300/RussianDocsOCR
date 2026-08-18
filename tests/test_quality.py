@@ -45,6 +45,12 @@ def _load_eval_module():
 MIN_DOCTYPE_ACCURACY = 0.97
 MIN_EXACT_RATE = 0.85
 MAX_MEAN_CER = {
+    # BIRTHCERT_1998 arrived with samples/ in 4dc0829 and was never given an entry
+    # here, which made test_per_doctype_cer fail on the folder-set assertion from
+    # that commit onwards - the assertion exists precisely so a new doc type cannot
+    # be measured against no threshold. Measured 0.0410 on the single synthetic
+    # sample; the bound is loose because one document is a thin basis.
+    'BIRTHCERT_1998': 0.06,
     'DL_2011': 0.035,
     'DL_2020': 0.035,
     'EXTPASSPORTBIO_2007': 0.035,

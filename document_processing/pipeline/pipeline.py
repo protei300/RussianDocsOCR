@@ -65,10 +65,17 @@ class OCROptionsClass:
     """list: Fields that need to be split for this doc type."""
     needed_split = []
 
-    """list: English fields to recognize for this doc type."""
+    """list: Fields read by the LATIN engine for this doc type."""
     en_fields = []
 
-    """list: Russian fields to recognize for this doc type."""
+    """list: Fields read by the CYRILLIC engine for this doc type.
+
+    The two lists select an ENGINE, not a language, and the distinction became
+    load-bearing with issue #12: a passport series/number is pure digits, both
+    engines carry the digit classes, and they do not agree on them. Membership
+    here is decided by measurement, not by what language the field is written
+    in - see OCROptionsINTPassport.
+    """
     ru_fields = []
 
     """bool: Whether this doc type needs license number rotation."""
@@ -113,9 +120,18 @@ class OCROptionsINTPassport(OCROptionsClass):
                     "Birth_place_ru", "Issue_organization_ru",
                     ]
 
-    en_fields = ["Licence_number", "Issue_date", "Expiration_date", "Birth_date", "Issue_organisation_code", ]
+    en_fields = ["Issue_date", "Expiration_date", "Birth_date", "Issue_organisation_code", ]
+    # Licence_number is CYRILLIC-routed, and that is not a typo: the series and
+    # number are digits only, but the Latin engine reads the passport's red '3'
+    # as '8' - confidently, at p=0.94..1.00 with '3' as the runner-up at 0.004,
+    # so no threshold, alphabet mask or upscaling can recover it (issue #12).
+    # The Cyrillic engine reads the SAME crops correctly. Measured over
+    # samples/: Latin 17/24 exact, Cyrillic 24/24; across every doc type,
+    # Latin 103/112, Cyrillic 111/112, and Cyrillic is never worse except on
+    # BIRTHCERT, whose series is a Roman numeral - which is why that doc type
+    # keeps the Latin engine.
     ru_fields = ["Last_name_ru", "First_name_ru", "Birth_place_ru", "Issue_organization_ru",
-                 "Living_region_ru", "Middle_name_ru", "Sex_ru"]
+                 "Living_region_ru", "Middle_name_ru", "Sex_ru", "Licence_number"]
     needs_licence_rotation = True
 
 class OCROptionsINTPASSPORTADDR(OCROptionsClass):
@@ -159,12 +175,15 @@ class OCROptionsEXTPassport(OCROptionsClass):
 
     needed_split = ["Licence_number", "Birth_place_ru", "Birth_place_en", ]
 
-    en_fields = ["Last_name_en", "First_name_en", "Licence_number", "Issue_date",
+    en_fields = ["Last_name_en", "First_name_en", "Issue_date",
                  "Expiration_date", "Birth_date", "Birth_place_en",
                  "Issue_organization_en", "Living_region_en", "Sex_en",
                  "Issue_organisation_code", "Middle_name_en"]
+    # Licence_number: Cyrillic-routed for the reason given on OCROptionsINTPassport.
+    # Smaller effect here (Latin 41/42 exact, Cyrillic 42/42 over samples/) because
+    # the number is printed larger, but it is the same digit confusion.
     ru_fields = ["Last_name_ru", "First_name_ru", "Birth_place_ru", "Issue_organization_ru",
-                 "Living_region_ru", "Middle_name_ru", "Sex_ru"]
+                 "Living_region_ru", "Middle_name_ru", "Sex_ru", "Licence_number"]
 
 
 class OCROptionsDL(OCROptionsClass):
