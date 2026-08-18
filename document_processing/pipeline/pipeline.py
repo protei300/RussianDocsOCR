@@ -128,8 +128,9 @@ class OCROptionsINTPassport(OCROptionsClass):
     # The Cyrillic engine reads the SAME crops correctly. Measured over
     # samples/: Latin 17/24 exact, Cyrillic 24/24; across every doc type,
     # Latin 103/112, Cyrillic 111/112, and Cyrillic is never worse except on
-    # BIRTHCERT, whose series is a Roman numeral - which is why that doc type
-    # keeps the Latin engine.
+    # BIRTHCERT, where NEITHER engine reads the Roman-numeral series correctly.
+    # That type is not touched here: it was already Cyrillic-routed, as the
+    # lesser evil - see OCROptionsBIRTHCERT.
     ru_fields = ["Last_name_ru", "First_name_ru", "Birth_place_ru", "Issue_organization_ru",
                  "Living_region_ru", "Middle_name_ru", "Sex_ru", "Licence_number"]
     needs_licence_rotation = True
