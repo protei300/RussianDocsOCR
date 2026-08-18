@@ -31,7 +31,7 @@ class LCDSpoofing(BaseModule):
                bool: Spoofing prediction
                float: Confidence (0-1)
         """
-        self.load_img(img)
+        img = self.load_img(img)
         result, conf = self.model.predict(img)[0]
         meta = {
             self.model_name: (result, conf)

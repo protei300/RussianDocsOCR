@@ -24,7 +24,7 @@ class TextFieldsDetector(BaseModule):
         Returns:
             List of detected text field bounding boxes
         """
-        self.load_img(img)
+        img = self.load_img(img)
         bbox = self.model.predict(img)
         meta = {
             self.model_name:

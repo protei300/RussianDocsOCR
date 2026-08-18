@@ -26,7 +26,7 @@ class WordsDetector(BaseModule):
         Returns:
             List of detected word bounding boxes
         """
-        self.load_img(img)
+        img = self.load_img(img)
 
         bbox = self.model.predict(img)
         meta = {

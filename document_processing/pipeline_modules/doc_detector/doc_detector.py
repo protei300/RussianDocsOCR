@@ -39,7 +39,7 @@ class DocDetector(BaseModule):
         Returns:
             Dictionary with bboxes, masks and segmentation
         """
-        self.load_img(img)
+        img = self.load_img(img)
 
         bbox, mask, segm = self.model.predict(img)
         meta = {
