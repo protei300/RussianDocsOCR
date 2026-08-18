@@ -21,6 +21,7 @@ from document_processing.pipeline.pipeline import (OCROptionsEXTPassport,
                                                    OCROptionsINTPassport)
 
 SAMPLES = Path(__file__).resolve().parent.parent / 'samples'
+IMG_EXTS = ('.jpg', '.jpeg', '.png')
 
 # Documents whose number the Latin engine got wrong, all of them 3 -> 8.
 REGRESSIONS = [
@@ -46,6 +47,10 @@ def pipeline():
 @pytest.mark.parametrize('rel,expected', REGRESSIONS)
 def test_series_number_is_read_correctly(pipeline, rel, expected):
     """End-to-end, on the documents the defect was found on."""
-    image = next((SAMPLES / rel).parent.glob((SAMPLES / rel).name + '.*'))
+    # Extension-explicit on purpose: globbing '<name>.*' also matches the
+    # ground-truth <name>.json sitting next to the image, and which of the two
+    # comes first is filesystem order - this passed on Windows and failed on CI.
+    stem = SAMPLES / rel
+    image = next(p for ext in IMG_EXTS for p in [stem.with_suffix(ext)] if p.exists())
     results = pipeline.process_img(str(image), ocr=True, check_quality=False)
     assert results.ocr.get('Licence_number') == expected
