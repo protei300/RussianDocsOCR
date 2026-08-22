@@ -1,6 +1,6 @@
 """End-to-end quality regression test: full pipeline over samples/ ground truth.
 
-Runs every image in samples/ (115 images, ~2 min on CPU) and asserts that doctype
+Runs every image in samples/ (117 images, ~2 min on CPU) and asserts that doctype
 accuracy, exact-match rate and per-doctype mean CER do not regress below the
 baseline measured on 2026-07-22 (see docs/progress-log.md), with a small margin.
 
@@ -51,6 +51,11 @@ MAX_MEAN_CER = {
     # be measured against no threshold. Measured 0.0410 on the single synthetic
     # sample; the bound is loose because one document is a thin basis.
     'BIRTHCERT_1998': 0.06,
+    # BIRTHCERT_2018 (order 167/2018 blank) added 2026-08-21 with the held-out
+    # synthetic sample. Measured 0.0111 on it (14/15 fields exact; the miss is
+    # the Roman-numeral series, a known engine limitation). Same reasoning as
+    # 1998: one document is a thin basis, so the bound is loose.
+    'BIRTHCERT_2018': 0.04,
     'DL_2011': 0.035,
     'DL_2020': 0.035,
     'EXTPASSPORTBIO_2007': 0.035,

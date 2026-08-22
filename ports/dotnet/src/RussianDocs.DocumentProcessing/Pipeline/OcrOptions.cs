@@ -121,21 +121,30 @@ public sealed record OcrOptions
         }
         if (t.Contains("birthcert", StringComparison.Ordinal))
         {
-            // Birth certificates (OCROptionsBIRTHCERT, pipeline.py:134). Dates on this form spell
-            // the month in Cyrillic («16 декабря 2001»), so Issue_date is a RU field — RuFields wins
-            // over the date route here exactly as in the reference. Only the digit-form birth date
-            // takes the Latin engine. Licence_number mixes a Roman-numeral series with Cyrillic and
-            // «№»; routed Cyrillic as the lesser evil, same as the reference.
+            // Birth certificates (OCROptionsBIRTHCERT, pipeline.py:156). ONE branch for both blank
+            // generations — BIRTHCERT_1998 and BIRTHCERT_2018 (order 167/2018: worded birth date,
+            // parents' birth dates, place of issue, 21-digit act number) — because the dispatcher
+            // never sees the year suffix.
+            //
+            // EnFields is EMPTY and that is the whole point: every date on these forms is spelled
+            // out in Cyrillic («16 декабря 2001», «15 октября 2020 г.»), and the Cyrillic engine
+            // reads the 1998 digit-only birth date just as well — the same precedent as the
+            // passport Licence_number (issue #12). Licence_number mixes a Roman-numeral series with
+            // Cyrillic and «№»; routed Cyrillic as the lesser evil, same as the reference.
             return new OcrOptions
             {
                 NeededSplit = ["First_name_ru", "Birth_place_ru", "Issue_organization_ru",
                     "Issue_date", "Licence_number",
-                    "Father_first_middle_ru", "Mother_first_middle_ru"],
-                EnFields = ["Birth_date"],
+                    "Father_first_middle_ru", "Mother_first_middle_ru",
+                    "Birth_date", "Father_birth_date", "Mother_birth_date",
+                    "Issue_place_ru"],
+                EnFields = [],
                 RuFields = ["Last_name_ru", "First_name_ru", "Birth_place_ru",
                     "Issue_organization_ru", "Issue_date", "Licence_number",
                     "Father_last_name_ru", "Father_first_middle_ru",
-                    "Mother_last_name_ru", "Mother_first_middle_ru"],
+                    "Mother_last_name_ru", "Mother_first_middle_ru",
+                    "Birth_date", "Father_birth_date", "Mother_birth_date",
+                    "Issue_place_ru", "Act_number"],
             };
         }
         return new OcrOptions();

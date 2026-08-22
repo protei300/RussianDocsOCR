@@ -63,6 +63,7 @@ _TYPE_ORDER = (
     "DL_2020",
     "EXTPASSPORT_2003",
     "BIRTHCERT_1998",
+    "BIRTHCERT_2018",
 )
 
 SEED_PREFIX = "sample"

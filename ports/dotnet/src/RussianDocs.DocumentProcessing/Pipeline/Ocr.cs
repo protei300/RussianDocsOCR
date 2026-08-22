@@ -68,10 +68,12 @@ public static class Ocr
     /// Joins one field's words.
     ///
     /// <para>
-    /// Three rules, all from the reference. A date joins with DOTS — <c>17.03.1987</c> — except on
-    /// SNILS, where the parts are words and join with spaces. Everything else joins with spaces, and
-    /// APPENDS to whatever an earlier detection of the same label produced, which is how the internal
-    /// passport's twice-printed series ends up as one value.
+    /// All from the reference. The date separator follows the CONTENT: a digit date joins with DOTS
+    /// — <c>17.03.1987</c> — while a date spelled out in words joins with spaces. SNILS is worded by
+    /// definition and stays hard-coded; birth certificates need both (the 1998 blank has a digit
+    /// Birth_date next to a worded Issue_date, every date on the 2018 blank is worded). Everything
+    /// else joins with spaces, and APPENDS to whatever an earlier detection of the same label
+    /// produced, which is how the internal passport's twice-printed series ends up as one value.
     /// </para>
     ///
     /// <para>
@@ -83,9 +85,12 @@ public static class Ocr
         List<string> words)
     {
         bool isDate = label.Contains("date", StringComparison.OrdinalIgnoreCase);
+        // Only multi-word dates are affected: a digit date reaches this point as a single word
+        // ("22.06.2010"), where the separator cannot show.
+        bool worded = docType == "SNILS" || words.Any(w => w.Any(char.IsLetter));
 
         string value;
-        if (isDate && docType != "SNILS")
+        if (isDate && !worded)
         {
             value = string.Join(".", words);
         }

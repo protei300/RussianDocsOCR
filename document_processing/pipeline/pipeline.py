@@ -153,15 +153,14 @@ class OCROptionsINTPASSPORTADDR(OCROptionsClass):
     needs_licence_rotation = False
 
 class OCROptionsBIRTHCERT(OCROptionsClass):
-    """OCR options for RF birth certificates (BIRTHCERT_1998).
+    """OCR options for RF birth certificates (BIRTHCERT_1998, BIRTHCERT_2018).
 
     Field names follow the shared TextFields class vocabulary: the child's
     name maps onto Last_name_ru/First_name_ru, the ZAGS office onto
     Issue_organization_ru, the series/number line onto Licence_number, and
     the parents get their own *_ru classes (added with the 2026-08 detector
     retrain). Dates on this form spell the month out in Cyrillic
-    («16 декабря 2001»), so Issue_date goes through the Cyrillic engine;
-    only the digit-form birth date (DD/MM/YYYY) takes the Latin route.
+    («16 декабря 2001»), so they go through the Cyrillic engine.
     Licence_number mixes a Roman-numeral series with Cyrillic letters and
     «№» — routed to the Cyrillic engine as the lesser evil (the Roman-digit
     series is the expected CER cost; revisit if the eval says otherwise).
@@ -1254,8 +1253,8 @@ class Pipeline:
 
     @staticmethod
     def _join_field(ocr_dict: dict, field_name: str, doc_type: str, ocred_words: list):
-        """Join per-word OCR results into the field's final string (dates use
-        '.', SNILS dates use ' ', MRZ uses a newline, everything else ' ')."""
+        """Join per-word OCR results into the field's final string (digit dates
+        use '.', worded dates use ' ', MRZ uses a newline, everything else ' ')."""
         # The MRZ arrives as one detection per line, top to bottom. The line
         # boundary is load-bearing - every check digit lives at a fixed offset
         # in line 2 - so the lines are joined with a newline and nothing else
@@ -1263,10 +1262,21 @@ class Pipeline:
         if field_name == 'MRZ':
             ocr_dict[field_name] = '\n'.join(w for w in ocred_words if w)
             return
-        if 'date' in field_name.lower() and doc_type != 'SNILS':
-            ocr_dict[field_name] = '.'.join(ocred_words)
-        elif 'date' in field_name.lower() and doc_type == 'SNILS':
-            ocr_dict[field_name] = ' '.join(ocred_words)
+        if 'date' in field_name.lower():
+            # The separator follows the CONTENT of the date, not the doc type:
+            # a digit date (DD.MM.YYYY) is written with dots, a date spelled out
+            # in words is not. SNILS is worded by definition ('26 СЕНТЯБРЯ 1997
+            # ГОДА') and stays hard-coded; birth certificates need both - the
+            # 1998 form has a digit Birth_date but a worded Issue_date, and the
+            # whole 2018 form is worded ('15 ОКТЯБРЯ 2020 Г.', the parents'
+            # birth dates). The 1998 form hid this: its ruler dots merged with
+            # the join dot into a run that _clean_ruler_artifacts wiped out; on
+            # the cleaner 2018 crops the lone join dot survived, giving
+            # '30.ОКТЯБРЯ.2020'. Multi-word dates are the only ones affected -
+            # a digit date reaches this point as a single word ('22.06.2010').
+            worded = doc_type == 'SNILS' or any(c.isalpha()
+                                                for w in ocred_words for c in w)
+            ocr_dict[field_name] = (' ' if worded else '.').join(ocred_words)
         else:
             if ocr_dict.get(field_name):
                 ocr_dict[field_name] += ' ' + ' '.join(ocred_words)

@@ -3,6 +3,7 @@ package pipeline
 import (
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/modules"
 )
@@ -115,22 +116,33 @@ func OcrFields(fields []FieldWords, docType string, opts OcrOptions,
 }
 
 // joinField assembles a field's final string.
-// Port of Pipeline._join_field (pipeline.py:1095-1107).
+// Port of Pipeline._join_field.
 //
-// Three separators for three cases, and the SNILS exception is not cosmetic: an ordinary
-// date joins with '.' to give "01.02.1998", but a SNILS date is words ("31 октября 1998")
-// and would become "31.октября.1998".
+// The date separator follows the CONTENT, not the doc type: a digit date joins with '.'
+// to give "01.02.1998", a date spelled out in words joins with spaces. SNILS is worded by
+// definition ("31 октября 1998") and stays hard-coded; birth certificates need both -
+// the 1998 blank has a digit Birth_date next to a worded Issue_date, and every date on
+// the 2018 blank is worded ("15 ОКТЯБРЯ 2020 Г."). Only multi-word dates are affected:
+// a digit date reaches this point as a single word ("22.06.2010").
 //
 // `joined` accumulates across calls because a field detected twice appends with a space
 // rather than replacing -- the reference relies on the dict already holding a value.
 func joinField(joined map[string]string, label, docType string, words []string) string {
 	isDate := strings.Contains(strings.ToLower(label), "date")
+	worded := docType == "SNILS"
+	for _, w := range words {
+		for _, r := range w {
+			if unicode.IsLetter(r) {
+				worded = true
+			}
+		}
+	}
 
 	var value string
 	switch {
-	case isDate && docType != "SNILS":
+	case isDate && !worded:
 		value = strings.Join(words, ".")
-	case isDate && docType == "SNILS":
+	case isDate:
 		value = strings.Join(words, " ")
 	default:
 		if prev := joined[label]; prev != "" {

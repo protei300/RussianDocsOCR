@@ -58,10 +58,12 @@ public object Ocr {
     /**
      * Joins one field's words.
      *
-     * Three rules, all from the reference. A date joins with DOTS — `17.03.1987` — except on SNILS, where the
-     * parts are words and join with spaces. Everything else joins with spaces, and APPENDS to whatever an
-     * earlier detection of the same label produced, which is how the internal passport's twice-printed series
-     * ends up as one value.
+     * All from the reference. The date separator follows the CONTENT: a digit date joins with DOTS —
+     * `17.03.1987` — while a date spelled out in words joins with spaces. SNILS is worded by definition and
+     * stays hard-coded; birth certificates need both (the 1998 blank has a digit Birth_date next to a worded
+     * Issue_date, every date on the 2018 blank is worded). Everything else joins with spaces, and APPENDS to
+     * whatever an earlier detection of the same label produced, which is how the internal passport's
+     * twice-printed series ends up as one value.
      *
      * The double-space squeeze and the trim are the reference's too. They matter because an empty word — a
      * crop the OCR read as nothing — would otherwise leave a visible gap in the value.
@@ -73,9 +75,12 @@ public object Ocr {
         words: List<String>,
     ): String {
         val isDate = label.contains("date", ignoreCase = true)
+        // Only multi-word dates are affected: a digit date reaches this point as a single word
+        // ("22.06.2010"), where the separator cannot show.
+        val worded = docType == "SNILS" || words.any { w -> w.any { c -> c.isLetter() } }
 
         var value = when {
-            isDate && docType != "SNILS" -> words.joinToString(".")
+            isDate && !worded -> words.joinToString(".")
             isDate -> words.joinToString(" ")
             else -> {
                 val previous = joined[label] ?: ""

@@ -2,9 +2,11 @@ package pipeline
 
 import "testing"
 
-// An ordinary date joins with '.', but a SNILS date is WORDS ("31 октября 1998") and
-// joining those with '.' would produce "31.октября.1998".
-func TestJoinFieldDateSeparatorDependsOnDocType(t *testing.T) {
+// A digit date joins with '.', but a date spelled out in WORDS ("31 октября 1998") joins
+// with spaces -- joining those with '.' would produce "31.октября.1998". SNILS is worded by
+// definition; a birth certificate is worded by content (the 2018 blank spells every date
+// out, the 1998 blank keeps a digit Birth_date).
+func TestJoinFieldDateSeparatorFollowsContent(t *testing.T) {
 	if got := joinField(map[string]string{}, "Birth_date", "DL",
 		[]string{"06", "01", "1985"}); got != "06.01.1985" {
 		t.Fatalf("got %q, want 06.01.1985", got)
@@ -12,6 +14,14 @@ func TestJoinFieldDateSeparatorDependsOnDocType(t *testing.T) {
 	if got := joinField(map[string]string{}, "Birth_date", "SNILS",
 		[]string{"26", "СЕНТЯБРЯ", "1997"}); got != "26 СЕНТЯБРЯ 1997" {
 		t.Fatalf("got %q, want the space-joined form", got)
+	}
+	if got := joinField(map[string]string{}, "Birth_date", "BIRTHCERT",
+		[]string{"15", "ОКТЯБРЯ", "2020", "Г."}); got != "15 ОКТЯБРЯ 2020 Г." {
+		t.Fatalf("got %q, want the space-joined form", got)
+	}
+	if got := joinField(map[string]string{}, "Birth_date", "BIRTHCERT",
+		[]string{"22", "06", "2010"}); got != "22.06.2010" {
+		t.Fatalf("got %q, want 22.06.2010 -- the 1998 blank's digit birth date", got)
 	}
 }
 
