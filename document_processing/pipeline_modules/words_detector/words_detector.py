@@ -3,22 +3,29 @@ from typing import Union
 from pathlib import Path
 import numpy as np
 
-# The word patch is cut with a MARGIN, not on the detector box itself. The box is
-# tight around the ink, and a glyph whose stroke touches it loses its edge column
-# in the crop - the engine then reads the first or last character as a different
-# one, or drops it: АНАСТАСИЯ->МНАСТАСИЯ, АЛЕКСЕЙ->4ЛЕКСЕЙ, УПРАВЛЕНИЯ->ПРАВЛЕНИЯ,
-# ОБЛАСТИ->ОБЛАСТ, Г.->2, and «Саха (Якутия)» losing its closing bracket (issues
-# #14, #15). It bites on SMALL text: a birth-certificate canvas is ~674x936 with a
-# line height of 14-18 px against the 32 px the engine expects, so one lost column
-# is a large share of a stroke; the same fields on a passport photo are unaffected.
+# Word patches of SMALL text are cut with a 2 px margin instead of on the detector
+# box itself. The box is tight around the ink, and a glyph whose stroke touches it
+# loses its edge column: АНАСТАСИЯ->МНАСТАСИЯ, АЛЕКСЕЙ->4ЛЕКСЕЙ, УПРАВЛЕНИЯ->
+# ПРАВЛЕНИЯ, ОБЛАСТИ->ОБЛАСТ, Г.->2, and «Саха (Якутия)» losing its closing
+# bracket (issues #14 and #15).
 #
-# Relative to the word's height WITH A FLOOR, and the floor is the load-bearing
-# part: a purely relative margin evaluates to 0.05*14 = 1 px on certificate text
-# and does not recover the characters (measured 7/12 fields against 8/12 for a
-# flat 2 px). The floor is what covers small text; the fraction is what keeps the
-# margin proportionate on large text, where a flat value would swallow neighbours.
-WORD_MARGIN_FRAC = 0.10
-WORD_MARGIN_MIN_PX = 2
+# GATED ON HEIGHT, and the gate is the whole design. The tempting version - always
+# pad - is measurably WORSE overall: over samples/ it moves exact matches
+# 1456/1583 -> 1435/1583, and driver's licences alone lose 24 fields (DL_2020
+# 266->242), because on large text the margin drags in the neighbouring word.
+# With the gate: 1458/1583, birth certificates 6/12 -> 8/12, and no doc type
+# regresses.
+#
+# Why small text specifically, measured rather than assumed: it is NOT that the
+# certificate labels are tighter. Ink touches the box edge in 44% of certificate
+# patches against 72% on DL_2011 - licences are cut tighter and do not suffer.
+# The difference is scale. Median word height is 18 px on a certificate against
+# 41-50 px on a licence, so one clipped column is a far larger share of a stroke;
+# and since the engine resizes patches to height 32, the certificate patch is then
+# magnified ~1.8x, the licence patch shrunk. The threshold sits above the
+# certificate's 14-18 px range and well below the other types.
+WORD_MARGIN_PX = 2
+WORD_MARGIN_MAX_HEIGHT = 20
 
 
 class WordsDetector(BaseModule):
@@ -98,7 +105,7 @@ class WordsDetector(BaseModule):
         h, w = img.shape[:2]
         for box in bbox:
             x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
-            m = max(WORD_MARGIN_MIN_PX, int(round(WORD_MARGIN_FRAC * max(1, y2 - y1))))
+            m = WORD_MARGIN_PX if (y2 - y1) < WORD_MARGIN_MAX_HEIGHT else 0
             img_patches.append(img[max(0, y1 - m):min(h, y2 + m),
                                    max(0, x1 - m):min(w, x2 + m)])
         meta = {
