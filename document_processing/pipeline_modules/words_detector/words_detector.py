@@ -3,29 +3,23 @@ from typing import Union
 from pathlib import Path
 import numpy as np
 
-# Word patches of SMALL text are cut with a 2 px margin instead of on the detector
-# box itself. The box is tight around the ink, and a glyph whose stroke touches it
-# loses its edge column: АНАСТАСИЯ->МНАСТАСИЯ, АЛЕКСЕЙ->4ЛЕКСЕЙ, УПРАВЛЕНИЯ->
-# ПРАВЛЕНИЯ, ОБЛАСТИ->ОБЛАСТ, Г.->2, and «Саха (Якутия)» losing its closing
-# bracket (issues #14 and #15).
+# NO crop-time margin here, on purpose. Word patches are cut on the detector box
+# exactly as predicted.
 #
-# GATED ON HEIGHT, and the gate is the whole design. The tempting version - always
-# pad - is measurably WORSE overall: over samples/ it moves exact matches
-# 1456/1583 -> 1435/1583, and driver's licences alone lose 24 fields (DL_2020
-# 266->242), because on large text the margin drags in the neighbouring word.
-# With the gate: 1458/1583, birth certificates 6/12 -> 8/12, and no doc type
-# regresses.
+# Until 2026-08-22 this module widened small-text crops by 2 px (1cc8468), because
+# the boxes were labelled tight around the ink and a glyph whose stroke touched the
+# edge lost its edge column: АНАСТАСИЯ->МНАСТАСИЯ, УПРАВЛЕНИЯ->ПРАВЛЕНИЯ, ОБЛАСТИ->
+# ОБЛАСТ, «Саха (Якутия)» losing its bracket (issues #14 and #15). That was a
+# compensation for the labelling, not a fix, and it could only ever be approximate:
+# the gate fired below 20 px of box height, so a 21 px word missed it by one pixel -
+# which is exactly what kept the apostrophe of "OBLAST'" clipped.
 #
-# Why small text specifically, measured rather than assumed: it is NOT that the
-# certificate labels are tighter. Ink touches the box edge in 44% of certificate
-# patches against 72% on DL_2011 - licences are cut tighter and do not suffer.
-# The difference is scale. Median word height is 18 px on a certificate against
-# 41-50 px on a licence, so one clipped column is a far larger share of a stroke;
-# and since the engine resizes patches to height 32, the certificate patch is then
-# magnified ~1.8x, the licence patch shrunk. The threshold sits above the
-# certificate's 14-18 px range and well below the other types.
-WORD_MARGIN_PX = 2
-WORD_MARGIN_MAX_HEIGHT = 20
+# The labelling was redone instead (words_yolo11_v3): every box now contains the
+# word's ink in full, with the background margin built into the label where it is
+# needed. With that model the compensation became measurably idle - over samples/
+# the run WITH it and the run WITHOUT it agree field for field on every document
+# type (1488/1583 both ways), so it was removed rather than left as a no-op that
+# future readers would have to reason about. The ports never had it.
 
 
 class WordsDetector(BaseModule):
@@ -105,9 +99,7 @@ class WordsDetector(BaseModule):
         h, w = img.shape[:2]
         for box in bbox:
             x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
-            m = WORD_MARGIN_PX if (y2 - y1) < WORD_MARGIN_MAX_HEIGHT else 0
-            img_patches.append(img[max(0, y1 - m):min(h, y2 + m),
-                                   max(0, x1 - m):min(w, x2 + m)])
+            img_patches.append(img[max(0, y1):min(h, y2), max(0, x1):min(w, x2)])
         meta = {
             self.model_name:
                 {

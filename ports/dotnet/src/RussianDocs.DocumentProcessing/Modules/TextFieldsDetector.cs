@@ -102,7 +102,7 @@ public sealed class TextFieldsDetector : IDisposable
     public void Dispose() => _model.Dispose();
 }
 
-/// <summary>Splits a field patch into word crops, left to right.</summary>
+/// <summary>Splits a field patch into word crops, in reading order.</summary>
 public sealed class WordsDetector : IDisposable
 {
     private readonly DetectionModel _model;
@@ -113,14 +113,64 @@ public sealed class WordsDetector : IDisposable
             Path.Combine(ModelPaths.Resolve(root, paths, "WordsDetector"), "ONNX"), device, threads);
 
     /// <summary>
-    /// Word boxes and their crops, left to right.
+    /// Sorts word boxes into reading order: cluster into lines by vertical centre proximity (within
+    /// half a word height), lines top-to-bottom, words left-to-right inside a line. Port of
+    /// <c>WordsDetector._reading_order</c>.
     ///
     /// <para>
-    /// **The ordering is the one trap here.** The reference sorts with
-    /// <c>bbox.sort(key=lambda x: x[0])</c>, and Python's sort is STABLE — so words keep the
-    /// reading-order sort the detector already applied whenever their x1 ties. LINQ's
-    /// <c>OrderBy</c> is stable and <c>List.Sort</c> is not; two words sharing an x1 would otherwise
-    /// swap and reorder two tokens of the joined field string.
+    /// A plain x-sort interleaves the lines of a multi-line field — measured on the birth
+    /// certificates' Birth_place/ZAGS fields as word salad — so this is a correctness rule, not a
+    /// tidiness one. On a single-line field it reproduces the old x-sorted order exactly.
+    /// </para>
+    ///
+    /// <para>
+    /// Two things are load-bearing. Every sort is STABLE (<c>OrderBy</c> is, <c>List.Sort</c> is
+    /// not), or two words sharing a centre or an x1 would swap. And the running means are updated
+    /// per box, in the reference's order: a box joins the FIRST line it fits, and the line's centre
+    /// and height are the means over the boxes admitted so far — comparing against the first box
+    /// instead would cluster differently on a field whose line drifts.
+    /// </para>
+    /// </summary>
+    public static List<Box> ReadingOrder(List<Box> boxes)
+    {
+        var lines = new List<(double Cy, double H, List<Box> Boxes)>();
+
+        foreach (Box box in boxes.OrderBy(b => (b.Y1 + b.Y2) / 2))
+        {
+            double cy = (box.Y1 + box.Y2) / 2, h = box.Y2 - box.Y1;
+            bool placed = false;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (Math.Abs(cy - lines[i].Cy) < 0.5 * Math.Max(h, lines[i].H))
+                {
+                    double n = lines[i].Boxes.Count;
+                    lines[i].Boxes.Add(box);
+                    lines[i] = ((lines[i].Cy * n + cy) / (n + 1), (lines[i].H * n + h) / (n + 1),
+                        lines[i].Boxes);
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed)
+            {
+                lines.Add((cy, h, [box]));
+            }
+        }
+
+        var ordered = new List<Box>(boxes.Count);
+        foreach ((_, _, List<Box> lineBoxes) in lines)   // already top-to-bottom
+        {
+            ordered.AddRange(lineBoxes.OrderBy(b => b.X1));
+        }
+        return ordered;
+    }
+
+    /// <summary>
+    /// Word boxes and their crops, in reading order.
+    ///
+    /// <para>
+    /// The boxes are returned REORDERED, not just the crops: that order is what the conformance
+    /// <c>words.&lt;field&gt;.bbox</c> stage records and what the OCR loop walks, so the two must agree.
     /// </para>
     ///
     /// <para>
@@ -129,14 +179,18 @@ public sealed class WordsDetector : IDisposable
     /// </summary>
     public (List<Box> Boxes, List<Image> Words) PredictTransform(Image patch)
     {
-        List<Box> boxes = _model.Predict(patch);
-        boxes = [.. boxes.OrderBy(b => b.X1)];
+        List<Box> boxes = ReadingOrder(_model.Predict(patch));
 
         var words = new List<Image>(boxes.Count);
         try
         {
             foreach (Box box in boxes)
             {
+                // Cut ON the box. Python pads small word boxes by 2 px since 1cc8468, and the ports
+                // deliberately do NOT follow yet: the words detector is being retrained with the
+                // margin inside the labelled box, which may remove the compensation altogether. The
+                // ports are synced to the FINAL Python behaviour in one pass before the goldens are
+                // regenerated.
                 words.Add(Crop.ClampedCrop(patch, (int)box.X1, (int)box.Y1, (int)box.X2, (int)box.Y2));
             }
             return (boxes, words);
