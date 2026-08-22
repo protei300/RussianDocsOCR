@@ -5,7 +5,7 @@
  "recognised": true,
  "device": "gpu",
  "canvas": {
-  "width": 904,
+  "width": 909,
   "height": 622,
   "is_fallback": false
  },
@@ -17,11 +17,11 @@
    "label": "Licence_number",
    "display": "Document number",
    "kind": "text",
-   "x1": 371,
-   "y1": 225,
-   "x2": 637,
-   "y2": 270,
-   "conf": 0.936,
+   "x1": 374,
+   "y1": 227,
+   "x2": 639,
+   "y2": 272,
+   "conf": 0.934,
    "cls": 5,
    "text": "127-432-979 79",
    "ambiguous": false
@@ -31,11 +31,11 @@
    "label": "Last_name_ru",
    "display": "Last name",
    "kind": "text",
-   "x1": 258,
-   "y1": 268,
-   "x2": 454,
-   "y2": 308,
-   "conf": 0.93,
+   "x1": 260,
+   "y1": 270,
+   "x2": 457,
+   "y2": 309,
+   "conf": 0.939,
    "cls": 1,
    "text": "ВАСИЛЬЕВА",
    "ambiguous": false
@@ -45,11 +45,11 @@
    "label": "First_name_ru",
    "display": "First name",
    "kind": "text",
-   "x1": 259,
-   "y1": 305,
-   "x2": 418,
-   "y2": 340,
-   "conf": 0.925,
+   "x1": 263,
+   "y1": 306,
+   "x2": 420,
+   "y2": 342,
+   "conf": 0.933,
    "cls": 2,
    "text": "САМАНТА",
    "ambiguous": false
@@ -59,11 +59,11 @@
    "label": "Middle_name_ru",
    "display": "Middle name",
    "kind": "text",
-   "x1": 258,
-   "y1": 336,
-   "x2": 519,
-   "y2": 378,
-   "conf": 0.93,
+   "x1": 262,
+   "y1": 338,
+   "x2": 521,
+   "y2": 380,
+   "conf": 0.924,
    "cls": 17,
    "text": "ВЯЧЕСЛАВОВНА",
    "ambiguous": false
@@ -73,11 +73,11 @@
    "label": "Birth_date",
    "display": "Date of birth",
    "kind": "text",
-   "x1": 472,
-   "y1": 380,
-   "x2": 803,
-   "y2": 420,
-   "conf": 0.927,
+   "x1": 476,
+   "y1": 382,
+   "x2": 807,
+   "y2": 423,
+   "conf": 0.925,
    "cls": 10,
    "text": "26 СЕНТЯБРЯ 1997 ГОДА",
    "ambiguous": false
@@ -87,11 +87,11 @@
    "label": "Birth_place_ru",
    "display": "Place of birth",
    "kind": "text",
-   "x1": 260,
-   "y1": 424,
-   "x2": 410,
-   "y2": 463,
-   "conf": 0.936,
+   "x1": 264,
+   "y1": 426,
+   "x2": 413,
+   "y2": 465,
+   "conf": 0.928,
    "cls": 11,
    "text": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
    "ambiguous": false
@@ -101,11 +101,11 @@
    "label": "Birth_place_ru",
    "display": "Place of birth",
    "kind": "text",
-   "x1": 259,
-   "y1": 454,
-   "x2": 730,
-   "y2": 504,
-   "conf": 0.897,
+   "x1": 261,
+   "y1": 456,
+   "x2": 732,
+   "y2": 505,
+   "conf": 0.896,
    "cls": 11,
    "text": null,
    "ambiguous": true
@@ -115,11 +115,11 @@
    "label": "Birth_place_ru",
    "display": "Place of birth",
    "kind": "text",
-   "x1": 257,
-   "y1": 490,
-   "x2": 701,
-   "y2": 538,
-   "conf": 0.892,
+   "x1": 261,
+   "y1": 492,
+   "x2": 705,
+   "y2": 539,
+   "conf": 0.904,
    "cls": 11,
    "text": null,
    "ambiguous": true
@@ -129,11 +129,11 @@
    "label": "Sex_ru",
    "display": "Sex",
    "kind": "text",
-   "x1": 255,
-   "y1": 554,
-   "x2": 384,
-   "y2": 587,
-   "conf": 0.928,
+   "x1": 258,
+   "y1": 556,
+   "x2": 387,
+   "y2": 589,
+   "conf": 0.93,
    "cls": 18,
    "text": "Ж",
    "ambiguous": false
@@ -145,7 +145,7 @@
    "display": "Last name",
    "value": "ВАСИЛЬЕВА",
    "script": "ru",
-   "conf": 0.93,
+   "conf": 0.939,
    "box_ids": [
     "b1"
    ]
@@ -155,7 +155,7 @@
    "display": "First name",
    "value": "САМАНТА",
    "script": "ru",
-   "conf": 0.925,
+   "conf": 0.933,
    "box_ids": [
     "b2"
    ]
@@ -165,7 +165,7 @@
    "display": "Middle name",
    "value": "ВЯЧЕСЛАВОВНА",
    "script": "ru",
-   "conf": 0.93,
+   "conf": 0.924,
    "box_ids": [
     "b3"
    ]
@@ -175,7 +175,7 @@
    "display": "Sex",
    "value": "Ж",
    "script": "ru",
-   "conf": 0.928,
+   "conf": 0.93,
    "box_ids": [
     "b8"
    ]
@@ -185,7 +185,7 @@
    "display": "Date of birth",
    "value": "26 СЕНТЯБРЯ 1997 ГОДА",
    "script": "num",
-   "conf": 0.927,
+   "conf": 0.925,
    "box_ids": [
     "b4"
    ]
@@ -195,7 +195,7 @@
    "display": "Place of birth",
    "value": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
    "script": "ru",
-   "conf": 0.936,
+   "conf": 0.928,
    "box_ids": [
     "b5",
     "b6",
@@ -207,7 +207,7 @@
    "display": "Document number",
    "value": "127-432-979 79",
    "script": "num",
-   "conf": 0.936,
+   "conf": 0.934,
    "box_ids": [
     "b0"
    ]
@@ -223,25 +223,25 @@
   "Sex_ru": "Ж"
  },
  "quality": {
-  "DocConf": 0.98,
+  "DocConf": 0.96,
   "Glare": "good",
   "Blur": "good",
   "PrintSpoofing": "FAKE",
   "LCDSpoofing": "REAL"
  },
  "timings": {
-  "_doctype_angle": 0.0066,
-  "_quality_and_borders": 0.1134,
-  "_glare": 0.1098,
-  "_blur": 0.1118,
-  "_print_spoofing": 0.011,
-  "_lcd_spoofing": 0.0119,
-  "_doc_detector": 0.0537,
-  "_deskew": 0.0189,
-  "_fields_detector": 0.0165,
-  "_split_words": 0.0795,
-  "_ocr": 0.2738,
-  "total": 0.5087
+  "_doctype_angle": 0.0072,
+  "_quality_and_borders": 0.0891,
+  "_glare": 0.0871,
+  "_blur": 0.0871,
+  "_print_spoofing": 0.0123,
+  "_lcd_spoofing": 0.0113,
+  "_doc_detector": 0.043,
+  "_deskew": 0.007,
+  "_fields_detector": 0.0159,
+  "_split_words": 0.0736,
+  "_ocr": 0.2265,
+  "total": 0.4193
  },
  "address": null
 }

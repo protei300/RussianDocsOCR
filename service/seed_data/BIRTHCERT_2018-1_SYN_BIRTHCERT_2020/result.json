@@ -1,0 +1,462 @@
+{
+ "doc_type": "BIRTHCERT_2018",
+ "doc_type_base": "BIRTHCERT",
+ "doc_type_era": "2018",
+ "recognised": true,
+ "device": "gpu",
+ "canvas": {
+  "width": 1010,
+  "height": 1230,
+  "is_fallback": false
+ },
+ "coord_space": "canvas",
+ "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+ "boxes": [
+  {
+   "id": "b0",
+   "label": "Last_name_ru",
+   "display": "Last name",
+   "kind": "text",
+   "x1": 448,
+   "y1": 238,
+   "x2": 557,
+   "y2": 259,
+   "conf": 0.922,
+   "cls": 1,
+   "text": "КАЗАКОВ",
+   "ambiguous": false
+  },
+  {
+   "id": "b1",
+   "label": "First_name_ru",
+   "display": "First name",
+   "kind": "text",
+   "x1": 379,
+   "y1": 272,
+   "x2": 636,
+   "y2": 302,
+   "conf": 0.916,
+   "cls": 2,
+   "text": "ЛЕОНИД ВАДИМОВИЧ",
+   "ambiguous": false
+  },
+  {
+   "id": "b2",
+   "label": "Birth_date",
+   "display": "Date of birth",
+   "kind": "text",
+   "x1": 406,
+   "y1": 311,
+   "x2": 640,
+   "y2": 340,
+   "conf": 0.927,
+   "cls": 10,
+   "text": "15 ОКТЯБРЯ 2020 Г.",
+   "ambiguous": false
+  },
+  {
+   "id": "b3",
+   "label": "Birth_place_ru",
+   "display": "Place of birth",
+   "kind": "text",
+   "x1": 314,
+   "y1": 338,
+   "x2": 818,
+   "y2": 375,
+   "conf": 0.916,
+   "cls": 11,
+   "text": null,
+   "ambiguous": true
+  },
+  {
+   "id": "b4",
+   "label": "Birth_place_ru",
+   "display": "Place of birth",
+   "kind": "text",
+   "x1": 457,
+   "y1": 381,
+   "x2": 573,
+   "y2": 401,
+   "conf": 0.926,
+   "cls": 11,
+   "text": "РОССИЙСКАЯ ФЕДЕРАЦИЯ, ТЮМЕНСКАЯ ОБЛАСТЬ, Г. ТЮМЕНЬ",
+   "ambiguous": false
+  },
+  {
+   "id": "b5",
+   "label": "Act_number",
+   "display": "Act_number",
+   "kind": "text",
+   "x1": 558,
+   "y1": 431,
+   "x2": 848,
+   "y2": 455,
+   "conf": 0.915,
+   "cls": 30,
+   "text": "110202778751843181007",
+   "ambiguous": false
+  },
+  {
+   "id": "b6",
+   "label": "Father_last_name_ru",
+   "display": "Father_last_name_ru",
+   "kind": "text",
+   "x1": 456,
+   "y1": 450,
+   "x2": 561,
+   "y2": 470,
+   "conf": 0.909,
+   "cls": 22,
+   "text": "КАЗАКОВ",
+   "ambiguous": false
+  },
+  {
+   "id": "b7",
+   "label": "Father_first_middle_ru",
+   "display": "Father_first_middle_ru",
+   "kind": "text",
+   "x1": 386,
+   "y1": 486,
+   "x2": 625,
+   "y2": 513,
+   "conf": 0.919,
+   "cls": 23,
+   "text": "ВАДИМ АНТОНОВИЧ",
+   "ambiguous": false
+  },
+  {
+   "id": "b8",
+   "label": "Father_birth_date",
+   "display": "Father_birth_date",
+   "kind": "text",
+   "x1": 113,
+   "y1": 566,
+   "x2": 358,
+   "y2": 597,
+   "conf": 0.91,
+   "cls": 27,
+   "text": "20 ДЕКАБРЯ 1992",
+   "ambiguous": false
+  },
+  {
+   "id": "b9",
+   "label": "Mother_last_name_ru",
+   "display": "Mother_last_name_ru",
+   "kind": "text",
+   "x1": 450,
+   "y1": 642,
+   "x2": 570,
+   "y2": 662,
+   "conf": 0.919,
+   "cls": 24,
+   "text": "КАЗАКОВА",
+   "ambiguous": false
+  },
+  {
+   "id": "b10",
+   "label": "Mother_first_middle_ru",
+   "display": "Mother_first_middle_ru",
+   "kind": "text",
+   "x1": 406,
+   "y1": 676,
+   "x2": 624,
+   "y2": 704,
+   "conf": 0.928,
+   "cls": 25,
+   "text": "ИРИНА ПЕТРОВНА",
+   "ambiguous": false
+  },
+  {
+   "id": "b11",
+   "label": "Mother_birth_date",
+   "display": "Mother_birth_date",
+   "kind": "text",
+   "x1": 114,
+   "y1": 753,
+   "x2": 360,
+   "y2": 776,
+   "conf": 0.828,
+   "cls": 28,
+   "text": "21 ИЮНЯ 1985",
+   "ambiguous": false
+  },
+  {
+   "id": "b12",
+   "label": "Issue_organization_ru",
+   "display": "Issuing authority",
+   "kind": "text",
+   "x1": 428,
+   "y1": 794,
+   "x2": 904,
+   "y2": 822,
+   "conf": 0.911,
+   "cls": 13,
+   "text": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
+   "ambiguous": false
+  },
+  {
+   "id": "b13",
+   "label": "Issue_organization_ru",
+   "display": "Issuing authority",
+   "kind": "text",
+   "x1": 311,
+   "y1": 837,
+   "x2": 721,
+   "y2": 863,
+   "conf": 0.881,
+   "cls": 13,
+   "text": null,
+   "ambiguous": true
+  },
+  {
+   "id": "b14",
+   "label": "Issue_place_ru",
+   "display": "Issue_place_ru",
+   "kind": "text",
+   "x1": 403,
+   "y1": 892,
+   "x2": 903,
+   "y2": 916,
+   "conf": 0.904,
+   "cls": 29,
+   "text": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ УПРАВЛЕНИЯ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
+   "ambiguous": false
+  },
+  {
+   "id": "b15",
+   "label": "Issue_place_ru",
+   "display": "Issue_place_ru",
+   "kind": "text",
+   "x1": 318,
+   "y1": 925,
+   "x2": 720,
+   "y2": 949,
+   "conf": 0.898,
+   "cls": 29,
+   "text": null,
+   "ambiguous": true
+  },
+  {
+   "id": "b16",
+   "label": "Issue_date",
+   "display": "Date of issue",
+   "kind": "text",
+   "x1": 297,
+   "y1": 1024,
+   "x2": 552,
+   "y2": 1046,
+   "conf": 0.878,
+   "cls": 6,
+   "text": "30 ОКТЯБРЯ 2020",
+   "ambiguous": false
+  },
+  {
+   "id": "b17",
+   "label": "Licence_number",
+   "display": "Document number",
+   "kind": "text",
+   "x1": 438,
+   "y1": 1099,
+   "x2": 658,
+   "y2": 1119,
+   "conf": 0.892,
+   "cls": 5,
+   "text": "-ТВ 911395",
+   "ambiguous": false
+  }
+ ],
+ "fields": [
+  {
+   "name": "Act_number",
+   "display": "Act_number",
+   "value": "110202778751843181007",
+   "script": "ru",
+   "conf": 0.915,
+   "box_ids": [
+    "b5"
+   ]
+  },
+  {
+   "name": "Birth_date",
+   "display": "Date of birth",
+   "value": "15 ОКТЯБРЯ 2020 Г.",
+   "script": "num",
+   "conf": 0.927,
+   "box_ids": [
+    "b2"
+   ]
+  },
+  {
+   "name": "Birth_place_ru",
+   "display": "Place of birth",
+   "value": "РОССИЙСКАЯ ФЕДЕРАЦИЯ, ТЮМЕНСКАЯ ОБЛАСТЬ, Г. ТЮМЕНЬ",
+   "script": "ru",
+   "conf": 0.926,
+   "box_ids": [
+    "b3",
+    "b4"
+   ]
+  },
+  {
+   "name": "Father_birth_date",
+   "display": "Father_birth_date",
+   "value": "20 ДЕКАБРЯ 1992",
+   "script": "ru",
+   "conf": 0.91,
+   "box_ids": [
+    "b8"
+   ]
+  },
+  {
+   "name": "Father_first_middle_ru",
+   "display": "Father_first_middle_ru",
+   "value": "ВАДИМ АНТОНОВИЧ",
+   "script": "ru",
+   "conf": 0.919,
+   "box_ids": [
+    "b7"
+   ]
+  },
+  {
+   "name": "Father_last_name_ru",
+   "display": "Father_last_name_ru",
+   "value": "КАЗАКОВ",
+   "script": "ru",
+   "conf": 0.909,
+   "box_ids": [
+    "b6"
+   ]
+  },
+  {
+   "name": "First_name_ru",
+   "display": "First name",
+   "value": "ЛЕОНИД ВАДИМОВИЧ",
+   "script": "ru",
+   "conf": 0.916,
+   "box_ids": [
+    "b1"
+   ]
+  },
+  {
+   "name": "Issue_date",
+   "display": "Date of issue",
+   "value": "30 ОКТЯБРЯ 2020",
+   "script": "num",
+   "conf": 0.878,
+   "box_ids": [
+    "b16"
+   ]
+  },
+  {
+   "name": "Issue_organization_ru",
+   "display": "Issuing authority",
+   "value": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
+   "script": "ru",
+   "conf": 0.911,
+   "box_ids": [
+    "b12",
+    "b13"
+   ]
+  },
+  {
+   "name": "Issue_place_ru",
+   "display": "Issue_place_ru",
+   "value": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ УПРАВЛЕНИЯ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
+   "script": "ru",
+   "conf": 0.904,
+   "box_ids": [
+    "b14",
+    "b15"
+   ]
+  },
+  {
+   "name": "Last_name_ru",
+   "display": "Last name",
+   "value": "КАЗАКОВ",
+   "script": "ru",
+   "conf": 0.922,
+   "box_ids": [
+    "b0"
+   ]
+  },
+  {
+   "name": "Licence_number",
+   "display": "Document number",
+   "value": "-ТВ 911395",
+   "script": "num",
+   "conf": 0.892,
+   "box_ids": [
+    "b17"
+   ]
+  },
+  {
+   "name": "Mother_birth_date",
+   "display": "Mother_birth_date",
+   "value": "21 ИЮНЯ 1985",
+   "script": "ru",
+   "conf": 0.828,
+   "box_ids": [
+    "b11"
+   ]
+  },
+  {
+   "name": "Mother_first_middle_ru",
+   "display": "Mother_first_middle_ru",
+   "value": "ИРИНА ПЕТРОВНА",
+   "script": "ru",
+   "conf": 0.928,
+   "box_ids": [
+    "b10"
+   ]
+  },
+  {
+   "name": "Mother_last_name_ru",
+   "display": "Mother_last_name_ru",
+   "value": "КАЗАКОВА",
+   "script": "ru",
+   "conf": 0.919,
+   "box_ids": [
+    "b9"
+   ]
+  }
+ ],
+ "ocr": {
+  "Last_name_ru": "КАЗАКОВ",
+  "First_name_ru": "ЛЕОНИД ВАДИМОВИЧ",
+  "Birth_date": "15 ОКТЯБРЯ 2020 Г.",
+  "Birth_place_ru": "РОССИЙСКАЯ ФЕДЕРАЦИЯ, ТЮМЕНСКАЯ ОБЛАСТЬ, Г. ТЮМЕНЬ",
+  "Act_number": "110202778751843181007",
+  "Father_last_name_ru": "КАЗАКОВ",
+  "Father_first_middle_ru": "ВАДИМ АНТОНОВИЧ",
+  "Father_birth_date": "20 ДЕКАБРЯ 1992",
+  "Mother_last_name_ru": "КАЗАКОВА",
+  "Mother_first_middle_ru": "ИРИНА ПЕТРОВНА",
+  "Mother_birth_date": "21 ИЮНЯ 1985",
+  "Issue_organization_ru": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
+  "Issue_place_ru": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ УПРАВЛЕНИЯ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
+  "Issue_date": "30 ОКТЯБРЯ 2020",
+  "Licence_number": "-ТВ 911395"
+ },
+ "quality": {
+  "DocConf": 0.99,
+  "Glare": "good",
+  "Blur": "good",
+  "PrintSpoofing": "FAKE",
+  "LCDSpoofing": "FAKE"
+ },
+ "timings": {
+  "_doctype_angle": 0.008,
+  "_quality_and_borders": 0.107,
+  "_glare": 0.106,
+  "_blur": 0.106,
+  "_print_spoofing": 0.0129,
+  "_lcd_spoofing": 0.0128,
+  "_doc_detector": 0.0605,
+  "_deskew": 0.016,
+  "_fields_detector": 0.017,
+  "_split_words": 0.1138,
+  "_ocr": 0.6204,
+  "total": 0.8822
+ },
+ "address": null
+}

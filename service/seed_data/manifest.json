@@ -6,7 +6,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 115841,
-  "search_text": "sample-intpassport_2011-12_cr_intpassport_2011.jpg intpassport_2011 умвд россии по томской области 22.05.2018 700-014 батурина екатерина александровна 69 18 812211 24.04.1998 ж ос. мельниково шегарский район томская область россия"
+  "search_text": "sample-intpassport_2011-12_cr_intpassport_2011.jpg intpassport_2011 умвд россии по томской области 22.05.2018 700-014 батурина екатерина александровна 69 18 812211 24.04.1998 ж с мельниково шегарский район томская область россия pnrusbaturina<<ekaterina<aleksandrovna<<<<<<\n6918122131rus9804245f<<<<<<<8180522700014<86"
  },
  {
   "slug": "DL_2011-10_BG_DL_2010",
@@ -15,7 +15,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 677339,
-  "search_text": "sample-dl_2011-10_bg_dl_2010.jpg dl_2011 старостенко starostenko геннадьевич евгений gennad'evich evgenii 06.01.1985 саратовская обл saratovskaia obl 28.06.2016 28.06.2026 6409 гибдд gibdd сараговская saratovskaia o b b1 c c1 d d1 ce c1e"
+  "search_text": "sample-dl_2011-10_bg_dl_2010.jpg dl_2011 старостенко starostenko геннадьевич евгений evgenii gennad'evich 06.01.1985 саратовская обл. saratovskaia obl. 28.06.2016 28.06.2026 гибдд 6409 gibdd сараговская обл. saratovskaia obl. b b1 c c1 d d1 ce c1e"
  },
  {
   "slug": "SNILS_1996-105_BG_SNILS_2003",
@@ -33,7 +33,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 407375,
-  "search_text": "sample-extpassportbio_2007-10_bg_extpassportbio_2010_0.jpg extpassportbio_2007 76 1921099 золкина zolkina александровна кристина kristina 04.11.1986 ussr ж кабардино-балкарская асср f 78039 мвд 14.11.2019 14.11.2029"
+  "search_text": "sample-extpassportbio_2007-10_bg_extpassportbio_2010_0.jpg extpassportbio_2007 76 1921099 золкина zolkina александровна кристина kristina 04.11.1986 ussr ж кабардино-балкарская асср f 78039 мвд 14.11.2019 14.11.2029 p<ruszolkina<<kristina<<<<<<<<<<<<<<<<<<<<<<\n7619210972rus8611046f2911146<<<<<<<<<<<<<<06"
  },
  {
   "slug": "INTPASSPORT_1997-15_CR_INTPASSPORT_2001",
@@ -42,7 +42,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 108947,
-  "search_text": "sample-intpassport_1997-15_cr_intpassport_2001.jpg intpassport_1997 отделом уфмс россии по иркутской области шелеховского района 03.10.2005 123-005 13 05 300353 василева марина алексевна ж 03.abryct пос моты иркутская обл"
+  "search_text": "sample-intpassport_1997-15_cr_intpassport_2001.jpg intpassport_1997 отделом уфмс россии по иркутской области шелеховского района 03.10.2005 123-005 василева марина алексевна 13 05 300353 ж 03.abryct пос. моты. иркутская обл."
  },
  {
   "slug": "DL_2020-10_CR_DL_2019",
@@ -51,7 +51,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 82887,
-  "search_text": "sample-dl_2020-10_cr_dl_2019.jpg dl_2020 красенков krasenkov сергеевич карен sergeevich karen ростовская обл rostovskaia oblast 15.02.2030 15.02.2020 гибдд 6100 gibdd ростовская обл rostovskaia obl b b1 m"
+  "search_text": "sample-dl_2020-10_cr_dl_2019.jpg dl_2020 красенков krasenkov сергеевич карен sergeevich karen ростовская обл. rostovskaia oblast 15.02.2030 15.02.2020 6100 гибдд gibdd ростовская обл. rostovskaia obl b b1 m"
  },
  {
   "slug": "EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0",
@@ -60,7 +60,7 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 320812,
-  "search_text": "sample-extpassport_2003-10_bg_extpassport_2010_0.jpg extpassport_2003 62 1483828 прудникова prudnikova юрьевна наталья natalia томская обл 18.03.1967 ussr ж f 06.08.2009 06.08.2004 увд 365"
+  "search_text": "sample-extpassport_2003-10_bg_extpassport_2010_0.jpg extpassport_2003 62 1483828 прудникова prudnikova юрьевна наталья natalia 18.03.1967 томская обл ussr ж f 06.08.2009 06.08.2004 увд 365 p<rusprudnikova<<natalia<<<<<<<<<<<<<<<<<<<<\n6214838217rus6703185f0908069<<<<<<<<<"
  },
  {
   "slug": "BIRTHCERT_1998-2_SYN_BIRTHCERT_2010",
@@ -69,6 +69,15 @@
   "original_ext": ".jpg",
   "content_type": "image/jpeg",
   "size_bytes": 301378,
-  "search_text": "sample-birthcert_1998-2_syn_birthcert_2010.jpg birthcert_1998 борисова анастасия 1лексеевна 22.06.2010 2 иркутск, иркутская область, россия борисов алексей олегович борисова анна никитична отдел загс заводского района 2 иркутск правления по делам загсиркутской област 28., июля 2010 п-мю 715330"
+  "search_text": "sample-birthcert_1998-2_syn_birthcert_2010.jpg birthcert_1998 борисова анастасия алексеевна 22/06/2010 2 иркутск, иркутская область, россия 2521 борисов алексей олегович борисова анна никитична отдел загс заводского района 2. иркутск правления по делам загс иркутской област 28 июля 2010 п-мю 715330"
+ },
+ {
+  "slug": "BIRTHCERT_2018-1_SYN_BIRTHCERT_2020",
+  "sample": "samples/BIRTHCERT_2018/1_SYN_BIRTHCERT_2020.jpg",
+  "filename": "sample-BIRTHCERT_2018-1_SYN_BIRTHCERT_2020.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 964550,
+  "search_text": "sample-birthcert_2018-1_syn_birthcert_2020.jpg birthcert_2018 казаков леонид вадимович 15 октября 2020 г. российская федерация, тюменская область, г. тюмень 110202778751843181007 казаков вадим антонович 20 декабря 1992 казакова ирина петровна 21 июня 1985 27787518 центральный отдел загс управления загс тюменской области 27787518 центральный отдел управления загс управления загс тюменской области 30 октября 2020 -тв 911395"
  }
 ]
