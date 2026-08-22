@@ -3,6 +3,24 @@ from typing import Union
 from pathlib import Path
 import numpy as np
 
+# The word patch is cut with a MARGIN, not on the detector box itself. The box is
+# tight around the ink, and a glyph whose stroke touches it loses its edge column
+# in the crop - the engine then reads the first or last character as a different
+# one, or drops it: АНАСТАСИЯ->МНАСТАСИЯ, АЛЕКСЕЙ->4ЛЕКСЕЙ, УПРАВЛЕНИЯ->ПРАВЛЕНИЯ,
+# ОБЛАСТИ->ОБЛАСТ, Г.->2, and «Саха (Якутия)» losing its closing bracket (issues
+# #14, #15). It bites on SMALL text: a birth-certificate canvas is ~674x936 with a
+# line height of 14-18 px against the 32 px the engine expects, so one lost column
+# is a large share of a stroke; the same fields on a passport photo are unaffected.
+#
+# Relative to the word's height WITH A FLOOR, and the floor is the load-bearing
+# part: a purely relative margin evaluates to 0.05*14 = 1 px on certificate text
+# and does not recover the characters (measured 7/12 fields against 8/12 for a
+# flat 2 px). The floor is what covers small text; the fraction is what keeps the
+# margin proportionate on large text, where a flat value would swallow neighbours.
+WORD_MARGIN_FRAC = 0.10
+WORD_MARGIN_MIN_PX = 2
+
+
 class WordsDetector(BaseModule):
     """Detects and segments words in document text fields.
 
@@ -77,8 +95,12 @@ class WordsDetector(BaseModule):
         bbox = self.model.predict(img)
         img_patches = []
         bbox = self._reading_order(bbox)
+        h, w = img.shape[:2]
         for box in bbox:
-            img_patches.append(img[box[1]:box[3], box[0]: box[2]])
+            x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+            m = max(WORD_MARGIN_MIN_PX, int(round(WORD_MARGIN_FRAC * max(1, y2 - y1))))
+            img_patches.append(img[max(0, y1 - m):min(h, y2 + m),
+                                   max(0, x1 - m):min(w, x2 + m)])
         meta = {
             self.model_name:
                 {

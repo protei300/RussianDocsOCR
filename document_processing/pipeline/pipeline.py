@@ -164,16 +164,28 @@ class OCROptionsBIRTHCERT(OCROptionsClass):
     only the digit-form birth date (DD/MM/YYYY) takes the Latin route.
     Licence_number mixes a Roman-numeral series with Cyrillic letters and
     «№» — routed to the Cyrillic engine as the lesser evil (the Roman-digit
-    series is the expected CER cost; revisit if the eval says otherwise)."""
+    series is the expected CER cost; revisit if the eval says otherwise).
+
+    Shared by both blank generations: BIRTHCERT_1998 (digit birth date
+    DD.MM.YYYY) and BIRTHCERT_2018 (order 167/2018: worded birth date, parent
+    birth dates, place of issue, 21-digit act number). The options cannot see
+    the era (make_options gets the type without the year suffix), so
+    Birth_date is routed to the Cyrillic engine for BOTH: it must read the
+    worded 2018 form, and the Cyrillic engine reads digit-only crops fine —
+    the same precedent as the passport Licence_number (issue #12)."""
 
     needed_split = ["First_name_ru", "Birth_place_ru", "Issue_organization_ru",
                     "Issue_date", "Licence_number",
-                    "Father_first_middle_ru", "Mother_first_middle_ru"]
-    en_fields = ["Birth_date"]
+                    "Father_first_middle_ru", "Mother_first_middle_ru",
+                    "Birth_date", "Father_birth_date", "Mother_birth_date",
+                    "Issue_place_ru"]
+    en_fields = []
     ru_fields = ["Last_name_ru", "First_name_ru", "Birth_place_ru",
                  "Issue_organization_ru", "Issue_date", "Licence_number",
                  "Father_last_name_ru", "Father_first_middle_ru",
-                 "Mother_last_name_ru", "Mother_first_middle_ru"]
+                 "Mother_last_name_ru", "Mother_first_middle_ru",
+                 "Birth_date", "Father_birth_date", "Mother_birth_date",
+                 "Issue_place_ru", "Act_number"]
 
 
 class OCROptionsEXTPassport(OCROptionsClass):
