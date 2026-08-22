@@ -74,6 +74,16 @@ public object Ocr {
         docType: String,
         words: List<String>,
     ): String {
+        // The MRZ arrives as one detection per line, top to bottom. The line boundary is
+        // load-bearing — every check digit lives at a fixed offset in line 2 — so the lines are joined
+        // with a newline and nothing else is done to the text: a space would be outside the MRZ
+        // alphabet, and the double-space squeeze below must not touch it.
+        if (label == "MRZ") {
+            val mrz = words.filter { it.isNotEmpty() }.joinToString("\n")
+            joined[label] = mrz
+            return mrz
+        }
+
         val isDate = label.contains("date", ignoreCase = true)
         // Only multi-word dates are affected: a digit date reaches this point as a single word
         // ("22.06.2010"), where the separator cannot show.

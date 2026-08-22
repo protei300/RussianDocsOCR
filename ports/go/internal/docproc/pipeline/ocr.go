@@ -128,6 +128,22 @@ func OcrFields(fields []FieldWords, docType string, opts OcrOptions,
 // `joined` accumulates across calls because a field detected twice appends with a space
 // rather than replacing -- the reference relies on the dict already holding a value.
 func joinField(joined map[string]string, label, docType string, words []string) string {
+	// The MRZ arrives as one detection per line, top to bottom. The line boundary is
+	// load-bearing - every check digit lives at a fixed offset in line 2 - so the lines
+	// are joined with a newline and nothing else is done to the text: a space would be
+	// outside the MRZ alphabet, and the double-space squeeze below must not touch it.
+	if label == "MRZ" {
+		var lines []string
+		for _, w := range words {
+			if w != "" {
+				lines = append(lines, w)
+			}
+		}
+		value := strings.Join(lines, "\n")
+		joined[label] = value
+		return value
+	}
+
 	isDate := strings.Contains(strings.ToLower(label), "date")
 	worded := docType == "SNILS"
 	for _, w := range words {

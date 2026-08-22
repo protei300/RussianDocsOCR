@@ -54,8 +54,12 @@ func MakeOcrOptions(docType string) OcrOptions {
 	case strings.Contains(t, "intpassport"):
 		return OcrOptions{
 			NeededSplit: []string{"Licence_number", "Birth_place_ru", "Issue_organization_ru"},
+			// MRZ is read by the Latin engine and is NOT in NeededSplit: the zone is
+			// detected one box per LINE, and each line must reach the engine whole -
+			// splitting it at its filler runs would destroy the fixed 44-character
+			// layout the check digits are computed over (pipeline.py:126).
 			EnFields: []string{"Issue_date", "Expiration_date",
-				"Birth_date", "Issue_organisation_code"},
+				"Birth_date", "Issue_organisation_code", "MRZ"},
 			// Licence_number is CYRILLIC-routed although it is digits only: the Latin
 			// engine reads the passport's red '3' as '8' at p=0.94..1.00, and the
 			// Cyrillic engine reads the same crops correctly (issue #12). Matches the
@@ -68,9 +72,11 @@ func MakeOcrOptions(docType string) OcrOptions {
 	case strings.Contains(t, "extpassport"):
 		return OcrOptions{
 			NeededSplit: []string{"Licence_number", "Birth_place_ru", "Birth_place_en"},
+			// MRZ: Latin engine, never split - see intpassport above.
 			EnFields: []string{"Last_name_en", "First_name_en", "Issue_date",
 				"Expiration_date", "Birth_date", "Birth_place_en", "Issue_organization_en",
-				"Living_region_en", "Sex_en", "Issue_organisation_code", "Middle_name_en"},
+				"Living_region_en", "Sex_en", "Issue_organisation_code", "Middle_name_en",
+				"MRZ"},
 			// Licence_number: Cyrillic-routed, same reason as intpassport above.
 			RuFields: []string{"Last_name_ru", "First_name_ru", "Birth_place_ru",
 				"Issue_organization_ru", "Living_region_ru", "Middle_name_ru", "Sex_ru",

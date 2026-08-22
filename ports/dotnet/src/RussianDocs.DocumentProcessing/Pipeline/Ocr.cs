@@ -84,6 +84,17 @@ public static class Ocr
     private static string JoinField(Dictionary<string, string> joined, string label, string docType,
         List<string> words)
     {
+        // The MRZ arrives as one detection per line, top to bottom. The line boundary is
+        // load-bearing — every check digit lives at a fixed offset in line 2 — so the lines are
+        // joined with a newline and nothing else is done to the text: a space would be outside the
+        // MRZ alphabet, and the double-space squeeze below must not touch it.
+        if (label == "MRZ")
+        {
+            string mrz = string.Join("\n", words.Where(w => w.Length > 0));
+            joined[label] = mrz;
+            return mrz;
+        }
+
         bool isDate = label.Contains("date", StringComparison.OrdinalIgnoreCase);
         // Only multi-word dates are affected: a digit date reaches this point as a single word
         // ("22.06.2010"), where the separator cannot show.

@@ -57,13 +57,18 @@ public class OcrEngine private constructor(
     /**
      * The per-field text corrections.
      *
-     * Dispatched on the SCRIPT first and the field name second, matching the reference. A Cyrillic engine
-     * never applies the date normaliser even to a date field, because dates are routed to the Latin engine —
-     * except in SNILS, where the month is a Russian word and the parity rule sends odd words to Cyrillic
-     * anyway.
+     * Dispatched on the SCRIPT first and the field name second, matching the reference. BOTH engines
+     * normalise a digit date, because neither of them READS one correctly: '22.06.2010' comes back as
+     * '22/06/2010' from either. The Cyrillic route needs the repair since birth-certificate dates moved
+     * there for the 2018 blank, whose months are spelled out.
      */
     public fun fixErrors(fieldType: String, text: String): String {
         if (script == "cyrillic") {
+            if (fieldType in CYR_DATE_FIELDS) {
+                // Rewrites only when the text holds exactly eight digits, so a date spelled out in words
+                // passes through — which is what lets one rule serve both birth-certificate blanks and SNILS.
+                return OcrCorrections.checkDdmmyyyy(text)
+            }
             if (fieldType == "Sex_ru") {
                 return OcrCorrections.checkRusSex(text)
             }
@@ -92,6 +97,16 @@ public class OcrEngine private constructor(
         )
 
         private val DATE_FIELDS = listOf("Issue_date", "Expiration_date", "Birth_date")
+
+        /**
+         * The same normalisation on the CYRILLIC engine, longer by the two parent birth dates of a birth
+         * certificate — which only ever reach this engine. Membership is by FIELD NAME, never by content:
+         * a series or a document number can hold eight digits too, and reformatting one as a date would be
+         * silent and wrong. Mirrors _DATE_FIELDS in ocr_cyrillic.py.
+         */
+        private val CYR_DATE_FIELDS = listOf(
+            "Issue_date", "Birth_date", "Expiration_date", "Father_birth_date", "Mother_birth_date",
+        )
 
         public fun cyrillic(
             root: String,

@@ -36,6 +36,18 @@ public sealed class OcrEngine : IDisposable
 
     private static readonly string[] DateFields = ["Issue_date", "Expiration_date", "Birth_date"];
 
+    /// <summary>
+    /// The same normalization from the CYRILLIC engine, and the list is longer by the two parent
+    /// birth dates of a birth certificate — which only ever reach this engine. NEITHER engine reads
+    /// the printed separator of a digit date ('22.06.2010' comes back as '22/06/2010' from both), so
+    /// the repair has to live on both routes; the Cyrillic one needs it since birth-certificate
+    /// dates moved there for the 2018 blank, whose months are spelled out. Membership is by FIELD
+    /// NAME, never by content: a series or a document number can hold eight digits too, and
+    /// reformatting one as a date would be silent and wrong. Mirrors _DATE_FIELDS in ocr_cyrillic.py.
+    /// </summary>
+    private static readonly string[] CyrDateFields =
+        ["Issue_date", "Birth_date", "Expiration_date", "Father_birth_date", "Mother_birth_date"];
+
     private readonly string _script;
     private readonly Session _session;
     private readonly IPreprocessor _pre;
@@ -93,6 +105,13 @@ public sealed class OcrEngine : IDisposable
     {
         if (_script == "cyrillic")
         {
+            if (Array.IndexOf(CyrDateFields, fieldType) >= 0)
+            {
+                // Rewrites only when the text holds exactly eight digits, so a date spelled out in
+                // words passes through — which is what lets one rule serve both birth-certificate
+                // blanks and SNILS.
+                return OcrCorrections.CheckDdmmyyyy(text);
+            }
             if (fieldType == "Sex_ru")
             {
                 return OcrCorrections.CheckRusSex(text);

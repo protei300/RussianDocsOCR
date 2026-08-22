@@ -42,6 +42,17 @@ var ruNameFields = []string{"Last_name_ru", "First_name_ru", "Birth_place_ru",
 // dateFields get date normalisation from the Latin engine.
 var dateFields = []string{"Issue_date", "Expiration_date", "Birth_date"}
 
+// cyrDateFields get the SAME normalisation from the Cyrillic engine, and the list is
+// longer by the two parent birth dates of a birth certificate - which only ever reach
+// this engine. NEITHER engine reads the printed separator of a digit date ('22.06.2010'
+// comes back as '22/06/2010' from both), so the repair has to live on both routes; the
+// Cyrillic one needs it since birth-certificate dates moved there for the 2018 blank,
+// whose months are spelled out. Membership is by FIELD NAME, never by content: a series
+// or a document number can hold eight digits too, and reformatting one as a date would
+// be silent and wrong. Mirrors _DATE_FIELDS in ocr_cyrillic.py.
+var cyrDateFields = []string{"Issue_date", "Birth_date", "Expiration_date",
+	"Father_birth_date", "Mother_birth_date"}
+
 // OcrEngine is one recognition engine. Port of pipeline_modules/ocr_cyrillic and
 // ocr_latin, which differ ONLY in which artifact they load and which corrections
 // fix_errors applies — so they are one type with a script field rather than two
@@ -117,6 +128,12 @@ func (e *OcrEngine) Predict(patch imaging.Image) (string, error) {
 // and Sex_ru must become М/Ж while Sex_en must become M/F.
 func (e *OcrEngine) FixErrors(fieldType, text string) string {
 	if e.script == "cyrillic" {
+		if contains(cyrDateFields, fieldType) {
+			// Rewrites only when the text holds exactly eight digits, so a date spelled
+			// out in words passes through - which is what lets one rule serve both
+			// birth-certificate blanks and SNILS.
+			return CheckDdmmyyyy(text)
+		}
 		if fieldType == "Sex_ru" {
 			return CheckRusSex(text)
 		}
