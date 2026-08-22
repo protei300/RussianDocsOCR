@@ -151,6 +151,8 @@ class ModelLoader:
                     labels=output_info['Labels'],
                     iou=output_info['IOU'],
                     cls=output_info['CLS'],
+                    # optional: raises the NMS threshold for named classes only
+                    iou_per_class=output_info.get('IOUPerClass'),
                     verbose=self.verbose,
                 )
             case "YOLOOBBDetector":

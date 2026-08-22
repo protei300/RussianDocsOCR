@@ -508,12 +508,40 @@ class PerClassYOLODetectorPostprocessing(YOLODetectorPostprocessing):
     class-agnostic base behavior.
     """
 
+    def __init__(self, labels: list, iou=0.2, cls=0.5, iou_per_class: dict = None,
+                 verbose=False):
+        """
+        Args:
+            iou_per_class (dict): optional ``{label: threshold}`` overriding the
+                shared threshold for named classes only.
+        """
+        super().__init__(labels, iou=iou, cls=cls, verbose=verbose)
+        self.iou_per_class = iou_per_class or {}
+
+    def iou_for(self, cls_idx: int) -> float:
+        """NMS threshold for one class.
+
+        A multi-line field is labeled one box per line, and those boxes belong
+        to the SAME class, so they suppress each other. On a tilted document
+        their axis-aligned boxes overlap far more than the shared 0.2: for an
+        MRZ (line 34x its own height, lines 1.87 heights apart) the pair
+        crosses 0.2 at about 3 degrees and reaches 0.36 at 5 - so the second
+        line is dropped exactly on the hard photographs. Raising the shared
+        threshold is not an option: it is what keeps the ru/en field pairs of
+        an external passport (overlapping at 0.2-0.3) from swallowing each
+        other, so the override is per class.
+        """
+        if not self.iou_per_class:
+            return self.iou
+        label = self.labels[cls_idx] if 0 <= cls_idx < len(self.labels) else None
+        return self.iou_per_class.get(label, self.iou)
+
     def nms_indices(self, box: np.ndarray, conf: np.ndarray, cls_ids: np.ndarray):
         keep = []
         flat = cls_ids.reshape(-1)
         for c in np.unique(flat):
             idx = np.nonzero(flat == c)[0]
-            picked = self.nms(box[idx], conf[idx], self.iou)
+            picked = self.nms(box[idx], conf[idx], self.iou_for(int(c)))
             keep.extend(int(idx[k]) for k in picked)
         return keep
 

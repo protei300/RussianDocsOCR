@@ -120,7 +120,12 @@ class OCROptionsINTPassport(OCROptionsClass):
                     "Birth_place_ru", "Issue_organization_ru",
                     ]
 
-    en_fields = ["Issue_date", "Expiration_date", "Birth_date", "Issue_organisation_code", ]
+    # MRZ is deliberately NOT in needed_split: it is detected one box per line
+    # and each line must reach the OCR engine whole - splitting it into "words"
+    # at the filler runs would destroy the fixed 44-character layout the check
+    # digits are computed over.
+    en_fields = ["Issue_date", "Expiration_date", "Birth_date",
+                 "Issue_organisation_code", "MRZ", ]
     # Licence_number is CYRILLIC-routed, and that is not a typo: the series and
     # number are digits only, but the Latin engine reads the passport's red '3'
     # as '8' - confidently, at p=0.94..1.00 with '3' as the runner-up at 0.004,
@@ -179,7 +184,7 @@ class OCROptionsEXTPassport(OCROptionsClass):
     en_fields = ["Last_name_en", "First_name_en", "Issue_date",
                  "Expiration_date", "Birth_date", "Birth_place_en",
                  "Issue_organization_en", "Living_region_en", "Sex_en",
-                 "Issue_organisation_code", "Middle_name_en"]
+                 "Issue_organisation_code", "Middle_name_en", "MRZ"]
     # Licence_number: Cyrillic-routed for the reason given on OCROptionsINTPassport.
     # Smaller effect here (Latin 41/42 exact, Cyrillic 42/42 over samples/) because
     # the number is printed larger, but it is the same digit confusion.
@@ -230,6 +235,21 @@ class PipelineResults:
             return self.meta_results.get('OCR')
         else:
             return None
+
+    @property
+    def validation(self) -> dict:
+        """Field checks over the OCR result (docs/validation-checks.md).
+
+        Deliberately a separate accessor rather than a key inside
+        ``full_report``: the report is what the service serialises and what the
+        conformance goldens of every port are compared against, so putting
+        verdicts there would make this a cross-port contract change. Callers
+        that want the checks ask for them.
+
+        Empty dict when the document carries nothing checkable.
+        """
+        from ..validation import validate
+        return validate(self.ocr or {})
 
     @property
     def doctype(self) -> Union[str, None]:
@@ -1223,7 +1243,14 @@ class Pipeline:
     @staticmethod
     def _join_field(ocr_dict: dict, field_name: str, doc_type: str, ocred_words: list):
         """Join per-word OCR results into the field's final string (dates use
-        '.', SNILS dates use ' ', everything else appends with ' ')."""
+        '.', SNILS dates use ' ', MRZ uses a newline, everything else ' ')."""
+        # The MRZ arrives as one detection per line, top to bottom. The line
+        # boundary is load-bearing - every check digit lives at a fixed offset
+        # in line 2 - so the lines are joined with a newline and nothing else
+        # is done to the text (a space would be outside the MRZ alphabet).
+        if field_name == 'MRZ':
+            ocr_dict[field_name] = '\n'.join(w for w in ocred_words if w)
+            return
         if 'date' in field_name.lower() and doc_type != 'SNILS':
             ocr_dict[field_name] = '.'.join(ocred_words)
         elif 'date' in field_name.lower() and doc_type == 'SNILS':
