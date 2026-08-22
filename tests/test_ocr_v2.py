@@ -99,3 +99,37 @@ class TestOCRv2Preprocessing:
         img[..., 0] = 255  # R
         out = OCRv2Preprocessing(height=32, color_order='BGR')(img)
         assert out[0, :, :, 2].max() == 255 and out[0, :, :, 0].max() == 0
+
+
+class TestDateNormalization:
+    """Neither engine reads the printed separator of a digit date: both return
+    '22/06/2010' for '22.06.2010' (see LATIN_CASES, whose ground truth is
+    '03/15/2026'). The repair lives in fix_errors, and it has to be in BOTH
+    engines: birth-certificate dates are Cyrillic-routed because the 2018 blank
+    spells its months out, and for a while that route silently lost the repair.
+    """
+
+    @pytest.fixture(scope='class')
+    def engines(self):
+        return OCRCyrillic(tier='accurate', device='cpu'), OCRLatin(tier='accurate', device='cpu')
+
+    def test_both_engines_normalize_a_digit_date(self, engines):
+        for eng in engines:
+            assert eng.fix_errors(field_type='Birth_date', text='22/06/2010') == '22.06.2010'
+
+    def test_a_worded_date_is_left_alone(self, engines):
+        """Fewer than eight digits, so nothing is rewritten - which is what lets
+        one rule serve both birth-certificate blanks and SNILS."""
+        cyr = engines[0]
+        assert cyr.fix_errors(field_type='Birth_date', text='15 ОКТЯБРЯ 2020 Г.') == '15 ОКТЯБРЯ 2020 Г.'
+        assert cyr.fix_errors(field_type='Issue_date', text='28 ИЮЛЯ 2010') == '28 ИЮЛЯ 2010'
+        # SNILS reaches fix_errors one word at a time (the parity routing rule)
+        for word in ('26', 'СЕНТЯБРЯ', '1997', 'ГОДА'):
+            assert cyr.fix_errors(field_type='Birth_date', text=word) == word
+
+    def test_the_rule_is_keyed_on_the_FIELD_not_on_the_digits(self, engines):
+        """A series or a document number can hold eight digits too. Reformatting
+        one as a date would be silent and wrong, so membership is by field name."""
+        cyr = engines[0]
+        assert cyr.fix_errors(field_type='Licence_number', text='II-МЮ 715330') == 'II-МЮ 715330'
+        assert cyr.fix_errors(field_type='Act_number', text='11020277') == '11020277'
