@@ -231,17 +231,17 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.0296,
-    "_deskew": 0.0101,
-    "_doc_detector": 0.2004,
+    "_blur": 0.0195,
+    "_deskew": 0.0071,
+    "_doc_detector": 0.1628,
     "_doctype_angle": 0.005,
-    "_fields_detector": 0.1147,
-    "_glare": 0.0362,
-    "_lcd_spoofing": 0.0438,
-    "_ocr": 0.251,
-    "_print_spoofing": 0.0095,
-    "_quality_and_borders": 0.2696,
-    "_split_words": 0.284,
-    "total": 0.9344
+    "_fields_detector": 0.0825,
+    "_glare": 0.0405,
+    "_lcd_spoofing": 0.005,
+    "_ocr": 0.1892,
+    "_print_spoofing": 0.0255,
+    "_quality_and_borders": 0.1894,
+    "_split_words": 0.235,
+    "total": 0.7082
   }
 }

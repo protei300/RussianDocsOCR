@@ -37,7 +37,7 @@
       "id": "b2",
       "kind": "text",
       "label": "Birth_date",
-      "text": "22/06/2010",
+      "text": "22.06.2010",
       "x1": 352,
       "x2": 426,
       "y1": 249,
@@ -242,7 +242,7 @@
       "display": "Date of birth",
       "name": "Birth_date",
       "script": "num",
-      "value": "22/06/2010"
+      "value": "22.06.2010"
     },
     {
       "box_ids": [
@@ -350,7 +350,7 @@
   ],
   "ocr": {
     "Act_number": "2521",
-    "Birth_date": "22/06/2010",
+    "Birth_date": "22.06.2010",
     "Birth_place_ru": "2 ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ, РОССИЯ",
     "Father_first_middle_ru": "АЛЕКСЕЙ ОЛЕГОВИЧ",
     "Father_last_name_ru": "БОРИСОВ",
@@ -371,17 +371,17 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.0456,
-    "_deskew": 0.007,
-    "_doc_detector": 0.1887,
-    "_doctype_angle": 0.0065,
-    "_fields_detector": 0.117,
-    "_glare": 0.0274,
-    "_lcd_spoofing": 0.0065,
-    "_ocr": 0.4365,
-    "_print_spoofing": 0.021,
-    "_quality_and_borders": 0.2477,
-    "_split_words": 0.3312,
-    "total": 1.1459
+    "_blur": 0.094,
+    "_deskew": 0.0072,
+    "_doc_detector": 0.2096,
+    "_doctype_angle": 0.005,
+    "_fields_detector": 0.0865,
+    "_glare": 0.0182,
+    "_lcd_spoofing": 0.006,
+    "_ocr": 0.3712,
+    "_print_spoofing": 0.078,
+    "_quality_and_borders": 0.2414,
+    "_split_words": 0.3377,
+    "total": 1.049
   }
 }

@@ -231,17 +231,17 @@
   },
   "timings": {
     "_doctype_angle": 0.005,
-    "_quality_and_borders": 0.2696,
-    "_glare": 0.0362,
-    "_blur": 0.0296,
-    "_print_spoofing": 0.0095,
-    "_lcd_spoofing": 0.0438,
-    "_doc_detector": 0.2004,
-    "_deskew": 0.0101,
-    "_fields_detector": 0.1147,
-    "_split_words": 0.284,
-    "_ocr": 0.251,
-    "total": 0.9344
+    "_quality_and_borders": 0.1894,
+    "_glare": 0.0405,
+    "_blur": 0.0195,
+    "_print_spoofing": 0.0255,
+    "_lcd_spoofing": 0.005,
+    "_doc_detector": 0.1628,
+    "_deskew": 0.0071,
+    "_fields_detector": 0.0825,
+    "_split_words": 0.235,
+    "_ocr": 0.1892,
+    "total": 0.7082
   },
   "address": null
 }
