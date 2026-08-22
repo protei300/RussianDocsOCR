@@ -1,4 +1,4 @@
 {
-  "models_version": "v4",
+  "models_version": "v5",
   "note": "The weight set these goldens were recorded against. Regenerating the goldens and changing the models are the same act: if these disagree with document_processing/models.lock.json, the numbers below cannot be compared."
 }

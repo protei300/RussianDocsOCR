@@ -1,6 +1,6 @@
 {
-  "models_version": "v4",
-  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v4/",
+  "models_version": "v5",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v5/",
   "files": [
     {
       "path": "AddressLines/ONNX/model.json",
@@ -48,7 +48,7 @@
       "path": "Borders/ONNX/model.onnx",
       "asset": "Borders__ONNX__model.onnx",
       "size": 40401449,
-      "sha256": "e43bb1315cfaf7cdc75a0b8d4d2bdaac5becb8694f06f0a7db86318d35330278"
+      "sha256": "af501c60f543421a808cebc2ef9b1fe1779542f5d7f1c231ca8308769e64de00"
     },
     {
       "path": "DocTypeAngles/ONNX/model.json",
@@ -60,13 +60,13 @@
       "path": "DocTypeAngles/ONNX/model.onnx",
       "asset": "DocTypeAngles__ONNX__model.onnx",
       "size": 9967217,
-      "sha256": "30f798f0627f1327441eddfa22a872234102b2ba31046ce960ef269801370815"
+      "sha256": "c915b26d858cfac7ed356521a7004fd2b08b4ec944fa07ff95f1afdc0c1a1be8"
     },
     {
       "path": "DocTypeAngles/ONNX/resources/centers.npz",
       "asset": "DocTypeAngles__ONNX__resources__centers.npz",
       "size": 50048,
-      "sha256": "0027d2eb9464dc56a5d518f279146503b6e1b1c7ea8f6314f09d823b00a522c0"
+      "sha256": "7558be111847328b5c5e392a1de790e49c8f5401d90a02ea7800dd2e0bb43f51"
     },
     {
       "path": "Glare/ONNX/model.json",
@@ -155,14 +155,14 @@
     {
       "path": "TextFields/ONNX/model.json",
       "asset": "TextFields__ONNX__model.json",
-      "size": 1804,
-      "sha256": "0e079aa3c0e45a2268b7027dabdead46713e4e496916aa8e975c8aa407274c53"
+      "size": 2044,
+      "sha256": "523f470e40ad1c2a55ef268dfc33b34a731bf7bb81dc67305d9d64c30aa7d36a"
     },
     {
       "path": "TextFields/ONNX/model.onnx",
       "asset": "TextFields__ONNX__model.onnx",
-      "size": 37815170,
-      "sha256": "781d53d32f6d910e7b235079396fb2fec56bbb384d4d534557c14513a72c974b"
+      "size": 37822910,
+      "sha256": "10fb5b9a9d6501cd7237a8480edf0283437111ec7d39ac834888d153e8bf4e8a"
     },
     {
       "path": "Words/ONNX/model.json",
@@ -173,8 +173,8 @@
     {
       "path": "Words/ONNX/model.onnx",
       "asset": "Words__ONNX__model.onnx",
-      "size": 12231567,
-      "sha256": "06bc0ceecdea6edb342dcd3c1b181c3a13b76e728c5a1045a1d7d8242b08d3e7"
+      "size": 10452985,
+      "sha256": "0b2d7cb3668ee497b79c5651ad7035fc7cad590b6f295251d97dea4d4c73fa13"
     }
   ]
 }
