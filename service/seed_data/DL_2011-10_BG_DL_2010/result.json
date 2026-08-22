@@ -493,18 +493,18 @@
   "LCDSpoofing": "REAL"
  },
  "timings": {
-  "_doctype_angle": 0.0066,
-  "_quality_and_borders": 0.0956,
-  "_glare": 0.0943,
-  "_blur": 0.0933,
-  "_print_spoofing": 0.012,
-  "_lcd_spoofing": 0.0134,
-  "_doc_detector": 0.0544,
-  "_deskew": 0.0173,
-  "_fields_detector": 0.0165,
-  "_split_words": 0.0469,
-  "_ocr": 0.4669,
-  "total": 0.6498
+  "_doctype_angle": 0.0065,
+  "_quality_and_borders": 0.0824,
+  "_glare": 0.0766,
+  "_blur": 0.0814,
+  "_print_spoofing": 0.0069,
+  "_lcd_spoofing": 0.0106,
+  "_doc_detector": 0.056,
+  "_deskew": 0.0095,
+  "_fields_detector": 0.015,
+  "_split_words": 0.0403,
+  "_ocr": 0.2959,
+  "total": 0.4496
  },
  "address": null
 }

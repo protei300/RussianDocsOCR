@@ -51,7 +51,7 @@
    "y2": 262,
    "conf": 0.917,
    "cls": 10,
-   "text": "22/06/2010",
+   "text": "22.06.2010",
    "ambiguous": false
   },
   {
@@ -237,7 +237,7 @@
   {
    "name": "Birth_date",
    "display": "Date of birth",
-   "value": "22/06/2010",
+   "value": "22.06.2010",
    "script": "num",
    "conf": 0.917,
    "box_ids": [
@@ -351,7 +351,7 @@
  "ocr": {
   "Last_name_ru": "БОРИСОВА",
   "First_name_ru": "АНАСТАСИЯ АЛЕКСЕЕВНА",
-  "Birth_date": "22/06/2010",
+  "Birth_date": "22.06.2010",
   "Birth_place_ru": "2 ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ, РОССИЯ",
   "Act_number": "2521",
   "Father_last_name_ru": "БОРИСОВ",
@@ -370,18 +370,18 @@
   "LCDSpoofing": "FAKE"
  },
  "timings": {
-  "_doctype_angle": 0.0079,
-  "_quality_and_borders": 0.1188,
-  "_glare": 0.117,
-  "_blur": 0.1154,
-  "_print_spoofing": 0.0141,
-  "_lcd_spoofing": 0.0136,
-  "_doc_detector": 0.0527,
-  "_deskew": 0.0096,
-  "_fields_detector": 0.0168,
-  "_split_words": 0.0896,
-  "_ocr": 0.434,
-  "total": 0.6767
+  "_doctype_angle": 0.007,
+  "_quality_and_borders": 0.1092,
+  "_glare": 0.1092,
+  "_blur": 0.101,
+  "_print_spoofing": 0.0117,
+  "_lcd_spoofing": 0.0117,
+  "_doc_detector": 0.0539,
+  "_deskew": 0.0103,
+  "_fields_detector": 0.0143,
+  "_split_words": 0.0926,
+  "_ocr": 0.356,
+  "total": 0.5894
  },
  "address": null
 }

@@ -445,18 +445,18 @@
   "LCDSpoofing": "FAKE"
  },
  "timings": {
-  "_doctype_angle": 0.008,
-  "_quality_and_borders": 0.107,
-  "_glare": 0.106,
-  "_blur": 0.106,
-  "_print_spoofing": 0.0129,
-  "_lcd_spoofing": 0.0128,
-  "_doc_detector": 0.0605,
-  "_deskew": 0.016,
-  "_fields_detector": 0.017,
-  "_split_words": 0.1138,
-  "_ocr": 0.6204,
-  "total": 0.8822
+  "_doctype_angle": 0.011,
+  "_quality_and_borders": 0.0926,
+  "_glare": 0.0826,
+  "_blur": 0.0901,
+  "_print_spoofing": 0.0202,
+  "_lcd_spoofing": 0.0085,
+  "_doc_detector": 0.0546,
+  "_deskew": 0.0159,
+  "_fields_detector": 0.0155,
+  "_split_words": 0.1119,
+  "_ocr": 0.5399,
+  "total": 0.7868
  },
  "address": null
 }
