@@ -45,8 +45,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        572,
-        831,
+        574,
+        828,
         3
       ]
     },
@@ -56,8 +56,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        572,
-        831,
+        574,
+        828,
         3
       ]
     },
@@ -142,6 +142,11 @@
       "kind": "json"
     },
     {
+      "stage": "words.MRZ.bbox",
+      "file": "words.MRZ.bbox.json",
+      "kind": "json"
+    },
+    {
       "stage": "ocr.Licence_number.words",
       "file": "ocr.Licence_number.words.json",
       "kind": "json"
@@ -214,6 +219,11 @@
     {
       "stage": "ocr.Expiration_date.words",
       "file": "ocr.Expiration_date.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.MRZ.words",
+      "file": "ocr.MRZ.words.json",
       "kind": "json"
     },
     {

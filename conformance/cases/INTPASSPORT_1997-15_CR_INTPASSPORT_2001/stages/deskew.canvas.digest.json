@@ -2,10 +2,10 @@
   "stage": "deskew.canvas",
   "dtype": "uint8",
   "shape": [
-    701,
-    515,
+    696,
+    512,
     3
   ],
-  "sha256": "fba4a8991ee7ede9a82bf258e8a5bdf401ff4abacf891ed08c388d01b754c0ac",
+  "sha256": "a81446e20883c810cb1e7722caacf79d77515998835dada7832b36506db3b8dd",
   "note": "pixels are not committed; regenerate with `python -m conformance.refcli regen --with-pixels` to compare magnitudes"
 }

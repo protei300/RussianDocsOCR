@@ -5,14 +5,14 @@
   "First_name_ru": "КАРЕН",
   "Middle_name_en": "SERGEEVICH",
   "First_name_en": "KAREN",
-  "Birth_place_ru": "РОСТОВСКАЯ ОБЛ",
+  "Birth_place_ru": "РОСТОВСКАЯ ОБЛ.",
   "Birth_place_en": "ROSTOVSKAIA OBLAST",
   "Expiration_date": "15.02.2030",
   "Issue_date": "15.02.2020",
-  "Issue_organization_ru": "ГИБДД",
   "Issue_organisation_code": "6100",
+  "Issue_organization_ru": "ГИБДД",
   "Issue_organization_en": "GIBDD",
-  "Living_region_ru": "РОСТОВСКАЯ ОБЛ",
+  "Living_region_ru": "РОСТОВСКАЯ ОБЛ.",
   "Living_region_en": "ROSTOVSKAIA OBL",
   "Driver_class": "B B1 M"
 }

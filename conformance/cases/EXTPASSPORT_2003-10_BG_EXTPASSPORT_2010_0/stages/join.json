@@ -5,13 +5,14 @@
   "Middle_name_ru": "ЮРЬЕВНА",
   "First_name_ru": "НАТАЛЬЯ",
   "First_name_en": "NATALIA",
-  "Birth_place_ru": "ТОМСКАЯ ОБЛ",
   "Birth_date": "18.03.1967",
+  "Birth_place_ru": "ТОМСКАЯ ОБЛ",
   "Birth_place_en": "USSR",
   "Sex_ru": "Ж",
   "Sex_en": "F",
   "Expiration_date": "06.08.2009",
   "Issue_date": "06.08.2004",
   "Issue_organization_ru": "УВД",
-  "Issue_organisation_code": "365"
+  "Issue_organisation_code": "365",
+  "MRZ": "P<RUSPRUDNIKOVA<<NATALIA<<<<<<<<<<<<<<<<<<<<\n6214838217RUS6703185F0908069<<<<<<<<<"
 }

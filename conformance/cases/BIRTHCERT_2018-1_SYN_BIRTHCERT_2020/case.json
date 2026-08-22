@@ -1,0 +1,16 @@
+{
+  "slug": "BIRTHCERT_2018-1_SYN_BIRTHCERT_2020",
+  "sample": "samples/BIRTHCERT_2018/1_SYN_BIRTHCERT_2020.jpg",
+  "doc_type": "BIRTHCERT_2018",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "BIRTHCERT_2018"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

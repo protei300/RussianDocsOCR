@@ -45,8 +45,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        622,
-        904,
+        620,
+        909,
         3
       ]
     },
@@ -56,8 +56,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        622,
-        904,
+        620,
+        909,
         3
       ]
     },

@@ -45,8 +45,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        937,
-        673,
+        936,
+        674,
         3
       ]
     },
@@ -56,8 +56,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        937,
-        673,
+        936,
+        674,
         3
       ]
     },
@@ -84,6 +84,11 @@
     {
       "stage": "words.Birth_place_ru.bbox",
       "file": "words.Birth_place_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Act_number.bbox",
+      "file": "words.Act_number.bbox.json",
       "kind": "json"
     },
     {
@@ -139,6 +144,11 @@
     {
       "stage": "ocr.Birth_place_ru.words",
       "file": "ocr.Birth_place_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Act_number.words",
+      "file": "ocr.Act_number.words.json",
       "kind": "json"
     },
     {

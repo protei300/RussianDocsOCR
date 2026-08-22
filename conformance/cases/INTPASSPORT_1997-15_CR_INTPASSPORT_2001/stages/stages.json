@@ -45,8 +45,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        701,
-        515,
+        696,
+        512,
         3
       ]
     },
@@ -56,8 +56,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        701,
-        515,
+        696,
+        512,
         3
       ]
     },
@@ -82,11 +82,6 @@
       "kind": "json"
     },
     {
-      "stage": "words.Licence_number.bbox",
-      "file": "words.Licence_number.bbox.json",
-      "kind": "json"
-    },
-    {
       "stage": "words.Last_name_ru.bbox",
       "file": "words.Last_name_ru.bbox.json",
       "kind": "json"
@@ -99,6 +94,11 @@
     {
       "stage": "words.Middle_name_ru.bbox",
       "file": "words.Middle_name_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Licence_number.bbox",
+      "file": "words.Licence_number.bbox.json",
       "kind": "json"
     },
     {
@@ -132,11 +132,6 @@
       "kind": "json"
     },
     {
-      "stage": "ocr.Licence_number.words",
-      "file": "ocr.Licence_number.words.json",
-      "kind": "json"
-    },
-    {
       "stage": "ocr.Last_name_ru.words",
       "file": "ocr.Last_name_ru.words.json",
       "kind": "json"
@@ -149,6 +144,11 @@
     {
       "stage": "ocr.Middle_name_ru.words",
       "file": "ocr.Middle_name_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Licence_number.words",
+      "file": "ocr.Licence_number.words.json",
       "kind": "json"
     },
     {

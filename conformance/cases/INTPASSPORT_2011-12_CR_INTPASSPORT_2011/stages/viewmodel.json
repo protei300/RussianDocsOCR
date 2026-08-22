@@ -5,8 +5,8 @@
   "recognised": true,
   "device": "cpu",
   "canvas": {
-    "width": 506,
-    "height": 703,
+    "width": 502,
+    "height": 702,
     "is_fallback": false
   },
   "coord_space": "canvas",
@@ -17,11 +17,11 @@
       "label": "Issue_organization_ru",
       "display": "Issuing authority",
       "kind": "text",
-      "x1": 118,
-      "y1": 43,
-      "x2": 455,
-      "y2": 83,
-      "conf": 0.888,
+      "x1": 115,
+      "y1": 44,
+      "x2": 452,
+      "y2": 85,
+      "conf": 0.884,
       "cls": 13,
       "text": "УМВД РОССИИ ПО ТОМСКОЙ ОБЛАСТИ",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "Licence_number",
       "display": "Document number",
       "kind": "text",
-      "x1": 468,
-      "y1": 90,
-      "x2": 499,
-      "y2": 262,
-      "conf": 0.92,
+      "x1": 464,
+      "y1": 93,
+      "x2": 496,
+      "y2": 265,
+      "conf": 0.905,
       "cls": 5,
       "text": null,
       "ambiguous": true
@@ -45,10 +45,10 @@
       "label": "Issue_date",
       "display": "Date of issue",
       "kind": "text",
-      "x1": 76,
-      "y1": 130,
-      "x2": 197,
-      "y2": 161,
+      "x1": 73,
+      "y1": 131,
+      "x2": 193,
+      "y2": 162,
       "conf": 0.933,
       "cls": 6,
       "text": "22.05.2018",
@@ -59,11 +59,11 @@
       "label": "Issue_organisation_code",
       "display": "Authority code",
       "kind": "text",
-      "x1": 334,
-      "y1": 134,
-      "x2": 422,
-      "y2": 163,
-      "conf": 0.942,
+      "x1": 330,
+      "y1": 136,
+      "x2": 419,
+      "y2": 166,
+      "conf": 0.938,
       "cls": 20,
       "text": "700-014",
       "ambiguous": false
@@ -73,11 +73,11 @@
       "label": "Signature",
       "display": "Signature",
       "kind": "visual",
-      "x1": 300,
-      "y1": 237,
-      "x2": 395,
-      "y2": 288,
-      "conf": 0.937,
+      "x1": 296,
+      "y1": 238,
+      "x2": 392,
+      "y2": 290,
+      "conf": 0.945,
       "cls": 9,
       "text": null,
       "ambiguous": false
@@ -87,11 +87,11 @@
       "label": "Last_name_ru",
       "display": "Last name",
       "kind": "text",
-      "x1": 300,
-      "y1": 385,
-      "x2": 403,
-      "y2": 410,
-      "conf": 0.931,
+      "x1": 299,
+      "y1": 386,
+      "x2": 401,
+      "y2": 411,
+      "conf": 0.919,
       "cls": 1,
       "text": "БАТУРИНА",
       "ambiguous": false
@@ -102,10 +102,10 @@
       "display": "Photo",
       "kind": "visual",
       "x1": 0,
-      "y1": 408,
-      "x2": 149,
-      "y2": 616,
-      "conf": 0.951,
+      "y1": 407,
+      "x2": 148,
+      "y2": 615,
+      "conf": 0.943,
       "cls": 0,
       "text": null,
       "ambiguous": false
@@ -115,11 +115,11 @@
       "label": "Licence_number",
       "display": "Document number",
       "kind": "text",
-      "x1": 471,
-      "y1": 416,
-      "x2": 504,
-      "y2": 593,
-      "conf": 0.928,
+      "x1": 467,
+      "y1": 419,
+      "x2": 501,
+      "y2": 594,
+      "conf": 0.927,
       "cls": 5,
       "text": "69 18 812211",
       "ambiguous": false
@@ -129,11 +129,11 @@
       "label": "First_name_ru",
       "display": "First name",
       "kind": "text",
-      "x1": 296,
-      "y1": 434,
-      "x2": 411,
-      "y2": 462,
-      "conf": 0.93,
+      "x1": 294,
+      "y1": 435,
+      "x2": 408,
+      "y2": 464,
+      "conf": 0.924,
       "cls": 2,
       "text": "ЕКАТЕРИНА",
       "ambiguous": false
@@ -143,11 +143,11 @@
       "label": "Middle_name_ru",
       "display": "Middle name",
       "kind": "text",
-      "x1": 272,
-      "y1": 461,
-      "x2": 433,
-      "y2": 495,
-      "conf": 0.927,
+      "x1": 271,
+      "y1": 462,
+      "x2": 430,
+      "y2": 496,
+      "conf": 0.92,
       "cls": 17,
       "text": "АЛЕКСАНДРОВНА",
       "ambiguous": false
@@ -157,11 +157,11 @@
       "label": "Birth_date",
       "display": "Date of birth",
       "kind": "text",
-      "x1": 335,
-      "y1": 493,
-      "x2": 460,
-      "y2": 522,
-      "conf": 0.908,
+      "x1": 333,
+      "y1": 494,
+      "x2": 456,
+      "y2": 523,
+      "conf": 0.91,
       "cls": 10,
       "text": "24.04.1998",
       "ambiguous": false
@@ -171,11 +171,11 @@
       "label": "Sex_ru",
       "display": "Sex",
       "kind": "text",
-      "x1": 179,
-      "y1": 501,
-      "x2": 230,
-      "y2": 526,
-      "conf": 0.913,
+      "x1": 178,
+      "y1": 502,
+      "x2": 229,
+      "y2": 527,
+      "conf": 0.905,
       "cls": 18,
       "text": "Ж",
       "ambiguous": false
@@ -185,14 +185,14 @@
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 264,
-      "y1": 520,
-      "x2": 432,
-      "y2": 552,
-      "conf": 0.905,
+      "x1": 266,
+      "y1": 521,
+      "x2": 428,
+      "y2": 553,
+      "conf": 0.898,
       "cls": 11,
-      "text": null,
-      "ambiguous": true
+      "text": "С МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ",
+      "ambiguous": false
     },
     {
       "id": "b13",
@@ -200,25 +200,53 @@
       "display": "Place of birth",
       "kind": "text",
       "x1": 256,
-      "y1": 546,
-      "x2": 440,
-      "y2": 578,
-      "conf": 0.907,
+      "y1": 547,
+      "x2": 437,
+      "y2": 579,
+      "conf": 0.894,
       "cls": 11,
-      "text": "ОС. МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ",
-      "ambiguous": false
+      "text": null,
+      "ambiguous": true
     },
     {
       "id": "b14",
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 221,
+      "x1": 220,
       "y1": 577,
-      "x2": 483,
-      "y2": 613,
-      "conf": 0.907,
+      "x2": 479,
+      "y2": 614,
+      "conf": 0.894,
       "cls": 11,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b15",
+      "label": "MRZ",
+      "display": "MRZ",
+      "kind": "text",
+      "x1": 3,
+      "y1": 619,
+      "x2": 498,
+      "y2": 646,
+      "conf": 0.842,
+      "cls": 26,
+      "text": "PNRUSBATURINA<<EKATERINA<ALEKSANDROVNA<<<<<<\n6918122131RUS9804245F<<<<<<<8180522700014<86",
+      "ambiguous": false
+    },
+    {
+      "id": "b16",
+      "label": "MRZ",
+      "display": "MRZ",
+      "kind": "text",
+      "x1": 2,
+      "y1": 649,
+      "x2": 494,
+      "y2": 676,
+      "conf": 0.803,
+      "cls": 26,
       "text": null,
       "ambiguous": true
     }
@@ -229,7 +257,7 @@
       "display": "Last name",
       "value": "БАТУРИНА",
       "script": "ru",
-      "conf": 0.931,
+      "conf": 0.919,
       "box_ids": [
         "b5"
       ]
@@ -239,7 +267,7 @@
       "display": "First name",
       "value": "ЕКАТЕРИНА",
       "script": "ru",
-      "conf": 0.93,
+      "conf": 0.924,
       "box_ids": [
         "b8"
       ]
@@ -249,7 +277,7 @@
       "display": "Middle name",
       "value": "АЛЕКСАНДРОВНА",
       "script": "ru",
-      "conf": 0.927,
+      "conf": 0.92,
       "box_ids": [
         "b9"
       ]
@@ -259,7 +287,7 @@
       "display": "Sex",
       "value": "Ж",
       "script": "ru",
-      "conf": 0.913,
+      "conf": 0.905,
       "box_ids": [
         "b11"
       ]
@@ -269,7 +297,7 @@
       "display": "Date of birth",
       "value": "24.04.1998",
       "script": "num",
-      "conf": 0.908,
+      "conf": 0.91,
       "box_ids": [
         "b10"
       ]
@@ -277,9 +305,9 @@
     {
       "name": "Birth_place_ru",
       "display": "Place of birth",
-      "value": "ОС. МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ",
+      "value": "С МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ",
       "script": "ru",
-      "conf": 0.907,
+      "conf": 0.898,
       "box_ids": [
         "b12",
         "b13",
@@ -291,7 +319,7 @@
       "display": "Document number",
       "value": "69 18 812211",
       "script": "num",
-      "conf": 0.928,
+      "conf": 0.927,
       "box_ids": [
         "b1",
         "b7"
@@ -312,7 +340,7 @@
       "display": "Issuing authority",
       "value": "УМВД РОССИИ ПО ТОМСКОЙ ОБЛАСТИ",
       "script": "ru",
-      "conf": 0.888,
+      "conf": 0.884,
       "box_ids": [
         "b0"
       ]
@@ -322,9 +350,20 @@
       "display": "Authority code",
       "value": "700-014",
       "script": "num",
-      "conf": 0.942,
+      "conf": 0.938,
       "box_ids": [
         "b3"
+      ]
+    },
+    {
+      "name": "MRZ",
+      "display": "MRZ",
+      "value": "PNRUSBATURINA<<EKATERINA<ALEKSANDROVNA<<<<<<\n6918122131RUS9804245F<<<<<<<8180522700014<86",
+      "script": "ru",
+      "conf": 0.842,
+      "box_ids": [
+        "b15",
+        "b16"
       ]
     }
   ],
@@ -338,28 +377,29 @@
     "Licence_number": "69 18 812211",
     "Birth_date": "24.04.1998",
     "Sex_ru": "Ж",
-    "Birth_place_ru": "ОС. МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ"
+    "Birth_place_ru": "С МЕЛЬНИКОВО ШЕГАРСКИЙ РАЙОН ТОМСКАЯ ОБЛАСТЬ РОССИЯ",
+    "MRZ": "PNRUSBATURINA<<EKATERINA<ALEKSANDROVNA<<<<<<\n6918122131RUS9804245F<<<<<<<8180522700014<86"
   },
   "quality": {
-    "DocConf": 1.0,
+    "DocConf": 0.95,
     "Glare": "good",
     "Blur": "good",
     "PrintSpoofing": "REAL",
     "LCDSpoofing": "REAL"
   },
   "timings": {
-    "_doctype_angle": 0.005,
-    "_quality_and_borders": 0.2683,
-    "_glare": 0.029,
-    "_blur": 0.0996,
-    "_print_spoofing": 0.004,
-    "_lcd_spoofing": 0.0045,
-    "_doc_detector": 0.2328,
-    "_deskew": 0.0055,
-    "_fields_detector": 0.095,
-    "_split_words": 0.1577,
-    "_ocr": 0.2599,
-    "total": 0.7914
+    "_doctype_angle": 0.0047,
+    "_quality_and_borders": 0.3129,
+    "_glare": 0.1433,
+    "_blur": 0.1346,
+    "_print_spoofing": 0.0809,
+    "_lcd_spoofing": 0.003,
+    "_doc_detector": 0.2593,
+    "_deskew": 0.0064,
+    "_fields_detector": 0.1052,
+    "_split_words": 0.1697,
+    "_ocr": 0.3767,
+    "total": 0.9756
   },
   "address": null
 }

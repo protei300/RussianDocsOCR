@@ -45,7 +45,7 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        375,
+        380,
         604,
         3
       ]
@@ -56,7 +56,7 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        375,
+        380,
         604,
         3
       ]
@@ -117,13 +117,13 @@
       "kind": "json"
     },
     {
-      "stage": "words.Issue_organization_ru.bbox",
-      "file": "words.Issue_organization_ru.bbox.json",
+      "stage": "words.Issue_organisation_code.bbox",
+      "file": "words.Issue_organisation_code.bbox.json",
       "kind": "json"
     },
     {
-      "stage": "words.Issue_organisation_code.bbox",
-      "file": "words.Issue_organisation_code.bbox.json",
+      "stage": "words.Issue_organization_ru.bbox",
+      "file": "words.Issue_organization_ru.bbox.json",
       "kind": "json"
     },
     {
@@ -197,13 +197,13 @@
       "kind": "json"
     },
     {
-      "stage": "ocr.Issue_organization_ru.words",
-      "file": "ocr.Issue_organization_ru.words.json",
+      "stage": "ocr.Issue_organisation_code.words",
+      "file": "ocr.Issue_organisation_code.words.json",
       "kind": "json"
     },
     {
-      "stage": "ocr.Issue_organisation_code.words",
-      "file": "ocr.Issue_organisation_code.words.json",
+      "stage": "ocr.Issue_organization_ru.words",
+      "file": "ocr.Issue_organization_ru.words.json",
       "kind": "json"
     },
     {

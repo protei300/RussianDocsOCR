@@ -5,8 +5,8 @@
   "recognised": true,
   "device": "cpu",
   "canvas": {
-    "width": 831,
-    "height": 572,
+    "width": 828,
+    "height": 574,
     "is_fallback": false
   },
   "coord_space": "canvas",
@@ -17,11 +17,11 @@
       "label": "Licence_number",
       "display": "Document number",
       "kind": "text",
-      "x1": 538,
-      "y1": 56,
-      "x2": 686,
-      "y2": 83,
-      "conf": 0.935,
+      "x1": 535,
+      "y1": 55,
+      "x2": 682,
+      "y2": 82,
+      "conf": 0.927,
       "cls": 5,
       "text": "76 1921099",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "Last_name_ru",
       "display": "Last name",
       "kind": "text",
-      "x1": 260,
-      "y1": 95,
-      "x2": 368,
+      "x1": 257,
+      "y1": 94,
+      "x2": 365,
       "y2": 121,
-      "conf": 0.926,
+      "conf": 0.933,
       "cls": 1,
       "text": "ЗОЛКИНА",
       "ambiguous": false
@@ -45,11 +45,11 @@
       "label": "Face",
       "display": "Photo",
       "kind": "visual",
-      "x1": 24,
+      "x1": 23,
       "y1": 106,
-      "x2": 249,
-      "y2": 377,
-      "conf": 0.957,
+      "x2": 247,
+      "y2": 374,
+      "conf": 0.946,
       "cls": 0,
       "text": null,
       "ambiguous": false
@@ -59,11 +59,11 @@
       "label": "Last_name_en",
       "display": "Last name",
       "kind": "text",
-      "x1": 259,
-      "y1": 116,
-      "x2": 358,
+      "x1": 257,
+      "y1": 115,
+      "x2": 356,
       "y2": 139,
-      "conf": 0.93,
+      "conf": 0.951,
       "cls": 3,
       "text": "ZOLKINA",
       "ambiguous": false
@@ -73,11 +73,11 @@
       "label": "Middle_name_ru",
       "display": "Middle name",
       "kind": "text",
-      "x1": 376,
-      "y1": 151,
-      "x2": 571,
-      "y2": 178,
-      "conf": 0.929,
+      "x1": 373,
+      "y1": 150,
+      "x2": 567,
+      "y2": 177,
+      "conf": 0.909,
       "cls": 17,
       "text": "АЛЕКСАНДРОВНА",
       "ambiguous": false
@@ -87,11 +87,11 @@
       "label": "First_name_ru",
       "display": "First name",
       "kind": "text",
-      "x1": 262,
-      "y1": 153,
-      "x2": 378,
-      "y2": 178,
-      "conf": 0.926,
+      "x1": 258,
+      "y1": 152,
+      "x2": 375,
+      "y2": 177,
+      "conf": 0.923,
       "cls": 2,
       "text": "КРИСТИНА",
       "ambiguous": false
@@ -101,11 +101,11 @@
       "label": "First_name_en",
       "display": "First name",
       "kind": "text",
-      "x1": 261,
-      "y1": 172,
-      "x2": 369,
-      "y2": 197,
-      "conf": 0.914,
+      "x1": 258,
+      "y1": 171,
+      "x2": 365,
+      "y2": 196,
+      "conf": 0.933,
       "cls": 4,
       "text": "KRISTINA",
       "ambiguous": false
@@ -115,11 +115,11 @@
       "label": "Birth_date",
       "display": "Date of birth",
       "kind": "text",
-      "x1": 261,
-      "y1": 235,
-      "x2": 360,
+      "x1": 257,
+      "y1": 234,
+      "x2": 356,
       "y2": 259,
-      "conf": 0.923,
+      "conf": 0.929,
       "cls": 10,
       "text": "04.11.1986",
       "ambiguous": false
@@ -129,11 +129,11 @@
       "label": "Sex_ru",
       "display": "Sex",
       "kind": "text",
-      "x1": 259,
-      "y1": 264,
-      "x2": 287,
-      "y2": 296,
-      "conf": 0.912,
+      "x1": 256,
+      "y1": 263,
+      "x2": 283,
+      "y2": 295,
+      "conf": 0.889,
       "cls": 18,
       "text": "Ж",
       "ambiguous": false
@@ -143,11 +143,11 @@
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 360,
+      "x1": 356,
       "y1": 265,
-      "x2": 643,
-      "y2": 295,
-      "conf": 0.884,
+      "x2": 638,
+      "y2": 294,
+      "conf": 0.896,
       "cls": 11,
       "text": "КАБАРДИНО-БАЛКАРСКАЯ АССР",
       "ambiguous": false
@@ -157,11 +157,11 @@
       "label": "Birth_place_en",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 651,
+      "x1": 647,
       "y1": 266,
-      "x2": 710,
-      "y2": 291,
-      "conf": 0.911,
+      "x2": 705,
+      "y2": 290,
+      "conf": 0.908,
       "cls": 12,
       "text": "USSR",
       "ambiguous": false
@@ -171,11 +171,11 @@
       "label": "Sex_en",
       "display": "Sex",
       "kind": "text",
-      "x1": 287,
-      "y1": 267,
-      "x2": 315,
-      "y2": 296,
-      "conf": 0.881,
+      "x1": 284,
+      "y1": 266,
+      "x2": 311,
+      "y2": 294,
+      "conf": 0.909,
       "cls": 19,
       "text": "F",
       "ambiguous": false
@@ -185,11 +185,11 @@
       "label": "Issue_date",
       "display": "Date of issue",
       "kind": "text",
-      "x1": 262,
+      "x1": 260,
       "y1": 301,
-      "x2": 358,
-      "y2": 328,
-      "conf": 0.928,
+      "x2": 354,
+      "y2": 327,
+      "conf": 0.931,
       "cls": 6,
       "text": "14.11.2019",
       "ambiguous": false
@@ -199,11 +199,11 @@
       "label": "Issue_organisation_code",
       "display": "Authority code",
       "kind": "text",
-      "x1": 586,
-      "y1": 302,
-      "x2": 638,
-      "y2": 322,
-      "conf": 0.908,
+      "x1": 581,
+      "y1": 301,
+      "x2": 634,
+      "y2": 321,
+      "conf": 0.919,
       "cls": 20,
       "text": "78039",
       "ambiguous": false
@@ -213,10 +213,10 @@
       "label": "Issue_organization_ru",
       "display": "Issuing authority",
       "kind": "text",
-      "x1": 544,
+      "x1": 541,
       "y1": 302,
-      "x2": 588,
-      "y2": 323,
+      "x2": 583,
+      "y2": 322,
       "conf": 0.904,
       "cls": 13,
       "text": "МВД",
@@ -227,11 +227,11 @@
       "label": "Signature",
       "display": "Signature",
       "kind": "visual",
-      "x1": 579,
-      "y1": 337,
-      "x2": 746,
+      "x1": 576,
+      "y1": 339,
+      "x2": 744,
       "y2": 407,
-      "conf": 0.939,
+      "conf": 0.916,
       "cls": 9,
       "text": null,
       "ambiguous": false
@@ -241,14 +241,42 @@
       "label": "Expiration_date",
       "display": "Valid until",
       "kind": "text",
-      "x1": 263,
-      "y1": 347,
-      "x2": 359,
-      "y2": 372,
-      "conf": 0.93,
+      "x1": 260,
+      "y1": 346,
+      "x2": 354,
+      "y2": 371,
+      "conf": 0.947,
       "cls": 7,
       "text": "14.11.2029",
       "ambiguous": false
+    },
+    {
+      "id": "b17",
+      "label": "MRZ",
+      "display": "MRZ",
+      "kind": "text",
+      "x1": 44,
+      "y1": 452,
+      "x2": 795,
+      "y2": 476,
+      "conf": 0.784,
+      "cls": 26,
+      "text": "P<RUSZOLKINA<<KRISTINA<<<<<<<<<<<<<<<<<<<<<<\n7619210972RUS8611046F2911146<<<<<<<<<<<<<<06",
+      "ambiguous": false
+    },
+    {
+      "id": "b18",
+      "label": "MRZ",
+      "display": "MRZ",
+      "kind": "text",
+      "x1": 41,
+      "y1": 496,
+      "x2": 797,
+      "y2": 522,
+      "conf": 0.782,
+      "cls": 26,
+      "text": null,
+      "ambiguous": true
     }
   ],
   "fields": [
@@ -257,7 +285,7 @@
       "display": "Last name",
       "value": "ЗОЛКИНА",
       "script": "ru",
-      "conf": 0.926,
+      "conf": 0.933,
       "box_ids": [
         "b1"
       ]
@@ -267,7 +295,7 @@
       "display": "Last name",
       "value": "ZOLKINA",
       "script": "en",
-      "conf": 0.93,
+      "conf": 0.951,
       "box_ids": [
         "b3"
       ]
@@ -277,7 +305,7 @@
       "display": "First name",
       "value": "КРИСТИНА",
       "script": "ru",
-      "conf": 0.926,
+      "conf": 0.923,
       "box_ids": [
         "b5"
       ]
@@ -287,7 +315,7 @@
       "display": "First name",
       "value": "KRISTINA",
       "script": "en",
-      "conf": 0.914,
+      "conf": 0.933,
       "box_ids": [
         "b6"
       ]
@@ -297,7 +325,7 @@
       "display": "Middle name",
       "value": "АЛЕКСАНДРОВНА",
       "script": "ru",
-      "conf": 0.929,
+      "conf": 0.909,
       "box_ids": [
         "b4"
       ]
@@ -307,7 +335,7 @@
       "display": "Sex",
       "value": "Ж",
       "script": "ru",
-      "conf": 0.912,
+      "conf": 0.889,
       "box_ids": [
         "b8"
       ]
@@ -317,7 +345,7 @@
       "display": "Sex",
       "value": "F",
       "script": "en",
-      "conf": 0.881,
+      "conf": 0.909,
       "box_ids": [
         "b11"
       ]
@@ -327,7 +355,7 @@
       "display": "Date of birth",
       "value": "04.11.1986",
       "script": "num",
-      "conf": 0.923,
+      "conf": 0.929,
       "box_ids": [
         "b7"
       ]
@@ -337,7 +365,7 @@
       "display": "Place of birth",
       "value": "КАБАРДИНО-БАЛКАРСКАЯ АССР",
       "script": "ru",
-      "conf": 0.884,
+      "conf": 0.896,
       "box_ids": [
         "b9"
       ]
@@ -347,7 +375,7 @@
       "display": "Place of birth",
       "value": "USSR",
       "script": "en",
-      "conf": 0.911,
+      "conf": 0.908,
       "box_ids": [
         "b10"
       ]
@@ -357,7 +385,7 @@
       "display": "Document number",
       "value": "76 1921099",
       "script": "num",
-      "conf": 0.935,
+      "conf": 0.927,
       "box_ids": [
         "b0"
       ]
@@ -367,7 +395,7 @@
       "display": "Date of issue",
       "value": "14.11.2019",
       "script": "num",
-      "conf": 0.928,
+      "conf": 0.931,
       "box_ids": [
         "b12"
       ]
@@ -377,7 +405,7 @@
       "display": "Valid until",
       "value": "14.11.2029",
       "script": "num",
-      "conf": 0.93,
+      "conf": 0.947,
       "box_ids": [
         "b16"
       ]
@@ -397,9 +425,20 @@
       "display": "Authority code",
       "value": "78039",
       "script": "num",
-      "conf": 0.908,
+      "conf": 0.919,
       "box_ids": [
         "b13"
+      ]
+    },
+    {
+      "name": "MRZ",
+      "display": "MRZ",
+      "value": "P<RUSZOLKINA<<KRISTINA<<<<<<<<<<<<<<<<<<<<<<\n7619210972RUS8611046F2911146<<<<<<<<<<<<<<06",
+      "script": "ru",
+      "conf": 0.784,
+      "box_ids": [
+        "b17",
+        "b18"
       ]
     }
   ],
@@ -418,7 +457,8 @@
     "Issue_organisation_code": "78039",
     "Issue_organization_ru": "МВД",
     "Issue_date": "14.11.2019",
-    "Expiration_date": "14.11.2029"
+    "Expiration_date": "14.11.2029",
+    "MRZ": "P<RUSZOLKINA<<KRISTINA<<<<<<<<<<<<<<<<<<<<<<\n7619210972RUS8611046F2911146<<<<<<<<<<<<<<06"
   },
   "quality": {
     "DocConf": 0.99,
@@ -428,18 +468,18 @@
     "LCDSpoofing": "FAKE"
   },
   "timings": {
-    "_doctype_angle": 0.005,
-    "_quality_and_borders": 0.2649,
-    "_glare": 0.079,
-    "_blur": 0.036,
-    "_print_spoofing": 0.058,
-    "_lcd_spoofing": 0.013,
-    "_doc_detector": 0.1739,
-    "_deskew": 0.0089,
-    "_fields_detector": 0.1079,
-    "_split_words": 0.1163,
-    "_ocr": 0.2776,
-    "total": 0.7806
+    "_doctype_angle": 0.0056,
+    "_quality_and_borders": 0.2803,
+    "_glare": 0.0334,
+    "_blur": 0.0835,
+    "_print_spoofing": 0.0539,
+    "_lcd_spoofing": 0.0349,
+    "_doc_detector": 0.2452,
+    "_deskew": 0.0091,
+    "_fields_detector": 0.1192,
+    "_split_words": 0.1036,
+    "_ocr": 0.4968,
+    "total": 1.0146
   },
   "address": null
 }

@@ -5,8 +5,8 @@
   "recognised": true,
   "device": "cpu",
   "canvas": {
-    "width": 904,
-    "height": 622,
+    "width": 909,
+    "height": 620,
     "is_fallback": false
   },
   "coord_space": "canvas",
@@ -17,11 +17,11 @@
       "label": "Licence_number",
       "display": "Document number",
       "kind": "text",
-      "x1": 371,
+      "x1": 375,
       "y1": 225,
-      "x2": 637,
+      "x2": 640,
       "y2": 270,
-      "conf": 0.936,
+      "conf": 0.937,
       "cls": 5,
       "text": "127-432-979 79",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "Last_name_ru",
       "display": "Last name",
       "kind": "text",
-      "x1": 258,
+      "x1": 261,
       "y1": 268,
-      "x2": 454,
-      "y2": 308,
-      "conf": 0.93,
+      "x2": 458,
+      "y2": 307,
+      "conf": 0.935,
       "cls": 1,
       "text": "ВАСИЛЬЕВА",
       "ambiguous": false
@@ -45,11 +45,11 @@
       "label": "First_name_ru",
       "display": "First name",
       "kind": "text",
-      "x1": 259,
-      "y1": 305,
-      "x2": 418,
+      "x1": 263,
+      "y1": 304,
+      "x2": 420,
       "y2": 340,
-      "conf": 0.925,
+      "conf": 0.933,
       "cls": 2,
       "text": "САМАНТА",
       "ambiguous": false
@@ -59,11 +59,11 @@
       "label": "Middle_name_ru",
       "display": "Middle name",
       "kind": "text",
-      "x1": 258,
+      "x1": 262,
       "y1": 336,
-      "x2": 519,
-      "y2": 378,
-      "conf": 0.93,
+      "x2": 522,
+      "y2": 377,
+      "conf": 0.923,
       "cls": 17,
       "text": "ВЯЧЕСЛАВОВНА",
       "ambiguous": false
@@ -73,11 +73,11 @@
       "label": "Birth_date",
       "display": "Date of birth",
       "kind": "text",
-      "x1": 472,
+      "x1": 477,
       "y1": 380,
-      "x2": 803,
-      "y2": 420,
-      "conf": 0.927,
+      "x2": 807,
+      "y2": 421,
+      "conf": 0.922,
       "cls": 10,
       "text": "26 СЕНТЯБРЯ 1997 ГОДА",
       "ambiguous": false
@@ -87,11 +87,11 @@
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 260,
+      "x1": 265,
       "y1": 424,
-      "x2": 410,
+      "x2": 414,
       "y2": 463,
-      "conf": 0.936,
+      "conf": 0.932,
       "cls": 11,
       "text": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
       "ambiguous": false
@@ -101,11 +101,11 @@
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 259,
+      "x1": 262,
       "y1": 454,
-      "x2": 730,
-      "y2": 504,
-      "conf": 0.897,
+      "x2": 732,
+      "y2": 503,
+      "conf": 0.896,
       "cls": 11,
       "text": null,
       "ambiguous": true
@@ -115,11 +115,11 @@
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 257,
+      "x1": 262,
       "y1": 490,
-      "x2": 701,
-      "y2": 538,
-      "conf": 0.892,
+      "x2": 705,
+      "y2": 537,
+      "conf": 0.912,
       "cls": 11,
       "text": null,
       "ambiguous": true
@@ -129,11 +129,11 @@
       "label": "Sex_ru",
       "display": "Sex",
       "kind": "text",
-      "x1": 255,
+      "x1": 259,
       "y1": 554,
-      "x2": 384,
+      "x2": 387,
       "y2": 587,
-      "conf": 0.928,
+      "conf": 0.93,
       "cls": 18,
       "text": "Ж",
       "ambiguous": false
@@ -145,7 +145,7 @@
       "display": "Last name",
       "value": "ВАСИЛЬЕВА",
       "script": "ru",
-      "conf": 0.93,
+      "conf": 0.935,
       "box_ids": [
         "b1"
       ]
@@ -155,7 +155,7 @@
       "display": "First name",
       "value": "САМАНТА",
       "script": "ru",
-      "conf": 0.925,
+      "conf": 0.933,
       "box_ids": [
         "b2"
       ]
@@ -165,7 +165,7 @@
       "display": "Middle name",
       "value": "ВЯЧЕСЛАВОВНА",
       "script": "ru",
-      "conf": 0.93,
+      "conf": 0.923,
       "box_ids": [
         "b3"
       ]
@@ -175,7 +175,7 @@
       "display": "Sex",
       "value": "Ж",
       "script": "ru",
-      "conf": 0.928,
+      "conf": 0.93,
       "box_ids": [
         "b8"
       ]
@@ -185,7 +185,7 @@
       "display": "Date of birth",
       "value": "26 СЕНТЯБРЯ 1997 ГОДА",
       "script": "num",
-      "conf": 0.927,
+      "conf": 0.922,
       "box_ids": [
         "b4"
       ]
@@ -195,7 +195,7 @@
       "display": "Place of birth",
       "value": "ЛАЗАЗЕИ ДАЛЬНЕКОНСТАНТИНОВСКИЙ НИЖЕГОРОДСКАЯ ОБЛАСТЬ",
       "script": "ru",
-      "conf": 0.936,
+      "conf": 0.932,
       "box_ids": [
         "b5",
         "b6",
@@ -207,7 +207,7 @@
       "display": "Document number",
       "value": "127-432-979 79",
       "script": "num",
-      "conf": 0.936,
+      "conf": 0.937,
       "box_ids": [
         "b0"
       ]
@@ -223,25 +223,25 @@
     "Sex_ru": "Ж"
   },
   "quality": {
-    "DocConf": 0.98,
+    "DocConf": 0.96,
     "Glare": "good",
     "Blur": "good",
     "PrintSpoofing": "FAKE",
     "LCDSpoofing": "REAL"
   },
   "timings": {
-    "_doctype_angle": 0.0052,
-    "_quality_and_borders": 0.312,
-    "_glare": 0.1783,
-    "_blur": 0.039,
-    "_print_spoofing": 0.061,
-    "_lcd_spoofing": 0.044,
-    "_doc_detector": 0.272,
-    "_deskew": 0.009,
-    "_fields_detector": 0.1019,
-    "_split_words": 0.2777,
+    "_doctype_angle": 0.005,
+    "_quality_and_borders": 0.2696,
+    "_glare": 0.0362,
+    "_blur": 0.0296,
+    "_print_spoofing": 0.0095,
+    "_lcd_spoofing": 0.0438,
+    "_doc_detector": 0.2004,
+    "_deskew": 0.0101,
+    "_fields_detector": 0.1147,
+    "_split_words": 0.284,
     "_ocr": 0.251,
-    "total": 0.9568
+    "total": 0.9344
   },
   "address": null
 }
