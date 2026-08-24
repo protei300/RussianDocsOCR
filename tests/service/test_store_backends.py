@@ -101,8 +101,8 @@ def test_filter_by_status(store):
 
 def test_search_uses_the_precomputed_haystack(store):
     record = _make(store, "scan.jpg")
-    repo.update(store, record, search_text="scan.jpg intpassport_2011 батурина")
-    assert repo.get_all(store, search="батурина")[1] == 1
+    repo.update(store, record, search_text="scan.jpg intpassport_2011 тестова")
+    assert repo.get_all(store, search="тестова")[1] == 1
     assert repo.get_all(store, search="ivanov")[1] == 0
 
 
@@ -195,13 +195,13 @@ def test_result_payload_round_trips_with_cyrillic(store):
         "doc_type": "INTPASSPORT_2011", "recognised": True,
         "quality": {"DocConf": 0.98, "Glare": "good"},
         "canvas": {"width": 505, "height": 701},
-        "fields": [{"name": "Last_name_ru", "value": "БАТУРИНА"}],
+        "fields": [{"name": "Last_name_ru", "value": "ТЕСТОВА"}],
         "boxes": [{"id": "b0", "label": "Last_name_ru"}],
     }
-    record = repo.save_result(store, record, payload, search_text="батурина",
+    record = repo.save_result(store, record, payload, search_text="тестова",
                               processing_ms=475)
     reloaded = repo.get_by_id(store, record.id)
-    assert reloaded.result["fields"][0]["value"] == "БАТУРИНА"
+    assert reloaded.result["fields"][0]["value"] == "ТЕСТОВА"
     # Denormalised columns must be filled, or the list page has to open blobs.
     assert reloaded.doc_type == "INTPASSPORT_2011"
     assert reloaded.doc_conf == 0.98

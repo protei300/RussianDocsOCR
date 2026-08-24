@@ -51,6 +51,14 @@ def test_series_number_is_read_correctly(pipeline, rel, expected):
     # ground-truth <name>.json sitting next to the image, and which of the two
     # comes first is filesystem order - this passed on Windows and failed on CI.
     stem = SAMPLES / rel
-    image = next(p for ext in IMG_EXTS for p in [stem.with_suffix(ext)] if p.exists())
+    image = next((p for ext in IMG_EXTS for p in [stem.with_suffix(ext)] if p.exists()), None)
+    if image is None:
+        # Both regression documents were photographs of real passports and left the
+        # public tree on 2026-08-25. The guard is kept rather than deleted: it starts
+        # working again the moment a replacement carrying the same red '3' arrives,
+        # and until then it says so out loud instead of passing over nothing.
+        pytest.skip(f'{rel}: sample withdrawn from the public tree on 2026-08-25 '
+                    f'(photograph of a real document). This guard runs in the closed '
+                    f'repository; it returns here with a synthetic replacement.')
     results = pipeline.process_img(str(image), ocr=True, check_quality=False)
     assert results.ocr.get('Licence_number') == expected

@@ -68,8 +68,13 @@ def cmd_list(args: argparse.Namespace) -> int:
     for c in cases_mod.load_cases():
         golden = case_dir(c.slug) / "viewmodel.json"
         state = "golden" if golden.is_file() else "NO GOLDEN"
-        missing = "" if c.exists() else "  [sample missing!]"
-        print(f"  {c.slug:52s} {c.doc_type:22s} {state}{missing}")
+        if c.disabled:
+            note = "  [out of service: sample withdrawn]"
+        elif not c.exists():
+            note = "  [sample missing!]"
+        else:
+            note = ""
+        print(f"  {c.slug:52s} {c.doc_type:22s} {state}{note}")
     return 0
 
 
@@ -176,6 +181,13 @@ def _check_case(case, cmd: list[str], profile: Profile, extra: list[str],
     golden_stages = stage_dir(case.slug)
     rep = report_mod.CaseReport(slug=case.slug, doc_type=case.doc_type)
 
+    # A declared withdrawal comes first: the goldens of a withdrawn case stay on
+    # disk (they are the record of what the reference produced while the sample was
+    # there), so checking for them before checking the declaration would report
+    # "no golden" for a case whose real state is "no sample, and we said so".
+    if case.disabled:
+        rep.skipped = case.disabled
+        return rep
     if not (golden_dir / "viewmodel.json").is_file():
         rep.error = "no golden; run: python -m conformance.refcli regen"
         return rep

@@ -21,10 +21,28 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-pytestmark = pytest.mark.skipif(
-    os.environ.get('RUN_QUALITY') != '1',
-    reason='quality eval is slow (~2 min); set RUN_QUALITY=1 to run',
-)
+#: Ground-truth files left in the tree. The thresholds below were calibrated over 117
+#: labelled documents; on 2026-08-25 the photographs of real documents were withdrawn
+#: from the public repository and their ground truth went with them. Running these
+#: numbers over what remains would not be a weaker measurement - it would be a
+#: different one wearing the old thresholds, which is the more misleading of the two.
+_GT_COUNT = len(list((REPO_ROOT / 'samples').glob('*/*.json')))
+_GT_CALIBRATED_ON = 117
+
+pytestmark = [
+    pytest.mark.skipif(
+        os.environ.get('RUN_QUALITY') != '1',
+        reason='quality eval is slow (~2 min); set RUN_QUALITY=1 to run',
+    ),
+    pytest.mark.skipif(
+        _GT_COUNT < 100,
+        reason=(f'ground truth reduced to {_GT_COUNT} of {_GT_CALIBRATED_ON} documents: '
+                f'photographs of real documents left the public tree on 2026-08-25 and '
+                f'their labels with them. This measurement runs in the closed '
+                f'repository; it returns here when synthetic replacements carry ground '
+                f'truth of their own.'),
+    ),
+]
 
 
 def _load_eval_module():

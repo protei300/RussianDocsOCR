@@ -87,8 +87,8 @@ def test_filter_by_status(db):
 
 def test_search_matches_precomputed_haystack(db):
     record = _make(db, "scan.jpg")
-    repo.update(db, record, search_text="scan.jpg intpassport_2011 батурина")
-    rows, total = repo.get_all(db, search="БАТУРИНА".lower())
+    repo.update(db, record, search_text="scan.jpg intpassport_2011 тестова")
+    rows, total = repo.get_all(db, search="ТЕСТОВА".lower())
     assert total == 1
     assert repo.get_all(db, search="nonexistent")[1] == 0
 

@@ -21,6 +21,11 @@ class CaseReport:
     doc_type: str | None
     stages: list[StageResult] = field(default_factory=list)
     error: str | None = None
+    #: Set when the case is deliberately out of service because its sample was
+    #: withdrawn from the public tree. Kept distinct from ``error`` on purpose: a
+    #: sample that vanished without anyone declaring it is still a failure, while a
+    #: declared withdrawal is a stated gap. Both are visible; only one is a defect.
+    skipped: str | None = None
 
     @property
     def first_divergence(self) -> str | None:
@@ -31,6 +36,8 @@ class CaseReport:
 
     @property
     def ok(self) -> bool:
+        if self.skipped:
+            return True
         return self.error is None and self.first_divergence is None
 
     def counts(self) -> tuple[int, int, int]:
@@ -68,12 +75,28 @@ def render(run: RunReport, verbose: bool = False) -> str:
     lines.append("-" * (width + 34))
     for c in run.cases:
         p, f, s = c.counts()
-        if c.error:
+        if c.skipped:
+            marker = "OUT OF SERVICE: sample withdrawn"
+        elif c.error:
             marker = f"ERROR: {c.error}"
         else:
             marker = c.first_divergence or "-"
         lines.append(f"{c.slug.ljust(width)}  {p:5d} {f:5d} {s:5d}  {marker}")
     lines.append("")
+
+    # Withdrawn cases get their own block rather than a quiet dash in the table. A
+    # run that verifies two cases instead of nine is not the same run, and the
+    # verdict line alone cannot say so - PASS over a shrunken set reads exactly like
+    # PASS over the whole set.
+    withdrawn = [c for c in run.cases if c.skipped]
+    if withdrawn:
+        lines.append(f"out of service: {len(withdrawn)} of {len(run.cases)} case(s) "
+                     f"carry no sample and were NOT verified")
+        lines.append("=" * 52)
+        for c in withdrawn:
+            lines.append(f"  {c.slug}")
+            lines.append(f"      {c.skipped}")
+        lines.append("")
 
     failing = [c for c in run.cases if not c.ok]
     if failing:

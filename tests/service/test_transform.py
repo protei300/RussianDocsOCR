@@ -88,7 +88,7 @@ def _box(x1, y1, x2, y2, conf, cls, label):
 # ---------------------------------------------------------------------------
 def test_viewmodel_serialises_without_the_numpy_hook():
     results = StubResults(
-        ocr={"Last_name_ru": "БАТУРИНА", "Birth_date": "01.01.1990"},
+        ocr={"Last_name_ru": "ТЕСТОВА", "Birth_date": "01.01.1990"},
         bbox=[_box(10, 20, 100, 40, 0.9251, 1, "Last_name_ru"),
               _box(10, 60, 100, 80, 0.8812, 10, "Birth_date")],
     )

@@ -99,6 +99,12 @@ def seed_if_empty(db, *, limit: int | None = None) -> int:
 
     added = 0
     for entry in entries:
+        # A withdrawn entry keeps its slug in the manifest on purpose: the manifest
+        # is the record of what the demo set used to hold, and silence about a
+        # missing case reads exactly like a case that never existed.
+        if entry.get("disabled"):
+            log.info("[SEED] %s not seeded: %s", entry.get("slug"), entry["disabled"])
+            continue
         try:
             added += _seed_one(db, entry)
         except Exception:
