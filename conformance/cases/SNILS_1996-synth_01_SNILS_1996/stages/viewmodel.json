@@ -1,0 +1,257 @@
+{
+  "doc_type": "SNILS_1996",
+  "doc_type_base": "SNILS",
+  "doc_type_era": "1996",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 702,
+    "height": 468,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [
+    {
+      "id": "b0",
+      "label": "Licence_number",
+      "display": "Document number",
+      "kind": "text",
+      "x1": 456,
+      "y1": 146,
+      "x2": 641,
+      "y2": 181,
+      "conf": 0.939,
+      "cls": 5,
+      "text": "139-295-990 60",
+      "ambiguous": false
+    },
+    {
+      "id": "b1",
+      "label": "Last_name_ru",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 125,
+      "y1": 183,
+      "x2": 265,
+      "y2": 210,
+      "conf": 0.914,
+      "cls": 1,
+      "text": "ГЕРАСИМОВ",
+      "ambiguous": false
+    },
+    {
+      "id": "b2",
+      "label": "First_name_ru",
+      "display": "First name",
+      "kind": "text",
+      "x1": 120,
+      "y1": 210,
+      "x2": 201,
+      "y2": 235,
+      "conf": 0.914,
+      "cls": 2,
+      "text": "СЕМЁН",
+      "ambiguous": false
+    },
+    {
+      "id": "b3",
+      "label": "Middle_name_ru",
+      "display": "Middle name",
+      "kind": "text",
+      "x1": 123,
+      "y1": 237,
+      "x2": 262,
+      "y2": 265,
+      "conf": 0.935,
+      "cls": 17,
+      "text": "АНТОНОВИЧ",
+      "ambiguous": false
+    },
+    {
+      "id": "b4",
+      "label": "Birth_date",
+      "display": "Date of birth",
+      "kind": "text",
+      "x1": 294,
+      "y1": 272,
+      "x2": 517,
+      "y2": 303,
+      "conf": 0.917,
+      "cls": 10,
+      "text": "6 СЕНТЯБРЯ 1955 ГОДА",
+      "ambiguous": false
+    },
+    {
+      "id": "b5",
+      "label": "Birth_place_ru",
+      "display": "Place of birth",
+      "kind": "text",
+      "x1": 120,
+      "y1": 298,
+      "x2": 346,
+      "y2": 334,
+      "conf": 0.925,
+      "cls": 11,
+      "text": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
+      "ambiguous": false
+    },
+    {
+      "id": "b6",
+      "label": "Birth_place_ru",
+      "display": "Place of birth",
+      "kind": "text",
+      "x1": 122,
+      "y1": 324,
+      "x2": 414,
+      "y2": 360,
+      "conf": 0.894,
+      "cls": 11,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b7",
+      "label": "Sex_ru",
+      "display": "Sex",
+      "kind": "text",
+      "x1": 114,
+      "y1": 394,
+      "x2": 211,
+      "y2": 422,
+      "conf": 0.934,
+      "cls": 18,
+      "text": "М",
+      "ambiguous": false
+    },
+    {
+      "id": "b8",
+      "label": "Issue_date",
+      "display": "Date of issue",
+      "kind": "text",
+      "x1": 254,
+      "y1": 435,
+      "x2": 434,
+      "y2": 464,
+      "conf": 0.912,
+      "cls": 6,
+      "text": "1 МАЯ 2013 ГОДА",
+      "ambiguous": false
+    }
+  ],
+  "fields": [
+    {
+      "name": "Last_name_ru",
+      "display": "Last name",
+      "value": "ГЕРАСИМОВ",
+      "script": "ru",
+      "conf": 0.914,
+      "box_ids": [
+        "b1"
+      ]
+    },
+    {
+      "name": "First_name_ru",
+      "display": "First name",
+      "value": "СЕМЁН",
+      "script": "ru",
+      "conf": 0.914,
+      "box_ids": [
+        "b2"
+      ]
+    },
+    {
+      "name": "Middle_name_ru",
+      "display": "Middle name",
+      "value": "АНТОНОВИЧ",
+      "script": "ru",
+      "conf": 0.935,
+      "box_ids": [
+        "b3"
+      ]
+    },
+    {
+      "name": "Sex_ru",
+      "display": "Sex",
+      "value": "М",
+      "script": "ru",
+      "conf": 0.934,
+      "box_ids": [
+        "b7"
+      ]
+    },
+    {
+      "name": "Birth_date",
+      "display": "Date of birth",
+      "value": "6 СЕНТЯБРЯ 1955 ГОДА",
+      "script": "num",
+      "conf": 0.917,
+      "box_ids": [
+        "b4"
+      ]
+    },
+    {
+      "name": "Birth_place_ru",
+      "display": "Place of birth",
+      "value": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
+      "script": "ru",
+      "conf": 0.925,
+      "box_ids": [
+        "b5",
+        "b6"
+      ]
+    },
+    {
+      "name": "Licence_number",
+      "display": "Document number",
+      "value": "139-295-990 60",
+      "script": "num",
+      "conf": 0.939,
+      "box_ids": [
+        "b0"
+      ]
+    },
+    {
+      "name": "Issue_date",
+      "display": "Date of issue",
+      "value": "1 МАЯ 2013 ГОДА",
+      "script": "num",
+      "conf": 0.912,
+      "box_ids": [
+        "b8"
+      ]
+    }
+  ],
+  "ocr": {
+    "Licence_number": "139-295-990 60",
+    "Last_name_ru": "ГЕРАСИМОВ",
+    "First_name_ru": "СЕМЁН",
+    "Middle_name_ru": "АНТОНОВИЧ",
+    "Birth_date": "6 СЕНТЯБРЯ 1955 ГОДА",
+    "Birth_place_ru": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
+    "Sex_ru": "М",
+    "Issue_date": "1 МАЯ 2013 ГОДА"
+  },
+  "quality": {
+    "DocConf": 0.98,
+    "Glare": "good",
+    "Blur": "bad",
+    "PrintSpoofing": "FAKE",
+    "LCDSpoofing": "FAKE"
+  },
+  "timings": {
+    "_doctype_angle": 0.0065,
+    "_quality_and_borders": 0.2691,
+    "_glare": 0.033,
+    "_blur": 0.031,
+    "_print_spoofing": 0.0065,
+    "_lcd_spoofing": 0.005,
+    "_doc_detector": 0.2016,
+    "_deskew": 0.0058,
+    "_fields_detector": 0.1265,
+    "_split_words": 0.3246,
+    "_ocr": 0.2352,
+    "total": 0.9677
+  },
+  "address": null
+}

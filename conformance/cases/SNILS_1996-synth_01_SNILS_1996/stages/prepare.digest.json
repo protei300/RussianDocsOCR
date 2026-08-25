@@ -1,0 +1,11 @@
+{
+  "stage": "prepare",
+  "dtype": "uint8",
+  "shape": [
+    960,
+    1280,
+    3
+  ],
+  "sha256": "6b402581abcd121cdad7a8dcd553a6a056fe338c2bfb871a33b0ddc37c9ce41e",
+  "note": "pixels are not committed; regenerate with `python -m conformance.refcli regen --with-pixels` to compare magnitudes"
+}
