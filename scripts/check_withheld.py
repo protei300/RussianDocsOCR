@@ -128,6 +128,17 @@ def load_one(path: Path) -> dict:
     if not entries:
         raise GuardError(f"{path} is empty - refusing to report a clean result "
                          "from an empty list.")
+    for e in doc.get("retired", []):
+        if not str(e.get("decision") or "").strip():
+            raise GuardError(
+                f"{path}: retired entry without a decision: {e.get('path')}\n"
+                "Retiring a path means the owner released it, and a release "
+                "without a recorded decision is indistinguishable from someone "
+                "quietly making the guard green.")
+        if not str(e.get("retired_on") or "").strip():
+            raise GuardError(
+                f"{path}: retired entry without a date: {e.get('path')}\n"
+                "When a path was released is part of the release.")
     declared = doc.get("integrity", {})
     if declared.get("entries") != len(entries) or declared.get("sha256") != digest(entries):
         raise GuardError(
@@ -150,15 +161,28 @@ def load_lists(list_dir: Path) -> tuple[list[dict], dict[str, dict]]:
     return union, docs
 
 
-def check_shrinkage(docs: dict[str, dict]) -> list[str]:
-    """Did somebody quietly drop entries to make this command pass?
+def check_list_edits(docs: dict[str, dict]) -> list[str]:
+    """Did somebody edit the lists to make this command pass?
 
-    The obvious way to silence a guard is to edit its list, so each list is
-    compared against its own committed version. Retiring an entry is legitimate;
-    it just has to stay visible - moved to "retired" with a decision recorded,
-    not deleted.
+    Two ways to silence a guard by editing its own list, and both are checked
+    against the committed version, because the committed version is the one a
+    person reviewed.
+
+    * A path DISAPPEARS from the file entirely.
+    * A path MOVES from "entries" to "retired". Retiring means "the owner
+      released this path, it may come back" - so a retired path is no longer
+      refused, and moving one during a publish run silences the guard exactly
+      where it should speak. An acceptance probe found this: retire the entry,
+      recompute the integrity digest honestly, drop the file in, and all three
+      defences missed at once.
+
+    Hence the rule this enforces: **a release is its own commit.** Retiring is a
+    decision of the repository owner and belongs in a change somebody reviews,
+    never in the working copy of the person publishing right now. A retirement
+    already committed is fine - it was reviewed - and gets reported at every run
+    instead of vanishing (see `released_but_present`).
     """
-    dropped: list[str] = []
+    problems: list[str] = []
     for name, doc in docs.items():
         try:
             committed_raw = git("show", f"HEAD:{LIST_DIR}/{name}")
@@ -168,10 +192,28 @@ def check_shrinkage(docs: dict[str, dict]) -> list[str]:
             committed = json.loads("\n".join(committed_raw))
         except json.JSONDecodeError:
             continue
-        def paths_of(d: dict) -> set[str]:
-            return {e["path"] for e in d.get("entries", []) + d.get("retired", [])}
-        dropped.extend(sorted(paths_of(committed) - paths_of(doc)))
-    return dropped
+        def active(d: dict) -> set[str]:
+            return {e["path"] for e in d.get("entries", [])}
+        def retired(d: dict) -> set[str]:
+            return {e["path"] for e in d.get("retired", [])}
+        vanished = (active(committed) | retired(committed)) - (active(doc) | retired(doc))
+        problems += [f"{name}: entry deleted outright: {p}" for p in sorted(vanished)]
+        newly_retired = (active(committed) & retired(doc)) - retired(committed)
+        problems += [f"{name}: retired in the working copy, not in a reviewed "
+                     f"commit: {p}" for p in sorted(newly_retired)]
+    return problems
+
+
+def released_but_present(entries_retired: list[dict], paths: list[str]) -> list[tuple[dict, str]]:
+    """Retired paths that are actually here - allowed, but never silent.
+
+    A retirement is a decision, and decisions get re-read. Printing these at
+    every run keeps a release visible long after the commit that made it has
+    scrolled out of anyone's memory; silence would make "released once" and
+    "never withheld" look the same, which is the confusion this whole tool
+    exists to remove.
+    """
+    return hits(entries_retired, paths)
 
 
 def hits(entries: list[dict], paths: list[str]) -> list[tuple[dict, str]]:
@@ -300,6 +342,8 @@ def main() -> int:
     try:
         entries, docs = load_lists(list_dir)
         internal = [e for e in entries if e.get("reason") == "internal"]
+        retired_entries = [e for doc in docs.values() for e in doc.get("retired", [])]
+        released: list[tuple[dict, str]] = []
         violations: list[tuple[str, dict, str]] = []
 
         if args.tree:
@@ -308,12 +352,13 @@ def main() -> int:
                 raise GuardError(f"not a directory: {root}")
             paths = dir_paths(root)
             violations += [("tree", e, p) for e, p in hits(entries, paths)]
+            released = released_but_present(retired_entries, paths)
             scope = f"directory {root} ({len(paths)} files)"
         else:
-            dropped = check_shrinkage(docs)
+            dropped = check_list_edits(docs)
             if dropped:
-                print("A DECLARATION LIST SHRANK - entries were removed:",
-                      file=sys.stderr)
+                print("A DECLARATION LIST WAS EDITED AWAY FROM ITS COMMITTED "
+                      "VERSION:", file=sys.stderr)
                 for path in dropped[:20]:
                     print(f"  {path}", file=sys.stderr)
                 print("", file=sys.stderr)
@@ -322,6 +367,7 @@ def main() -> int:
                 return 1
             now = repo_paths_now(REPO, args.scope)
             violations += [("present", e, p) for e, p in hits(entries, now)]
+            released = released_but_present(retired_entries, now)
             ever = repo_paths_ever(REPO)
             violations += [("in history", e, p) for e, p in hits(internal, ever)]
             looked_at = {"worktree": "the working tree only",
@@ -334,6 +380,19 @@ def main() -> int:
                 scope += ("\n  NOT checked: remote branches. A green result here "
                           "says nothing about what is already published - for "
                           "that, run --scope all.")
+
+        if released:
+            # Printed on stdout and before the verdict, deliberately: a release
+            # is a decision, and a decision that stops being re-read stops being
+            # a decision. Not an error - these paths are allowed to be here.
+            print(f"RELEASED BY DECISION, AND PRESENT: {len(released)}")
+            for entry, path in released[:20]:
+                print(f"  {path}  <- released {entry.get('retired_on')} by "
+                      f"decision {entry.get('decision')}")
+            if len(released) > 20:
+                print(f"  ... and {len(released) - 20} more")
+            print("  Verify these are the decisions you think they are.")
+            print("")
 
         if violations:
             report(violations)
