@@ -21,6 +21,7 @@ import tempfile
 from pathlib import Path
 
 from conformance import cases as cases_mod
+from conformance import deviations as deviations_mod
 from conformance import models_pin
 from conformance.paths import CASES, PORTS_JSON, REPO, REPORT, case_dir, stage_dir
 from conformance.runner import report as report_mod
@@ -87,11 +88,12 @@ def cmd_list(args: argparse.Namespace) -> int:
     print("registered ports:")
     for name, spec in ports.items():
         print(f"  {name:10s} {' '.join(str(c) for c in spec['cmd'])}")
+    declared = deviations_mod.load()
     print("\ncases (derived from service/seed_data/manifest.json):")
     for c in cases_mod.load_cases():
         golden = case_dir(c.slug) / "viewmodel.json"
         state = "golden" if golden.is_file() else "NO GOLDEN"
-        if c.disabled:
+        if deviations_mod.withdrawal_for(c.slug, declared) is not None:
             note = "  [out of service: sample withdrawn]"
         elif not c.exists():
             note = "  [sample missing!]"
@@ -199,7 +201,8 @@ def _compare_stage(stage: str, golden_file: Path, dump: Path,
 
 
 def _check_case(case, cmd: list[str], profile: Profile, extra: list[str],
-                claimed: set[str] | None, timeout: int) -> report_mod.CaseReport:
+                claimed: set[str] | None, timeout: int,
+                withdrawal=None) -> report_mod.CaseReport:
     golden_dir = case_dir(case.slug)
     golden_stages = stage_dir(case.slug)
     rep = report_mod.CaseReport(slug=case.slug, doc_type=case.doc_type)
@@ -208,8 +211,14 @@ def _check_case(case, cmd: list[str], profile: Profile, extra: list[str],
     # disk (they are the record of what the reference produced while the sample was
     # there), so checking for them before checking the declaration would report
     # "no golden" for a case whose real state is "no sample, and we said so".
-    if case.disabled:
-        rep.skipped = case.disabled
+    #
+    # The declaration now comes from conformance/deviations.json, not from a free-text
+    # `disabled` field in the seed manifest. One register, two kinds of entry: a
+    # withdrawal must name its owner, its basis and the EVENT that ends it, and it is
+    # validated like any other entry. An undeclared missing sample stays a failure
+    # below - that is the point of moving this out of a flag anybody could write.
+    if withdrawal is not None:
+        rep.skipped = withdrawal.reason
         return rep
     if not (golden_dir / "viewmodel.json").is_file():
         rep.error = "no golden; run: python -m conformance.refcli regen"
@@ -327,10 +336,23 @@ def cmd_run(args: argparse.Namespace) -> int:
             print("warning: `info` did not return JSON; grading every stage",
                   file=sys.stderr)
 
+    # The declared register, read once. A malformed list absorbs nothing: it is
+    # reported and then treated as empty, so a broken declaration can never turn a
+    # missing sample into a silent pass.
+    declared = deviations_mod.load()
+    complaints = deviations_mod.validate(declared)
+    if complaints:
+        print("the declared register is malformed; it absorbs nothing until fixed:",
+              file=sys.stderr)
+        for complaint in complaints:
+            print(f"  {complaint}", file=sys.stderr)
+        declared = []
+
     run = report_mod.RunReport(port=args.port, profile=profile.name, info=info)
     for case in cases_mod.select(args.case, limit=args.limit):
         print(f"  {case.slug} ...", file=sys.stderr, flush=True)
-        run.cases.append(_check_case(case, cmd, profile, extra, claimed, args.timeout))
+        run.cases.append(_check_case(case, cmd, profile, extra, claimed, args.timeout,
+                                     deviations_mod.withdrawal_for(case.slug, declared)))
 
     print(report_mod.render(run, verbose=args.verbose))
     saved = report_mod.save(run, REPORT)

@@ -25,11 +25,13 @@ class Case:
     #: Repo-relative POSIX path, exactly as the manifest stores it.
     sample: str
     doc_type: str
-    #: Why this case carries no sample any more. Set from the manifest for a case
-    #: whose source was deliberately withdrawn; ``None`` for a live case. The
-    #: distinction matters to the runner: a declared withdrawal is reported as an
-    #: unverified case, an undeclared missing file stays an error.
-    disabled: str | None = None
+    #: Why a case carries no sample any more is NOT recorded here. It lives in
+    #: conformance/deviations.json as a `withdrawal` entry, which has to name the
+    #: owner, the basis and the EVENT that ends it, and is validated like every other
+    #: entry. The free-text flag that used to sit here named none of those and could
+    #: be written by anyone publishing; one register now carries both kinds of
+    #: declaration. What the runner needs is unchanged: a declared withdrawal is
+    #: reported as an unverified case, an undeclared missing file stays an error.
 
     @property
     def image(self) -> Path:
@@ -54,8 +56,7 @@ def load_cases(limit: int | None = None) -> list[Case]:
 
     entries = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
     cases = [Case(slug=e["slug"], sample=e["sample"],
-                  doc_type=_doc_type_from_slug(e["slug"]),
-                  disabled=e.get("disabled"))
+                  doc_type=_doc_type_from_slug(e["slug"]))
              for e in entries]
     # Stable order so reports are diffable run to run.
     cases.sort(key=lambda c: c.slug)

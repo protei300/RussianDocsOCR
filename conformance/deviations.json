@@ -1,0 +1,103 @@
+{
+  "_comment": [
+    "Declared deviations and withdrawals: differences and absences that are known,",
+    "explained and expected. Read conformance/deviations.py for why this exists.",
+    "Every entry MUST name: kind ('deviation' or 'withdrawal'), scope (cases, and for",
+    "deviations ports/stages/optionally paths), reason, basis (user decision or bus",
+    "frame), declared date, owner, and removed_when - the EVENT that retires it.",
+    "kind 'deviation': the case IS run and a difference against the golden is expected.",
+    "kind 'withdrawal': the sample was taken out, the case is NOT run - there is nothing",
+    "to diff, and the report must show it as NOT verified, never as verified-with-a-",
+    "difference. A withdrawal must name specific cases, never '*'.",
+    "A date is not an exit condition; an entry without removed_when is a permanent",
+    "loosening in disguise. An entry that matches nothing where it applies is STALE."
+  ],
+  "deviations": [
+    {
+      "id": "D-01-mrz-ladder-not-ported",
+      "kind": "deviation",
+      "ports": ["go", "dotnet", "java"],
+      "cases": ["EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0"],
+      "stages": ["ocr.MRZ.words", "join", "viewmodel"],
+      "paths": ["MRZ"],
+      "reason": "The reference re-reads a wrong-length MRZ line through a widening crop ladder (ac7eb14); the ports do not implement the ladder yet, so they still produce the short line the detector's own crop yields. Goldens were regenerated on the reference (8c60e36), so this difference is the ports lagging behind a deliberate change, not a defect in them.",
+      "basis": "user decision #3 'wait' (porting the ladder deferred); goldens regenerated per frame 4-20260824-1330-gate.result-acceptance",
+      "declared": "2026-08-24",
+      "owner": "Приёмка и замеры",
+      "removed_when": "the ports implement the MRZ re-read ladder (their batch pass) — then this entry goes stale and must be deleted"
+    },
+    {
+      "id": "D-02-view-normalized-ahead-of-goldens",
+      "kind": "deviation",
+      "ports": ["python"],
+      "cases": ["*"],
+      "stages": ["viewmodel"],
+      "paths": ["\\.normalized$"],
+      "reason": "The reference now attaches a canonical dd.mm.yyyy date beside the raw reading (ab7653e); the goldens predate it, so every date field reads as an EXTRA key. Measured before declaring: exactly one stage, 9 cases of 9, 21 differences, every one of them a '.normalized' key and nothing else. Scoped to the reference only — the ports do not emit the property, so they still match the goldens and nothing about them is being excused here.",
+      "basis": "user decision #8 (dates line committed) and #3 (goldens batch pass deferred); composition verified against declaration_view_normalized_2026-08-24.json, value fingerprint 60f0d944…",
+      "declared": "2026-08-24",
+      "owner": "Приёмка и замеры",
+      "removed_when": "the goldens are regenerated in the batch pass — after that the property is IN the golden, this entry goes stale, and the ports' missing key becomes a separate question that needs its own entry or none"
+    },
+    {
+      "id": "W-01-intpassport2011-sample-withdrawn",
+      "kind": "withdrawal",
+      "cases": ["INTPASSPORT_2011-12_CR_INTPASSPORT_2011"],
+      "reason": "Sample withdrawn from the public tree on 2026-08-25: it was a photograph of a real document. The case has no sample and is not run; awaiting a synthetic replacement.",
+      "basis": "user decisions #35 and #36 (real-document samples withheld from the public tree)",
+      "declared": "2026-08-25",
+      "owner": "Приёмка и замеры",
+      "removed_when": "a synthetic replacement sample is added for this case (programme of decision #35) — then the case runs again and this entry goes stale"
+    },
+    {
+      "id": "W-02-dl2011-sample-withdrawn",
+      "kind": "withdrawal",
+      "cases": ["DL_2011-10_BG_DL_2010"],
+      "reason": "Sample withdrawn from the public tree on 2026-08-25: it was a photograph of a real document. The case has no sample and is not run; awaiting a synthetic replacement.",
+      "basis": "user decisions #35 and #36 (real-document samples withheld from the public tree)",
+      "declared": "2026-08-25",
+      "owner": "Приёмка и замеры",
+      "removed_when": "a synthetic replacement sample is added for this case (programme of decision #35) — then the case runs again and this entry goes stale"
+    },
+    {
+      "id": "W-03-extpassportbio2007-sample-withdrawn",
+      "kind": "withdrawal",
+      "cases": ["EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0"],
+      "reason": "Sample withdrawn from the public tree on 2026-08-25: it was a photograph of a real document. The case has no sample and is not run; awaiting a synthetic replacement.",
+      "basis": "user decisions #35 and #36 (real-document samples withheld from the public tree)",
+      "declared": "2026-08-25",
+      "owner": "Приёмка и замеры",
+      "removed_when": "a synthetic replacement sample is added for this case (programme of decision #35) — then the case runs again and this entry goes stale"
+    },
+    {
+      "id": "W-04-intpassport1997-sample-withdrawn",
+      "kind": "withdrawal",
+      "cases": ["INTPASSPORT_1997-15_CR_INTPASSPORT_2001"],
+      "reason": "Sample withdrawn from the public tree on 2026-08-25: it was a photograph of a real document. The case has no sample and is not run; awaiting a synthetic replacement.",
+      "basis": "user decisions #35 and #36 (real-document samples withheld from the public tree)",
+      "declared": "2026-08-25",
+      "owner": "Приёмка и замеры",
+      "removed_when": "a synthetic replacement sample is added for this case (programme of decision #35) — then the case runs again and this entry goes stale"
+    },
+    {
+      "id": "W-05-dl2020-sample-withdrawn",
+      "kind": "withdrawal",
+      "cases": ["DL_2020-10_CR_DL_2019"],
+      "reason": "Sample withdrawn from the public tree on 2026-08-25: it was a photograph of a real document. The case has no sample and is not run; awaiting a synthetic replacement.",
+      "basis": "user decisions #35 and #36 (real-document samples withheld from the public tree)",
+      "declared": "2026-08-25",
+      "owner": "Приёмка и замеры",
+      "removed_when": "a synthetic replacement sample is added for this case (programme of decision #35) — then the case runs again and this entry goes stale"
+    },
+    {
+      "id": "W-06-extpassport2003-sample-withdrawn",
+      "kind": "withdrawal",
+      "cases": ["EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0"],
+      "reason": "Sample withdrawn from the public tree on 2026-08-25: it was a photograph of a real document. The case has no sample and is not run; awaiting a synthetic replacement. NOTE: this same case also carries deviation D-01 (MRZ ladder) for when a replacement sample restores it.",
+      "basis": "user decisions #35 and #36 (real-document samples withheld from the public tree)",
+      "declared": "2026-08-25",
+      "owner": "Приёмка и замеры",
+      "removed_when": "a synthetic replacement sample is added for this case (programme of decision #35) — then the case runs again and this entry goes stale"
+    }
+  ]
+}
