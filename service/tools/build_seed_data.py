@@ -34,6 +34,31 @@ SAMPLES = ROOT / "samples"
 OUT = ROOT / "service" / "seed_data"
 
 
+def _planned() -> list[dict]:
+    """The cases to rebuild, taken from the existing manifest.
+
+    The manifest is the single source of the case list - conformance derives its
+    cases from it, so a second way of deciding what exists would be a second list
+    by another name. Rediscovering material by scanning ``samples/`` was exactly
+    that: it decided membership by what happened to sit in a folder, which is why
+    material living anywhere else could not be used at all, and why an entry
+    deliberately marked withdrawn would silently vanish on the next rebuild.
+
+    Falls back to the old scan only when there is no manifest yet - bootstrapping
+    a fresh checkout still has to work.
+    """
+    path = OUT / "manifest.json"
+    if path.is_file():
+        return json.loads(path.read_text(encoding="utf-8"))
+    plan = []
+    for type_name in _TYPE_ORDER:
+        sample = next(iter(sorted((SAMPLES / type_name).glob("*.jpg"))), None)
+        if sample is not None:
+            rel = str(sample.relative_to(ROOT)).replace("\\", "/")
+            plan.append({"slug": f"{type_name}-{sample.stem}", "sample": rel})
+    return plan
+
+
 def main() -> None:
     # Warm up on a real document, exactly as the service does at startup.
     # Without this the first document through the loop absorbs the whole
@@ -50,20 +75,31 @@ def main() -> None:
         raise SystemExit(f"recognition runtime failed to start: {info.error}")
     print(f"[BUILD] {info.device} ready, warmed up on {warmup.name if warmup else 'nothing'}")
 
+    plan = _planned()
+
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
 
     manifest = []
-    for type_name in _TYPE_ORDER:
-        folder = SAMPLES / type_name
-        sample = next(iter(sorted(folder.glob("*.jpg"))), None)
-        if sample is None:
-            print(f"  {type_name:24} no sample, skipped")
+    for planned in plan:
+        slug = planned["slug"]
+        type_name = slug.split("-", 1)[0]
+
+        # A withdrawn entry keeps its place in the list and loses only its data.
+        # Dropping it instead would make the case disappear from conformance too,
+        # and a case that vanishes is indistinguishable from one that never was.
+        if planned.get("disabled"):
+            manifest.append(planned)
+            print(f"  {type_name:24} withdrawn, kept as a declared gap")
+            continue
+
+        sample = ROOT / planned["sample"]
+        if not sample.is_file():
+            print(f"  {type_name:24} sample {planned['sample']} is gone, skipped")
             continue
 
         payload, canvas = runtime.recognise(sample)
-        slug = f"{type_name}-{sample.stem}"
         entry_dir = OUT / slug
         entry_dir.mkdir()
 

@@ -10,9 +10,13 @@
   "disabled": "sample withdrawn from the public tree on 2026-08-25 (decision 35/36): it was a photograph of a real document. Awaiting a synthetic replacement."
  },
  {
-  "slug": "SNILS_1996-105_BG_SNILS_2003",
-  "sample": "samples/SNILS_1996/105_BG_SNILS_2003.jpg",
-  "disabled": "sample withdrawn from the public tree on 2026-08-25 (decision 35/36): it was a photograph of a real document. Awaiting a synthetic replacement."
+  "slug": "SNILS_1996-synth_01_SNILS_1996",
+  "sample": "conformance/material/SNILS_1996/synth_01_SNILS_1996.jpg",
+  "filename": "sample-SNILS_1996-synth_01_SNILS_1996.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 280493,
+  "search_text": "sample-snils_1996-synth_01_snils_1996.jpg snils_1996 139-295-990 60 герасимов семён антонович 6 сентября 1955 года гор свердловск свердловская область м 1 мая 2013 года"
  },
  {
   "slug": "EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0",

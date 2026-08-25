@@ -1,6 +1,6 @@
 {
-  "slug": "SNILS_1996-105_BG_SNILS_2003",
-  "sample": "samples/SNILS_1996/105_BG_SNILS_2003.jpg",
+  "slug": "SNILS_1996-synth_01_SNILS_1996",
+  "sample": "conformance/material/SNILS_1996/synth_01_SNILS_1996.jpg",
   "doc_type": "SNILS_1996",
   "args": {
     "device": "cpu",
