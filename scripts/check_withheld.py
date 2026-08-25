@@ -43,6 +43,13 @@ Usage:
     python scripts/check_withheld.py --scope all     # including remote branches
     python scripts/check_withheld.py --tree DIR      # a plain directory
     python scripts/check_withheld.py --explain       # what to do about a refusal
+    python scripts/check_withheld.py --allow-released=58,61   # in a pipeline
+
+`--allow-released` takes a list of decision numbers rather than being a yes/no
+switch, and that is the whole of its value: a boolean written once into a
+pipeline config stops being re-read, which is the same fading this check exists
+to prevent, one level up. Naming the decisions makes the NEXT release turn the
+run red again, so somebody has to look at it and say yes by number.
 
 `--tree` exists for the rebuild-from-snapshot route (`git archive` produces a
 directory, not a repository), which is how 117 photographs of real documents
@@ -332,6 +339,16 @@ def main() -> int:
                          "are not touching.")
     ap.add_argument("--explain", action="store_true",
                     help="print what to do about a refusal, and exit")
+    ap.add_argument("--allow-released", metavar="DECISIONS", default=None,
+                    help="decisions whose released paths may be present, e.g. "
+                         "--allow-released=58,61. Without it, a released path "
+                         "found in the tree is a refusal. It takes a LIST rather "
+                         "than being a yes/no switch on purpose: a boolean, once "
+                         "written into a pipeline config, stops being re-read - "
+                         "the same fading this whole check exists to prevent, one "
+                         "level up. Naming the decisions means the next release "
+                         "turns the run red again and needs a person to say yes "
+                         "to it, by number. Do not 'simplify' it back.")
     args = ap.parse_args()
 
     if args.explain:
@@ -344,6 +361,7 @@ def main() -> int:
         internal = [e for e in entries if e.get("reason") == "internal"]
         retired_entries = [e for doc in docs.values() for e in doc.get("retired", [])]
         released: list[tuple[dict, str]] = []
+        unclaimed: list[str] = []
         violations: list[tuple[str, dict, str]] = []
 
         if args.tree:
@@ -382,20 +400,48 @@ def main() -> int:
                           "that, run --scope all.")
 
         if released:
-            # Printed on stdout and before the verdict, deliberately: a release
-            # is a decision, and a decision that stops being re-read stops being
-            # a decision. Not an error - these paths are allowed to be here.
+            # A released path is not a violation - the owner decided it may be
+            # here. But it is also the one place where this whole mechanism rests
+            # on a person reading something, and printing alone does not survive
+            # CI: nobody reads the output of a green run. So a release passes only
+            # when the run was told, by number, which decisions to expect.
+            allowed = {d.strip() for d in (args.allow_released or "").split(",")
+                       if d.strip()}
+            present_decisions = {str(e.get("decision") or "?") for e, _ in released}
+            unclaimed = sorted(present_decisions - allowed)
             print(f"RELEASED BY DECISION, AND PRESENT: {len(released)}")
             for entry, path in released[:20]:
                 print(f"  {path}  <- released {entry.get('retired_on')} by "
                       f"decision {entry.get('decision')}")
             if len(released) > 20:
                 print(f"  ... and {len(released) - 20} more")
-            print("  Verify these are the decisions you think they are.")
+            unused = sorted(allowed - present_decisions)
+            if unused:
+                print(f"  declared but not found here: decision(s) "
+                      f"{', '.join(unused)} - harmless, but check you meant them")
+            if unclaimed:
+                print("")
+                print("  NOT DECLARED BY THIS RUN: decision(s) "
+                      f"{', '.join(unclaimed)}", file=sys.stderr)
+                print("  Pass --allow-released=<decisions> to say these releases "
+                      "are expected here.", file=sys.stderr)
+                print("  Naming them is the point: the next release turns this "
+                      "run red again, and somebody has to look at it.",
+                      file=sys.stderr)
+            else:
+                print("  Declared by this run. Verify these are the decisions "
+                      "you think they are.")
             print("")
 
         if violations:
             report(violations)
+            return 1
+
+        if unclaimed:
+            # Deliberately after the violations report: a real violation is the
+            # more urgent thing to read, and an undeclared release must not
+            # shadow it.
+            print("undeclared release - see above", file=sys.stderr)
             return 1
 
         print(f"clean: {scope}")
