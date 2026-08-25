@@ -1,0 +1,4336 @@
+{
+  "format": 1,
+  "list": "withheld",
+  "purpose": "Material that WAS in this repository and was taken out. It must not come back. This list grows with every owner decision.",
+  "provenance": "Measured, not recalled: paths present at tag v4.4.0 and absent at tag v4.4.1, compared case-insensitively. Pinned to those two tags on purpose - they are the moments the withdrawal happened between, and unlike a branch they do not move. Two readings were tried first and both were wrong: `git diff --diff-filter=D` counts a case-rename as a withdrawal, and comparing against the working tree counts later ordinary work as one. Each produced a phantom entry for a file that is lawfully here.",
+  "scope_note": "Exact paths on purpose. A pattern such as `samples/*` would also forbid the synthetic samples that belong here.",
+  "history_note": "History is deliberately not rewritten (decision 20), so these paths still exist in old commits and tags. What must stay clean is the present: working tree and branch tips.",
+  "instructions": "publication/README.md",
+  "checked_by": "scripts/check_withheld.py",
+  "integrity": {
+    "entries": 617,
+    "sha256": "ca156f2117705a6048e7f5d36a673b5ff510b3d8eb03ad41e39962be58cf9f34"
+  },
+  "entries": [
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/borders.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/borders.segments.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/deskew.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/doctype.label.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/fields.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/join.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Birth_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Birth_place_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Birth_place_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Driver_class.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Expiration_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.First_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.First_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Issue_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Issue_organisation_code.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Issue_organization_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Issue_organization_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Last_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Last_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Living_region_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Living_region_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Middle_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/ocr.Middle_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/prepare.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/quality.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/rotate.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/stages.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Birth_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Birth_place_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Birth_place_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Driver_class.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Expiration_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.First_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.First_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Issue_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Issue_organisation_code.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Issue_organization_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Issue_organization_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Last_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Last_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Living_region_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Living_region_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Middle_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/stages/words.Middle_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2011-10_BG_DL_2010/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/borders.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/borders.segments.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/deskew.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/doctype.label.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/fields.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/join.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Birth_place_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Birth_place_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Driver_class.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Expiration_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.First_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.First_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Issue_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Issue_organisation_code.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Issue_organization_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Issue_organization_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Last_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Last_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Living_region_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Living_region_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Middle_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/ocr.Middle_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/prepare.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/quality.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/rotate.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/stages.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Birth_place_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Birth_place_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Driver_class.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Expiration_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.First_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.First_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Issue_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Issue_organisation_code.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Issue_organization_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Issue_organization_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Last_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Last_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Living_region_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Living_region_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Middle_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/stages/words.Middle_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/DL_2020-10_CR_DL_2019/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/borders.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/borders.segments.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/deskew.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/doctype.label.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/fields.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/join.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Birth_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Birth_place_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Birth_place_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Expiration_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.First_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.First_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Issue_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Issue_organisation_code.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Issue_organization_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Last_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Last_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Licence_number.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.MRZ.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Middle_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Sex_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/ocr.Sex_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/prepare.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/quality.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/rotate.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/stages.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Birth_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Birth_place_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Birth_place_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Expiration_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.First_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.First_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Issue_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Issue_organisation_code.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Issue_organization_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Last_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Last_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Licence_number.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.MRZ.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Middle_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Sex_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/stages/words.Sex_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/borders.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/borders.segments.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/deskew.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/doctype.label.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/fields.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/join.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Birth_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Birth_place_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Birth_place_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Expiration_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.First_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.First_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Issue_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Issue_organisation_code.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Issue_organization_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Last_name_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Last_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Licence_number.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.MRZ.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Middle_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Sex_en.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/ocr.Sex_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/prepare.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/quality.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/rotate.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/stages.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Birth_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Birth_place_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Birth_place_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Expiration_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.First_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.First_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Issue_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Issue_organisation_code.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Issue_organization_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Last_name_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Last_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Licence_number.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.MRZ.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Middle_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Sex_en.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/stages/words.Sex_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/borders.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/borders.segments.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/deskew.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/doctype.label.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/fields.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/join.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Birth_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Birth_place_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.First_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Issue_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Issue_organisation_code.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Issue_organization_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Last_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Licence_number.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Middle_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/ocr.Sex_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/prepare.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/quality.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/rotate.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/stages.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Birth_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Birth_place_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.First_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Issue_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Issue_organisation_code.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Issue_organization_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Last_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Licence_number.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Middle_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/stages/words.Sex_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/borders.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/borders.segments.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/deskew.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/doctype.label.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/fields.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/join.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Birth_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Birth_place_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.First_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Issue_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Issue_organisation_code.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Issue_organization_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Last_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Licence_number.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.MRZ.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Middle_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/ocr.Sex_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/prepare.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/quality.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/rotate.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/stages.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Birth_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Birth_place_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.First_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Issue_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Issue_organisation_code.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Issue_organization_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Last_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Licence_number.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.MRZ.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Middle_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/stages/words.Sex_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/borders.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/borders.segments.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/deskew.canvas.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/doctype.label.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/fields.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/join.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/ocr.Birth_date.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/ocr.Birth_place_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/ocr.First_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/ocr.Last_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/ocr.Licence_number.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/ocr.Middle_name_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/ocr.Sex_ru.words.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/prepare.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/quality.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/rotate.digest.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/stages.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/words.Birth_date.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/words.Birth_place_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/words.First_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/words.Last_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/words.Licence_number.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/words.Middle_name_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/stages/words.Sex_ru.bbox.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "conformance/cases/SNILS_1996-105_BG_SNILS_2003/viewmodel.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/10_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/10_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/11_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/11_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/13_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/13_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/15_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/15_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/16_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/16_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/1_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/2_CR_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/2_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/3_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/3_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/3_CR_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/3_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/4_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/4_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/4_CR_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/4_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/5_CR_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/5_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/6_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/6_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/6_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/7_CR_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/7_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/8_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/8_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/8_CR_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/8_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/9_BG_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/9_BG_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/9_CR_DL_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2011/9_CR_DL_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/10_CR_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/10_CR_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/11_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/11_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/14_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/14_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/20_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/20_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/21_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/21_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/23_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/23_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/25_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/25_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/3_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/3_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/4_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/4_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/5_CR_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/5_CR_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/6_CR_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/6_CR_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/7_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/7_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/7_CR_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/7_CR_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/8_BG_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/8_BG_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/8_CR_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/8_CR_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/9_CR_DL_2019.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/DL_2020/9_CR_DL_2019.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/10_BG_EXTPASSPORTBIO_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/10_BG_EXTPASSPORTBIO_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/10_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/10_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/11_BG_EXTPASSPORTBIO_2010_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/11_BG_EXTPASSPORTBIO_2010_1.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/11_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/11_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/12_BG_EXTPASSPORTBIO_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/12_BG_EXTPASSPORTBIO_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/12_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/13_BG_EXTPASSPORTBIO_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/13_BG_EXTPASSPORTBIO_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/13_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/13_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/14_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/14_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/15_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/15_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/1_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/1_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/3_BG_EXTPASSPORTBIO_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/3_BG_EXTPASSPORTBIO_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/3_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/3_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/4_BG_EXTPASSPORTBIO_2010_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/4_BG_EXTPASSPORTBIO_2010_1.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/4_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/4_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/6_BG_EXTPASSPORTBIO_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/6_BG_EXTPASSPORTBIO_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/6_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/6_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/7_BG_EXTPASSPORTBIO_2010_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/7_BG_EXTPASSPORTBIO_2010_1.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/7_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/7_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/8_BG_EXTPASSPORTBIO_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/8_BG_EXTPASSPORTBIO_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/8_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/8_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/9_BG_EXTPASSPORTBIO_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/9_BG_EXTPASSPORTBIO_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/9_CR_EXTPASSPORTBIO_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORTBIO_2007/9_CR_EXTPASSPORTBIO_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/10_BG_EXTPASSPORT_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/10_BG_EXTPASSPORT_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/10_CR_EXTPASSPORT_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/10_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/11_BG_EXTPASSPORT_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/11_BG_EXTPASSPORT_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/12_BG_EXTPASSPORT_2010_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/12_BG_EXTPASSPORT_2010_2.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/13_BG_EXTPASSPORT_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/13_BG_EXTPASSPORT_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/14_BG_EXTPASSPORT_2010_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/14_BG_EXTPASSPORT_2010_1.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/1_CR_EXTPASSPORT_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/1_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/2_BG_EXTPASSPORT_2010_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/2_BG_EXTPASSPORT_2010_2.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/2_CR_EXTPASSPORT_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/2_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/3_BG_EXTPASSPORT_2010_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/3_BG_EXTPASSPORT_2010_2.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/3_CR_EXTPASSPORT_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/3_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/4_BG_EXTPASSPORT_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/4_BG_EXTPASSPORT_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/4_CR_EXTPASSPORT_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/4_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/5_BG_EXTPASSPORT_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/5_BG_EXTPASSPORT_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/5_CR_EXTPASSPORT_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/5_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/6_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/7_BG_EXTPASSPORT_2010_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/7_BG_EXTPASSPORT_2010_0.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/7_CR_EXTPASSPORT_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/7_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/9_CR_EXTPASSPORT_2010.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/EXTPASSPORT_2003/9_CR_EXTPASSPORT_2010.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/15_CR_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/15_CR_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/25_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/25_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/28_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/28_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/29_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/29_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/33_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/33_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/34_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/34_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/36_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/36_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/40_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/40_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/42_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/42_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/44_BG_INTPASSPORT_2001.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_1997/44_BG_INTPASSPORT_2001.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/12_CR_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/12_CR_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/13_BG_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/13_BG_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/15_BG_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/15_BG_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/16_BG_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/16_BG_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/18_BG_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/18_BG_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/18_CR_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/18_CR_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/19_CR_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/19_CR_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/1_CR_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/1_CR_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/3_CR_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/3_CR_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/4_CR_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/4_CR_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/5_BG_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/5_BG_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/6_CR_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/7_BG_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/7_BG_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/8_BG_INTPASSPORT_2011.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/INTPASSPORT_2011/8_BG_INTPASSPORT_2011.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/105_BG_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/105_BG_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/107_BG_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/107_BG_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/11_BG_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/11_BG_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/12_CR_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/12_CR_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/1_CR_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/1_CR_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/2_CR_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/2_CR_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/3_BG_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/3_BG_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/3_CR_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/4_BG_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/4_BG_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/4_CR_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/4_CR_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/6_BG_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/6_BG_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/6_CR_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/6_CR_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/7_CR_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/7_CR_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/8_BG_SNILS_2003.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/SNILS_1996/8_BG_SNILS_2003.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/test_date.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/test_rus_text.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/test_rus_text_wrong_0.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/test_rus_text_wrong_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/test_rus_text_wrong_4.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/test_rus_text_wrong_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "samples/test_rus_text_wrong_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/DL_2011-10_BG_DL_2010/canvas.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/DL_2011-10_BG_DL_2010/result.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/DL_2011-10_BG_DL_2010/thumb.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/DL_2020-10_CR_DL_2019/canvas.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/DL_2020-10_CR_DL_2019/result.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/DL_2020-10_CR_DL_2019/thumb.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/canvas.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/result.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/EXTPASSPORTBIO_2007-10_BG_EXTPASSPORTBIO_2010_0/thumb.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/canvas.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/result.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0/thumb.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/canvas.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/result.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/INTPASSPORT_1997-15_CR_INTPASSPORT_2001/thumb.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/canvas.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/result.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/INTPASSPORT_2011-12_CR_INTPASSPORT_2011/thumb.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/SNILS_1996-105_BG_SNILS_2003/canvas.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/SNILS_1996-105_BG_SNILS_2003/result.json",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "service/seed_data/SNILS_1996-105_BG_SNILS_2003/thumb.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_10.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_4.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_5.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_7.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/fake_9.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_10.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_11.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_4.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_5.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_7.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/LCDSpoofing/real_9.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_10.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_11.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_12.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_13.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_4.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_5.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_7.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/bad_9.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_10.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_11.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_12.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_4.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_5.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_7.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Blur/good_9.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_10.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_11.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_12.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_13.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_5.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_7.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/bad_9.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_10.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_11.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_12.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_4.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_5.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_7.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/Originals/Glare/good_9.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_10.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_11.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_12.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_13.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_14.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_4.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_7.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/fake_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_1.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_10.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_11.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_12.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_13.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_2.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_3.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_4.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_5.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_6.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_7.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_8.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    },
+    {
+      "path": "tests/images/PrintSpoofing/real_9.jpg",
+      "match": "exact",
+      "reason": "personal-data",
+      "detail": "photograph of a real document, or text recognised from one",
+      "decision": "25, confirmed by 58 and 59"
+    }
+  ],
+  "retired": []
+}

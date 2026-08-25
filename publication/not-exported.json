@@ -1,0 +1,100 @@
+{
+  "format": 1,
+  "list": "not-exported",
+  "purpose": "Paths that never belonged in this repository at all. Constant: it changes only when the mirror filter itself changes.",
+  "provenance": "Measured, not recalled: the difference of `git ls-files` between the development tree and this one, then `git log --all -- <path>` here for each candidate - all twelve have zero occurrences, i.e. never present rather than not yet copied. The list was SIX entries before that measurement and looked complete: a list without its provenance cannot be told apart from one nobody has updated.",
+  "scope_note": "Four entries are patterns and close whole directories - `Melnikov/*` and `Valuev/*` cover 456 files between them. A lost asterisk would open a directory silently, which is why the integrity digest covers the match kind, not just paths.",
+  "instructions": "publication/README.md",
+  "checked_by": "scripts/check_withheld.py",
+  "integrity": {
+    "entries": 12,
+    "sha256": "6d37a5b760bb06faa1f3c2f7a97e91a0a65b1740fb7656ff75aa074be57508c8"
+  },
+  "entries": [
+    {
+      "path": "Melnikov/*",
+      "match": "glob",
+      "reason": "internal",
+      "detail": "personal research workspace; has held real birth certificates",
+      "decision": null
+    },
+    {
+      "path": "Valuev/*",
+      "match": "glob",
+      "reason": "internal",
+      "detail": "personal research workspace",
+      "decision": null
+    },
+    {
+      "path": ".claude/*",
+      "match": "glob",
+      "reason": "internal",
+      "detail": "assistant configuration and agents",
+      "decision": null
+    },
+    {
+      "path": "skills/*",
+      "match": "glob",
+      "reason": "internal",
+      "detail": "internal skills",
+      "decision": null
+    },
+    {
+      "path": "dictionaries/*",
+      "match": "glob",
+      "reason": "internal",
+      "detail": "FMS organisation dictionary",
+      "decision": null
+    },
+    {
+      "path": "document_processing/ctc/*",
+      "match": "glob",
+      "reason": "internal",
+      "detail": "FMS organisation dictionary and its lookups",
+      "decision": null
+    },
+    {
+      "path": "CLAUDE.md",
+      "match": "exact",
+      "reason": "internal",
+      "detail": "internal instructions for the assistant",
+      "decision": null
+    },
+    {
+      "path": "docs/progress-log.md",
+      "match": "exact",
+      "reason": "internal",
+      "detail": "internal decision journal",
+      "decision": null
+    },
+    {
+      "path": "docs/training-datasets.md",
+      "match": "exact",
+      "reason": "internal",
+      "detail": "internal model-to-dataset registry",
+      "decision": null
+    },
+    {
+      "path": "docs/plan-words-mask.md",
+      "match": "exact",
+      "reason": "internal",
+      "detail": "internal design document",
+      "decision": null
+    },
+    {
+      "path": "docs/plan-intpassportaddr-yolo11.md",
+      "match": "exact",
+      "reason": "internal",
+      "detail": "internal design document",
+      "decision": null
+    },
+    {
+      "path": "tests/test_synth_gen.py",
+      "match": "exact",
+      "reason": "internal",
+      "detail": "tests for the generator that lives in Melnikov/",
+      "decision": null
+    }
+  ],
+  "retired": []
+}
