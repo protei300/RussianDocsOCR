@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -54,9 +55,31 @@ def resolve_cmd(port: dict) -> list[str]:
             for part in port["cmd"]]
 
 
+def _port_env() -> dict[str, str]:
+    """Environment for a port process, with its stdout encoding pinned.
+
+    The contract (spec/cli.md) is that a port emits UTF-8 on stdout, and this
+    checker decodes it as UTF-8 below. Nothing enforced the writing side, and on a
+    Windows machine whose locale is not UTF-8 a Python implementation writes its
+    stdout in the ANSI code page instead. Measured on a cp1251 machine: the
+    reference failed against its own goldens with 18 differences, every one of them
+    a Cyrillic OCR string turned to replacement characters, and the run then died
+    with UnicodeEncodeError while printing the report — a red with no hint that the
+    cause was the console.
+
+    So the checker pins it for the child rather than trusting the machine. Harmless
+    for ports that are already UTF-8 (Go, JVM): PYTHONIOENCODING means nothing to
+    them.
+    """
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
+
+
 def run_port(cmd: list[str], args: list[str], timeout: int) -> subprocess.CompletedProcess:
     return subprocess.run(cmd + args, cwd=REPO, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace", timeout=timeout)
+                          encoding="utf-8", errors="replace", timeout=timeout,
+                          env=_port_env())
 
 
 def cmd_list(args: argparse.Namespace) -> int:
