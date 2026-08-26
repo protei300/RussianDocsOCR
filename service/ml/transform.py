@@ -155,7 +155,7 @@ def _build_boxes(results: Any, ocr: dict[str, str]) -> list[dict[str, Any]]:
     return boxes
 
 
-def _build_address(results: Any) -> dict[str, Any] | None:
+def _build_address(meta_results: dict[str, Any]) -> dict[str, Any] | None:
     """Oriented address-line boxes plus their printed/handwritten verdicts.
 
     Only present for ``INTPASSPORTADDR``. The two source lists can desynchronise:
@@ -165,10 +165,16 @@ def _build_address(results: Any) -> dict[str, Any] | None:
     lengths disagree we set ``aligned=False``, drop the geometry and keep only
     the text — a client that respects the flag then suppresses the overlay
     rather than drawing a confident lie.
+
+    Takes the metadata dict rather than the results object on purpose.
+    ``results.meta_results`` is a deep copy built on every read (that is what
+    keeps a caller from writing into the pipeline's own state), so reading it
+    twice here bought a second copy of every image for nothing. The caller reads
+    it once and passes it down; this function needs metadata, not a pipeline.
     """
-    meta = results.meta_results.get("AddressLinesDetector") or {}
+    meta = meta_results.get("AddressLinesDetector") or {}
     obboxes = meta.get("obbox") or []
-    lines = results.meta_results.get("Address_lines") or []
+    lines = meta_results.get("Address_lines") or []
     if not obboxes and not lines:
         return None
 
@@ -198,7 +204,8 @@ def _build_address(results: Any) -> dict[str, Any] | None:
 
 
 def _build_fields(doc_type: str | None, ocr: dict[str, str],
-                  boxes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+                  boxes: list[dict[str, Any]],
+                  normalized: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """Recognised fields as an ordered array, each linked to its box(es).
 
     An array rather than a dict, deliberately: JSON objects have no guaranteed
@@ -206,6 +213,14 @@ def _build_fields(doc_type: str | None, ocr: dict[str, str],
     a human reads the document in. The ordering lives in ``labels.FIELD_ORDER``.
 
     ``box_ids`` is a list because one field can legitimately own several boxes.
+
+    ``normalized`` carries the canonical ``dd.mm.yyyy`` form of a date field
+    (``PipelineResults.ocr_normalized``). ``value`` stays the READING - the
+    ground truth describes the image, dates are printed in words on birth
+    certificates and on a SNILS, and the accuracy measurement compares against
+    what was read. The key is present ONLY where a canonical form exists, which
+    is what lets a client tell "there is none" from "it equals the reading";
+    a field that is not a date never carries it.
     """
     by_label: dict[str, list[str]] = {}
     conf_by_label: dict[str, float | None] = {}
@@ -214,16 +229,22 @@ def _build_fields(doc_type: str | None, ocr: dict[str, str],
         if b["text"] is not None:
             conf_by_label[b["label"]] = b["conf"]
 
+    normalized = normalized or {}
+
     fields = []
     for name in labels.order_fields(doc_type, list(ocr.keys())):
-        fields.append({
+        field: dict[str, Any] = {
             "name": name,
             "display": labels.field_display(name),
             "value": _str(ocr.get(name)),
             "script": labels.field_script(name),
             "conf": conf_by_label.get(name),
             "box_ids": by_label.get(name, []),
-        })
+        }
+        canonical = normalized.get(name)
+        if canonical:
+            field["normalized"] = _str(canonical)
+        fields.append(field)
     return fields
 
 
@@ -240,6 +261,10 @@ def build_viewmodel(results: Any, *, device: str | None = None,
     report = results.full_report
     doc_type = _str(report.get("DocType"))
     ocr = {str(k): str(v) for k, v in (report.get("OCR") or {}).items()}
+    # Attribute access on purpose, not getattr with a default: if the library
+    # ever stops producing the canonical dates, this must fail here rather than
+    # quietly serve a view without them.
+    normalized = {str(k): str(v) for k, v in (results.ocr_normalized or {}).items()}
 
     boxes = _build_boxes(results, ocr)
 
@@ -249,6 +274,19 @@ def build_viewmodel(results: Any, *, device: str | None = None,
         quality[str(key)] = _num(value) if isinstance(value, (int, float, np.generic)) else _str(value)
 
     timings = {str(k): _num(v) for k, v in (report.get("Timings") or {}).items()}
+
+    # Read once per document, deliberately. ``results.meta_results`` deep-copies
+    # the whole metadata tree on EVERY read -- images included, 4.0 ms and ~14 MB
+    # a time -- because that copy is what stops a caller writing into the
+    # pipeline's own state. Reading it per use cost two copies on the normal path
+    # and three with debug on; one binding costs one.
+    #
+    # This local must not outlive the request, and nothing here lets it: it is a
+    # function local, and every value that reaches ``payload`` is re-built as a
+    # plain int/float/str/list (``_num``, ``_str``, ``.tolist()``). The payload
+    # is JSON-serialised by the caller, which is the mechanical proof -- a live
+    # reference into the metadata carries numpy arrays and would not serialise.
+    meta_results = results.meta_results
 
     canvas_w = canvas_h = None
     canvas_fallback = False
@@ -275,15 +313,15 @@ def build_viewmodel(results: Any, *, device: str | None = None,
             "does not retain the deskew angle."
         ),
         "boxes": boxes,
-        "fields": _build_fields(doc_type, ocr, boxes),
+        "fields": _build_fields(doc_type, ocr, boxes, normalized),
         "ocr": ocr,
         "quality": quality,
         "timings": timings,
-        "address": _build_address(results),
+        "address": _build_address(meta_results),
     }
 
     if include_debug:
-        segm = (results.meta_results.get("DocDetector") or {}).get("segm")
+        segm = (meta_results.get("DocDetector") or {}).get("segm")
         payload["debug"] = {
             "doc_outline": {
                 # Explicitly tagged: this polygon is in the pre-perspective-warp

@@ -379,6 +379,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # stdout is a data channel, not a display: the contract says UTF-8 (spec/cli.md)
+    # and the checker decodes it as UTF-8. Python otherwise writes it in the machine's
+    # locale encoding, which on a Russian Windows is cp1251 — measured there, every
+    # Cyrillic OCR string arrived at the checker as replacement characters and the
+    # reference "failed" against its own goldens. Pinned here rather than only in the
+    # checker so that the reference reads the same whoever launches it.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+        except (AttributeError, ValueError):   # not a TextIOWrapper (redirected, tests)
+            pass
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)

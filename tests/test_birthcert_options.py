@@ -52,7 +52,10 @@ def test_nothing_is_routed_to_the_latin_engine():
 def test_the_sample_ground_truth_only_names_fields_the_options_read():
     options = OCROptionsBIRTHCERT()
     readable = set(options.ru_fields) | set(options.en_fields)
-    for gt_file in sorted((REPO_ROOT / 'samples').glob('BIRTHCERT_*/*.json')):
+    gt_files = sorted((REPO_ROOT / 'samples').glob('BIRTHCERT_*/*.json'))
+    # Without this the loop over an empty samples/ passes silently.
+    assert gt_files, 'no BIRTHCERT ground truth under samples/'
+    for gt_file in gt_files:
         gt = json.loads(gt_file.read_text(encoding='utf-8'))
         assert set(gt) <= readable, f'{gt_file.name}: {sorted(set(gt) - readable)}'
 

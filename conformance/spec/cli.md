@@ -72,6 +72,27 @@ This is not a stylistic preference. `document_processing` prints to stdout —
 the library's stdout to stderr, and a port that logs to stdout will produce
 unparseable output that looks like a serialisation bug.
 
+**stdout is UTF-8, always, whatever the machine's locale is.** The checker decodes
+it as UTF-8 and has no way to detect that it received something else: the bytes of
+a Cyrillic string in another code page are still bytes, and they arrive as damaged
+text rather than as an error.
+
+Measured, which is why this is normative rather than assumed: on a Windows machine
+whose locale is cp1251, the Python reference — which had not pinned its stdout —
+failed against its **own** goldens with 18 differences, every one a Cyrillic OCR
+string turned into replacement characters, and the checker then died with
+`UnicodeEncodeError` while printing the report. Nothing in that red mentioned the
+console. Note where it did *not* bite: the per-stage dump files, which are written
+with an explicit encoding, were byte-correct in the same run. Only the stream had
+no encoding of its own.
+
+A port must therefore set its own output encoding rather than inherit it: in Python
+`sys.stdout.reconfigure(encoding="utf-8")`, in .NET `Console.OutputEncoding =
+new UTF8Encoding(false)` (on Windows it otherwise follows the console code page),
+in Go and on a modern JVM this already holds. The checker also pins
+`PYTHONIOENCODING=utf-8` in the port's environment, but that is a second belt for
+Python ports only — it is not the contract.
+
 ## Exit codes
 
 | code | meaning | checker's reaction |

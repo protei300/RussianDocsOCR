@@ -1,5 +1,6 @@
 import re
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from time import time
@@ -9,6 +10,7 @@ import cv2
 import numpy as np
 
 from ..pipeline_modules import *
+from .dates import canonical_dates
 
 
 def _segments_payload(meta_results: dict):
@@ -226,26 +228,108 @@ class PipelineResults:
     """Stores results and metadata from a model pipeline.
 
     Attributes:
-        meta_results (dict): Metadata from pipeline stages
+        _meta_results (dict): Metadata from pipeline stages. Private, and read
+            from inside this module only. Callers get ``meta_results`` -- see
+            the property below for why the distinction is load-bearing.
         _timings (dict): Timing measurements for stages
 
     """
     def __init__(self):
         """Initializes empty result storage."""
 
-        self.meta_results = dict(Quality={})
+        self._meta_results = dict(Quality={})
         self._timings = dict()
         # stage keys that ran inside a concurrent group: kept in the report for
         # visibility, but excluded from the 'total' sum (see add_concurrent_group)
         self._concurrent_members = set()
 
     @property
+    def meta_results(self) -> dict:
+        """Metadata from every stage, as a COPY of the state rather than the state.
+
+        Handing out the live dict meant a caller could write into the pipeline's
+        own memory -- adding a key or overwriting a quality verdict -- and every
+        later reader saw the tampered value as if a model had produced it. That
+        was not theoretical: it is what ``tests/test_meta_results_encapsulation``
+        demonstrates, red before this property existed.
+
+        Two things this deliberately does NOT do, both worth knowing before
+        anyone extends it:
+
+        * **It does not make the pipeline safe to share between threads.**
+          ``process_img`` rebinds ``self.results`` wholesale, so a concurrent
+          call replaces the object this copy was taken from; copying on read
+          protects the contents, not the identity. The service still has to
+          serialise calls (``service/ml/runtime.py``, rule 1). Encapsulation and
+          concurrency are different problems and fixing one does not touch the
+          other.
+        * **It does not copy the images.** ``rotated_image``,
+          ``img_with_fixed_perspective`` and ``text_fields`` hand out the stored
+          arrays live, because callers want the array and duplicating a
+          full-size image on every attribute access would cost more than the
+          protection is worth. The dictionary structure is protected; the pixel
+          payload is shared on purpose, and
+          ``TestTheBoundaryWeDoNotProtect`` marks that edge so it stays a
+          decision rather than a hole.
+
+        Cost, measured on a driving licence at 1364 ms end to end: one copy is
+        4.0 ms over 13.94 MB of arrays, i.e. 0.3 % of a document. Internal code
+        never pays it -- everything inside this module reads ``_meta_results``
+        directly, and that is the reason those 59 accesses were rewritten rather
+        than left to go through here.
+        """
+        return deepcopy(self._meta_results)
+
+    @property
     def ocr(self) -> Union[Dict, None]:
         """Gets OCR extraction results dict, if available."""
-        if self.meta_results.get('OCR'):
-            return self.meta_results.get('OCR')
+        if self._meta_results.get('OCR'):
+            return deepcopy(self._meta_results.get('OCR'))
         else:
             return None
+
+    @property
+    def ocr_normalized(self) -> Dict:
+        """Canonical ``dd.mm.yyyy`` view of the date fields, alongside the reading.
+
+        A SEPARATE map, deliberately: ``ocr`` holds what is printed on the
+        document, which is what the ground truth describes and what the accuracy
+        measurement compares against, and it is also the key set the service
+        builds its field list and box links from. Writing a canonical value over
+        the reading would quietly change both. Only fields that converted appear
+        here; a date the converter would have to guess at is simply absent.
+        """
+        return self._meta_results.get('OCR_normalized') or {}
+
+    @property
+    def words_fallback(self) -> list:
+        """Lines that were read WHOLE because the word split lost most of them.
+
+        Part of the contract, not debug output. A measurement that corrects for
+        the missing spaces (a line read whole comes back glued: «Тракторозаводский
+        район» -> one token) must apply that correction ONLY to these lines,
+        otherwise it becomes a blanket amnesty and hides word-boundary defects
+        that have nothing to do with the guard.
+
+        Each entry is ``{'field': str, 'line': int, 'gap': float | None}``,
+        where ``gap`` is the widest empty stretch on the line in typical word
+        widths and ``None`` means no words were found at all - the line was one
+        hole, so the ratio has no denominator.
+        """
+        return self._meta_results.get('WordsFallback') or []
+
+    @property
+    def words_no_ink(self) -> list:
+        """Lines the guard declined to re-read because they carry no strokes.
+
+        Kept apart from ``words_fallback`` on purpose: those are lines the guard
+        acted on, these are lines it deliberately left alone. Without this, a
+        refusal is indistinguishable from the guard never having looked - and
+        "the check was never asked" and "the check said no" are different facts.
+
+        Each entry is ``{'field': str, 'line': int, 'ink': float}``.
+        """
+        return self._meta_results.get('WordsNoInk') or []
 
     @property
     def validation(self) -> dict:
@@ -265,53 +349,53 @@ class PipelineResults:
     @property
     def doctype(self) -> Union[str, None]:
         """Gets detected document type, if available."""
-        doctype = self.meta_results.get('DocType')
+        doctype = self._meta_results.get('DocType')
         return doctype
 
     @property
     def quality(self) -> dict:
-        """Gets image quality measurements."""
-        return self.meta_results['Quality']
+        """Gets image quality measurements, as a copy of the verdicts."""
+        return deepcopy(self._meta_results['Quality'])
 
     @property
     def rotated_image(self) -> np.ndarray:
         """Gets image rotated by the Angle90 stage."""
-        return self.meta_results['Angle90']['warped_img']
+        return self._meta_results['Angle90']['warped_img']
 
     @property
     def angle(self):
         """Gets image angle by the Angle90 stage."""
-        return self.meta_results['Angle90']['angle']
+        return self._meta_results['Angle90']['angle']
 
     @property
     def img_with_fixed_perspective(self) -> Union[list, None]:
         """Get result from doc detection net"""
-        if self.meta_results.get('DocDetector'):
-            return self.meta_results['DocDetector']['warped_img']
+        if self._meta_results.get('DocDetector'):
+            return self._meta_results['DocDetector']['warped_img']
         else:
             return self.rotated_image
 
     @property
     def text_fields(self) -> Union[Tuple[list, list], None]:
         """Get text field patches with their meta"""
-        if self.meta_results.get('TextFieldsDetector'):
-            return self.meta_results['TextFieldsDetector']['bbox'], self.meta_results['TextFieldsDetector']['warped_img']
+        if self._meta_results.get('TextFieldsDetector'):
+            return self._meta_results['TextFieldsDetector']['bbox'], self._meta_results['TextFieldsDetector']['warped_img']
         else:
             return None
 
     @property
     def text_fields_meta(self) -> Union[Dict, None]:
         """Get text field meta"""
-        if self.meta_results.get('TextFieldsDetector'):
-            return self.meta_results['TextFieldsDetector']
+        if self._meta_results.get('TextFieldsDetector'):
+            return self._meta_results['TextFieldsDetector']
         else:
             return None
 
     @property
     def words_patches(self) -> Union[Dict, None]:
         """Get split words patches"""
-        if self.meta_results.get('WordsDetector'):
-            return self.meta_results['WordsDetector']
+        if self._meta_results.get('WordsDetector'):
+            return self._meta_results['WordsDetector']
         else:
             return None
 
@@ -568,6 +652,9 @@ class Pipeline:
         """
 
         self.results = PipelineResults()
+        # Per-image state for the MRZ length self-check (see _note_mrz_zone). Reset here
+        # for the same reason self.results is: process_img may be called again.
+        self._mrz_zone = None
 
         img = self._prepare_image(img_path, img_size=img_size)
         self._emit('prepare', img)
@@ -583,10 +670,10 @@ class Pipeline:
         # non-existent 'DocTypeAngles' key and silently emitted None; the golden
         # recorded null, and null == null passed. Caught when the Go port produced a
         # real value and had nothing to be compared against.
-        _angle90 = self.results.meta_results.get('Angle90') or {}
+        _angle90 = self.results._meta_results.get('Angle90') or {}
         self._emit('doctype.label', {
-            'doc_type': self.results.meta_results.get('DocType'),
-            'doc_type_confidence': self.results.meta_results.get('Quality', {}).get('DocConf'),
+            'doc_type': self.results._meta_results.get('DocType'),
+            'doc_type_confidence': self.results._meta_results.get('Quality', {}).get('DocConf'),
             'angle': _angle90.get('angle'),
             'angle_confidence': _angle90.get('confidence'),
         })
@@ -603,7 +690,7 @@ class Pipeline:
             # NONE cases at conf 0.98+, zero new false-accepts on a
             # no-document negative set.
             self._model_call(self._doc_detector, img)
-            if self.results.meta_results['DocDetector']['segm']:
+            if self.results._meta_results['DocDetector']['segm']:
                 self._model_call(self._doctype_angle,
                                  self.results.img_with_fixed_perspective)
                 doc_type = self.results.doctype
@@ -643,7 +730,7 @@ class Pipeline:
             self._quality_and_borders_parallel(img)
             img = self.results.img_with_fixed_perspective
             self._emit('quality', self.results.quality)
-            self._emit('borders.segments', _segments_payload(self.results.meta_results))
+            self._emit('borders.segments', _segments_payload(self.results._meta_results))
             self._emit('borders.canvas', img)
             self._model_call(self._deskew, img)
             img = self.results.img_with_fixed_perspective
@@ -673,7 +760,7 @@ class Pipeline:
             if get_doc_borders:
                 self._model_call(self._doc_detector, img)
                 img = self.results.img_with_fixed_perspective
-                self._emit('borders.segments', _segments_payload(self.results.meta_results))
+                self._emit('borders.segments', _segments_payload(self.results._meta_results))
                 self._emit('borders.canvas', img)
                 # correct residual tilt so text lines are horizontal (helps field
                 # detection, line/word splitting and OCR; train==inference)
@@ -695,7 +782,7 @@ class Pipeline:
         # split each line into words and OCR (printed text)
         if ocr and getattr(self.ocr_options, 'has_address', False):
             self._model_call(self._address_lines, img)
-            if not self.results.meta_results.get('Address_lines'):
+            if not self.results._meta_results.get('Address_lines'):
                 # Paper-texture gate: the registration page is mostly bare
                 # paper, so the metric classifier accepts document-free paper
                 # textures as INTPASSPORTADDR (measured 2026-08-02, see
@@ -704,10 +791,10 @@ class Pipeline:
                 # zero lines on an accepted "address page" marks a false
                 # accept, so reject it the same way the doctype stage does.
                 print("[!] The document on picture has unknown type")
-                self.results.meta_results['DocType'] = 'NONE'
-                self.results.meta_results['Quality']['DocConf'] = 0.0
+                self.results._meta_results['DocType'] = 'NONE'
+                self.results._meta_results['Quality']['DocConf'] = 0.0
                 return self.results
-            self._emit('address.lines', self.results.meta_results.get('Address_lines'))
+            self._emit('address.lines', self.results._meta_results.get('Address_lines'))
 
         #splitting words
         if text_fields:
@@ -717,6 +804,7 @@ class Pipeline:
             #OCR words
             if ocr and words_splitted:
                 self._model_call(self._ocr, words_splitted, doc_type)
+                self._normalize_dates()
 
         return self.results
 
@@ -729,9 +817,9 @@ class Pipeline:
         Quality.DocConf) are kept as-is - they are the public PipelineResults
         contract."""
         meta = self.doctype_angles.predict_transform(img)[self.doctype_angles.model_name]
-        self.results.meta_results['DocType'] = meta['doc_type']
-        self.results.meta_results['Quality']['DocConf'] = meta['doc_type_confidence']
-        self.results.meta_results['Angle90'] = {
+        self.results._meta_results['DocType'] = meta['doc_type']
+        self.results._meta_results['Quality']['DocConf'] = meta['doc_type_confidence']
+        self.results._meta_results['Angle90'] = {
             'angle': meta['angle'],
             'confidence': meta['angle_confidence'],
             'warped_img': meta['warped_img'],
@@ -742,25 +830,25 @@ class Pipeline:
     def _glare(self, img):
         """Check for glare quality"""
         qual, coef = self.glare.predict(img)[self.glare.model_name]
-        self.results.meta_results['Quality']['Glare'] = qual
+        self.results._meta_results['Quality']['Glare'] = qual
         return qual
 
     def _blur(self, img):
         """Check for blur quality."""
         qual, coef = self.blur.predict(img)[self.blur.model_name]
-        self.results.meta_results['Quality']['Blur'] = qual
+        self.results._meta_results['Quality']['Blur'] = qual
         return qual
 
     def _print_spoofing(self, img):
         """Check for print spoofing."""
         qual, coef = self.print_spoofing.predict(img)[self.print_spoofing.model_name]
-        self.results.meta_results['Quality']['PrintSpoofing'] = qual
+        self.results._meta_results['Quality']['PrintSpoofing'] = qual
         return qual
 
     def _lcd_spoofing(self, img):
         """Check for LCD spoofing."""
         qual, coef = self.lcd_spoofing.predict(img)[self.lcd_spoofing.model_name]
-        self.results.meta_results['Quality']['LCDSpoofing'] = qual
+        self.results._meta_results['Quality']['LCDSpoofing'] = qual
         return qual
 
     def _quality_and_borders_parallel(self, img):
@@ -804,11 +892,11 @@ class Pipeline:
             det_res, t_det = f_det.result()
         group_elapsed = time() - group_start
 
-        self.results.meta_results['Quality']['Glare'] = glare_res[self.glare.model_name][0]
-        self.results.meta_results['Quality']['Blur'] = blur_res[self.blur.model_name][0]
-        self.results.meta_results['Quality']['PrintSpoofing'] = print_res[self.print_spoofing.model_name][0]
-        self.results.meta_results['Quality']['LCDSpoofing'] = lcd_res[self.lcd_spoofing.model_name][0]
-        self.results.meta_results = self.results.meta_results | det_res
+        self.results._meta_results['Quality']['Glare'] = glare_res[self.glare.model_name][0]
+        self.results._meta_results['Quality']['Blur'] = blur_res[self.blur.model_name][0]
+        self.results._meta_results['Quality']['PrintSpoofing'] = print_res[self.print_spoofing.model_name][0]
+        self.results._meta_results['Quality']['LCDSpoofing'] = lcd_res[self.lcd_spoofing.model_name][0]
+        self.results._meta_results = self.results._meta_results | det_res
 
         # these five overlap in time, so only the group's own elapsed time may
         # count towards timings['total'] - the per-stage numbers stay for detail
@@ -838,7 +926,7 @@ class Pipeline:
         is_spread = 'intpassport' in doc_type.lower()
         max_pages = 2 if is_spread else 1
         result = self.doc_detector.predict_transform(img, stack='auto', max_pages=max_pages)
-        self.results.meta_results = self.results.meta_results | result
+        self.results._meta_results = self.results._meta_results | result
         # img = result[self.doc_detector.model_name]['warped_img']
         # return img
 
@@ -846,11 +934,11 @@ class Pipeline:
         """Correct residual tilt of the perspective-fixed canvas and store it
         back so img_with_fixed_perspective returns the deskewed image."""
         desk = self.deskewer.deskew(img)
-        if self.results.meta_results.get('DocDetector'):
-            self.results.meta_results['DocDetector']['warped_img'] = desk
+        if self.results._meta_results.get('DocDetector'):
+            self.results._meta_results['DocDetector']['warped_img'] = desk
         else:
             # no doc_detector result (fallback path) -> stash under Angle90
-            self.results.meta_results.setdefault('Angle90', {})['warped_img'] = desk
+            self.results._meta_results.setdefault('Angle90', {})['warped_img'] = desk
         return desk
 
     def _fields_detector(self, img, rotate_licence=False):
@@ -867,6 +955,7 @@ class Pipeline:
         result = self.text_fields.predict_transform(img)
         text_fields = result[self.text_fields.model_name]
 
+        self._note_mrz_zone(text_fields, img)
 
         if rotate_licence:
             for i, field in enumerate(text_fields['bbox']):
@@ -875,9 +964,242 @@ class Pipeline:
                                                               cv2.ROTATE_90_COUNTERCLOCKWISE)
 
 
-        self.results.meta_results = self.results.meta_results | result
+        self.results._meta_results = self.results._meta_results | result
 
 
+    #: An empty stretch on a line wider than this many typical words means the
+    #: split dropped a word, and the line is read whole instead.
+    #:
+    #: Measured over 157 documents (all of samples/ plus 40 generator canons,
+    #: where the defect lives), 815 fields: the widest gap on a line that really
+    #: lost a long word has a median of 2.74 typical word widths, against 0.06 on
+    #: intact lines - a factor of forty. The obvious alternative, the SHARE of the
+    #: line covered by word boxes, was measured on the same run and rejected: it
+    #: reads print DENSITY, not the integrity of the split, so the lowest coverage
+    #: over samples/ belongs to a correctly read internal-passport Licence_number
+    #: (0.64-0.75, three digit groups with wide gaps) and no threshold separates
+    #: it from real damage. By the gap the same 24 fields sit at a median of 0.92
+    #: and a maximum of 1.20, i.e. silent with room to spare.
+    #:
+    #: 3.0 rather than the 3.056 the selection rule produced: four significant
+    #: digits pretend to a precision that 19 target fields cannot support. The
+    #: rounding costs one extra false fire on the canons and none on samples/.
+    #: Chosen on one half of the canons and reported on the other, so the number
+    #: is not fitted to what it is measured on: 3 of 7 and 5 of 10 caught on the
+    #: held-out half, which held the catch rate but raised the false count from 1
+    #: to 4 - so the cost side of this number is an upper bound, not an
+    #: expectation. Full report: notes/report_words_signal_choice_2026-08-25.md.
+    #:
+    #: Known limit, not a threshold to tune: when the missing word left NO gap
+    #: because a neighbour's box swallowed it, geometry cannot see it at all.
+    #: That is 8 of 19 measured cases - this guard covers about half of the
+    #: complaint, the rest belongs to retraining the word detector.
+    WORDS_MAX_GAP = 3.0
+
+    #: Below this much fine-grained detail, a line carries no strokes and the
+    #: fallback above must NOT re-read it.
+    #:
+    #: The guard treats "no word boxes" as "the split lost the text", but that
+    #: observation has a second cause: there IS no text. On a real web sample
+    #: (f2018_02) the name line is a blurred strip - anonymised at the source,
+    #: no glyphs at all - and re-reading it whole produced «ЛВН»: an honest empty
+    #: field turned into something that looks like an answer. For an identifier a
+    #: plausible wrong value is worse than none.
+    #:
+    #: The measure is the variance of the Laplacian, i.e. how much fine detail
+    #: the strip carries - strokes, not darkness. Three cheaper-looking
+    #: alternatives were measured on the same run and rejected because they
+    #: overlap: spread of brightness gives 18.8 on the blurred strip against a
+    #: minimum of 18.1 on strips that do carry text, and the share of dark pixels
+    #: 0.074 against 0.082. They measure how DARK a strip is; the question is
+    #: whether it has strokes.
+    #:
+    #: The threshold comes from a blur ladder over 612 canon lines whose text is
+    #: known to be there, blurred with a growing Gaussian (manufactured on
+    #: purpose, so the number does not rest on the single real case): sharp text
+    #: has a median of 1590, mild blur 249, and blur WIDER THAN THE STROKE 27 -
+    #: an order-of-magnitude trough, because a stroke one or two pixels wide
+    #: smeared over five stops being a stroke. 100 sits in that trough: it drops
+    #: 0% of sharp lines, 1% of mildly blurred ones and all of the smeared ones,
+    #: where 150 would cost 10% of the mildly blurred for nothing extra.
+    #: Physics gives the trough; the point inside it is chosen by the cost of
+    #: being wrong, which is asymmetric - refusing wrongly loses a repair and
+    #: restores the pre-guard behaviour, accepting wrongly MANUFACTURES a value.
+    #:
+    #: Those percentages are measured on MANUFACTURED blur, which is easier than
+    #: the real thing: a Gaussian is even, while a real blurred strip still
+    #: carries compression, paper texture and sensor noise. On real documents
+    #: this will therefore reject LESS than the ladder promises - it errs towards
+    #: letting a blurred line through rather than dropping a line with text.
+    #: Known limit, named before the measurement: an empty strip and a strip with
+    #: VERY FAINT text look the same to this measure. Full report:
+    #: notes/proposal_ink_check_2026-08-25.md.
+    LINE_MIN_INK = 100.0
+
+    #: A line of a machine-readable zone is exactly 44 characters, and that is a
+    #: rare luxury: the pipeline can tell that it read the line WRONG without being
+    #: told, and try again. Anything shorter means the crop lost part of the line.
+    MRZ_LINE_LEN = 44
+
+    #: The MRZ is printed as ONE rectangle holding two lines, so both lines share
+    #: the same horizontal span - but the detector does not know that. Measured
+    #: over samples/: the two boxes of a zone start within 10 px of each other
+    #: when the zone reads correctly and 90-182 px apart when it does not, and the
+    #: characters outside the narrower box never reach the engine. That accounted
+    #: for 23 of the 34 damaged lines; the engine was innocent (its CTC output had
+    #: 117-552 time steps against the 57-71 a line needs).
+    #:
+    #: So the zone's own span is the FIRST retry candidate, then the ladder widens
+    #: further. Deliberately a candidate and not a rewrite: forcing every MRZ box
+    #: to the union span fixed the external passports and damaged an internal one
+    #: (both its lines got shorter), because a wider crop can also pull in the page
+    #: edge. Reading the detector's own crop first and widening only on a wrong
+    #: length cannot lose a line that was already right.
+    #: The ladder reaches 34% of the span on each side because that is what the
+    #: worst measured case needed: a zone whose BOTH boxes are inset by nine
+    #: characters (8_CR of EXTPASSPORTBIO) recovers its first line at +0.30 and not
+    #: before. Wider steps cost nothing on a healthy document - the ladder is only
+    #: walked for a line whose length is already wrong - and the crop is clamped to
+    #: the canvas, so the last steps saturate instead of running away.
+    MRZ_RETRY_GROWTH = (0.0, 0.05, 0.10, 0.16, 0.24, 0.34)
+
+    #: The zone's alphabet is closed: capitals, digits and the filler. A line
+    #: cannot begin or end with anything else, so a stray '.' or '_' at an edge is
+    #: the page border caught by the crop, not text. Trimming those - and ONLY at
+    #: the edges - is what keeps a widened crop from turning a correct
+    #: 44-character line into a 45-character one.
+    MRZ_ALPHABET = set('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<')
+
+    def _note_mrz_zone(self, text_fields: dict, img):
+        """Remember the canvas and the MRZ boxes for the length self-check.
+
+        Nothing is modified here: the boxes the detector produced stay exactly as
+        they are, so `fields.bbox` and every other field are untouched. The only
+        purpose is that _read_mrz can re-cut a line from the canvas later.
+
+        Boxes are kept top to bottom, which is the order the OCR loop walks the
+        patches in - the retry has to know which box a patch came from.
+        """
+        self._mrz_zone = None
+        bboxes = text_fields.get('bbox') or []
+        idx = [i for i, box in enumerate(bboxes) if box[-1] == 'MRZ']
+        if not idx:
+            return
+        idx.sort(key=lambda i: (bboxes[i][1] + bboxes[i][3]) / 2)
+        boxes = [list(bboxes[i][:4]) for i in idx]
+
+        # The span of the zone as a whole: for a line whose own box is too narrow
+        # this is where the missing characters are. Only from boxes that are
+        # line-shaped - a box several line-heights tall is not a line, and its
+        # edges say nothing about where the line ends (measured: the one such zone
+        # reads worse from a widened crop).
+        line_shaped = [b for b in boxes
+                       if b[2] - b[0] >= 10 * max(1, b[3] - b[1])]
+        span = None
+        if len(line_shaped) > 1:
+            span = (min(b[0] for b in line_shaped), max(b[2] for b in line_shaped))
+        self._mrz_zone = {'canvas': img, 'boxes': boxes, 'span': span}
+
+    @classmethod
+    def _trim_to_mrz_alphabet(cls, text: str) -> str:
+        """Drop edge characters that cannot occur in a machine-readable zone.
+
+        Only the ends, and only characters outside the zone's closed alphabet: the
+        page border sometimes lands inside a crop and comes back as '.' or '_'.
+        Anything inside the line is left alone - a wrong character there is a
+        reading error, and hiding it would be worse than showing it.
+        """
+        if not text:
+            return text
+        return text.strip(''.join(sorted(set(text) - cls.MRZ_ALPHABET)))
+
+    def _read_mrz(self, line_index: int, text: str) -> str:
+        """Re-read one MRZ line from a wider crop when it came out too short.
+
+        The reading the detector's own crop produced is kept unless it is the
+        wrong length; then the zone's full span is tried, then progressively wider
+        crops, and the first result of exactly 44 characters wins. Falls back to
+        the longest reading seen, which is still closer than the short one.
+
+        Never invents a line: it only re-reads a box the detector found, so a zone
+        whose second line was never detected stays a one-line zone. That matters -
+        "read in" a missing line would turn a real miss into a plausible string.
+        """
+        text = self._trim_to_mrz_alphabet(text)
+        if len(text) == self.MRZ_LINE_LEN:
+            return text
+        zone = self._mrz_zone
+        if not zone or line_index >= len(zone['boxes']):
+            return text
+
+        canvas = zone['canvas']
+        width = canvas.shape[1]
+        x1, y1, x2, y2 = zone['boxes'][line_index]
+        span = zone['span']
+        best = text
+        for growth in self.MRZ_RETRY_GROWTH:
+            left, right = (span if span else (x1, x2))
+            step = int(round((right - left) * growth))
+            crop = canvas[y1:y2, max(0, left - step):min(width, right + step)]
+            if crop.size == 0:
+                continue
+            candidate = self.ocr_lat.predict(crop)[self.ocr_lat.model_name]['ocr_output']
+            candidate = self.ocr_lat.fix_errors(field_type='MRZ', text=candidate)
+            candidate = self._trim_to_mrz_alphabet(candidate)
+            if len(candidate) == self.MRZ_LINE_LEN:
+                return candidate
+            if len(candidate) > len(best):
+                best = candidate
+        return best
+
+    @staticmethod
+    def _widest_gap(word_boxes, line_width: float) -> float:
+        """The widest empty stretch on the line, measured in typical word widths.
+
+        A dropped word leaves a hole about as wide as a word; evenly spaced
+        printing does not, however wide the spacing. That is the whole reason
+        this is a ratio to the line's OWN median word width instead of a share
+        of the line: an internal passport's Licence_number is three digit groups
+        with wide gaps and is read correctly, and any absolute measure lumps it
+        together with real damage.
+        Edges count as gaps too - a word lost from the start or the end of a line
+        leaves the hole at the border, not between boxes.
+        Nothing found at all means the whole line is one hole, so the answer is
+        infinity: that is the measured case where a field used to vanish without
+        a trace.
+        """
+        if word_boxes is None or len(word_boxes) == 0:
+            return float('inf')
+        if not line_width:
+            return 0.0
+        spans = sorted((float(b[0]), float(b[2])) for b in word_boxes)
+        widths = [b - a for a, b in spans if b > a]
+        if not widths:
+            return float('inf')
+        typical = sorted(widths)[len(widths) // 2]
+        if typical <= 0:
+            return float('inf')
+        gaps = [spans[0][0]]                          # empty stretch on the left
+        end = spans[0][1]
+        for a, b in spans[1:]:
+            gaps.append(max(0.0, a - end))
+            end = max(end, b)
+        gaps.append(max(0.0, float(line_width) - end))  # and on the right
+        return max(gaps) / typical
+
+    @staticmethod
+    def _line_ink(patch) -> float:
+        """How much fine detail the line crop carries - strokes, not darkness.
+
+        Variance of the Laplacian: a printed stroke is a sharp local change, and
+        a strip that has none (blank paper, or a strip blurred past the width of
+        a stroke) has almost no such change left, whatever its overall
+        brightness.
+        """
+        if patch is None or getattr(patch, 'size', 0) == 0:
+            return 0.0
+        gray = cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY) if patch.ndim == 3 else patch
+        return float(cv2.Laplacian(gray.astype(np.float32), cv2.CV_32F).var())
 
     def _split_words(self, text_fields: dict, doc_type:str):
         """
@@ -927,6 +1249,54 @@ class Pipeline:
                     words_by_idx[i] = detected['warped_img']
                     word_bbox_by_idx[i] = detected['bbox']
 
+        # Gap guard. A hole on the line wider than a few typical words means the
+        # split dropped a word - measured twice: a 9 px crop where the detector
+        # returned NO words (the field vanished without a trace), and a line whose
+        # longest word («Тракторозаводский», 17 characters) was the one missed.
+        # Reading the line whole recovers it; the price is that the engine emits
+        # no spaces, so the line comes back glued, which is why this is a fallback
+        # on a signal and not the default.
+        #
+        # SNILS is excluded BY CONSTRUCTION, not by hoping the threshold spares
+        # it: there the engine is chosen by word-index parity (see _ocr_serial),
+        # and a line read whole destroys the parity the routing depends on.
+        fallback = []
+        no_ink = []
+        if doc_type != 'SNILS':
+            # `kept` order is top-to-bottom, and a multi-line field collects its
+            # lines in that same order below - so counting per label here gives
+            # the line's ordinal WITHIN its field, which is what a reader of the
+            # flag can act on. The raw box index would be meaningless outside
+            # this function.
+            seen = {}
+            for i in kept:
+                label = bboxes[i][-1]
+                ordinal = seen.get(label, 0)
+                seen[label] = ordinal + 1
+                if i not in split_idxs:
+                    continue
+                boxes = word_bbox_by_idx.get(i)
+                gap = self._widest_gap(boxes, patches[i].shape[1])
+                if gap > self.WORDS_MAX_GAP and boxes is not None and len(boxes) == 0:
+                    # No boxes at all has two causes, and only one of them is a
+                    # lost split: the other is a line with nothing on it. Asked
+                    # HERE only - where boxes were found the text is there by
+                    # definition, and the question would be noise.
+                    ink = self._line_ink(patches[i])
+                    if ink < self.LINE_MIN_INK:
+                        no_ink.append({'field': label, 'line': ordinal,
+                                       'ink': round(ink, 2)})
+                        continue
+                if gap > self.WORDS_MAX_GAP:
+                    words_by_idx[i] = [patches[i]]
+                    fallback.append({'field': label, 'line': ordinal,
+                                     'gap': None if gap == float('inf')
+                                     else round(gap, 3)})
+        if fallback:
+            self.results._meta_results['WordsFallback'] = fallback
+        if no_ink:
+            self.results._meta_results['WordsNoInk'] = no_ink
+
         result = {}
         word_bboxes = {}
         for i in kept:
@@ -952,7 +1322,7 @@ class Pipeline:
         for field_name, boxes in word_bboxes.items():
             self._emit(f'words.{field_name}.bbox', boxes)
 
-        self.results.meta_results[self.words_detector.model_name] = result
+        self.results._meta_results[self.words_detector.model_name] = result
         return result
 
     def _address_lines(self, img):
@@ -975,7 +1345,7 @@ class Pipeline:
             img: Perspective-fixed canvas.
         """
         result = self.address_lines.predict_transform(img)
-        self.results.meta_results = self.results.meta_results | result
+        self.results._meta_results = self.results._meta_results | result
         line_patches = result[self.address_lines.model_name]['warped_img']
         # ocr_device is only 'gpu' when ocr_gpu_batch=True was explicitly
         # requested (see __init__) - safe to gate on it directly.
@@ -1034,12 +1404,12 @@ class Pipeline:
             meta['text'] = line_text
             address_lines_text.append(line_text)
 
-        self.results.meta_results['Address_lines'] = line_meta
+        self.results._meta_results['Address_lines'] = line_meta
         if address_lines_text:
-            ocr_dict = self.results.meta_results.get('OCR') or {}
+            ocr_dict = self.results._meta_results.get('OCR') or {}
             ocr_dict['Address'] = '\n'.join(address_lines_text)
             ocr_dict['Address_has_handwritten'] = has_handwritten
-            self.results.meta_results['OCR'] = ocr_dict
+            self.results._meta_results['OCR'] = ocr_dict
 
     def _route_word_ocr(self, word) -> str:
         """Pick the right OCR engine for an address word (serial/per-word path;
@@ -1130,7 +1500,7 @@ class Pipeline:
 
         Runs only for birth certificates (see _ocr), so no other document type is
         affected by what is in _RULER_MARKS."""
-        ocr = self.results.meta_results.get('OCR')
+        ocr = self.results._meta_results.get('OCR')
         if not ocr:
             return
         runs = re.compile(f'[{self._RULER_MARKS}]{{2,}}')
@@ -1171,6 +1541,8 @@ class Pipeline:
                 elif field_name in self.ocr_options.en_fields:
                     result = self.ocr_lat.predict(word)[self.ocr_lat.model_name]['ocr_output']
                     result = self.ocr_lat.fix_errors(field_type=field_name, text=result)
+                    if field_name == 'MRZ':
+                        result = self._read_mrz(i, result)
                     words['ocr'].append(result)
                     ocred_words.append(result)
 
@@ -1184,7 +1556,7 @@ class Pipeline:
         self._emit('join', ocr_dict)
         # merge, never assign: _address_lines runs earlier and may already have
         # written OCR['Address'] into the same dict (INTPASSPORTADDR)
-        self.results.meta_results.setdefault('OCR', {}).update(ocr_dict)
+        self.results._meta_results.setdefault('OCR', {}).update(ocr_dict)
 
     def _ocr_batched(self, words_dict: dict, doc_type: str):
         """Same field/word routing and fix_errors as _ocr_serial, but the OCR
@@ -1228,13 +1600,18 @@ class Pipeline:
         ocr_dict = {}
         for (field_name, words), plan in zip(items, plans):
             ocred_words = []
-            for kind in plan:
+            for i, kind in enumerate(plan):
                 if kind == 'cyr':
                     result = self.ocr_cyr.fix_errors(field_type=field_name, text=next(cyr_texts))
                 elif kind == 'lat_date':
                     result = self.ocr_lat.fix_errors(field_type=field_name, text=next(lat_texts))
                 elif kind == 'lat':
                     result = self.ocr_lat.fix_errors(field_type=field_name, text=next(lat_texts))
+                    if field_name == 'MRZ':
+                        # The retry reads one crop at a time, outside the batch: it
+                        # runs only on a line whose length is already wrong, so the
+                        # batching it breaks is batching that had failed anyway.
+                        result = self._read_mrz(i, result)
                 else:
                     continue
                 words['ocr'].append(result)
@@ -1249,7 +1626,7 @@ class Pipeline:
         self._fix_fms(ocr_dict, doc_type)
         self._emit('join', ocr_dict)
         # merge, never assign - see _ocr_serial
-        self.results.meta_results.setdefault('OCR', {}).update(ocr_dict)
+        self.results._meta_results.setdefault('OCR', {}).update(ocr_dict)
 
     @staticmethod
     def _join_field(ocr_dict: dict, field_name: str, doc_type: str, ocred_words: list):
@@ -1283,6 +1660,23 @@ class Pipeline:
             else:
                 ocr_dict[field_name] = ' '.join(ocred_words)
         ocr_dict[field_name] = ocr_dict[field_name].replace('  ', ' ').strip()
+
+    def _normalize_dates(self):
+        """Build the canonical ``dd.mm.yyyy`` view next to the reading.
+
+        Runs once, after OCR, on the finished ``results.ocr`` - that is the whole
+        point of the placement: the conversion happens when the RESULT is formed,
+        not while decoding or checking OCR, so nothing upstream sees a rewritten
+        value. Date fields are recognised by name, the same convention
+        ``_join_field`` already uses.
+        """
+        ocr = self.results._meta_results.get('OCR')
+        if not ocr:
+            return
+        fields = [name for name in ocr if 'date' in name.lower()]
+        normalized = canonical_dates(ocr, fields)
+        if normalized:
+            self.results._meta_results['OCR_normalized'] = normalized
 
     @staticmethod
     def _fix_fms(ocr_dict: dict, doc_type: str):
@@ -1335,7 +1729,7 @@ class Pipeline:
             if img is None:
                 raise ValueError(f"Could not decode image: {p}")
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            self.results.meta_results['image_path'] = p.as_posix()
+            self.results._meta_results['image_path'] = p.as_posix()
         elif isinstance(img_path, np.ndarray):
             img = img_path
         else:
@@ -1347,7 +1741,7 @@ class Pipeline:
         new_h, new_w = int(h // ratio), int(w // ratio)
         img = cv2.resize(img, dsize=(new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
-        self.results.meta_results['original_img'] = img
+        self.results._meta_results['original_img'] = img
 
         return img
 

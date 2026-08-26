@@ -68,6 +68,10 @@ class StubResults:
         }
 
     @property
+    def ocr_normalized(self):
+        return self.meta_results.get("OCR_normalized") or {}
+
+    @property
     def text_fields_meta(self):
         return self.meta_results.get("TextFieldsDetector")
 
@@ -171,6 +175,53 @@ def test_unknown_fields_are_kept_not_dropped():
     names = [f["name"] for f in payload["fields"]]
     assert names == ["Last_name_ru", "Zzz_future_field"]
     assert payload["fields"][1]["display"] == "Zzz_future_field"
+
+
+def test_date_field_carries_the_canonical_form_beside_the_reading():
+    """The reading stays printed-as-is; the canonical form rides alongside.
+
+    A 2018 birth certificate prints «15 ОКТЯБРЯ 2020 Г.», and that is what the
+    ground truth holds and what the accuracy measurement compares against.
+    Overwriting ``value`` with the canonical form would quietly change what is
+    being measured, so it lands in its own property instead.
+    """
+    results = StubResults(
+        doc_type="BIRTHCERT_2018",
+        ocr={"Birth_date": "15 ОКТЯБРЯ 2020 Г."},
+        meta_extra={"OCR_normalized": {"Birth_date": "15.10.2020"}},
+    )
+    field = transform.build_viewmodel(results)["fields"][0]
+    assert field["value"] == "15 ОКТЯБРЯ 2020 Г."
+    assert field["normalized"] == "15.10.2020"
+
+
+def test_date_without_a_canonical_form_carries_no_key_at_all():
+    """Absence is the signal, and it is not the same as an empty value.
+
+    A real conformance case reads a 1997 passport's birth date as «03.ABRYCT»:
+    no year, no month resolved, so the library refuses to guess. The client must
+    be able to tell "there is no canonical form" from "it equals the reading",
+    which an empty string or a null could not express.
+    """
+    results = StubResults(
+        doc_type="INTPASSPORT_1997",
+        ocr={"Birth_date": "03.ABRYCT"},
+        meta_extra={"OCR_normalized": {}},
+    )
+    field = transform.build_viewmodel(results)["fields"][0]
+    assert field["value"] == "03.ABRYCT"
+    assert "normalized" not in field
+
+
+def test_fields_that_are_not_dates_never_carry_the_property():
+    """A surname has no canonical form - the property is date-only by design."""
+    results = StubResults(
+        ocr={"Last_name_ru": "ТЕСТОВА", "Birth_date": "01.01.1990"},
+        meta_extra={"OCR_normalized": {"Birth_date": "01.01.1990"}},
+    )
+    fields = {f["name"]: f for f in transform.build_viewmodel(results)["fields"]}
+    assert "normalized" not in fields["Last_name_ru"]
+    assert fields["Birth_date"]["normalized"] == "01.01.1990"
 
 
 def test_script_marker_drives_font_choice():

@@ -21,6 +21,8 @@ def sample_images():
     imgs = list(Path('../samples/DL_2011').glob('*_CR_*.jpg'))[:3]
     if not imgs:
         imgs = list(Path('../samples/DL_2011').glob('*.jpg'))[:3]
+    # Both globs empty would leave test_model looping over nothing and passing.
+    assert imgs, 'no DL_2011 samples found'
     return imgs
 
 

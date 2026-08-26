@@ -18,7 +18,11 @@ def module():
 
 @pytest.fixture
 def sample_images():
-    return list(Path('../samples/DL_2011').glob('*.jpg'))[:3]
+    imgs = list(Path('../samples/DL_2011').glob('*.jpg'))[:3]
+    # test_model loops over these; an empty list would make it pass without
+    # running a single prediction.
+    assert imgs, 'no DL_2011 samples found'
+    return imgs
 
 
 class TestDocDetector:

@@ -32,7 +32,11 @@ def pipeline():
 def test_ocr_does_not_clobber_address(pipeline, ocr_path):
     """Whatever _address_lines already wrote must survive the OCR stage."""
     pipeline.results = PipelineResults()
-    pipeline.results.meta_results['OCR'] = {'Address': 'Г. МОСКВА УЛ. ЛЕНИНА Д. 1'}
+    # Through the private attribute deliberately: this line stands in for what
+    # ``_address_lines`` wrote from inside the pipeline, and ``meta_results``
+    # now hands out a copy - writing there would land in a discarded dict and
+    # this test would fail for a reason unrelated to what it checks.
+    pipeline.results._meta_results['OCR'] = {'Address': 'Г. МОСКВА УЛ. ЛЕНИНА Д. 1'}
 
     getattr(pipeline, ocr_path)({}, 'INTPASSPORTADDR')
 
