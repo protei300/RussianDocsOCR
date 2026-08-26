@@ -214,6 +214,15 @@ class Classification:
     undeclared: list[str] = field(default_factory=list)            # "case/stage: path"
     applicable: list[Deviation] = field(default_factory=list)
     stale: list[Deviation] = field(default_factory=list)
+    #: Declarations that matched nothing because NOTHING THEY COVER WAS RUN — every
+    #: case in their scope is withdrawn or absent from this tree. Kept apart from
+    #: `stale` because the two look identical and mean opposite things: a stale entry
+    #: has outlived its difference and should go, while one of these has never been
+    #: given the chance to match and may be the only record of a live obligation.
+    #: Merging them let the report advise deleting a declaration whose subject simply
+    #: is not checked here - advice that is confidently wrong, which is worse than
+    #: silence: silence invites suspicion, a suggestion invites compliance.
+    unexercised: list[Deviation] = field(default_factory=list)
     #: Complaints that made the runner throw the register away. Carried here so the
     #: verdict can say so: a run graded without its declarations is not a clean run
     #: that happened to have nothing declared.
@@ -329,10 +338,20 @@ def classify(run, deviations: list[Deviation], port: str) -> Classification:
                     matched_ids.add(covering.id)
                     result.declared.setdefault(covering.id, []).append(where)
 
-    # An entry that applies here and matched nothing has outlived its difference.
-    # Reported rather than dropped: removing it is a decision, and a silent drop would
-    # hide that the gate got better.
-    result.stale = [d for d in result.applicable if d.id not in matched_ids]
+    # An entry that applies here and matched nothing has outlived its difference —
+    # but only if it had anything to match against. A case whose sample is withdrawn
+    # produces no stages, so a declaration scoped to that case alone cannot match no
+    # matter how the implementation behaves, and calling it stale would invite its
+    # deletion on evidence that does not exist.
+    exercised = {case.slug for case in run.cases
+                 if any(not stage.skipped for stage in case.stages)}
+    for dev in result.applicable:
+        if dev.id in matched_ids:
+            continue
+        if any(_match_any(dev.cases, slug) for slug in exercised):
+            result.stale.append(dev)
+        else:
+            result.unexercised.append(dev)
     return result
 
 
@@ -357,6 +376,16 @@ def render(cls: Classification, today: date | None = None) -> list[str]:
         lines.append("STALE declarations — matched nothing here, propose removal:")
         for dev in cls.stale:
             lines.append(f"  {dev.id} (declared {dev.declared}, retires when: {dev.removed_when})")
+    if cls.unexercised:
+        lines.append("NOT EXERCISED — these could not have matched, and that is not "
+                     "staleness:")
+        for dev in cls.unexercised:
+            lines.append(f"  {dev.id}: every case in its scope is absent from this "
+                         f"tree, so nothing could match it")
+            lines.append(f"      retires when: {dev.removed_when}")
+        lines.append("  Do NOT delete these because the run says they matched nothing:"
+                     " the obligation they record is still open, and the case that "
+                     "would show it is not being checked here.")
 
     # The metric: not decoration. A growing list, or an old entry, means the gate is
     # being held up by people remembering things.

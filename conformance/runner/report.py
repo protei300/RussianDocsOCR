@@ -70,6 +70,13 @@ class RunReport:
 
     @property
     def verdict(self) -> str:
+        # An empty run is answered first, and by the run rather than by the register:
+        # "nothing was compared" is a statement about this run, and no classification
+        # of differences can make it. Left to fall through, it read as CLEAN - the
+        # verdict reporting a better state than the one that occurred, with nobody at
+        # fault and nothing to blame in the output.
+        if not self.cases:
+            return "NOTHING VERIFIED"
         if self.deviations is None:
             return "PASS" if self.ok else "FAIL"
         return self.deviations.verdict()

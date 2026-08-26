@@ -340,10 +340,21 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"unknown port {args.port!r}; registered: {', '.join(ports)}", file=sys.stderr)
         return 3
     cmd = resolve_cmd(ports[args.port])
-    profile = PROFILES[args.profile]
+    # The profile follows the device unless it was named explicitly. Two
+    # independent defaults are how a GPU run gets graded by CPU allowances with
+    # nothing said about it: the device pin answers "should this run at all", the
+    # profile answers "measured by what, once it does" - and bypassing the first
+    # must not silently answer the second.
+    profile = PROFILES[args.profile or ("gpu" if device == "gpu" else "cpu")]
+    if args.profile and args.profile != device:
+        # Naming both, differently, is legal — and is exactly how a run gets graded
+        # by allowances nobody chose for it. Say so; do not quietly obey.
+        print(f"warning: --profile {args.profile} with --device {device}: "
+              f"the numeric allowances do not belong to the device being graded",
+              file=sys.stderr)
 
     # `--device` is ALWAYS passed on, even when it equals the default: otherwise the
-    # port picks its own and "which device produced these numbers" has no answer.
+    # port picks its own, and "which device produced these numbers" has no answer.
     extra: list[str] = ["--device", device]
     if args.ocr:
         extra += ["--ocr", args.ocr]
@@ -408,7 +419,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("run", help="grade an implementation")
     sp.add_argument("--port", required=True)
-    sp.add_argument("--profile", default="cpu", choices=sorted(PROFILES))
+    sp.add_argument("--profile", default=None, choices=sorted(PROFILES),
+                    help="numeric allowances; defaults to the profile matching "
+                         "--device, so the two cannot drift apart silently")
     sp.add_argument("--case", action="append", default=None, help="slug substring; repeatable")
     sp.add_argument("--limit", type=int, default=None)
     sp.add_argument("--device", default=None, choices=["cpu", "gpu"],
@@ -429,6 +442,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # A report is a diagnosis, and a diagnosis that cannot be printed is worse than
+    # a red one: on a cp1251 console the whole run used to end in UnicodeEncodeError
+    # AFTER every case had been graded, losing the result to the terminal's code
+    # page. Escaping a character the console cannot show costs one unreadable token;
+    # crashing costs the run.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="backslashreplace")
+        except (AttributeError, ValueError):   # not a TextIOWrapper (redirected, tests)
+            pass
     args = build_parser().parse_args(argv)
     return args.func(args)
 
