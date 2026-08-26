@@ -53,10 +53,26 @@ class RunReport:
     profile: str
     cases: list[CaseReport] = field(default_factory=list)
     info: dict | None = None
+    #: Filled by the runner from conformance/deviations.py. None means the run was not
+    #: classified at all (a caller that skipped the step), which is NOT the same as
+    #: "classified and found clean" — kept distinguishable on purpose.
+    deviations: object | None = None
 
     @property
     def ok(self) -> bool:
+        """Did everything match, deviations aside.
+
+        Deliberately unchanged: this stays the answer to "is the implementation
+        identical to the reference". Whether the run is a red is a different
+        question, answered by the classification — see `verdict`.
+        """
         return bool(self.cases) and all(c.ok for c in self.cases)
+
+    @property
+    def verdict(self) -> str:
+        if self.deviations is None:
+            return "PASS" if self.ok else "FAIL"
+        return self.deviations.verdict()
 
 
 def render(run: RunReport, verbose: bool = False) -> str:
@@ -138,7 +154,18 @@ def render(run: RunReport, verbose: bool = False) -> str:
                          " legitimately absent for these documents)")
         lines.append("")
 
-    lines.append("VERDICT: " + ("PASS" if run.ok else "FAIL"))
+    if run.deviations is not None:
+        from conformance import deviations as deviations_mod
+        section = deviations_mod.render(run.deviations)
+        if section:
+            lines.append("")
+            lines.extend(section)
+            lines.append("")
+
+    # Three outcomes, not two: CLEAN, DECLARED (differences, all of them accounted
+    # for by name), UNDECLARED (the only real red). A two-outcome verdict is what let
+    # legitimate reds pile up until reading the gate became an act of memory.
+    lines.append("VERDICT: " + run.verdict)
     return "\n".join(lines)
 
 
@@ -151,9 +178,23 @@ def save(run: RunReport, directory: Path) -> Path:
         return {"stage": s.stage, "ok": s.ok, "skipped": s.skipped, "warn": s.warn,
                 "diffs": [asdict(d) for d in s.diffs]}
 
+    deviations = None
+    if run.deviations is not None:
+        cls = run.deviations
+        deviations = {
+            "verdict": cls.verdict(),
+            "declared": cls.declared,
+            "undeclared": cls.undeclared,
+            "stale": [d.id for d in cls.stale],
+            "active": len(cls.applicable),
+            "oldest_days": max([a for a in (d.age_days() for d in cls.applicable)
+                                if a is not None], default=0),
+        }
+
     payload = {
         "port": run.port, "profile": run.profile, "utc": stamp,
-        "ok": run.ok, "info": run.info,
+        "ok": run.ok, "verdict": run.verdict, "deviations": deviations,
+        "info": run.info,
         "cases": [{"slug": c.slug, "doc_type": c.doc_type, "error": c.error,
                    "first_divergence": c.first_divergence,
                    "stages": [_stage(s) for s in c.stages]}

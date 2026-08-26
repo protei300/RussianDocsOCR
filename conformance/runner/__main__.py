@@ -22,7 +22,7 @@ from pathlib import Path
 
 from conformance import cases as cases_mod
 from conformance import deviations as deviations_mod
-from conformance import models_pin
+from conformance import device_pin, models_pin
 from conformance.paths import CASES, PORTS_JSON, REPO, REPORT, case_dir, stage_dir
 from conformance.runner import report as report_mod
 from conformance.runner.compare import (CPU, PROFILES, Diff, Profile, StageResult,
@@ -89,6 +89,16 @@ def cmd_list(args: argparse.Namespace) -> int:
     for name, spec in ports.items():
         print(f"  {name:10s} {' '.join(str(c) for c in spec['cmd'])}")
     declared = deviations_mod.load()
+    # `list` validates too. It used to read the register raw while `run` discarded it,
+    # so the same broken file produced a listing full of withdrawals and a run that
+    # knew of none - the two entry points disagreed about the same tree.
+    complaints = deviations_mod.validate(declared)
+    if complaints:
+        print()
+        for line in deviations_mod.void_notice(complaints):
+            print(line)
+        declared = []
+    print("\n" + deviations_mod.state_line(declared, voided=bool(complaints)))
     print("\ncases (derived from service/seed_data/manifest.json):")
     for c in cases_mod.load_cases():
         golden = case_dir(c.slug) / "viewmodel.json"
@@ -100,7 +110,7 @@ def cmd_list(args: argparse.Namespace) -> int:
         else:
             note = ""
         print(f"  {c.slug:52s} {c.doc_type:22s} {state}{note}")
-    return 0
+    return 1 if complaints else 0
 
 
 def _compare_digest(stage: str, golden_file: Path, dump: Path,
@@ -312,6 +322,19 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("\n(--ignore-models-pin grades anyway)", file=sys.stderr)
         return 3
 
+    # Same shape, second axis: the goldens also carry the device they were taken on.
+    # Refuse a cross-device run before doing the work (conformance/device_pin.py).
+    # The module arrived in this tree with the register (step 3) but nothing called
+    # it, which is worse than not having it: a file found by name reads as a working
+    # check. A mechanism is not present until something asks it a question.
+    device = args.device or device_pin.goldens_device()
+    device_mismatch = device_pin.mismatch_message(device)
+    if device_mismatch and not args.ignore_device_pin:
+        print(device_mismatch, file=sys.stderr)
+        print("\n(--ignore-device-pin grades anyway; expect geometric differences "
+              "no profile can absorb)", file=sys.stderr)
+        return 3
+
     ports = load_ports()
     if args.port not in ports:
         print(f"unknown port {args.port!r}; registered: {', '.join(ports)}", file=sys.stderr)
@@ -319,9 +342,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     cmd = resolve_cmd(ports[args.port])
     profile = PROFILES[args.profile]
 
-    extra: list[str] = []
-    if args.device:
-        extra += ["--device", args.device]
+    # `--device` is ALWAYS passed on, even when it equals the default: otherwise the
+    # port picks its own and "which device produced these numbers" has no answer.
+    extra: list[str] = ["--device", device]
     if args.ocr:
         extra += ["--ocr", args.ocr]
 
@@ -341,12 +364,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     # missing sample into a silent pass.
     declared = deviations_mod.load()
     complaints = deviations_mod.validate(declared)
+    # Printed to stdout, with the report, and not only to stderr: the reader who has
+    # to understand a red is looking at the report, and stderr is where a piped or
+    # logged run loses it. Six withdrawn cases go red the moment this happens, and
+    # nothing else in the output would say why.
     if complaints:
-        print("the declared register is malformed; it absorbs nothing until fixed:",
-              file=sys.stderr)
-        for complaint in complaints:
-            print(f"  {complaint}", file=sys.stderr)
+        for line in deviations_mod.void_notice(complaints):
+            print(line)
         declared = []
+    print(deviations_mod.state_line(declared, voided=bool(complaints)))
 
     run = report_mod.RunReport(port=args.port, profile=profile.name, info=info)
     for case in cases_mod.select(args.case, limit=args.limit):
@@ -354,10 +380,23 @@ def cmd_run(args: argparse.Namespace) -> int:
         run.cases.append(_check_case(case, cmd, profile, extra, claimed, args.timeout,
                                      deviations_mod.withdrawal_for(case.slug, declared)))
 
+    # The second half of the register: the differences a run DID produce are split
+    # into declared and undeclared, and the verdict gains its third outcome. Until
+    # this call existed the file could absorb a withdrawal (a case that never runs)
+    # and nothing else - a declared DIFFERENCE was validated, then graded as an
+    # ordinary red, which is the failure the register was built to remove.
+    run.deviations = deviations_mod.classify(run, declared, args.port)
+    run.deviations.void = tuple(complaints)
+
     print(report_mod.render(run, verbose=args.verbose))
     saved = report_mod.save(run, REPORT)
     print(f"\nreport: {saved.relative_to(REPO)}")
-    return 0 if run.ok else 1
+    # `ok` answers "identical to the reference"; `red` answers "is this a failure",
+    # and a declared difference is not one. Three things still fail regardless of the
+    # register: an undeclared difference, a case that errored (a crashed port is not
+    # a difference to declare), and an empty run - nothing verified is not a pass.
+    hard = any(c.error for c in run.cases) or not run.cases
+    return 1 if (run.deviations.red or hard or complaints) else 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -372,10 +411,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--profile", default="cpu", choices=sorted(PROFILES))
     sp.add_argument("--case", action="append", default=None, help="slug substring; repeatable")
     sp.add_argument("--limit", type=int, default=None)
-    sp.add_argument("--device", default=None, choices=["cpu", "gpu"])
+    sp.add_argument("--device", default=None, choices=["cpu", "gpu"],
+                    help="defaults to the device the goldens were recorded on; a "
+                         "different one is refused, see conformance/device_pin.py")
     sp.add_argument("--ocr", default=None, choices=["accurate", "fast"])
     sp.add_argument("--timeout", type=int, default=600)
     sp.add_argument("--verbose", action="store_true")
+    sp.add_argument("--ignore-device-pin", action="store_true", dest="ignore_device_pin",
+                    help="grade even when the goldens were recorded on another device "
+                         "(the differences will be dominated by provider geometry)")
     sp.add_argument("--ignore-models-pin", action="store_true", dest="ignore_models_pin",
                     help="grade even when the goldens name a different weight set "
                          "(the differences will be dominated by the model change)")

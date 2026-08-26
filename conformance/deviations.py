@@ -52,6 +52,16 @@ DEVIATIONS_FILE = REPO / "conformance" / "deviations.json"
 #: the arbiter rather than decided here.
 STALE_AFTER_DAYS = 14
 
+#: Ages are measured against the UTC date; every stamp in this project is written in
+#: local time (UTC+5). An entry declared just after local midnight therefore reads one
+#: day into the future through no fault of its own — which is how this constant was
+#: found: the very first `absent` entry, written at 01:47 local, was rejected as
+#: future-dated, and a rejected entry does not fail alone. The whole list is dropped
+#: (`it absorbs nothing until fixed`), so one timezone artefact would have quietly
+#: switched off the subtraction for every other entry too. A day of skew is a clock;
+#: anything beyond it is a wrong date, and still fails.
+CLOCK_SKEW_DAYS = 1
+
 
 @dataclass(frozen=True)
 class Deviation:
@@ -84,6 +94,19 @@ class Deviation:
     @property
     def is_withdrawal(self) -> bool:
         return self.kind == "withdrawal"
+
+    @property
+    def about_a_difference(self) -> bool:
+        """Can this entry ever match a difference in a run?
+
+        Only a deviation can. A withdrawn case produces no stages at all, so a
+        withdrawal can never appear in `classify`'s diff loop — and without this
+        filter every one of them would be reported STALE ("matched nothing here,
+        propose removal") on every single run. An instrument that cries every time
+        says nothing, and the first person to act on that advice would delete the
+        declarations that keep six absent samples honest.
+        """
+        return self.kind == "deviation"
 
     def applies_to_port(self, port: str) -> bool:
         return "*" in self.ports or port in self.ports
@@ -136,6 +159,53 @@ def withdrawal_for(case_slug: str, deviations: list[Deviation]) -> Deviation | N
     return None
 
 
+def state_line(deviations: list[Deviation], voided: bool = False) -> str:
+    """One line naming which of the three states the register is in.
+
+    Empty and voided are DIFFERENT states that used to look identical downstream —
+    both produced an empty list and neither said so. "Nothing is declared" is the
+    ordinary state of a healthy project; "everything that was declared has been
+    thrown away" is a broken instrument. Reading a gate must never require knowing
+    which one happened.
+    """
+    if voided:
+        return "declared register: DISCARDED (see the complaints above) — not empty"
+    if not deviations:
+        return "declared register: empty — nothing is declared, which is the healthy state"
+    kinds: dict[str, int] = {}
+    for dev in deviations:
+        kinds[dev.kind] = kinds.get(dev.kind, 0) + 1
+    parts = ", ".join(f"{n} {kind}" for kind, n in sorted(kinds.items()))
+    return f"declared register: {len(deviations)} entr{'y' if len(deviations) == 1 else 'ies'} ({parts})"
+
+
+def void_notice(complaints: list[str]) -> list[str]:
+    """The block a run prints when its register was thrown away.
+
+    Loud, and specific about the repair, because the obvious repair is forbidden. The
+    visible symptom is a set of cases going red for no stated reason, and the two
+    things a reader reaches for first — delete the entry that is complaining, or
+    regenerate the goldens — both turn a broken register into a permanently smaller
+    suite. That failure shape (a loud red whose most natural fix is the forbidden one)
+    has now been met three times in two days, so it is written down here rather than
+    rediscovered.
+    """
+    lines = [
+        "!!! THE DECLARED REGISTER WAS DISCARDED — it is unusable, not empty !!!",
+        f"  {len(complaints)} complaint(s):",
+    ]
+    lines += [f"    {complaint}" for complaint in complaints]
+    lines += [
+        "  Until they are fixed this run is graded WITHOUT any declaration:",
+        "  withdrawn cases are graded as missing samples, and declared differences",
+        "  are graded as ordinary reds. Those reds are an artefact of this state.",
+        "  Do NOT quiet them by deleting the entry that complains or by regenerating",
+        "  goldens — either one turns a broken register into a smaller suite, which is",
+        "  exactly the silent shrinkage this mechanism exists to prevent. Fix the dates.",
+    ]
+    return lines
+
+
 @dataclass
 class Classification:
     """What the run's differences turned out to be."""
@@ -144,16 +214,24 @@ class Classification:
     undeclared: list[str] = field(default_factory=list)            # "case/stage: path"
     applicable: list[Deviation] = field(default_factory=list)
     stale: list[Deviation] = field(default_factory=list)
+    #: Complaints that made the runner throw the register away. Carried here so the
+    #: verdict can say so: a run graded without its declarations is not a clean run
+    #: that happened to have nothing declared.
+    void: tuple[str, ...] = ()
 
     @property
     def clean(self) -> bool:
-        return not self.declared and not self.undeclared
+        return not self.declared and not self.undeclared and not self.void
 
     @property
     def red(self) -> bool:
-        return bool(self.undeclared)
+        return bool(self.undeclared) or bool(self.void)
 
     def verdict(self) -> str:
+        # A discarded register comes first: nothing below it can be trusted while it
+        # holds, because every subtraction was computed from a list thrown away.
+        if self.void:
+            return "REGISTER-VOID"
         if self.undeclared:
             return "UNDECLARED"
         if self.declared:
@@ -198,11 +276,13 @@ def validate(deviations: list[Deviation]) -> list[str]:
         age = dev.age_days()
         if age is None:
             problems.append(f"{dev.id}: unparseable declared date {dev.declared!r}")
-        elif age < 0:
+        elif age < -CLOCK_SKEW_DAYS:
             # Distinct message on purpose: a future date is readable but wrong, and
             # saying "unparseable" about it sends the reader after the wrong thing.
+            # Inside CLOCK_SKEW_DAYS it is not wrong at all — see the constant.
             problems.append(f"{dev.id}: declared date {dev.declared!r} is in the future "
-                            f"(by {-age} day(s)) — the age metric would lie")
+                            f"(by {-age} day(s), beyond the {CLOCK_SKEW_DAYS}-day clock "
+                            f"skew) — the age metric would lie")
         if not dev.removed_when.strip():
             problems.append(f"{dev.id}: no retiring event — an exception without an "
                             f"exit condition is a permanent loosening")
@@ -230,7 +310,9 @@ def classify(run, deviations: list[Deviation], port: str) -> Classification:
     something else in the same stage also moved.
     """
     result = Classification()
-    result.applicable = [d for d in deviations if d.applies_to_port(port)]
+    # Only deviations are measured against differences - see `about_a_difference`.
+    result.applicable = [d for d in deviations
+                         if d.applies_to_port(port) and d.about_a_difference]
     matched_ids = set()
 
     for case in run.cases:
