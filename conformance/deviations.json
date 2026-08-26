@@ -34,7 +34,7 @@
       "stages": ["viewmodel"],
       "paths": ["\\.normalized$"],
       "reason": "The reference now attaches a canonical dd.mm.yyyy date beside the raw reading (ab7653e); the goldens predate it, so every date field reads as an EXTRA key. Measured before declaring: exactly one stage, 9 cases of 9, 21 differences, every one of them a '.normalized' key and nothing else. Scoped to the reference only — the ports do not emit the property, so they still match the goldens and nothing about them is being excused here.",
-      "basis": "user decision #8 (dates line committed) and #3 (goldens batch pass deferred); composition verified against declaration_view_normalized_2026-08-24.json, value fingerprint 60f0d944…",
+      "basis": "user decision #8 (dates line committed) and #3 (goldens batch pass deferred); composition verified against declaration_view_normalized_2026-08-24.json, value fingerprint 60f0d944…. In THIS tree the same change arrived as commit 77ae374 (shipment of 2026-08-26, user decision #94); until then this entry named only the corporate commit, which is why the note is added rather than rewritten",
       "declared": "2026-08-24",
       "owner": "Приёмка и замеры",
       "removed_when": "the goldens are regenerated in the batch pass — after that the property is IN the golden, this entry goes stale, and the ports' missing key becomes a separate question that needs its own entry or none"
