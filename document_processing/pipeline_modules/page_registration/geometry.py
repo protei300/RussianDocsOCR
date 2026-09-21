@@ -19,6 +19,7 @@ from typing import Optional
 import cv2
 import numpy as np
 
+from ...geometry import Chain, Homography, VerticalRemap
 from ..doc_detector.image_transformation import DOC_MARGIN_FRAC, expand_quad, order_points
 from .line_dewarp import apply_dewarp, dewarp_by_lines
 from .line_refine import apply_refinement, refine_by_lines
@@ -111,9 +112,15 @@ class PageGeometry:
         strokes, and on well-shot documents that cost more fields than the
         geometry gained (measured on samples/: -6 for the re-cut alone, -16
         with a second warp on top). Returns (page, info) or (None, info)."""
+        page, info, _ = self.rectify_with_geometry(img, quad, keep_outside)
+        return page, info
+
+    def rectify_with_geometry(self, img: np.ndarray, quad: np.ndarray, keep_outside: bool = False):
+        """Same as ``rectify``, plus the map from the page back to ``img``
+        (geometry.py): the one composed homography, then the bend map if applied."""
         M, size = self.quad_transform(quad, img.shape, keep_outside)
         if M is None:
-            return None, {'applied': False, 'reason': 'degenerate quad'}
+            return None, {'applied': False, 'reason': 'degenerate quad'}, None
         page = self._warp(img, M, size, keep_outside)
         inset = int(round(self.margin * size[0]))
         info = {'applied': False, 'reason': 'disabled'}
@@ -121,14 +128,17 @@ class PageGeometry:
             gray = cv2.cvtColor(page, cv2.COLOR_RGB2GRAY) if page.ndim == 3 else page
             Hm, info = refine_by_lines(gray, inset=inset, min_residual_deg=self.min_residual_deg)
             if Hm is not None:
-                page = self._warp(img, Hm @ M, size, keep_outside)   # one resampling, not two
+                M = Hm @ M
+                page = self._warp(img, M, size, keep_outside)   # one resampling, not two
+        maps = [Homography(M)]
         if self.line_dewarp:
             gray = cv2.cvtColor(page, cv2.COLOR_RGB2GRAY) if page.ndim == 3 else page
             v, dinfo = dewarp_by_lines(gray, inset=inset, min_disp_px=self.min_disp_px)
             if v is not None:
                 page = apply_dewarp(page, v)
+                maps.append(VerticalRemap(v))
             info = dict(info, dewarp=dinfo)
-        return page, info
+        return page, info, Chain(tuple(maps))
 
     def straighten(self, page: np.ndarray):
         """line_refine then line_dewarp on an already rectified page (page,

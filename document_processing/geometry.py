@@ -36,8 +36,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-__all__ = ['Geometry', 'Scale', 'Offset', 'QuarterTurns', 'Homography', 'Chain', 'Pieces',
-           'Unknown', 'corners']
+__all__ = ['Geometry', 'Scale', 'Offset', 'QuarterTurns', 'Homography', 'VerticalRemap', 'Chain',
+           'Pieces', 'Unknown', 'corners']
 
 
 def corners(x0: float, y0: float, x1: float, y1: float) -> np.ndarray:
@@ -126,13 +126,44 @@ class Homography(Geometry):
         return mapped[:, :2] / mapped[:, 2:3] + 0.5
 
 
+@dataclass(frozen=True, eq=False)
+class VerticalRemap(Geometry):
+    """The output of ``cv2.remap(img, xs, ys + v)``: a page unbent by a vertical displacement map.
+
+    The bend map of ``page_registration.line_dewarp`` is exactly this call, so the
+    output pixel (i, j) SAMPLED the input at (i, j + v[j, i]) - the map is already the
+    way back, no matrix and no inversion needed. ``v`` is read bilinearly between pixel
+    centres and held at the edge outside the map, the way the remap replicated its
+    border. A point of the output moves only along y.
+    """
+
+    v: np.ndarray
+
+    def to_input(self, points) -> Optional[np.ndarray]:
+        v = np.asarray(self.v, dtype=np.float64)
+        h, w = v.shape[:2]
+        points = _points(points)
+        # sample v at the output point in OpenCV's pixel-centre coordinates
+        x = np.clip(points[:, 0] - 0.5, 0.0, w - 1.0)
+        y = np.clip(points[:, 1] - 0.5, 0.0, h - 1.0)
+        x0, y0 = np.floor(x).astype(int), np.floor(y).astype(int)
+        x1, y1 = np.minimum(x0 + 1, w - 1), np.minimum(y0 + 1, h - 1)
+        fx, fy = x - x0, y - y0
+        shift = (v[y0, x0] * (1 - fx) * (1 - fy) + v[y0, x1] * fx * (1 - fy)
+                 + v[y1, x0] * (1 - fx) * fy + v[y1, x1] * fx * fy)
+        moved = points.copy()
+        moved[:, 1] += shift
+        return moved
+
+
 @dataclass(frozen=True)
 class Unknown(Geometry):
     """A stage that changed the image in a way no point map expresses.
 
-    A bend map straightens a curved page pixel by pixel; there is no matrix for it and
-    no inverse to compose. The canvas is still correct and recognition is unaffected -
-    only the way back is gone, and it stays gone for every stage after this one.
+    Kept for a stage that resamples the image with a map it did not keep. The
+    canvas is still correct and recognition is unaffected - only the way back is
+    gone, and it stays gone for every stage after this one. (The bend map of the
+    page registration is NOT such a stage: it keeps its map, see VerticalRemap.)
     """
 
     def to_input(self, points) -> Optional[np.ndarray]:

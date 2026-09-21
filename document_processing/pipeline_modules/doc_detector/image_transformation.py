@@ -377,15 +377,30 @@ def stitched_geometry(pages, placements, page_geometries) -> Pieces:
         resize and offset composed after the page's own map.
     """
     pieces = []
-    for page, (scale, dx, dy), geometry in zip(pages, placements, page_geometries):
-        h, w = page.shape[:2]
-        # the size stitch_pages resized this page to (see its rounding)
-        new_w = max(1, int(round(w * scale))) if scale != 1.0 else w
-        new_h = max(1, int(round(h * scale))) if scale != 1.0 else h
+    for page, placement, geometry in zip(pages, placements, page_geometries):
+        (dx, dy, new_w, new_h), placed = _placed(page, placement)
         maps = () if geometry is None else (geometry,)
-        placed = Chain((*maps, Scale(new_w / w, new_h / h), Offset(dx, dy)))
-        pieces.append(((dx, dy, dx + new_w, dy + new_h), placed))
+        pieces.append(((dx, dy, dx + new_w, dy + new_h), Chain((*maps, placed))))
     return Pieces(tuple(pieces))
+
+
+def placement_geometry(page, placement) -> Chain:
+    """Map from a page as ``stitch_pages`` received it to its place on the canvas.
+
+    The page's resize to the common side (with the rounding ``stitch_pages``
+    applies) followed by its offset - so a point of the page lands where its
+    pixels went, not where ``scale`` alone would put it.
+    """
+    return _placed(page, placement)[1]
+
+
+def _placed(page, placement):
+    scale, dx, dy = placement
+    h, w = page.shape[:2]
+    # the size stitch_pages resized this page to (see its rounding)
+    new_w = max(1, int(round(w * scale))) if scale != 1.0 else w
+    new_h = max(1, int(round(h * scale))) if scale != 1.0 else h
+    return (dx, dy, new_w, new_h), Chain((Scale(new_w / w, new_h / h), Offset(dx, dy)))
 
 
 def stitch_pages(warps, quads, stack: str = 'auto'):

@@ -4,14 +4,16 @@ from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from time import time
-from typing import Union, Dict, Tuple
+from typing import Optional, Union, Dict, Tuple
 
 import cv2
 import numpy as np
 
+from ..geometry import Chain, Homography, Offset, QuarterTurns, Scale, corners
 from ..pipeline_modules import *
 from ..pipeline_modules.doc_detector.image_transformation import (expand_quad, DOC_MARGIN_FRAC,
-                                                                   stitch_pages)
+                                                                   stitch_pages, stitched_geometry,
+                                                                   placement_geometry)
 from ..pipeline_modules.page_registration.geometry import PageGeometry, aspect_for
 from .dates import canonical_dates
 
@@ -451,6 +453,53 @@ class PipelineResults:
             return None
 
     @property
+    def geometry(self) -> Union[Chain, None]:
+        """Map from the canvas later stages read back to the image passed to process_img.
+
+        None before the image is prepared (see geometry.py).
+        """
+        return self._meta_results.get('Geometry')
+
+    def to_input(self, points) -> Optional[np.ndarray]:
+        """Points of the canvas, (N, 2), on the image passed to process_img.
+
+        None when a stage of this run changed the image in a way no point map
+        expresses (see geometry.Unknown) - the canvas and what was read are fine,
+        the way back is not known.
+        """
+        points = np.asarray(points, dtype=np.float64).reshape(-1, 2)
+        return points if self.geometry is None else self.geometry.to_input(points)
+
+    @property
+    def field_quads(self) -> Optional[Dict[str, list]]:
+        """Where the read text fields lie on the input image (see geometry.py).
+
+        label -> one (4, 2) quadrilateral per detection, in the order the fields
+        were read (top to bottom); corners follow the canvas box from its top-left.
+
+        None - the way back to the input image is not known for this run. A caller
+        draws these over a photo, so a quadrilateral that silently landed elsewhere
+        would be worse than no quadrilateral at all.
+        """
+        return (self._meta_results.get('Quads') or {}).get('fields', {})
+
+    @property
+    def word_quads(self) -> Optional[Dict[str, list]]:
+        """label -> quadrilateral of each patch of words_patches[label]['patches'], same order.
+
+        None on the same terms as field_quads.
+        """
+        return (self._meta_results.get('Quads') or {}).get('words', {})
+
+    @property
+    def address_line_quads(self) -> Optional[list]:
+        """Registration address lines on the input image, in the order of meta_results['Address_lines'].
+
+        None on the same terms as field_quads.
+        """
+        return (self._meta_results.get('Quads') or {}).get('address_lines', [])
+
+    @property
     def full_report(self) -> dict:
         """Returns full report in dict format"""
         summary_dict = {}
@@ -747,6 +796,7 @@ class Pipeline:
         # unified doctype + angle classification, then rotate upright
         self._model_call(self._doctype_angle, img)
         img = self.results.rotated_image
+        self._canvas(self.results._meta_results['Angle90']['geometry'])
         # Assembled from the three places the pipeline actually stores this, not read
         # from a single key: _doctype_angle spreads the module's payload across
         # meta_results['DocType'], meta_results['Quality']['DocConf'] and
@@ -791,10 +841,16 @@ class Pipeline:
                     angle = self.results.angle
                     self._model_call(self._doc_detector, img)
                     img = self.results.img_with_fixed_perspective
+                    self._canvas(self._borders_geometry())
+                    self._canvas(QuarterTurns(img.shape[1], img.shape[0], int(angle // 90)))
                     for _ in range(angle // 90):
                         img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 else:
                     img = self.results.rotated_image
+                    # the crop of the first border detection, then the turn the
+                    # re-classification asked for on it
+                    self._canvas(self._borders_geometry())
+                    self._canvas(self.results._meta_results['Angle90']['geometry'])
         if doc_type == 'NONE':
             print("[!] The document on picture has unknown type")
             return self.results
@@ -823,6 +879,7 @@ class Pipeline:
             self._emit('borders.canvas', img)
             self._model_call(self._deskew, img)
             img = self.results.img_with_fixed_perspective
+            self._canvas(self._borders_geometry())
             self._emit('deskew.canvas', img)
         else:
             #getting quality
@@ -859,6 +916,7 @@ class Pipeline:
                 # detection, line/word splitting and OCR; train==inference)
                 self._model_call(self._deskew, img)
                 img = self.results.img_with_fixed_perspective
+                self._canvas(self._borders_geometry())
                 self._emit('deskew.canvas', img)
 
         # detecting fields
@@ -916,6 +974,7 @@ class Pipeline:
             'angle': meta['angle'],
             'confidence': meta['angle_confidence'],
             'warped_img': meta['warped_img'],
+            'geometry': meta['geometry'],
         }
 
 
@@ -1084,12 +1143,12 @@ class Pipeline:
                 plan.append(('template', r, best_iou))
         spare = [i for i, _ in sorted(enumerate(quads), key=lambda t: t[1][:, 1].min())
                  if i not in used]
-        pages, sources, quad_used, straightened = [], [], [], []
+        pages, sources, quad_used, straightened, page_geometries = [], [], [], [], []
         for r, step in zip(regs, plan):
             if step is None:
                 if spare:
                     qi = spare.pop(0)
-                    pages.append(reg.warp_quad(img, expand_quad(quads[qi], DOC_MARGIN_FRAC), scale))
+                    M = reg.quad_matrix(expand_quad(quads[qi], DOC_MARGIN_FRAC), scale)
                     sources.append('borders-spare')
                     quad_used.append(qi)
                 else:
@@ -1097,17 +1156,20 @@ class Pipeline:
                     quad_used.append(None)
                     continue
             elif step[0] == 'quad':
-                pages.append(reg.warp_quad(img, expand_quad(quads[step[1]], DOC_MARGIN_FRAC), scale))
+                M = reg.quad_matrix(expand_quad(quads[step[1]], DOC_MARGIN_FRAC), scale)
                 sources.append('borders')
                 quad_used.append(step[1])
             else:
-                pages.append(reg.warp_page(img, r, scale))
+                M = reg.page_matrix(r, scale)
                 sources.append('template')
                 quad_used.append(None)
+            pages.append(reg.warp_matrix(img, M, scale))
             # straighten the page by its own lines / text-line profiles: catches a
             # quad corner that is off, and the rotation error of a template fit
-            pages[-1], sinfo = reg.straighten(pages[-1], scale)
+            pages[-1], sinfo, straight = reg.straighten_with_geometry(pages[-1], scale)
             straightened.append(sinfo)
+            # page -> the image the registrar received (geometry.py)
+            page_geometries.append(Chain((Homography(M),)).then(straight))
         info = {'pages': [r.as_dict() for r in regs], 'sources': sources,
                 'quad_iou': [round(step[2], 3) if step else None for step in plan],
                 'all_registered': all(r.ok for r in regs), 'deskewed': None,
@@ -1125,6 +1187,8 @@ class Pipeline:
             det['pages'] = pages
             det['page_quads'] = page_quads
             det['page_placements'] = placements
+            det['page_geometries'] = page_geometries
+            det['geometry'] = stitched_geometry(pages, placements, page_geometries)
             det['warped_img'] = stitched
             self.results._meta_results['DocDetector'] = det
 
@@ -1149,22 +1213,26 @@ class Pipeline:
             return
         geo = self.page_geometry
         quads, quad_infos = geo.quads(segm, img.shape, aspect_for(self.results.doctype))
-        pages, used, straightened = [], [], []
+        pages, used, straightened, page_geometries = [], [], [], []
         for q, qi in zip(quads, quad_infos):
             # quad warp + straightening in one resampling; a side extrapolated
             # past the frame keeps its corners outside the photo
-            page, sinfo = geo.rectify(img, q, keep_outside=qi.get('extrapolated') is not None)
+            page, sinfo, geometry = geo.rectify_with_geometry(
+                img, q, keep_outside=qi.get('extrapolated') is not None)
             if page is None:
                 continue
             pages.append(page)
             used.append(q)
             straightened.append(sinfo)
+            page_geometries.append(geometry)
         if not pages:
             return
         stitched, placements = stitch_pages(pages, used, stack='auto')
         det['pages'] = pages if len(pages) >= 2 else []
         det['page_quads'] = used if len(pages) >= 2 else []
         det['page_placements'] = placements if len(pages) >= 2 else []
+        det['page_geometries'] = page_geometries if len(pages) >= 2 else []
+        det['geometry'] = stitched_geometry(pages, placements, page_geometries)
         det['warped_img'] = stitched
         self.results._meta_results['DocDetector'] = det
         self.results._meta_results['PageGeometry'] = {
@@ -1205,20 +1273,31 @@ class Pipeline:
         meta = self.results._meta_results.get('DocDetector') or {}
         pages = meta.get('pages') or []
         if len(pages) >= 2:
-            desk_pages = [self.deskewer.deskew(p) for p in pages]
+            desked = [self.deskewer.deskew_with_geometry(p) for p in pages]
+            desk_pages = [d[0] for d in desked]
             stitched, placements = stitch_pages(desk_pages, meta.get('page_quads') or [],
                                                 stack='auto')
             if stitched is not None:
+                # each page's own map followed by its own turn (geometry.py)
+                page_geometries = [Chain((g,)).then(d[1]) if g is not None else Chain().then(d[1])
+                                   for g, d in zip(meta.get('page_geometries') or [None] * len(pages),
+                                                   desked)]
                 meta['pages'] = desk_pages
                 meta['page_placements'] = placements
+                meta['page_geometries'] = page_geometries
+                meta['geometry'] = stitched_geometry(desk_pages, placements, page_geometries)
                 meta['warped_img'] = stitched
                 return stitched
-        desk = self.deskewer.deskew(img)
+        desk, geometry = self.deskewer.deskew_with_geometry(img)
         if self.results._meta_results.get('DocDetector'):
-            self.results._meta_results['DocDetector']['warped_img'] = desk
+            det = self.results._meta_results['DocDetector']
+            det['warped_img'] = desk
+            det['geometry'] = Chain((det.get('geometry'),)).then(geometry) \
+                if det.get('geometry') is not None else Chain().then(geometry)
         else:
             # no doc_detector result (fallback path) -> stash under Angle90
             self.results._meta_results.setdefault('Angle90', {})['warped_img'] = desk
+            self.results._meta_results['Deskew'] = {'geometry': geometry}
         return desk
 
     def _fields_detector(self, img, rotate_licence=False):
@@ -1236,13 +1315,22 @@ class Pipeline:
         pages = meta.get('pages') or []
         placements = meta.get('page_placements') or []
         if len(pages) >= 2 and len(placements) == len(pages):
-            text_fields = self._fields_from_pages(pages, placements)
+            text_fields, frames = self._fields_from_pages(pages, placements)
             result = {self.text_fields.model_name: text_fields}
         else:
             result = self.text_fields.predict_transform(img)
             text_fields = result[self.text_fields.model_name]
+            # a patch is the canvas cut at its box (see TextFieldsDetector)
+            frames = [Offset(-float(box[0]), -float(box[1])) for box in text_fields['bbox']]
 
         self._note_mrz_zone(text_fields, img)
+        # Where each patch lies on the canvas (geometry.py): the map from the
+        # patch as CUT (before the series/number turn below) to the canvas,
+        # and the patch size then. Aligned with text_fields['bbox']; kept apart
+        # from it because _split_words unpacks that dict by position.
+        self.results._meta_results['FieldFrames'] = [
+            (frame, patch.shape[1], patch.shape[0])
+            for frame, patch in zip(frames, text_fields['warped_img'])]
 
         if rotate_licence:
             for i, field in enumerate(text_fields['bbox']):
@@ -1267,9 +1355,12 @@ class Pipeline:
         kept as cut from the page: they are what OCR reads, and cutting them
         from the page rather than the canvas is exactly the point.
         """
-        bbox, patches = [], []
-        for page, (scale, dx, dy) in zip(pages, placements):
+        bbox, patches, frames = [], [], []
+        for page, placement in zip(pages, placements):
+            scale, dx, dy = placement
             got = self.text_fields.predict_transform(page)[self.text_fields.model_name]
+            # patch -> page (the cut) -> canvas (the page's resize and offset)
+            placed = placement_geometry(page, placement)
             for box, patch in zip(got.get('bbox') or [], got.get('warped_img') or []):
                 moved = list(box)
                 moved[0] = int(round(box[0] * scale + dx))
@@ -1278,7 +1369,8 @@ class Pipeline:
                 moved[3] = int(round(box[3] * scale + dy))
                 bbox.append(moved)
                 patches.append(patch)
-        return {'bbox': bbox, 'warped_img': patches}
+                frames.append(Chain((Offset(-float(box[0]), -float(box[1])), placed)))
+        return {'bbox': bbox, 'warped_img': patches}, frames
 
     #: An empty stretch on a line wider than this many typical words means the
     #: split dropped a word, and the line is read whole instead.
@@ -1526,6 +1618,7 @@ class Pipeline:
         """
 
         bboxes, patches = text_fields.values()
+        frames = self.results._meta_results.get('FieldFrames') or [None] * len(bboxes)
 
         # The internal passport prints the series+number (and the FMS code)
         # twice, so the detector returns duplicate boxes; keep only the
@@ -1535,6 +1628,7 @@ class Pipeline:
         if drop:
             bboxes = [b for i, b in enumerate(bboxes) if i not in drop]
             patches = [p for i, p in enumerate(patches) if i not in drop]
+            frames = [f for i, f in enumerate(frames) if i not in drop]
 
         # fields that will actually contribute to `result`. Multi-line fields
         # are labeled one detection per line (dataset convention), and the
@@ -1636,7 +1730,51 @@ class Pipeline:
             self._emit(f'words.{field_name}.bbox', boxes)
 
         self.results._meta_results[self.words_detector.model_name] = result
+        self._field_quads(bboxes, patches, kept, word_bbox_by_idx, frames)
         return result
+
+    def _field_quads(self, bboxes, patches, kept, word_bbox_by_idx, frames):
+        """Where the read fields and their word patches lie on the input image.
+
+        A field patch is the canvas (or, on a spread, the page) cut at its box -
+        its frame from _fields_detector says where (see geometry.py) - and the
+        series/number patch is also turned (see _fields_detector); a word patch
+        is its box cut from the field patch the way WordsDetector cuts it.
+        """
+        fields, words = {}, {}
+        for i in kept:
+            bbox = bboxes[i]
+            label = bbox[-1]
+            frame = frames[i] if i < len(frames) else None
+            if frame is None:
+                # no frame recorded (a caller that bypassed _fields_detector):
+                # fall back to the canvas box itself
+                x0, y0, x1, y1 = (float(v) for v in bbox[:4])
+                frame = (Offset(-x0, -y0), x1 - x0, y1 - y0)
+            to_canvas, fw, fh = frame
+            field = self.results.to_input(to_canvas.to_input(corners(0.0, 0.0, fw, fh)))
+            if field is None:
+                # The way back is not known for this run, and it is not known for any
+                # field of it: say so once, for the whole run, instead of per box.
+                quads = self.results._meta_results.setdefault('Quads', {})
+                quads['fields'] = quads['words'] = None
+                return
+            fields.setdefault(label, []).append(field)
+            if i not in word_bbox_by_idx:
+                words.setdefault(label, []).append(field)
+                continue
+            h, w = patches[i].shape[:2]
+            patch = Chain((to_canvas,))
+            if self.ocr_options.needs_licence_rotation and label == 'Licence_number':
+                # the patch the words were found on is the field turned once: w x h of h x w
+                patch = patch.then(QuarterTurns(h, w, 1))
+            for box in word_bbox_by_idx[i]:
+                wx0, wy0 = max(0, int(box[0])), max(0, int(box[1]))
+                wx1, wy1 = min(w, int(box[2])), min(h, int(box[3]))
+                quad = patch.to_input(corners(wx0, wy0, wx1, wy1))
+                words.setdefault(label, []).append(self.results.to_input(quad))
+        quads = self.results._meta_results.setdefault('Quads', {})
+        quads['fields'], quads['words'] = fields, words
 
     def _address_lines(self, img):
         """
@@ -1660,6 +1798,8 @@ class Pipeline:
         result = self.address_lines.predict_transform(img)
         self.results._meta_results = self.results._meta_results | result
         line_patches = result[self.address_lines.model_name]['warped_img']
+        obboxes = result[self.address_lines.model_name]['obbox']
+        line_quads = []
         # ocr_device is only 'gpu' when ocr_gpu_batch=True was explicitly
         # requested (see __init__) - safe to gate on it directly.
         use_batch = self.ocr_device == 'gpu'
@@ -1673,9 +1813,16 @@ class Pipeline:
         printed_words = []       # list[list[word_patch]], one list per printed line
         has_handwritten = False
 
-        for patch in line_patches:
+        for patch, obbox in zip(line_patches, obboxes):
             if patch is None or patch.size == 0:
                 continue
+            # The line on the input image, in the order of line_meta
+            crop = AddressLinesDetector.crop_geometry(obbox[:5])
+            line_quad = self.results.to_input(crop.to_input(corners(0, 0, patch.shape[1], patch.shape[0])))
+            # None once means None for the whole run (see PipelineResults.to_input).
+            line_quads = None if line_quad is None else line_quads
+            if line_quads is not None:
+                line_quads.append(line_quad)
             kind, prob = self.address_textkind.predict(patch)[self.address_textkind.model_name]
             if kind == 'handwritten':
                 has_handwritten = True
@@ -1718,6 +1865,7 @@ class Pipeline:
             address_lines_text.append(line_text)
 
         self.results._meta_results['Address_lines'] = line_meta
+        self.results._meta_results.setdefault('Quads', {})['address_lines'] = line_quads
         if address_lines_text:
             ocr_dict = self.results._meta_results.get('OCR') or {}
             ocr_dict['Address'] = '\n'.join(address_lines_text)
@@ -2055,8 +2203,31 @@ class Pipeline:
         img = cv2.resize(img, dsize=(new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
         self.results._meta_results['original_img'] = img
+        # The first map of the canvas every later stage reads (geometry.py)
+        self.results._meta_results['Geometry'] = Chain((Scale(new_w / w, new_h / h),))
 
         return img
+
+    def _canvas(self, geometry):
+        """The canvas later stages read is the previous one passed through `geometry`.
+
+        Called wherever process_img takes a new image (see geometry.py); None
+        means the image was handed on unchanged.
+        """
+        chain = self.results._meta_results.get('Geometry') or Chain()
+        self.results._meta_results['Geometry'] = chain.then(geometry)
+
+    def _borders_geometry(self):
+        """Map from the current border canvas back to the image the border stage received.
+
+        DocDetector keeps it up to date through page registration, page geometry
+        and the deskew (its 'geometry' key); without a border result the only
+        change is a deskew stashed under 'Deskew'.
+        """
+        det = self.results._meta_results.get('DocDetector')
+        if det:
+            return det.get('geometry')
+        return (self.results._meta_results.get('Deskew') or {}).get('geometry')
 
 
 

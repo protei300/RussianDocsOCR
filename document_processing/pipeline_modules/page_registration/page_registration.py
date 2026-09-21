@@ -49,6 +49,7 @@ from typing import List, Optional
 import cv2
 import numpy as np
 
+from ...geometry import Chain, Homography, VerticalRemap
 from ..doc_detector.image_transformation import extract_quad
 from .line_dewarp import apply_dewarp, dewarp_by_lines
 from .line_refine import apply_refinement, refine_by_lines
@@ -458,18 +459,27 @@ class PageRegistrar:
         """(width, height) of one output page at ``scale``."""
         return (max(1, int(round(self.out_w * scale))), max(1, int(round(self.out_h * scale))))
 
+    def quad_matrix(self, quad: np.ndarray, scale: float = 1.0) -> np.ndarray:
+        """The perspective matrix ``warp_quad`` warps a photo quad with (photo -> page).
+
+        Exposed so the warp and the way back (geometry.py) come from one matrix."""
+        m = self.margin
+        src = _order_points(quad)
+        dst = np.float32([[m, m], [m + self.page_w, m], [m + self.page_w, m + self.page_h],
+                          [m, m + self.page_h]]) * np.float32([scale, scale])
+        return cv2.getPerspectiveTransform(src.astype(np.float32), dst.astype(np.float32))
+
+    def warp_matrix(self, img_rgb: np.ndarray, M: np.ndarray, scale: float = 1.0) -> np.ndarray:
+        """The warp both ``warp_quad`` and ``warp_page`` apply, given its matrix."""
+        return cv2.warpPerspective(img_rgb, M, self.out_size(scale), flags=cv2.INTER_LINEAR,
+                                   borderMode=cv2.BORDER_REPLICATE)
+
     def warp_quad(self, img_rgb: np.ndarray, quad: np.ndarray, scale: float = 1.0) -> np.ndarray:
         """Warp a photo quad (page edges, e.g. from Borders) into the canonical
         page frame: same output size and cushion as warp_page, so a page warped
         from its Borders quad and a page warped from its template homography
         stack into one consistent canvas."""
-        m = self.margin
-        src = _order_points(quad)
-        dst = np.float32([[m, m], [m + self.page_w, m], [m + self.page_w, m + self.page_h],
-                          [m, m + self.page_h]]) * np.float32([scale, scale])
-        M = cv2.getPerspectiveTransform(src.astype(np.float32), dst.astype(np.float32))
-        return cv2.warpPerspective(img_rgb, M, self.out_size(scale), flags=cv2.INTER_LINEAR,
-                                   borderMode=cv2.BORDER_REPLICATE)
+        return self.warp_matrix(img_rgb, self.quad_matrix(quad, scale), scale)
 
     def page_quads(self, segments, image_shape):
         """Page quads (ordered TL, TR, BR, BL) from Borders contours, plus the
@@ -491,20 +501,30 @@ class PageRegistrar:
         """Straighten a warped page by its own lines: first the homography
         (line_refine), then the bend map (line_dewarp) on the result.
         Returns (page, info); the page is unchanged when nothing is applied."""
+        page, info, _ = self.straighten_with_geometry(page, scale)
+        return page, info
+
+    def straighten_with_geometry(self, page: np.ndarray, scale: float = 1.0):
+        """Same as ``straighten``, plus the map from the returned page back to
+        ``page`` (geometry.py): the straightening homography and the bend map
+        in the order applied, or None when nothing was applied."""
         inset = int(round(self.margin * scale))
         info = {'applied': False, 'reason': 'disabled'}
+        maps = []
         if self.line_refine:
             gray = cv2.cvtColor(page, cv2.COLOR_RGB2GRAY) if page.ndim == 3 else page
             Hm, info = refine_by_lines(gray, inset=inset)
             if Hm is not None:
                 page = apply_refinement(page, Hm)
+                maps.append(Homography(Hm))
         if self.line_dewarp:
             gray = cv2.cvtColor(page, cv2.COLOR_RGB2GRAY) if page.ndim == 3 else page
             v, dinfo = dewarp_by_lines(gray, inset=inset)
             if v is not None:
                 page = apply_dewarp(page, v)
+                maps.append(VerticalRemap(v))
             info = dict(info, dewarp=dinfo)
-        return page, info
+        return page, info, (Chain(tuple(maps)) if maps else None)
 
     @staticmethod
     def quad_iou(a: np.ndarray, b: np.ndarray) -> float:
@@ -519,8 +539,12 @@ class PageRegistrar:
         """Warp the photo to the canonical page with the PAGE_MARGIN_FRAC cushion
         on every side, at ``scale`` (see native_scale). At scale 1 the output
         is ``out_w x out_h`` and the template frame sits at offset ``margin``."""
+        return self.warp_matrix(img_rgb, self.page_matrix(reg, scale), scale)
+
+    def page_matrix(self, reg: PageRegistration, scale: float = 1.0) -> np.ndarray:
+        """The matrix ``warp_page`` warps the photo with (photo -> page): the
+        template homography, the cushion offset and the scale."""
         m = self.margin
         shift = np.array([[1, 0, m], [0, 1, m], [0, 0, 1]], np.float64)
         S = np.diag([scale, scale, 1.0])
-        return cv2.warpPerspective(img_rgb, S @ shift @ reg.H, self.out_size(scale),
-                                   flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+        return S @ shift @ reg.H
