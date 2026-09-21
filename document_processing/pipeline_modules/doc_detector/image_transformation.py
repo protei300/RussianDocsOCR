@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 
+from ...geometry import Chain, Homography, Offset, Pieces, Scale
+
 
 
 def iou(bbox1: np.ndarray, bbox2: np.ndarray):
@@ -200,6 +202,25 @@ def extract_quad(contour):
     return cv2.boxPoints(cv2.minAreaRect(cnt)).astype(np.float32)
 
 
+def four_point_matrix(quad: np.ndarray):
+    """The perspective matrix and output size `four_point_transform` warps a quad with.
+
+    The matrix is what maps a warped page back (see geometry.py).
+
+    Returns:
+        (M, width, height), or None if the target rectangle is degenerate.
+    """
+    rect = order_points(quad)
+    tl, tr, br, bl = rect
+    width = int(round(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl))))
+    height = int(round(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl))))
+    if width < 2 or height < 2:
+        return None
+    dst = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]],
+                   dtype=np.float32)
+    return cv2.getPerspectiveTransform(rect, dst), width, height
+
+
 def four_point_transform(img: np.ndarray, quad: np.ndarray):
     """Warp a quadrilateral to an axis-aligned rectangle.
 
@@ -213,15 +234,10 @@ def four_point_transform(img: np.ndarray, quad: np.ndarray):
     Returns:
         Warped image, or None if the target rectangle is degenerate.
     """
-    rect = order_points(quad)
-    tl, tr, br, bl = rect
-    width = int(round(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl))))
-    height = int(round(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl))))
-    if width < 2 or height < 2:
+    found = four_point_matrix(quad)
+    if found is None:
         return None
-    dst = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]],
-                   dtype=np.float32)
-    M = cv2.getPerspectiveTransform(rect, dst)
+    M, width, height = found
     return cv2.warpPerspective(img, M, (width, height), flags=cv2.INTER_LINEAR)
 
 
@@ -258,7 +274,7 @@ def expand_quad(quad: np.ndarray, margin: float) -> np.ndarray:
 
 
 def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
-                    margin: float = DOC_MARGIN_FRAC):
+                    margin: float = DOC_MARGIN_FRAC, return_geometry: bool = False):
     """Fix perspective of a document image using segmentation contours.
 
     Each segment is rectified independently with a robust four-point
@@ -275,12 +291,16 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
         stack: Multi-document merge direction ('auto', 'horizontal', 'vertical').
         margin: outward margin applied to each detected quad, as a fraction of
             the document's own size (see DOC_MARGIN_FRAC). Pass 0 to disable.
+        return_geometry: also return the map from the rectified image back to
+            `img` (see geometry.py).
 
     Returns:
         warped: Rectified image (or the original if no valid quad is found).
         cnt_img: Original image with the detected quadrilaterals drawn.
+        geometry: only with return_geometry=True - Homography of a single page,
+            Pieces of a stitched spread, an empty Chain when `img` is returned as is.
     """
-    quads, warps = [], []
+    quads, warps, matrices = [], [], []
 
     for cnt in segments:
         quad = extract_quad(cnt)
@@ -291,20 +311,26 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
         # clip corners to image bounds
         rect[:, 0] = np.clip(rect[:, 0], 0, img.shape[1])
         rect[:, 1] = np.clip(rect[:, 1], 0, img.shape[0])
-        warped = four_point_transform(img, rect)
-        if warped is None:
+        found = four_point_matrix(rect)
+        if found is None:
             continue
+        M, width, height = found
+        warped = cv2.warpPerspective(img, M, (width, height), flags=cv2.INTER_LINEAR)
         quads.append(rect)
         warps.append(warped)
+        matrices.append(M)
 
     cnt_img = img.copy()
     for q in quads:
         cnt_img = cv2.polylines(cnt_img, [q.astype(np.int32)], True, (255, 0, 0), 4)
 
+    def done(warped, geometry):
+        return (warped, cnt_img, geometry) if return_geometry else (warped, cnt_img)
+
     if not warps:
-        return img, cnt_img
+        return done(img, Chain())
     if len(warps) == 1:
-        return warps[0], cnt_img
+        return done(warps[0], Homography(matrices[0]))
 
     # multiple documents (two pages of a spread): decide merge direction.
     # 'auto' picks it from the pages' actual layout — if their centroids are
@@ -322,24 +348,46 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
         # side by side, left-to-right by leftmost x, common height
         order = np.argsort([q[:, 0].min() for q in quads])
         warps = [warps[i] for i in order]
+        matrices = [matrices[i] for i in order]
         common_h = min(w.shape[0] for w in warps)
-        warps = [
+        pages = [
             cv2.resize(w, (max(1, int(round(w.shape[1] * common_h / w.shape[0]))), common_h),
                        interpolation=cv2.INTER_LINEAR)
             for w in warps
         ]
-        return np.hstack(warps), cnt_img
+        return done(np.hstack(pages), _stitched(warps, pages, matrices, horizontal=True))
 
     # vertical: top-to-bottom by topmost y, common width
     order = np.argsort([q[:, 1].min() for q in quads])
     warps = [warps[i] for i in order]
+    matrices = [matrices[i] for i in order]
     common_w = min(w.shape[1] for w in warps)
-    warps = [
+    pages = [
         cv2.resize(w, (common_w, max(1, int(round(w.shape[0] * common_w / w.shape[1])))),
                    interpolation=cv2.INTER_LINEAR)
         for w in warps
     ]
-    return np.vstack(warps), cnt_img
+    return done(np.vstack(pages), _stitched(warps, pages, matrices, horizontal=False))
+
+
+def _stitched(warps, pages, matrices, horizontal: bool):
+    """Pieces of a stitched spread (see geometry.py).
+
+    Each page keeps its own four-point warp, its resize to the common side and
+    its place on the canvas.
+    """
+    pieces, offset = [], 0
+    for warped, page, M in zip(warps, pages, matrices):
+        height, width = page.shape[:2]
+        if horizontal:
+            rect, place = (offset, 0, offset + width, height), Offset(offset, 0)
+            offset += width
+        else:
+            rect, place = (0, offset, width, offset + height), Offset(0, offset)
+            offset += height
+        scale = Scale(width / warped.shape[1], height / warped.shape[0])
+        pieces.append((rect, Chain((Homography(M), scale, place))))
+    return Pieces(tuple(pieces))
 
 
 

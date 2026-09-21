@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy as np
 import cv2
 
+from ...geometry import QuarterTurns
+
 class DocTypeAngles(BaseModule):
     """Classifies document type and 90-degree rotation angle from an image.
 
@@ -19,6 +21,7 @@ class DocTypeAngles(BaseModule):
             'angle': int,                   # 0/90/180/270
             'angle_confidence': float,
             'warped_img': np.ndarray,       # predict_transform only: upright image
+            'geometry': QuarterTurns,       # predict_transform only: upright -> input (geometry.py)
         }}
     """
 
@@ -66,7 +69,9 @@ class DocTypeAngles(BaseModule):
         """
         img = self.load_img(img)
         meta = self.__predict_meta(img)
+        height, width = img.shape[:2]
         for _ in range(meta['angle'] // 90):
             img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
         meta['warped_img'] = img
+        meta['geometry'] = QuarterTurns(width, height, int(meta['angle'] // 90))
         return {self.model_name: meta}

@@ -1,5 +1,6 @@
 from ..base_module import BaseModule
 from .image_transformation import fix_perspective
+from ...geometry import Chain
 from typing import Union
 from pathlib import Path
 import cv2
@@ -98,12 +99,15 @@ class DocDetector(BaseModule):
 
 
             try:
-                result_img, borders_img = fix_perspective(img=img, segments=segm, stack=stack)
+                result_img, borders_img, geometry = fix_perspective(img=img, segments=segm, stack=stack,
+                                                                    return_geometry=True)
             except Exception as e:
                 print(f'[!] Failed to fix perspective: {e!r}')
                 result_img = borders_img = img
+                geometry = Chain()
         else:
             result_img = borders_img = img
+            geometry = Chain()
         meta = {
             self.model_name:
                 {
@@ -112,6 +116,8 @@ class DocDetector(BaseModule):
                     'segm': segm,
                     'border_img': borders_img,
                     'warped_img': result_img,
+                    # warped_img back to the input image (geometry.py)
+                    'geometry': geometry,
 
                 }
         }
