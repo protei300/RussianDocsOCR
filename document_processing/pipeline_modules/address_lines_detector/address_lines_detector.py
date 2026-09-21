@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy as np
 import cv2
 
+from ...geometry import Chain, Homography, Offset
+
 
 class AddressLinesDetector(BaseModule):
     """Detects oriented (rotated) address-line regions on the residence
@@ -63,3 +65,21 @@ class AddressLinesDetector(BaseModule):
         rotated = cv2.warpAffine(img, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)
         patch = cv2.getRectSubPix(rotated, (w_i, h_i), (float(cx), float(cy)))
         return patch
+
+    @staticmethod
+    def crop_geometry(obbox) -> Chain:
+        """Map from a `crop_rotated` patch back to the image it was cut from.
+
+        The same rotation and the same sub-pixel
+        window as `crop_rotated`, so a box found on the patch lands on the image.
+
+        Args:
+            obbox: (cx, cy, w, h, angle_rad), as for `crop_rotated`.
+        """
+        cx, cy, w, h, angle = obbox
+        w_i, h_i = max(1, int(round(w))), max(1, int(round(h)))
+        M = cv2.getRotationMatrix2D((float(cx), float(cy)), np.degrees(angle), 1.0)
+        # getRectSubPix: patch pixel (u, v) samples the rotated image at
+        # (u + cx - (w_i - 1) / 2, v + cy - (h_i - 1) / 2), pixel centres on integers.
+        window = Offset(-(float(cx) - (w_i - 1) / 2.0), -(float(cy) - (h_i - 1) / 2.0))
+        return Chain((Homography(M), window))

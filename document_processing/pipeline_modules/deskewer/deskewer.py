@@ -12,6 +12,8 @@ Works entirely with OpenCV / NumPy — no templates required.
 import cv2
 import numpy as np
 
+from ...geometry import Chain, Homography, Offset, Pieces
+
 
 class DocDeskewer:
     """Correct residual tilt in perspective-corrected document images.
@@ -83,6 +85,17 @@ class DocDeskewer:
         Returns:
             Deskewed image (same shape), or original if no correction needed.
         """
+        return self.deskew_with_geometry(img, n_segments)[0]
+
+    def deskew_with_geometry(self, img: np.ndarray, n_segments: int = 1):
+        """Same as `deskew`, plus where the returned image came from.
+
+        The rotation is the one `deskew` applies (see geometry.py),
+        so a box found on the returned image maps back onto `img`.
+
+        Returns:
+            (image, geometry): geometry is None when the image is returned unchanged.
+        """
         if n_segments == 2:
             return self._deskew_two_page(img)
         return self._deskew_single(img)
@@ -91,24 +104,32 @@ class DocDeskewer:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _deskew_single(self, img: np.ndarray) -> np.ndarray:
+    def _deskew_single(self, img: np.ndarray):
         angle = self._find_angle(img)
         if abs(angle) < self.min_angle:
-            return img
-        return self._rotate(img, angle)
+            return img, None
+        M = self._rotation_matrix(img, angle)
+        return self._warp(img, M), Homography(M)
 
-    def _deskew_two_page(self, img: np.ndarray) -> np.ndarray:
+    def _deskew_two_page(self, img: np.ndarray):
         h = img.shape[0]
         mid = h // 2
         upper = img[:mid]
         lower = img[mid:]
 
-        upper_out = self._deskew_single(upper)
-        lower_out = self._deskew_single(lower)
+        upper_out, upper_geometry = self._deskew_single(upper)
+        lower_out, lower_geometry = self._deskew_single(lower)
 
         if upper_out is upper and lower_out is lower:
-            return img
-        return np.vstack([upper_out, lower_out])
+            return img, None
+        w = img.shape[1]
+        upper_maps = () if upper_geometry is None else (upper_geometry,)
+        lower_maps = () if lower_geometry is None else (lower_geometry,)
+        geometry = Pieces((
+            ((0, 0, w, mid), Chain(upper_maps)),
+            ((0, mid, w, h), Chain((Offset(0, -mid), *lower_maps, Offset(0, mid)))),
+        ))
+        return np.vstack([upper_out, lower_out]), geometry
 
     def _find_angle(self, img: np.ndarray) -> float:
         """Return the skew angle (degrees) that maximises projection variance.
@@ -163,9 +184,17 @@ class DocDeskewer:
 
         return float(fine_angles[fine_best_idx])
 
-    def _rotate(self, img: np.ndarray, angle: float) -> np.ndarray:
+    @staticmethod
+    def _rotation_matrix(img: np.ndarray, angle: float) -> np.ndarray:
         h, w = img.shape[:2]
-        M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), angle, 1.0)
+        return cv2.getRotationMatrix2D((w / 2.0, h / 2.0), angle, 1.0)
+
+    @staticmethod
+    def _warp(img: np.ndarray, M: np.ndarray) -> np.ndarray:
+        h, w = img.shape[:2]
         return cv2.warpAffine(img, M, (w, h),
                               flags=cv2.INTER_LINEAR,
                               borderMode=cv2.BORDER_REPLICATE)
+
+    def _rotate(self, img: np.ndarray, angle: float) -> np.ndarray:
+        return self._warp(img, self._rotation_matrix(img, angle))

@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 
+from ...geometry import Chain, Homography, Offset, Pieces, Scale
 
 
 def iou(bbox1: np.ndarray, bbox2: np.ndarray):
@@ -200,6 +201,25 @@ def extract_quad(contour):
     return cv2.boxPoints(cv2.minAreaRect(cnt)).astype(np.float32)
 
 
+def four_point_matrix(quad: np.ndarray):
+    """The perspective matrix and output size `four_point_transform` warps a quad with.
+
+    The matrix is what maps a warped page back (see geometry.py).
+
+    Returns:
+        (M, width, height), or None if the target rectangle is degenerate.
+    """
+    rect = order_points(quad)
+    tl, tr, br, bl = rect
+    width = int(round(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl))))
+    height = int(round(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl))))
+    if width < 2 or height < 2:
+        return None
+    dst = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]],
+                   dtype=np.float32)
+    return cv2.getPerspectiveTransform(rect, dst), width, height
+
+
 def four_point_transform(img: np.ndarray, quad: np.ndarray):
     """Warp a quadrilateral to an axis-aligned rectangle.
 
@@ -213,15 +233,10 @@ def four_point_transform(img: np.ndarray, quad: np.ndarray):
     Returns:
         Warped image, or None if the target rectangle is degenerate.
     """
-    rect = order_points(quad)
-    tl, tr, br, bl = rect
-    width = int(round(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl))))
-    height = int(round(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl))))
-    if width < 2 or height < 2:
+    found = four_point_matrix(quad)
+    if found is None:
         return None
-    dst = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]],
-                   dtype=np.float32)
-    M = cv2.getPerspectiveTransform(rect, dst)
+    M, width, height = found
     return cv2.warpPerspective(img, M, (width, height), flags=cv2.INTER_LINEAR)
 
 
@@ -258,7 +273,7 @@ def expand_quad(quad: np.ndarray, margin: float) -> np.ndarray:
 
 
 def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
-                    margin: float = DOC_MARGIN_FRAC):
+                    margin: float = DOC_MARGIN_FRAC, return_geometry: bool = False):
     """Fix perspective of a document image using segmentation contours.
 
     Each segment is rectified independently with a robust four-point
@@ -275,19 +290,26 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
         stack: Multi-document merge direction ('auto', 'horizontal', 'vertical').
         margin: outward margin applied to each detected quad, as a fraction of
             the document's own size (see DOC_MARGIN_FRAC). Pass 0 to disable.
+        return_geometry: also return the map from the rectified image back to
+            `img` (see geometry.py).
 
     Returns:
         warped: Rectified image (or the original if no valid quad is found).
         cnt_img: Original image with the detected quadrilaterals drawn.
+        geometry: only with return_geometry=True - Homography of a single page,
+            Pieces of a stitched spread, an empty Chain when `img` is returned as is.
     """
-    warps, quads, cnt_img = rectify_pages(img, segments, margin)
+    warps, quads, cnt_img, geometries = rectify_pages(img, segments, margin, return_geometry=True)
     if not warps:
-        return img, cnt_img
-    stitched, _ = stitch_pages(warps, quads, stack)
-    return stitched, cnt_img
+        return (img, cnt_img, Chain()) if return_geometry else (img, cnt_img)
+    stitched, placements = stitch_pages(warps, quads, stack)
+    if not return_geometry:
+        return stitched, cnt_img
+    return stitched, cnt_img, stitched_geometry(warps, placements, geometries)
 
 
-def rectify_pages(img: np.ndarray, segments, margin: float = DOC_MARGIN_FRAC):
+def rectify_pages(img: np.ndarray, segments, margin: float = DOC_MARGIN_FRAC,
+                  return_geometry: bool = False):
     """Rectify each detected page on its own, without stitching them together.
 
     Split out of ``fix_perspective`` so the pipeline can process a passport
@@ -299,14 +321,18 @@ def rectify_pages(img: np.ndarray, segments, margin: float = DOC_MARGIN_FRAC):
         img: Input document image (H, W, 3).
         segments: List of contours (each (N, 2)) from the segmentation model.
         margin: outward margin applied to each quad (see DOC_MARGIN_FRAC).
+        return_geometry: also return one map per page, from the rectified page
+            back to `img` (see geometry.py).
 
     Returns:
         warps: one rectified image per page, in detection order.
         quads: the quad each page came from, same order (needed to decide the
             stitch direction and the page order later).
         cnt_img: Original image with the detected quadrilaterals drawn.
+        geometries: only with return_geometry=True - a Homography per page,
+            same order as `warps`.
     """
-    quads, warps = [], []
+    quads, warps, geometries = [], [], []
 
     for cnt in segments:
         quad = extract_quad(cnt)
@@ -317,17 +343,49 @@ def rectify_pages(img: np.ndarray, segments, margin: float = DOC_MARGIN_FRAC):
         # clip corners to image bounds
         rect[:, 0] = np.clip(rect[:, 0], 0, img.shape[1])
         rect[:, 1] = np.clip(rect[:, 1], 0, img.shape[0])
-        warped = four_point_transform(img, rect)
-        if warped is None:
+        found = four_point_matrix(rect)
+        if found is None:
             continue
+        M, width, height = found
+        warped = cv2.warpPerspective(img, M, (width, height), flags=cv2.INTER_LINEAR)
         quads.append(rect)
         warps.append(warped)
+        geometries.append(Homography(M))
 
     cnt_img = img.copy()
     for q in quads:
         cnt_img = cv2.polylines(cnt_img, [q.astype(np.int32)], True, (255, 0, 0), 4)
 
+    if return_geometry:
+        return warps, quads, cnt_img, geometries
     return warps, quads, cnt_img
+
+
+def stitched_geometry(pages, placements, page_geometries) -> Pieces:
+    """Map from a canvas built by ``stitch_pages`` back to the image the pages came from.
+
+    Args:
+        pages: the pages handed to ``stitch_pages`` (their sizes matter).
+        placements: what ``stitch_pages`` returned for them: (scale, dx, dy)
+            per page, in the same order.
+        page_geometries: one map per page, from that page back to the image
+            the pages were cut from (see geometry.py); None for a page that
+            was handed on unchanged.
+
+    Returns:
+        Pieces: one rectangle of the canvas per page, with the page's own
+        resize and offset composed after the page's own map.
+    """
+    pieces = []
+    for page, (scale, dx, dy), geometry in zip(pages, placements, page_geometries):
+        h, w = page.shape[:2]
+        # the size stitch_pages resized this page to (see its rounding)
+        new_w = max(1, int(round(w * scale))) if scale != 1.0 else w
+        new_h = max(1, int(round(h * scale))) if scale != 1.0 else h
+        maps = () if geometry is None else (geometry,)
+        placed = Chain((*maps, Scale(new_w / w, new_h / h), Offset(dx, dy)))
+        pieces.append(((dx, dy, dx + new_w, dy + new_h), placed))
+    return Pieces(tuple(pieces))
 
 
 def stitch_pages(warps, quads, stack: str = 'auto'):

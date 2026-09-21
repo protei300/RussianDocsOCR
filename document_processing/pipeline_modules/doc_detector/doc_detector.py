@@ -1,5 +1,6 @@
 from ..base_module import BaseModule
-from .image_transformation import fix_perspective, rectify_pages, stitch_pages
+from .image_transformation import fix_perspective, rectify_pages, stitch_pages, stitched_geometry
+from ...geometry import Chain
 from typing import Union
 from pathlib import Path
 import cv2
@@ -155,18 +156,20 @@ class DocDetector(BaseModule):
                 # detector's 640x640 input gives a stitched spread only half of
                 # itself per page. The stitched canvas is still produced here -
                 # it stays the thing every existing consumer expects.
-                pages, quads, borders_img = rectify_pages(img=img, segments=segm)
+                pages, quads, borders_img, page_geometries = rectify_pages(
+                    img=img, segments=segm, return_geometry=True)
                 if pages:
                     result_img, placements = stitch_pages(pages, quads, stack=stack)
+                    geometry = stitched_geometry(pages, placements, page_geometries)
                 else:
-                    result_img, placements = img, []
+                    result_img, placements, geometry = img, [], Chain()
             except Exception as e:
                 print(f'[!] Failed to fix perspective: {e!r}')
                 result_img = borders_img = img
-                pages, quads, placements = [], [], []
+                pages, quads, placements, page_geometries, geometry = [], [], [], [], Chain()
         else:
             result_img = borders_img = img
-            pages, quads, placements = [], [], []
+            pages, quads, placements, page_geometries, geometry = [], [], [], [], Chain()
         meta = {
             self.model_name:
                 {
@@ -181,7 +184,12 @@ class DocDetector(BaseModule):
                     'pages': pages,
                     'page_quads': quads,
                     'page_placements': placements,
-
+                    # maps back to the input image (geometry.py): one per page
+                    # (page -> input), and warped_img -> input for the canvas.
+                    # Later stages that rebuild the pages or the canvas replace
+                    # both, so 'geometry' always describes the CURRENT warped_img.
+                    'page_geometries': page_geometries,
+                    'geometry': geometry,
                 }
         }
 
