@@ -85,6 +85,11 @@ type Field struct {
 	Conf    *float64 `json:"conf"`
 	// BoxIds is a LIST because one field legitimately owns several boxes.
 	BoxIds []string `json:"box_ids"`
+	// Normalized carries the canonical dd.mm.yyyy form of a date field. Value stays the
+	// READING; the key is present ONLY where a canonical form exists (hence omitempty on a
+	// pointer, the one place it is allowed), which is what lets a client tell "there is
+	// none" from "it equals the reading" (transform.py:217-224).
+	Normalized *string `json:"normalized,omitempty"`
 }
 
 type Debug struct {
@@ -120,6 +125,9 @@ type Input struct {
 	Boxes []postprocess.Box
 	// Ocr maps field name to recognised value.
 	Ocr map[string]string
+	// Normalized maps a date field to its canonical dd.mm.yyyy form (Results.OcrNormalized);
+	// fields without one are absent.
+	Normalized map[string]string
 	// Quality mixes strings (Glare, Blur, the two spoofing verdicts) and one float
 	// (DocConf), exactly as the library's dict does.
 	Quality map[string]any
@@ -177,7 +185,7 @@ func Build(in Input, includeDebug bool) Payload {
 		CoordSpace:     "canvas",
 		CoordSpaceNote: coordSpaceNote,
 		Boxes:          boxes,
-		Fields:         buildFields(in.DocType, ocr, boxes),
+		Fields:         buildFields(in.DocType, ocr, boxes, in.Normalized),
 		Ocr:            ocr,
 		Quality:        quality,
 		Timings:        timings,

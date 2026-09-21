@@ -14,30 +14,16 @@
   ],
   "deviations": [
     {
-      "id": "D-01-mrz-ladder-not-ported",
+      "id": "D-03-page-registration-line-refine-not-bitwise",
       "kind": "deviation",
-      "ports": ["go", "dotnet", "java"],
-      "cases": ["EXTPASSPORT_2003-10_BG_EXTPASSPORT_2010_0"],
-      "stages": ["ocr.MRZ.words", "join", "viewmodel"],
-      "paths": ["MRZ"],
-      "reason": "The reference re-reads a wrong-length MRZ line through a widening crop ladder (ac7eb14); the ports do not implement the ladder yet, so they still produce the short line the detector's own crop yields. Goldens were regenerated on the reference (8c60e36), so this difference is the ports lagging behind a deliberate change, not a defect in them.",
-      "basis": "user decision #3 'wait' (porting the ladder deferred); goldens regenerated per frame 4-20260824-1330-gate.result-acceptance",
-      "declared": "2026-08-24",
-      "owner": "Приёмка и замеры",
-      "removed_when": "the ports implement the MRZ re-read ladder (their batch pass) — then this entry goes stale and must be deleted"
-    },
-    {
-      "id": "D-02-view-normalized-ahead-of-goldens",
-      "kind": "deviation",
-      "ports": ["python"],
-      "cases": ["*"],
-      "stages": ["viewmodel"],
-      "paths": ["\\.normalized$"],
-      "reason": "The reference now attaches a canonical dd.mm.yyyy date beside the raw reading (ab7653e); the goldens predate it, so every date field reads as an EXTRA key. Measured before declaring: exactly one stage, 9 cases of 9, 21 differences, every one of them a '.normalized' key and nothing else. Scoped to the reference only — the ports do not emit the property, so they still match the goldens and nothing about them is being excused here.",
-      "basis": "user decision #8 (dates line committed) and #3 (goldens batch pass deferred); composition verified against declaration_view_normalized_2026-08-24.json, value fingerprint 60f0d944…. In THIS tree the same change arrived as commit 77ae374 (shipment of 2026-08-26, user decision #94); until then this entry named only the corporate commit, which is why the note is added rather than rewritten",
-      "declared": "2026-08-24",
-      "owner": "Приёмка и замеры",
-      "removed_when": "the goldens are regenerated in the batch pass — after that the property is IN the golden, this entry goes stale, and the ports' missing key becomes a separate question that needs its own entry or none"
+      "ports": ["go", "dotnet"],
+      "cases": ["INTPASSPORT_1997-15_CR_INTPASSPORT_2001", "INTPASSPORT_2011-12_CR_INTPASSPORT_2011"],
+      "stages": ["fields.bbox", "words.*.bbox", "ocr.*.words", "join", "viewmodel"],
+      "reason": "The ports carry the passport page registration (page_registration/: template locator, quad fit, line refinement, line dewarp) and reproduce the canvas of both internal-passport cases exactly (borders.canvas and deskew.canvas match). What does not converge bitwise is the line refinement: the reference uses cv2.createLineSegmentDetector, which neither gocv 0.43 nor OpenCvSharp4 binds, so both ports find their line evidence with Canny+HoughLinesP; and the 4-parameter IRLS fit runs on a hand-written Levenberg-Marquardt instead of scipy.optimize.least_squares (trf). A slightly different refinement homography moves the field boxes by 1-7 px on Go (median 1, p90 3) and 1-10 px on .NET, shifts detector confidences by up to 0.03, and on each case flips one character of one field where the crop edge crosses a glyph. The Kotlin/JVM port binds LSD and matches bitwise, so it is not listed. Measured 2026-09-21 on the models-v6 goldens; both ports are deterministic run to run (RANSAC seeded). D-01 (MRZ re-read ladder) and D-02 (normalized dates ahead of the goldens) retired the same day: all three ports carry the ladder now, and the goldens were regenerated with the canonical dates in them, so both entries matched nothing. In this tree both passport cases are withdrawn (W-01, W-04), so this entry records the ports' state and matches nothing here until a synthetic replacement returns the cases.",
+      "basis": "user decision of 2026-09-19 (release 4.5.0 in one window with the ports; a residual that cannot be made pixel-exact is declared with its measured size rather than left to hold the release); measured on the ports' conformance reports of 2026-09-21",
+      "declared": "2026-09-21",
+      "owner": "release 4.5.0 (maintainer)",
+      "removed_when": "an LSD binding becomes available in the port's OpenCV wrapper and the line refinement is re-run through it, or the reference switches its line evidence to a detector the ports can call bitwise - then this entry goes stale and must be deleted"
     },
     {
       "id": "W-01-intpassport2011-sample-withdrawn",

@@ -23,7 +23,10 @@ python -m conformance.runner run --port python
 
 # grade a port
 python -m conformance.runner run --port go
-python -m conformance.runner run --port go --profile gpu --verbose
+python -m conformance.runner run --port go --verbose
+
+# a device other than the goldens' is refused, with the reason, before any work:
+python -m conformance.runner run --port go --device gpu     # -> exit 3, see device_pin.py
 
 # regenerate the goldens (deliberate, reviewable, its own commit)
 python -m conformance.refcli regen
@@ -44,6 +47,9 @@ refcli/     the Python REFERENCE cli; the only package here that may import
             document_processing
 runner/     the CHECKER; imports no port and no library, drives everything by
             subprocess
+deviations.json  declared, dated, scoped differences that are NOT a red; the
+            verdict is CLEAN / DECLARED / UNDECLARED, and only the last fails.
+            See spec/tolerances.md and deviations.py before adding an entry.
 cases/      golden data, one directory per document (~170 KB total)
 tools/      operational helpers, not part of the contract
 ```

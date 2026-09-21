@@ -220,5 +220,15 @@ func newDetectorPost(out Output, mode postprocess.NmsMode) (postprocess.Postproc
 	if err != nil {
 		return nil, err
 	}
-	return postprocess.NewYoloDetector(labels, derefOr(out.IOU, 0.2), derefOr(out.CLS, 0.5), mode)
+	det, err := postprocess.NewYoloDetector(labels, derefOr(out.IOU, 0.2), derefOr(out.CLS, 0.5), mode)
+	if err != nil {
+		return nil, err
+	}
+	if mode == postprocess.NmsPerClass {
+		// Optional per-class overrides, read only for the per-class head, exactly as the
+		// reference passes `iou_per_class` / `cls_per_class` to that subclass alone
+		// (models.py:150-158).
+		det.SetPerClass(out.IOUPerClass, out.CLSPerClass)
+	}
+	return det, nil
 }

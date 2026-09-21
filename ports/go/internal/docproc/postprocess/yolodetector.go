@@ -53,6 +53,14 @@ type YoloDetector struct {
 	// numpyOnly skips label attachment and integer coercion, matching the
 	// `numpy=True` call the segmentation wrapper makes.
 	numpyOnly bool
+
+	// iouPerClass / clsPerClass override the shared thresholds for named classes only.
+	// Port of PerClassYOLODetectorPostprocessing (postprocessing.py:521-566), where the
+	// measured need is the MRZ: its two lines are one box each of the SAME class, so on
+	// a tilted page they suppress each other at the shared IOU, and the second line's
+	// confidence sits right at the shared 0.5 on the deployed model. Nil means "shared".
+	iouPerClass map[string]float64
+	clsPerClass map[string]float64
 }
 
 func NewYoloDetector(labels []string, iou, cls float64, mode NmsMode) (*YoloDetector, error) {
@@ -68,6 +76,35 @@ func (y *YoloDetector) WithNumpyOnly() *YoloDetector {
 	c := *y
 	c.numpyOnly = true
 	return &c
+}
+
+// SetPerClass installs the optional per-class IOU and confidence overrides.
+func (y *YoloDetector) SetPerClass(iou, cls map[string]float64) {
+	y.iouPerClass = iou
+	y.clsPerClass = cls
+}
+
+// clsFor is the confidence threshold of one class column (`_thresholds`): the named
+// override when there is one, else the shared value.
+func (y *YoloDetector) clsFor(c int) float64 {
+	if len(y.clsPerClass) == 0 || c < 0 || c >= len(y.labels) {
+		return y.cls
+	}
+	if v, ok := y.clsPerClass[y.labels[c]]; ok {
+		return v
+	}
+	return y.cls
+}
+
+// iouFor is `iou_for`: the NMS threshold of one class.
+func (y *YoloDetector) iouFor(c int) float64 {
+	if len(y.iouPerClass) == 0 || c < 0 || c >= len(y.labels) {
+		return y.iou
+	}
+	if v, ok := y.iouPerClass[y.labels[c]]; ok {
+		return v
+	}
+	return y.iou
 }
 
 func (y *YoloDetector) Apply(out *tensor.Array, ctx Context) (Result, error) {
@@ -114,13 +151,29 @@ func (y *YoloDetector) decode(out *tensor.Array, ctx Context) ([]Box, error) {
 
 		// Strict `>`, matching `.max(axis=1) > self.cls`. A box exactly at the
 		// threshold is dropped.
+		//
+		// With per-class thresholds the reference does two things (conf_keep and
+		// conf_scores): a row survives when ANY class passes its OWN threshold, and the
+		// scores of classes that did NOT pass theirs are zeroed BEFORE the argmax -
+		// otherwise a row could survive on a low-threshold class while argmax picks a
+		// higher-scoring class that failed its own bar, and the box would be kept
+		// under the wrong label. The shared-threshold path is the same computation with
+		// one threshold, so one loop serves both.
 		best, bestScore := 0, float64(math.Inf(-1))
+		passed := false
 		for c := 0; c < nc; c++ {
-			if v := float64(row[4+c]); v > bestScore {
+			v := float64(row[4+c])
+			if v > y.clsFor(c) {
+				passed = true
+			} else {
+				v = 0
+			}
+			// First maximum on a tie, like np.argmax.
+			if v > bestScore {
 				best, bestScore = c, v
 			}
 		}
-		if !(bestScore > y.cls) {
+		if !passed {
 			continue
 		}
 
@@ -152,7 +205,7 @@ func (y *YoloDetector) decode(out *tensor.Array, ctx Context) ([]Box, error) {
 
 	var keep []int
 	if y.mode == NmsPerClass {
-		keep = nmsPerClass(boxesXY, confs, classes, y.iou)
+		keep = nmsPerClass(boxesXY, confs, classes, y.iouFor)
 	} else {
 		keep = nms(boxesXY, confs, y.iou)
 	}
@@ -301,7 +354,10 @@ func nms(boxes [][4]float64, scores []float64, threshold float64) []int {
 // Classes are visited in ASCENDING order, matching `np.unique`, because the resulting
 // index order feeds the reading-order sort afterwards and a different visit order can
 // break ties differently.
-func nmsPerClass(boxes [][4]float64, scores []float64, classes []int, threshold float64) []int {
+//
+// The threshold is looked up PER CLASS (`iou_for`): the MRZ overrides the shared 0.2
+// because its two lines are same-class boxes that overlap on a tilted page.
+func nmsPerClass(boxes [][4]float64, scores []float64, classes []int, threshold func(int) float64) []int {
 	seen := map[int]bool{}
 	var unique []int
 	for _, c := range classes {
@@ -325,7 +381,7 @@ func nmsPerClass(boxes [][4]float64, scores []float64, classes []int, threshold 
 		for i, j := range idx {
 			sub[i], subScores[i] = boxes[j], scores[j]
 		}
-		for _, k := range nms(sub, subScores, threshold) {
+		for _, k := range nms(sub, subScores, threshold(c)) {
 			keep = append(keep, idx[k])
 		}
 	}

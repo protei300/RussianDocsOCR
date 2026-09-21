@@ -52,8 +52,10 @@ public data class OcrOptions(
             }
             if (t.contains("intpassport")) {
                 return OcrOptions(
+                    // `Middle_name_ru`: see the DL branch — no OCR alphabet carries a space, so a
+                    // double patronymic is returned glued unless the splitter runs (pipeline.py:134).
                     neededSplit = listOf("Licence_number", "Birth_place_ru",
-                        "Issue_organization_ru"),
+                        "Issue_organization_ru", "Middle_name_ru"),
                     // MRZ is read by the Latin engine and is NOT in neededSplit: the zone is
                     // detected one box per LINE, and each line must reach the engine whole —
                     // splitting it at its filler runs would destroy the fixed 44-character layout
@@ -74,7 +76,13 @@ public data class OcrOptions(
             }
             if (t.contains("extpassport")) {
                 return OcrOptions(
-                    neededSplit = listOf("Licence_number", "Birth_place_ru", "Birth_place_en"),
+                    // `Issue_organization_ru` is split for a reason that is easy to undo by accident
+                    // (pipeline.py:211): NEITHER OCR alphabet contains a space, so a multi-word field
+                    // that skips the splitter is returned glued — «МИД РОССИИ» came back as
+                    // «МИДРОССИИ». Measured over samples/ (2026-09-02): 12 of 99 acceptance failures
+                    // were exactly this field, every one differing from the truth by spaces alone.
+                    neededSplit = listOf("Licence_number", "Birth_place_ru", "Birth_place_en",
+                        "Issue_organization_ru"),
                     // MRZ: Latin engine, never split — see intpassport above.
                     enFields = listOf("Last_name_en", "First_name_en", "Issue_date",
                         "Expiration_date", "Birth_date", "Birth_place_en", "Issue_organization_en",
@@ -88,8 +96,12 @@ public data class OcrOptions(
             }
             if (t.contains("dl")) {
                 return OcrOptions(
+                    // `Middle_name_*` is split for the same reason as the external passport's
+                    // `Issue_organization_ru`: no alphabet has a space, so a double patronymic («ОГЛЫ»,
+                    // «КЫЗЫ») comes back glued without the splitter (pipeline.py:256).
                     neededSplit = listOf("Licence_number", "Driver_class", "Birth_place_ru",
-                        "Birth_place_en", "Living_region_ru", "Living_region_en"),
+                        "Birth_place_en", "Living_region_ru", "Living_region_en",
+                        "Middle_name_ru", "Middle_name_en"),
                     enFields = listOf("Last_name_en", "First_name_en", "Licence_number", "Issue_date",
                         "Expiration_date", "Driver_class", "Birth_date", "Birth_place_en",
                         "Issue_organization_en", "Living_region_en", "Issue_organisation_code",

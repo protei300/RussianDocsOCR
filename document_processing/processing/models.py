@@ -153,6 +153,8 @@ class ModelLoader:
                     cls=output_info['CLS'],
                     # optional: raises the NMS threshold for named classes only
                     iou_per_class=output_info.get('IOUPerClass'),
+                    # optional: the same for the confidence threshold
+                    cls_per_class=output_info.get('CLSPerClass'),
                     verbose=self.verbose,
                 )
             case "YOLOOBBDetector":

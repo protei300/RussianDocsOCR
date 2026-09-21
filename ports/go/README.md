@@ -75,6 +75,24 @@ from Python" with "1.21 differs from 1.28".
 For `--device gpu` the `nvidia/*/bin` directories also need to be on PATH — the same set
 Python's `_enable_cuda_dlls()` registers.
 
+**Running the soak in Docker takes one extra step, and the error message does not say
+so.** The soak is a gated test (`RDOCS_SOAK=1 go test -run Soak ./internal/docproc/modules`),
+so it needs the Go toolchain — which lives in the `go-builder` stage, and that stage carries
+only the ORT *headers*: `libonnxruntime.so` itself is copied into the runtime stage. Running
+the test there fails with the same `set ORT_DLL/ORT_SO to a matching build` line as a missing
+`ORT_DLL` on Windows, which reads like a broken build and is not one. Give the builder the
+library and point at it:
+
+```dockerfile
+FROM russiandocs-go:cpu AS rt
+FROM <the go-builder image>
+COPY --from=rt /usr/local/lib/libonnxruntime.so* /usr/local/lib/
+RUN ldconfig
+```
+
+then run with `-e ORT_SO=/usr/local/lib/libonnxruntime.so` (`ldconfig` alone is not enough —
+the loader is given an explicit path, not a SONAME).
+
 Verify at any time:
 
 ```powershell

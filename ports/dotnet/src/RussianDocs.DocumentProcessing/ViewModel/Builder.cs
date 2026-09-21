@@ -22,6 +22,9 @@ public sealed record Input
     public bool CanvasMissing { get; init; }
     public List<Box2>? Boxes { get; init; }
     public Dictionary<string, string>? Ocr { get; init; }
+
+    /// <summary>Canonical <c>dd.mm.yyyy</c> form per date field (<c>Results.OcrNormalized</c>).</summary>
+    public Dictionary<string, string>? Normalized { get; init; }
     public Dictionary<string, object>? Quality { get; init; }
     public Dictionary<string, double>? Timings { get; init; }
     public List<Point[]>? Segments { get; init; }
@@ -69,7 +72,7 @@ public static class Builder
             CoordSpace = "canvas",
             CoordSpaceNote = CoordSpaceNote,
             Boxes = boxes,
-            Fields = BuildFields(input.DocType, ocr, boxes),
+            Fields = BuildFields(input.DocType, ocr, boxes, input.Normalized ?? []),
             Ocr = ocr,
             Quality = input.Quality ?? [],
             Timings = input.Timings ?? [],
@@ -154,7 +157,7 @@ public static class Builder
     /// </para>
     /// </summary>
     private static List<Field> BuildFields(string docType, Dictionary<string, string> ocr,
-        List<Box> boxes)
+        List<Box> boxes, Dictionary<string, string> normalized)
     {
         var byLabel = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         var confByLabel = new Dictionary<string, double?>(StringComparer.Ordinal);
@@ -183,6 +186,11 @@ public static class Builder
         var fields = new List<Field>(ordered.Count);
         foreach (string name in ordered)
         {
+            // "if canonical:" in the reference (transform.py:244-246) — an empty string is treated
+            // as absent too, and the key is omitted entirely rather than sent as null.
+            string? canonical = normalized.TryGetValue(name, out string? c) && !string.IsNullOrEmpty(c)
+                ? c
+                : null;
             fields.Add(new Field
             {
                 Name = name,
@@ -191,6 +199,7 @@ public static class Builder
                 Script = Labels.FieldScript(name),
                 Conf = confByLabel.TryGetValue(name, out double? conf) ? conf : null,
                 BoxIds = byLabel.TryGetValue(name, out List<string>? ids) ? ids : [],
+                Normalized = canonical,
             });
         }
         return fields;

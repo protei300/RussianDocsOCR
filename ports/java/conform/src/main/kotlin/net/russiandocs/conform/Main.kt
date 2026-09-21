@@ -305,7 +305,10 @@ private fun cmdSoak(args: Array<String>): Int {
 
     val files = File(dir).walkTopDown()
         .filter { it.isFile && it.extension.equals("jpg", ignoreCase = true) }
-        // Only the per-type subdirectories, matching the corpus the other ports soak over.
+        // Only the per-type subdirectories: the loose test_*.jpg at the root of samples/ are OCR
+        // fixtures, not documents. This is NOT the same corpus the other ports soak over - .NET
+        // walks all 123 files, this walks 117 - and the difference is deliberate but untested by
+        // anything, since the soak is a leak check rather than part of the conformance contract.
         .filter { it.parentFile?.absolutePath != File(dir).absolutePath }
         .sortedBy { it.absolutePath }
         .toList()

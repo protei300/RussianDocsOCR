@@ -86,6 +86,15 @@ public sealed class ModelOutput
     [JsonPropertyName("Threshold")] public double? Threshold { get; set; }
     [JsonPropertyName("IOU")] public double? Iou { get; set; }
     [JsonPropertyName("CLS")] public double? Cls { get; set; }
+
+    /// <summary>
+    /// Optional per-class overrides of <c>IOU</c> and <c>CLS</c>, keyed by label
+    /// (<c>{"MRZ": 0.6}</c>). Read by <c>PerClassYOLODetector</c> only. The reference passes
+    /// them as <c>iou_per_class</c> / <c>cls_per_class</c> (processing/models.py:150-156).
+    /// </summary>
+    [JsonPropertyName("IOUPerClass")] public Dictionary<string, double>? IouPerClass { get; set; }
+    [JsonPropertyName("CLSPerClass")] public Dictionary<string, double>? ClsPerClass { get; set; }
+
     [JsonPropertyName("MaskFilter")] public double? MaskFilter { get; set; }
     [JsonPropertyName("Metric")] public string? Metric { get; set; }
     [JsonPropertyName("Centers")] public string? Centers { get; set; }

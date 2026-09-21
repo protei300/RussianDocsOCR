@@ -1,11 +1,16 @@
 package pipeline
 
 import (
+	"math"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/imaging"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/modules"
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/postprocess"
 )
 
 // FieldText is one recognised field: the per-word strings and the joined value.
@@ -53,13 +58,170 @@ type FieldText struct {
 	Value string
 }
 
+// MrzLineLen is MRZ_LINE_LEN: a line of a machine-readable zone is exactly 44 characters,
+// and that is a rare luxury - the pipeline can tell that it read the line WRONG without
+// being told, and try again. Anything shorter means the crop lost part of the line.
+const MrzLineLen = 44
+
+// mrzRetryGrowth is MRZ_RETRY_GROWTH (pipeline.py:834-853). The MRZ is printed as ONE
+// rectangle holding two lines, so both lines share the same horizontal span - but the
+// detector does not know that. Measured over samples/: the two boxes of a zone start
+// within 10 px of each other when the zone reads correctly and 90-182 px apart when it
+// does not, and the characters outside the narrower box never reach the engine (23 of
+// the 34 damaged lines; the engine was innocent). So the zone's own span is the FIRST
+// retry candidate, then the ladder widens further - a candidate and not a rewrite,
+// because forcing every MRZ box to the union span fixed the external passports and
+// damaged an internal one. The ladder reaches 34% of the span on each side because that
+// is what the worst measured case needed; the crop is clamped to the canvas, so the last
+// steps saturate instead of running away.
+var mrzRetryGrowth = []float64{0.0, 0.05, 0.10, 0.16, 0.24, 0.34}
+
+// mrzAlphabet is MRZ_ALPHABET: capitals, digits and the filler. A line cannot begin or
+// end with anything else, so a stray '.' or '_' at an edge is the page border caught by
+// the crop, not text.
+const mrzAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+
+// MrzZone remembers the canvas and the MRZ boxes for the length self-check.
+// Port of Pipeline._mrz_zone as filled by _note_mrz_zone (pipeline.py:862-890).
+//
+// Nothing is modified when it is built: the boxes the detector produced stay exactly as
+// they are, so fields.bbox and every other field are untouched. Its only purpose is that
+// ReadMrz can re-cut a line from the canvas later. The canvas is BORROWED (owned by the
+// run), never closed here.
+type MrzZone struct {
+	Canvas imaging.Image
+	// Boxes are the MRZ boxes [x1, y1, x2, y2], top to bottom - the order the OCR loop
+	// walks the patches in, so the retry knows which box a patch came from.
+	Boxes [][4]int
+	// Span is the horizontal extent of the zone as a whole, from the line-shaped boxes
+	// only; nil when fewer than two are line-shaped.
+	Span *[2]int
+}
+
+// NoteMrzZone builds the zone from the field detections, or nil when there is no MRZ.
+func NoteMrzZone(boxes []postprocess.Box, canvas imaging.Image) *MrzZone {
+	var idx []int
+	for i, b := range boxes {
+		if b.Label == "MRZ" {
+			idx = append(idx, i)
+		}
+	}
+	if len(idx) == 0 {
+		return nil
+	}
+	// list.sort by vertical centre: stable.
+	sort.SliceStable(idx, func(a, b int) bool {
+		return (boxes[idx[a]].Y1+boxes[idx[a]].Y2)/2 < (boxes[idx[b]].Y1+boxes[idx[b]].Y2)/2
+	})
+	zone := &MrzZone{Canvas: canvas}
+	for _, i := range idx {
+		b := boxes[i]
+		zone.Boxes = append(zone.Boxes, [4]int{int(b.X1), int(b.Y1), int(b.X2), int(b.Y2)})
+	}
+	// The span of the zone as a whole: for a line whose own box is too narrow this is
+	// where the missing characters are. Only from boxes that are line-shaped - a box
+	// several line-heights tall is not a line, and its edges say nothing about where the
+	// line ends (measured: the one such zone reads worse from a widened crop).
+	var lineShaped [][4]int
+	for _, b := range zone.Boxes {
+		h := b[3] - b[1]
+		if h < 1 {
+			h = 1
+		}
+		if b[2]-b[0] >= 10*h {
+			lineShaped = append(lineShaped, b)
+		}
+	}
+	if len(lineShaped) > 1 {
+		left, right := lineShaped[0][0], lineShaped[0][2]
+		for _, b := range lineShaped[1:] {
+			if b[0] < left {
+				left = b[0]
+			}
+			if b[2] > right {
+				right = b[2]
+			}
+		}
+		zone.Span = &[2]int{left, right}
+	}
+	return zone
+}
+
+// trimToMrzAlphabet drops edge characters that cannot occur in a machine-readable zone.
+// Port of Pipeline._trim_to_mrz_alphabet: only the ends, and only characters outside the
+// zone's closed alphabet. Anything inside the line is left alone - a wrong character
+// there is a reading error, and hiding it would be worse than showing it.
+func trimToMrzAlphabet(text string) string {
+	return strings.TrimFunc(text, func(r rune) bool {
+		return !strings.ContainsRune(mrzAlphabet, r)
+	})
+}
+
+// readMrz re-reads one MRZ line from a wider crop when it came out too short.
+// Port of Pipeline._read_mrz (pipeline.py:905-942).
+//
+// The reading the detector's own crop produced is kept unless it is the wrong length;
+// then the zone's full span is tried, then progressively wider crops, and the first
+// result of exactly 44 characters wins. Falls back to the longest reading seen. Never
+// invents a line: it only re-reads a box the detector found.
+func readMrz(zone *MrzZone, lat *modules.OcrEngine, lineIndex int, text string) (string, error) {
+	text = trimToMrzAlphabet(text)
+	if utf8.RuneCountInString(text) == MrzLineLen {
+		return text, nil
+	}
+	if zone == nil || lineIndex >= len(zone.Boxes) {
+		return text, nil
+	}
+	width := zone.Canvas.Width()
+	b := zone.Boxes[lineIndex]
+	x1, y1, x2, y2 := b[0], b[1], b[2], b[3]
+	best := text
+	for _, growth := range mrzRetryGrowth {
+		left, right := x1, x2
+		if zone.Span != nil {
+			left, right = zone.Span[0], zone.Span[1]
+		}
+		// int(round(...)): Python's round is half-to-even.
+		step := int(math.RoundToEven(float64(right-left) * growth))
+		cx1, cx2 := left-step, right+step
+		if cx1 < 0 {
+			cx1 = 0
+		}
+		if cx2 > width {
+			cx2 = width
+		}
+		crop, err := imaging.ClampedCrop(zone.Canvas, cx1, y1, cx2, y2)
+		if err != nil {
+			return "", err
+		}
+		if crop.Empty() || crop.Width() == 0 || crop.Height() == 0 {
+			_ = crop.Close()
+			continue
+		}
+		candidate, err := lat.Predict(crop)
+		_ = crop.Close()
+		if err != nil {
+			return "", err
+		}
+		candidate = trimToMrzAlphabet(lat.FixErrors("MRZ", candidate))
+		if utf8.RuneCountInString(candidate) == MrzLineLen {
+			return candidate, nil
+		}
+		if utf8.RuneCountInString(candidate) > utf8.RuneCountInString(best) {
+			best = candidate
+		}
+	}
+	return best, nil
+}
+
 // OcrFields recognises every field's words and joins them.
-// Port of Pipeline._ocr_serial (pipeline.py:985-1027).
+// Port of Pipeline._ocr_serial (pipeline.py:1830-1870).
 //
 // docType is the label with its year suffix already stripped, which matters: the routing
-// below tests `docType == "SNILS"` against the bare type.
+// below tests `docType == "SNILS"` against the bare type. zone may be nil (no MRZ on the
+// document); with one, every MRZ line of the wrong length goes through readMrz.
 func OcrFields(fields []FieldWords, docType string, opts OcrOptions,
-	cyr, lat *modules.OcrEngine) ([]FieldText, error) {
+	cyr, lat *modules.OcrEngine, zone *MrzZone) ([]FieldText, error) {
 
 	out := make([]FieldText, 0, len(fields))
 	for _, fw := range fields {
@@ -94,7 +256,16 @@ func OcrFields(fields []FieldWords, docType string, opts OcrOptions,
 				if err != nil {
 					return nil, err
 				}
-				words = append(words, lat.FixErrors(fw.Label, text))
+				text = lat.FixErrors(fw.Label, text)
+				if fw.Label == "MRZ" {
+					// i is the line's index within the field: the MRZ is never split, so
+					// its patches are its detections, top to bottom, exactly as the zone
+					// recorded them.
+					if text, err = readMrz(zone, lat, i, text); err != nil {
+						return nil, err
+					}
+				}
+				words = append(words, text)
 
 				// No default: a field in neither list contributes NO word, and the field
 				// still appears with an empty value. That is the reference's behaviour --

@@ -19,7 +19,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from service import __version__, worker
 from service.api import api_keys, auth, documents, logs, settings_api, status
@@ -177,24 +177,63 @@ def health() -> dict:
 # Served by this same process, so the browser sees one origin. Not via
 # `app.mount()`: a Mount matches before route handlers and would shadow the
 # API. A catch-all route runs last, which is what we want.
-_web_dir = next((d for d in (_BASE_DIR / "web" / "dist", _BASE_DIR / "web")
-                 if d.is_dir()), None)
+#
+# Only ``web/dist`` is ever served. There used to be a fallback to ``web/``
+# itself, and it was the defect: ``web/`` is the SOURCE tree, it is tracked, so
+# it exists in every clone — which meant the "not built" message below could
+# never be reached in the situation it names. What the visitor got instead was
+# the source ``index.html``, whose `<script type="module" src="/src/main.ts">`
+# the browser refuses to execute (Python serves `.ts` as
+# `video/vnd.dlna.mpeg-tts`, and module scripts are type-checked strictly),
+# while `/favicon.svg` and the two stylesheets live in ``web/public/`` and
+# resolve to `index.html` instead. Net effect: a blank page, no diagnosis, and
+# a working API nobody could tell was working.
+#
+# Do not restore the fallback as a kindness. The source tree is never a
+# servable artifact: vite writes the build to ``dist`` (``web/vite.config.ts``,
+# ``build.outDir``), the Dockerfile copies it to ``web/dist`` and asserts
+# ``web/dist/index.html`` exists, and during development the SPA is served by
+# vite itself on port 8000 with a proxy to this API. There is no configuration
+# in which serving ``web/`` produces a working page.
+_web_root = (_BASE_DIR / "web" / "dist").resolve()
 
-if _web_dir is not None:
-    _web_root = _web_dir.resolve()
+_UNBUILT_HINT = "Frontend not built. Run `npm run build` in web/."
+_UNBUILT_PAGE = f"""<!doctype html>
+<meta charset="utf-8">
+<title>RussianDocs — frontend not built</title>
+<style>
+  body {{ font: 16px/1.6 system-ui, sans-serif; max-width: 42rem;
+         margin: 4rem auto; padding: 0 1.5rem; }}
+  code {{ background: #f4f4f5; padding: .15em .4em; border-radius: .25rem; }}
+</style>
+<h1>The web interface is not built</h1>
+<p>The API is running and fully usable — this page is only about the UI.</p>
+<p>Build it once:</p>
+<pre><code>cd web
+npm install
+npm run build</code></pre>
+<p>Then reload this page. The build is written to <code>web/dist/</code>, which
+is deliberately not stored in the repository.</p>
+<p>API docs: <a href="/docs">/docs</a> &middot; health: <a href="/health">/health</a></p>
+"""
 
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def spa_fallback(full_path: str):
-        candidate = (_web_root / full_path).resolve()
-        # Containment check: without it, `GET /../../etc/passwd` would escape
-        # the web directory. `resolve()` collapses the traversal so the prefix
-        # comparison is meaningful.
-        inside = candidate == _web_root or candidate.is_relative_to(_web_root)
-        if inside and candidate.is_file():
-            return FileResponse(candidate)
-        index = _web_root / "index.html"
-        if index.is_file():
-            return FileResponse(index)
-        return {"detail": "Frontend not built. Run `npm run build` in web/."}
-else:
-    log.warning("[BOOT] no web/ directory — API only")
+if not (_web_root / "index.html").is_file():
+    log.warning("[BOOT] %s Looked in %s. The API works; the UI will answer "
+                "with build instructions.", _UNBUILT_HINT, _web_root)
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def spa_fallback(full_path: str):
+    # Checked per request, not at import: building while the server runs then
+    # takes effect on the next reload instead of requiring a restart.
+    index = _web_root / "index.html"
+    if not index.is_file():
+        return HTMLResponse(_UNBUILT_PAGE, status_code=503)
+    candidate = (_web_root / full_path).resolve()
+    # Containment check: without it, `GET /../../etc/passwd` would escape
+    # the web directory. `resolve()` collapses the traversal so the prefix
+    # comparison is meaningful.
+    inside = candidate == _web_root or candidate.is_relative_to(_web_root)
+    if inside and candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(index)

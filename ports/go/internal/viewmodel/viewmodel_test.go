@@ -72,7 +72,7 @@ func TestFieldsAreInReadingOrder(t *testing.T) {
 		"Licence_number": "1234",
 		"First_name_ru":  "ПЕТР",
 	}
-	fields := buildFields("SNILS_1996", ocr, nil)
+	fields := buildFields("SNILS_1996", ocr, nil, nil)
 	got := make([]string, len(fields))
 	for i, f := range fields {
 		got[i] = f.Name
@@ -92,7 +92,7 @@ func TestUnknownFieldsAreAppendedAlphabetically(t *testing.T) {
 		"Zzz_new_field": "x",
 		"Last_name_ru":  "ИВАНОВ",
 		"Aaa_new_field": "y",
-	}, nil)
+	}, nil, nil)
 	got := make([]string, len(fields))
 	for i, f := range fields {
 		got[i] = f.Name
@@ -110,7 +110,7 @@ func TestUnknownFieldsAreAppendedAlphabetically(t *testing.T) {
 func TestFieldConfComesFromTheOwningBox(t *testing.T) {
 	ocr := map[string]string{"Licence_number": "1234"}
 	boxes := buildBoxes([]postprocess.Box{box("Licence_number", 0.71), box("Licence_number", 0.88)}, ocr)
-	fields := buildFields("SNILS_1996", ocr, boxes)
+	fields := buildFields("SNILS_1996", ocr, boxes, nil)
 	if len(fields) != 1 {
 		t.Fatalf("expected one field, got %d", len(fields))
 	}

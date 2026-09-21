@@ -19,9 +19,9 @@
       "kind": "text",
       "x1": 300,
       "y1": 205,
-      "x2": 367,
-      "y2": 220,
-      "conf": 0.923,
+      "x2": 368,
+      "y2": 221,
+      "conf": 0.906,
       "cls": 1,
       "text": "БОРИСОВА",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "First_name_ru",
       "display": "First name",
       "kind": "text",
-      "x1": 255,
-      "y1": 227,
-      "x2": 400,
-      "y2": 241,
-      "conf": 0.878,
+      "x1": 254,
+      "y1": 226,
+      "x2": 399,
+      "y2": 242,
+      "conf": 0.877,
       "cls": 2,
       "text": "АНАСТАСИЯ АЛЕКСЕЕВНА",
       "ambiguous": false
@@ -47,9 +47,9 @@
       "kind": "text",
       "x1": 352,
       "y1": 249,
-      "x2": 426,
+      "x2": 427,
       "y2": 262,
-      "conf": 0.917,
+      "conf": 0.908,
       "cls": 10,
       "text": "22.06.2010",
       "ambiguous": false
@@ -63,7 +63,7 @@
       "y1": 324,
       "x2": 400,
       "y2": 344,
-      "conf": 0.927,
+      "conf": 0.919,
       "cls": 11,
       "text": "2 ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ, РОССИЯ",
       "ambiguous": false
@@ -74,10 +74,10 @@
       "display": "Place of birth",
       "kind": "text",
       "x1": 270,
-      "y1": 350,
+      "y1": 349,
       "x2": 433,
       "y2": 370,
-      "conf": 0.914,
+      "conf": 0.917,
       "cls": 11,
       "text": null,
       "ambiguous": true
@@ -91,7 +91,7 @@
       "y1": 374,
       "x2": 364,
       "y2": 385,
-      "conf": 0.919,
+      "conf": 0.917,
       "cls": 11,
       "text": null,
       "ambiguous": true
@@ -103,9 +103,9 @@
       "kind": "text",
       "x1": 367,
       "y1": 419,
-      "x2": 402,
+      "x2": 403,
       "y2": 432,
-      "conf": 0.894,
+      "conf": 0.899,
       "cls": 30,
       "text": "2521",
       "ambiguous": false
@@ -119,7 +119,7 @@
       "y1": 446,
       "x2": 372,
       "y2": 463,
-      "conf": 0.93,
+      "conf": 0.935,
       "cls": 22,
       "text": "БОРИСОВ",
       "ambiguous": false
@@ -129,11 +129,11 @@
       "label": "Father_first_middle_ru",
       "display": "Father_first_middle_ru",
       "kind": "text",
-      "x1": 258,
-      "y1": 471,
-      "x2": 399,
+      "x1": 257,
+      "y1": 470,
+      "x2": 398,
       "y2": 485,
-      "conf": 0.906,
+      "conf": 0.893,
       "cls": 23,
       "text": "АЛЕКСЕЙ ОЛЕГОВИЧ",
       "ambiguous": false
@@ -146,8 +146,8 @@
       "x1": 301,
       "y1": 547,
       "x2": 373,
-      "y2": 564,
-      "conf": 0.92,
+      "y2": 563,
+      "conf": 0.93,
       "cls": 24,
       "text": "БОРИСОВА",
       "ambiguous": false
@@ -161,7 +161,7 @@
       "y1": 571,
       "x2": 395,
       "y2": 586,
-      "conf": 0.892,
+      "conf": 0.899,
       "cls": 25,
       "text": "АННА НИКИТИЧНА",
       "ambiguous": false
@@ -171,11 +171,11 @@
       "label": "Issue_organization_ru",
       "display": "Issuing authority",
       "kind": "text",
-      "x1": 173,
+      "x1": 172,
       "y1": 668,
-      "x2": 510,
+      "x2": 508,
       "y2": 686,
-      "conf": 0.863,
+      "conf": 0.844,
       "cls": 13,
       "text": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2. ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГС ИРКУТСКОЙ ОБЛАСТ",
       "ambiguous": false
@@ -185,11 +185,11 @@
       "label": "Issue_organization_ru",
       "display": "Issuing authority",
       "kind": "text",
-      "x1": 160,
-      "y1": 693,
+      "x1": 159,
+      "y1": 692,
       "x2": 506,
-      "y2": 711,
-      "conf": 0.793,
+      "y2": 712,
+      "conf": 0.803,
       "cls": 13,
       "text": null,
       "ambiguous": true
@@ -202,7 +202,7 @@
       "x1": 277,
       "y1": 726,
       "x2": 589,
-      "y2": 745,
+      "y2": 744,
       "conf": 0.822,
       "cls": 6,
       "text": "28 ИЮЛЯ 2010",
@@ -215,9 +215,9 @@
       "kind": "text",
       "x1": 281,
       "y1": 833,
-      "x2": 435,
+      "x2": 434,
       "y2": 847,
-      "conf": 0.903,
+      "conf": 0.908,
       "cls": 5,
       "text": "П-МЮ 715330",
       "ambiguous": false
@@ -229,7 +229,7 @@
       "display": "Act_number",
       "value": "2521",
       "script": "ru",
-      "conf": 0.894,
+      "conf": 0.899,
       "box_ids": [
         "b6"
       ]
@@ -239,17 +239,18 @@
       "display": "Date of birth",
       "value": "22.06.2010",
       "script": "num",
-      "conf": 0.917,
+      "conf": 0.908,
       "box_ids": [
         "b2"
-      ]
+      ],
+      "normalized": "22.06.2010"
     },
     {
       "name": "Birth_place_ru",
       "display": "Place of birth",
       "value": "2 ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ, РОССИЯ",
       "script": "ru",
-      "conf": 0.927,
+      "conf": 0.919,
       "box_ids": [
         "b3",
         "b4",
@@ -261,7 +262,7 @@
       "display": "Father_first_middle_ru",
       "value": "АЛЕКСЕЙ ОЛЕГОВИЧ",
       "script": "ru",
-      "conf": 0.906,
+      "conf": 0.893,
       "box_ids": [
         "b8"
       ]
@@ -271,7 +272,7 @@
       "display": "Father_last_name_ru",
       "value": "БОРИСОВ",
       "script": "ru",
-      "conf": 0.93,
+      "conf": 0.935,
       "box_ids": [
         "b7"
       ]
@@ -281,7 +282,7 @@
       "display": "First name",
       "value": "АНАСТАСИЯ АЛЕКСЕЕВНА",
       "script": "ru",
-      "conf": 0.878,
+      "conf": 0.877,
       "box_ids": [
         "b1"
       ]
@@ -294,14 +295,15 @@
       "conf": 0.822,
       "box_ids": [
         "b13"
-      ]
+      ],
+      "normalized": "28.07.2010"
     },
     {
       "name": "Issue_organization_ru",
       "display": "Issuing authority",
       "value": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2. ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГС ИРКУТСКОЙ ОБЛАСТ",
       "script": "ru",
-      "conf": 0.863,
+      "conf": 0.844,
       "box_ids": [
         "b11",
         "b12"
@@ -312,7 +314,7 @@
       "display": "Last name",
       "value": "БОРИСОВА",
       "script": "ru",
-      "conf": 0.923,
+      "conf": 0.906,
       "box_ids": [
         "b0"
       ]
@@ -322,7 +324,7 @@
       "display": "Document number",
       "value": "П-МЮ 715330",
       "script": "num",
-      "conf": 0.903,
+      "conf": 0.908,
       "box_ids": [
         "b14"
       ]
@@ -332,7 +334,7 @@
       "display": "Mother_first_middle_ru",
       "value": "АННА НИКИТИЧНА",
       "script": "ru",
-      "conf": 0.892,
+      "conf": 0.899,
       "box_ids": [
         "b10"
       ]
@@ -342,7 +344,7 @@
       "display": "Mother_last_name_ru",
       "value": "БОРИСОВА",
       "script": "ru",
-      "conf": 0.92,
+      "conf": 0.93,
       "box_ids": [
         "b9"
       ]
@@ -370,18 +372,19 @@
     "LCDSpoofing": "FAKE"
   },
   "timings": {
-    "_doctype_angle": 0.005,
-    "_quality_and_borders": 0.2414,
-    "_glare": 0.0182,
-    "_blur": 0.094,
-    "_print_spoofing": 0.078,
-    "_lcd_spoofing": 0.006,
-    "_doc_detector": 0.2096,
-    "_deskew": 0.0072,
-    "_fields_detector": 0.0865,
-    "_split_words": 0.3377,
-    "_ocr": 0.3712,
-    "total": 1.049
+    "_doctype_angle": 0.0074,
+    "_quality_and_borders": 0.3334,
+    "_glare": 0.1029,
+    "_blur": 0.1059,
+    "_print_spoofing": 0.1239,
+    "_lcd_spoofing": 0.0375,
+    "_doc_detector": 0.2929,
+    "_register_pages": 0.0,
+    "_deskew": 0.0093,
+    "_fields_detector": 0.1155,
+    "_split_words": 0.318,
+    "_ocr": 0.4272,
+    "total": 1.2108
   },
   "address": null
 }

@@ -4,49 +4,49 @@
     {
       "ambiguous": false,
       "cls": 1,
-      "conf": 0.923,
+      "conf": 0.906,
       "display": "Last name",
       "id": "b0",
       "kind": "text",
       "label": "Last_name_ru",
       "text": "БОРИСОВА",
       "x1": 300,
-      "x2": 367,
+      "x2": 368,
       "y1": 205,
-      "y2": 220
+      "y2": 221
     },
     {
       "ambiguous": false,
       "cls": 2,
-      "conf": 0.878,
+      "conf": 0.877,
       "display": "First name",
       "id": "b1",
       "kind": "text",
       "label": "First_name_ru",
       "text": "АНАСТАСИЯ АЛЕКСЕЕВНА",
-      "x1": 255,
-      "x2": 400,
-      "y1": 227,
-      "y2": 241
+      "x1": 254,
+      "x2": 399,
+      "y1": 226,
+      "y2": 242
     },
     {
       "ambiguous": false,
       "cls": 10,
-      "conf": 0.917,
+      "conf": 0.908,
       "display": "Date of birth",
       "id": "b2",
       "kind": "text",
       "label": "Birth_date",
       "text": "22.06.2010",
       "x1": 352,
-      "x2": 426,
+      "x2": 427,
       "y1": 249,
       "y2": 262
     },
     {
       "ambiguous": false,
       "cls": 11,
-      "conf": 0.927,
+      "conf": 0.919,
       "display": "Place of birth",
       "id": "b3",
       "kind": "text",
@@ -60,7 +60,7 @@
     {
       "ambiguous": true,
       "cls": 11,
-      "conf": 0.914,
+      "conf": 0.917,
       "display": "Place of birth",
       "id": "b4",
       "kind": "text",
@@ -68,13 +68,13 @@
       "text": null,
       "x1": 270,
       "x2": 433,
-      "y1": 350,
+      "y1": 349,
       "y2": 370
     },
     {
       "ambiguous": true,
       "cls": 11,
-      "conf": 0.919,
+      "conf": 0.917,
       "display": "Place of birth",
       "id": "b5",
       "kind": "text",
@@ -88,21 +88,21 @@
     {
       "ambiguous": false,
       "cls": 30,
-      "conf": 0.894,
+      "conf": 0.899,
       "display": "Act_number",
       "id": "b6",
       "kind": "text",
       "label": "Act_number",
       "text": "2521",
       "x1": 367,
-      "x2": 402,
+      "x2": 403,
       "y1": 419,
       "y2": 432
     },
     {
       "ambiguous": false,
       "cls": 22,
-      "conf": 0.93,
+      "conf": 0.935,
       "display": "Father_last_name_ru",
       "id": "b7",
       "kind": "text",
@@ -116,21 +116,21 @@
     {
       "ambiguous": false,
       "cls": 23,
-      "conf": 0.906,
+      "conf": 0.893,
       "display": "Father_first_middle_ru",
       "id": "b8",
       "kind": "text",
       "label": "Father_first_middle_ru",
       "text": "АЛЕКСЕЙ ОЛЕГОВИЧ",
-      "x1": 258,
-      "x2": 399,
-      "y1": 471,
+      "x1": 257,
+      "x2": 398,
+      "y1": 470,
       "y2": 485
     },
     {
       "ambiguous": false,
       "cls": 24,
-      "conf": 0.92,
+      "conf": 0.93,
       "display": "Mother_last_name_ru",
       "id": "b9",
       "kind": "text",
@@ -139,12 +139,12 @@
       "x1": 301,
       "x2": 373,
       "y1": 547,
-      "y2": 564
+      "y2": 563
     },
     {
       "ambiguous": false,
       "cls": 25,
-      "conf": 0.892,
+      "conf": 0.899,
       "display": "Mother_first_middle_ru",
       "id": "b10",
       "kind": "text",
@@ -158,30 +158,30 @@
     {
       "ambiguous": false,
       "cls": 13,
-      "conf": 0.863,
+      "conf": 0.844,
       "display": "Issuing authority",
       "id": "b11",
       "kind": "text",
       "label": "Issue_organization_ru",
       "text": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2. ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГС ИРКУТСКОЙ ОБЛАСТ",
-      "x1": 173,
-      "x2": 510,
+      "x1": 172,
+      "x2": 508,
       "y1": 668,
       "y2": 686
     },
     {
       "ambiguous": true,
       "cls": 13,
-      "conf": 0.793,
+      "conf": 0.803,
       "display": "Issuing authority",
       "id": "b12",
       "kind": "text",
       "label": "Issue_organization_ru",
       "text": null,
-      "x1": 160,
+      "x1": 159,
       "x2": 506,
-      "y1": 693,
-      "y2": 711
+      "y1": 692,
+      "y2": 712
     },
     {
       "ambiguous": false,
@@ -195,19 +195,19 @@
       "x1": 277,
       "x2": 589,
       "y1": 726,
-      "y2": 745
+      "y2": 744
     },
     {
       "ambiguous": false,
       "cls": 5,
-      "conf": 0.903,
+      "conf": 0.908,
       "display": "Document number",
       "id": "b14",
       "kind": "text",
       "label": "Licence_number",
       "text": "П-МЮ 715330",
       "x1": 281,
-      "x2": 435,
+      "x2": 434,
       "y1": 833,
       "y2": 847
     }
@@ -228,7 +228,7 @@
       "box_ids": [
         "b6"
       ],
-      "conf": 0.894,
+      "conf": 0.899,
       "display": "Act_number",
       "name": "Act_number",
       "script": "ru",
@@ -238,9 +238,10 @@
       "box_ids": [
         "b2"
       ],
-      "conf": 0.917,
+      "conf": 0.908,
       "display": "Date of birth",
       "name": "Birth_date",
+      "normalized": "22.06.2010",
       "script": "num",
       "value": "22.06.2010"
     },
@@ -250,7 +251,7 @@
         "b4",
         "b5"
       ],
-      "conf": 0.927,
+      "conf": 0.919,
       "display": "Place of birth",
       "name": "Birth_place_ru",
       "script": "ru",
@@ -260,7 +261,7 @@
       "box_ids": [
         "b8"
       ],
-      "conf": 0.906,
+      "conf": 0.893,
       "display": "Father_first_middle_ru",
       "name": "Father_first_middle_ru",
       "script": "ru",
@@ -270,7 +271,7 @@
       "box_ids": [
         "b7"
       ],
-      "conf": 0.93,
+      "conf": 0.935,
       "display": "Father_last_name_ru",
       "name": "Father_last_name_ru",
       "script": "ru",
@@ -280,7 +281,7 @@
       "box_ids": [
         "b1"
       ],
-      "conf": 0.878,
+      "conf": 0.877,
       "display": "First name",
       "name": "First_name_ru",
       "script": "ru",
@@ -293,6 +294,7 @@
       "conf": 0.822,
       "display": "Date of issue",
       "name": "Issue_date",
+      "normalized": "28.07.2010",
       "script": "num",
       "value": "28 ИЮЛЯ 2010"
     },
@@ -301,7 +303,7 @@
         "b11",
         "b12"
       ],
-      "conf": 0.863,
+      "conf": 0.844,
       "display": "Issuing authority",
       "name": "Issue_organization_ru",
       "script": "ru",
@@ -311,7 +313,7 @@
       "box_ids": [
         "b0"
       ],
-      "conf": 0.923,
+      "conf": 0.906,
       "display": "Last name",
       "name": "Last_name_ru",
       "script": "ru",
@@ -321,7 +323,7 @@
       "box_ids": [
         "b14"
       ],
-      "conf": 0.903,
+      "conf": 0.908,
       "display": "Document number",
       "name": "Licence_number",
       "script": "num",
@@ -331,7 +333,7 @@
       "box_ids": [
         "b10"
       ],
-      "conf": 0.892,
+      "conf": 0.899,
       "display": "Mother_first_middle_ru",
       "name": "Mother_first_middle_ru",
       "script": "ru",
@@ -341,7 +343,7 @@
       "box_ids": [
         "b9"
       ],
-      "conf": 0.92,
+      "conf": 0.93,
       "display": "Mother_last_name_ru",
       "name": "Mother_last_name_ru",
       "script": "ru",
@@ -371,17 +373,18 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.094,
-    "_deskew": 0.0072,
-    "_doc_detector": 0.2096,
-    "_doctype_angle": 0.005,
-    "_fields_detector": 0.0865,
-    "_glare": 0.0182,
-    "_lcd_spoofing": 0.006,
-    "_ocr": 0.3712,
-    "_print_spoofing": 0.078,
-    "_quality_and_borders": 0.2414,
-    "_split_words": 0.3377,
-    "total": 1.049
+    "_blur": 0.1059,
+    "_deskew": 0.0093,
+    "_doc_detector": 0.2929,
+    "_doctype_angle": 0.0074,
+    "_fields_detector": 0.1155,
+    "_glare": 0.1029,
+    "_lcd_spoofing": 0.0375,
+    "_ocr": 0.4272,
+    "_print_spoofing": 0.1239,
+    "_quality_and_borders": 0.3334,
+    "_register_pages": 0.0,
+    "_split_words": 0.318,
+    "total": 1.2108
   }
 }

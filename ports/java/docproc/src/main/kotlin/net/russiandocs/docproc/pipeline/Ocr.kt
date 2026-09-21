@@ -1,6 +1,11 @@
 package net.russiandocs.docproc.pipeline
 
+import net.russiandocs.docproc.imaging.Crop
+import net.russiandocs.docproc.imaging.Image
 import net.russiandocs.docproc.modules.OcrEngine
+import net.russiandocs.docproc.tensors.Ops
+import kotlin.math.max
+import kotlin.math.min
 
 /** One field's OCR result: the per-word strings and the joined value. */
 public class FieldText(
@@ -9,7 +14,119 @@ public class FieldText(
     public var value: String = "",
 )
 
+/**
+ * The MRZ zone as detected, kept for the re-read ladder — `Pipeline._mrz_zone` / `_note_mrz_zone`.
+ *
+ * Built once, right after text-field detection, from the RAW detector boxes: nothing here is a rewrite
+ * of `fields.bbox`, only a note of where each MRZ line was found so a wrong-length reading can be
+ * re-cropped from the same canvas later.
+ */
+public class MrzZone(
+    public val canvas: Image,
+    /** Each line's box, TOP TO BOTTOM — the same order the OCR loop walks the field's words in. */
+    public val boxes: List<IntArray>,
+    /** The union span (left, right) of the LINE-SHAPED boxes, or null when there is at most one. */
+    public val span: Pair<Int, Int>?,
+) {
+    public companion object {
+        /**
+         * Builds the zone from the detector's raw boxes. Port of `_note_mrz_zone` (pipeline.py:1386).
+         * Returns null when the document has no MRZ box at all — the ladder then never engages.
+         */
+        public fun from(boxes: List<net.russiandocs.docproc.postprocess.Box>, canvas: Image): MrzZone? {
+            val idx = boxes.indices.filter { boxes[it].label == "MRZ" }
+            if (idx.isEmpty()) {
+                return null
+            }
+            // Top to bottom by box CENTRE — matches `_split_words`' own sort, independently computed
+            // here because `_note_mrz_zone` runs before word splitting in the reference too.
+            val ordered = idx.sortedBy { (boxes[it].y1 + boxes[it].y2) / 2 }
+            val lines = ordered.map { i ->
+                val b = boxes[i]
+                intArrayOf(b.x1.toInt(), b.y1.toInt(), b.x2.toInt(), b.y2.toInt())
+            }
+            // A box several line-heights tall is not a single line and its edges say nothing about
+            // where a LINE ends — excluded from the span the same way the reference excludes it.
+            val lineShaped = lines.filter { (it[2] - it[0]) >= 10 * max(1, it[3] - it[1]) }
+            val span = if (lineShaped.size > 1) {
+                lineShaped.minOf { it[0] } to lineShaped.maxOf { it[2] }
+            } else {
+                null
+            }
+            return MrzZone(canvas, lines, span)
+        }
+    }
+}
+
 public object Ocr {
+
+    /** A machine-readable line is always exactly this many characters. `Pipeline.MRZ_LINE_LEN`. */
+    private const val MRZ_LINE_LEN = 44
+
+    /**
+     * How far the re-read crop widens per side, as a fraction of the zone span, tried in order until a
+     * candidate is exactly [MRZ_LINE_LEN] characters. `Pipeline.MRZ_RETRY_GROWTH` (pipeline.py:1377).
+     */
+    private val MRZ_RETRY_GROWTH = doubleArrayOf(0.0, 0.05, 0.10, 0.16, 0.24, 0.34)
+
+    /** The zone's closed alphabet: capitals, digits, the filler. `Pipeline.MRZ_ALPHABET`. */
+    private val MRZ_ALPHABET: Set<Char> = ('A'..'Z').toSet() + ('0'..'9').toSet() + setOf('<')
+
+    /**
+     * Drops edge characters outside the MRZ alphabet — a page border caught by a widened crop reads as
+     * '.' or '_'. Only the ends; a wrong character INSIDE the line is left alone. `_trim_to_mrz_alphabet`.
+     */
+    private fun trimToMrzAlphabet(text: String): String {
+        if (text.isEmpty()) {
+            return text
+        }
+        val strip = text.toHashSet().also { it.removeAll(MRZ_ALPHABET) }
+        if (strip.isEmpty()) {
+            return text
+        }
+        return text.trim { it in strip }
+    }
+
+    /**
+     * Re-reads one MRZ line from a widening crop when it came out the wrong length. `_read_mrz`
+     * (pipeline.py:1429). Never invents a line — it only re-reads a box the detector already found.
+     */
+    private fun readMrz(lineIndex: Int, text: String, zone: MrzZone?, latin: OcrEngine): String {
+        val trimmed = trimToMrzAlphabet(text)
+        if (trimmed.length == MRZ_LINE_LEN) {
+            return trimmed
+        }
+        if (zone == null || lineIndex >= zone.boxes.size) {
+            return trimmed
+        }
+        val canvas = zone.canvas
+        val width = canvas.width
+        val (x1, y1, x2, y2) = zone.boxes[lineIndex].let { Quad(it[0], it[1], it[2], it[3]) }
+        var best = trimmed
+        for (growth in MRZ_RETRY_GROWTH) {
+            val (left0, right0) = zone.span ?: (x1 to x2)
+            // `int(round(...))`: half-to-even, exactly as the reference's `round()` on a float.
+            val step = Ops.roundHalfEven((right0 - left0) * growth, 0).toInt()
+            val cropLeft = max(0, left0 - step)
+            val cropRight = min(width, right0 + step)
+            Crop.clampedCrop(canvas, cropLeft, y1, cropRight, y2).use { crop ->
+                if (crop.width == 0 || crop.height == 0) {
+                    return@use
+                }
+                var candidate = latin.fixErrors("MRZ", latin.predict(crop))
+                candidate = trimToMrzAlphabet(candidate)
+                if (candidate.length == MRZ_LINE_LEN) {
+                    return candidate
+                }
+                if (candidate.length > best.length) {
+                    best = candidate
+                }
+            }
+        }
+        return best
+    }
+
+    private data class Quad(val x1: Int, val y1: Int, val x2: Int, val y2: Int)
 
     /** Routes every word crop to an engine and joins the results per field. */
     public fun run(
@@ -18,6 +135,7 @@ public object Ocr {
         options: OcrOptions,
         cyrillic: OcrEngine,
         latin: OcrEngine,
+        mrzZone: MrzZone? = null,
     ): List<FieldText> {
         val output = ArrayList<FieldText>(fields.size)
 
@@ -38,7 +156,11 @@ public object Ocr {
                 } else if (fw.label.contains("date", ignoreCase = true)) {
                     words += latin.fixErrors(fw.label, latin.predict(patch))
                 } else if (fw.label in options.enFields) {
-                    words += latin.fixErrors(fw.label, latin.predict(patch))
+                    var result = latin.fixErrors(fw.label, latin.predict(patch))
+                    if (fw.label == "MRZ") {
+                        result = readMrz(i, result, mrzZone, latin)
+                    }
+                    words += result
                 }
                 // No else: a field that is neither Russian, a date, nor English contributes no words. The
                 // reference has the same gap, and a fallback here would invent text.

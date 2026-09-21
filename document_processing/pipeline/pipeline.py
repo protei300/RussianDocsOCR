@@ -10,7 +10,20 @@ import cv2
 import numpy as np
 
 from ..pipeline_modules import *
+from ..pipeline_modules.doc_detector.image_transformation import (expand_quad, DOC_MARGIN_FRAC,
+                                                                   stitch_pages)
+from ..pipeline_modules.page_registration.geometry import PageGeometry, aspect_for
 from .dates import canonical_dates
+
+# A Borders quad overlapping the template-registered page by at least this
+# much is the same page, and its edges (the physical page edges) give the
+# geometry. The template homography replaces it only when the quad is
+# clipped by the image border (the mask ran off the frame) and the two
+# disagree strongly - otherwise the quad wins even when they differ, because
+# on ordinary photos the template fit of page 3 is the less precise of the
+# two (its static print is narrow and periodic; measured on samples/).
+QUAD_SAME_PAGE_IOU = 0.40
+QUAD_CLIPPED_IOU = 0.80
 
 
 def _segments_payload(meta_results: dict):
@@ -118,8 +131,11 @@ class OCROptionsClass:
 class OCROptionsINTPassport(OCROptionsClass):
     """OCR options for internal Russian passports."""
 
+    # `Middle_name_ru`: see OCROptionsDL — no OCR alphabet carries a space, so a
+    # double patronymic is returned glued unless the splitter runs.
     needed_split = ["Licence_number",
                     "Birth_place_ru", "Issue_organization_ru",
+                    "Middle_name_ru",
                     ]
 
     # MRZ is deliberately NOT in needed_split: it is detected one box per line
@@ -192,8 +208,37 @@ class OCROptionsBIRTHCERT(OCROptionsClass):
 class OCROptionsEXTPassport(OCROptionsClass):
     """OCR options for external Russian passports."""
 
-    needed_split = ["Licence_number", "Birth_place_ru", "Birth_place_en", ]
+    # `Issue_organization_ru` is split for a reason that is easy to undo by
+    # accident: NEITHER OCR alphabet contains a space (cyrillic 102 symbols,
+    # latin 147 - both carry '.', '-' and "'", neither carries ' '). A space can
+    # therefore only come from word splitting joining the words back together,
+    # so a multi-word field that skips the splitter is returned glued:
+    # «МИД РОССИИ» came back as «МИДРОССИИ». Measured over samples/ (2026-09-02):
+    # 12 of the 99 acceptance failures were exactly this field on external
+    # passports of both generations, and every one of them differed from the
+    # ground truth by spaces alone.
+    needed_split = ["Licence_number", "Birth_place_ru", "Birth_place_en",
+                    "Issue_organization_ru", ]
 
+    # `Middle_name_en` is listed and never arrives, ON PURPOSE — do not "clean it
+    # up". A Russian foreign passport carries no Latin patronymic: the data page
+    # prints surname and given name in both scripts and the patronymic in Russian
+    # only. Measured rather than assumed — over `samples/`, all 42 external
+    # passports have an empty `Middle_name_en` in the (hand-verified) ground truth
+    # while `Middle_name_ru`, `First_name_en` and `Last_name_en` are filled in all
+    # 42, and the detector returns no box for the class on any of them. The class
+    # itself is fine: on driving licences, where the field does exist, it is found
+    # and read on 34 of 34.
+    #
+    # The entry is therefore inert — these lists only filter and route boxes that
+    # were already detected — and removing it would change no output at all. It
+    # stays because THE SAME LIST LIVES IN FOUR PLACES: the .NET, Go and Kotlin
+    # ports plus `service/ml/labels.py`. Dropping it here alone would split the
+    # four implementations, and the conformance harness could not report that:
+    # it compares outputs, not field lists, and a field nobody produces is
+    # equally absent everywhere. An invisible price is the worst kind.
+    #
+    # If it is ever removed, remove it in all four at once, as its own task.
     en_fields = ["Last_name_en", "First_name_en", "Issue_date",
                  "Expiration_date", "Birth_date", "Birth_place_en",
                  "Issue_organization_en", "Living_region_en", "Sex_en",
@@ -208,8 +253,14 @@ class OCROptionsEXTPassport(OCROptionsClass):
 class OCROptionsDL(OCROptionsClass):
     """OCR options for Russian driver's licenses."""
 
+    # `Middle_name_*` is split for the same reason as the external passport's
+    # `Issue_organization_ru` (see there): no OCR alphabet contains a space, so
+    # a field that skips the splitter can never return one. A double patronymic
+    # («ОГЛЫ», «КЫЗЫ») then comes back glued. Four such failures over samples/
+    # (2026-09-02), all differing from the ground truth by spaces alone.
     needed_split = ["Licence_number", "Driver_class", "Birth_place_ru", "Birth_place_en",
-                    "Living_region_ru", "Living_region_en", ]
+                    "Living_region_ru", "Living_region_en",
+                    "Middle_name_ru", "Middle_name_en", ]
     en_fields = ["Last_name_en", "First_name_en", "Licence_number", "Issue_date",
                  "Expiration_date", "Driver_class", "Birth_date", "Birth_place_en",
                  "Issue_organization_en", "Living_region_en",  "Issue_organisation_code", "Middle_name_en"]
@@ -457,7 +508,7 @@ class Pipeline:
     """
 
     def __init__(self, model_format='ONNX', device=None, ocr='accurate', verbose=False,
-                 ocr_gpu_batch=False):
+                 ocr_gpu_batch=False, page_registration=True, page_geometry=False):
         """
         Initialize pipeline.
 
@@ -492,6 +543,34 @@ class Pipeline:
                 mixed documents, 5.4% of OCR fields differ from the CPU-exact
                 baseline for 'accurate', 14.1% for 'fast'. Only enable after
                 validating this tradeoff on your own documents/traffic.
+            page_geometry (bool): default False. Template-free page geometry for
+                EVERY document type: each Borders page is re-cut from a quad of
+                straight lines fitted to its contour (robust to a thumb or a
+                side clipped by the frame), straightened by its own lines and
+                text-line profiles and unbent by their local tilt
+                (pipeline_modules/page_registration/geometry.py). Same output
+                convention as the Borders path (page at its own size, 1 %
+                cushion). When page_registration also rebuilt the canvas of an
+                internal passport, that result stands and this step is skipped.
+            page_registration (bool): default True (since 2026-09-17; opt-in
+                before that - pass False for the plain Borders canvas). Locate the two pages of an
+                internal passport (INTPASSPORT_*) by aligning their printed blank
+                to canonical templates (pipeline_modules/page_registration) and
+                rebuild the canvas from them; the page geometry comes from the
+                agreeing Borders quad where there is one and from the template
+                homography where Borders found nothing. Each page
+                comes out in the fixed canonical layout (1000x704 plus a 3%
+                cushion, scaled down as one when the photo has fewer pixels -
+                a page is never upsampled) and the spread is stacked at one
+                scale; pages the templates cannot find fall back to their
+                Borders quad, and when nothing is found the Borders canvas is
+                kept unchanged. Measured on 136 photos (docs/progress-log.md):
+                fixes the flat-scan failure where Borders takes the white
+                scanner lid for the document, the per-page scale mismatch and
+                most residual keystone, at +0.5-0.9 s CPU per document.
+                Opt-in because the canvas pixels change: the conformance
+                goldens and the language ports are pinned to the Borders
+                canvas until they carry the same module.
         """
         device = _resolve_device(device)
         self.device = device
@@ -568,6 +647,12 @@ class Pipeline:
         # min_angle=2.0: skip small/noisy estimates (handwriting has irregular
         # baselines that yield spurious ~1-2deg) and only fix real tilts.
         self.deskewer = DocDeskewer(angle_range=10.0, angle_steps=101, min_angle=2.0, scale=0.4)
+        # template-based page rectification for internal passports (opt-in, see
+        # the page_registration docstring above); loads ~1 MB of templates.
+        self.page_registrar = PageRegistrar() if page_registration else None
+        # template-free geometry for every document type (opt-in, see the
+        # page_geometry docstring above); no weights, nothing to load
+        self.page_geometry = PageGeometry() if page_geometry else None
         self.ocr_options = OCROptionsClass
 
         # Optional per-stage instrumentation, off by default. Used only by the
@@ -728,6 +813,10 @@ class Pipeline:
         # optimization requires the original sequential order.
         if check_quality and get_doc_borders and low_quality:
             self._quality_and_borders_parallel(img)
+            if self.page_registrar is not None:
+                self._model_call(self._register_pages, img)
+            if self.page_geometry is not None:
+                self._model_call(self._geometry_pages, img)
             img = self.results.img_with_fixed_perspective
             self._emit('quality', self.results.quality)
             self._emit('borders.segments', _segments_payload(self.results._meta_results))
@@ -759,6 +848,10 @@ class Pipeline:
             #detecting doc
             if get_doc_borders:
                 self._model_call(self._doc_detector, img)
+                if self.page_registrar is not None:
+                    self._model_call(self._register_pages, img)
+                if self.page_geometry is not None:
+                    self._model_call(self._geometry_pages, img)
                 img = self.results.img_with_fixed_perspective
                 self._emit('borders.segments', _segments_payload(self.results._meta_results))
                 self._emit('borders.canvas', img)
@@ -930,9 +1023,196 @@ class Pipeline:
         # img = result[self.doc_detector.model_name]['warped_img']
         # return img
 
+    def _register_pages(self, img):
+        """Rebuild the internal-passport canvas from template-registered pages.
+
+        Runs after _doc_detector on the same upright image. The registrar
+        decides WHICH pages are present and WHERE (template matching); the
+        page's geometry then comes from the best available source:
+
+        - the Borders quad of the same page (IoU >= QUAD_SAME_PAGE_IOU): its
+          edges are the physical page edges and give the most faithful
+          rectification (the segmentation is good on ordinary photos - the
+          failures it has are page loss and clipped/bent edges);
+        - the template homography itself when Borders has no quad for the
+          page (flat scans) or its quad is clipped by the frame and disagrees
+          (IoU < QUAD_CLIPPED_IOU);
+        - a page the registrar could not find keeps a spare Borders quad
+          (the next by vertical order), resized to the same frame.
+
+        Every page is emitted into the canonical frame (same size, same
+        cushion, one common scale - see PageRegistrar.native_scale), so the
+        spread stacks consistently. If no page is available at all the Borders
+        canvas stays as it is. The result replaces DocDetector.warped_img so
+        every downstream stage sees it through img_with_fixed_perspective; the
+        per-page evidence goes to meta_results['PageRegistration'].
+        """
+        doc_type = (self.results.doctype or '').lower()
+        if 'intpassport' not in doc_type or 'addr' in doc_type:
+            return
+        det = self.results._meta_results.get('DocDetector') or {}
+        reg = self.page_registrar
+        # page quads from the Borders contours: straight lines fitted to each
+        # side (survive a thumb in the mask, a clipped edge) - see quad_fit
+        quads, quad_infos = reg.page_quads(det.get('segm'), img.shape)
+        regs = reg.register(img, quads)
+        scale = reg.native_scale(regs)   # never upsample a page (see native_scale)
+        used = set()
+        plan = []                        # per page: ('quad', i) | ('template', reg) | None
+        for r in regs:
+            if not r.ok:
+                plan.append(None)
+                continue
+            best_i, best_iou = None, 0.0
+            for i, q in enumerate(quads):
+                if i in used:
+                    continue
+                iou = reg.quad_iou(q, r.quad)
+                if iou > best_iou:
+                    best_i, best_iou = i, iou
+            if best_i is not None and best_iou >= QUAD_SAME_PAGE_IOU:
+                used.add(best_i)
+                q = quads[best_i]
+                h_img, w_img = img.shape[:2]
+                clipped = bool((q[:, 0] <= 1).any() or (q[:, 1] <= 1).any()
+                               or (q[:, 0] >= w_img - 2).any() or (q[:, 1] >= h_img - 2).any())
+                if clipped and best_iou < QUAD_CLIPPED_IOU:
+                    plan.append(('template', r, best_iou))
+                else:
+                    plan.append(('quad', best_i, best_iou))
+            else:
+                plan.append(('template', r, best_iou))
+        spare = [i for i, _ in sorted(enumerate(quads), key=lambda t: t[1][:, 1].min())
+                 if i not in used]
+        pages, sources, quad_used, straightened = [], [], [], []
+        for r, step in zip(regs, plan):
+            if step is None:
+                if spare:
+                    qi = spare.pop(0)
+                    pages.append(reg.warp_quad(img, expand_quad(quads[qi], DOC_MARGIN_FRAC), scale))
+                    sources.append('borders-spare')
+                    quad_used.append(qi)
+                else:
+                    sources.append(None)
+                    quad_used.append(None)
+                    continue
+            elif step[0] == 'quad':
+                pages.append(reg.warp_quad(img, expand_quad(quads[step[1]], DOC_MARGIN_FRAC), scale))
+                sources.append('borders')
+                quad_used.append(step[1])
+            else:
+                pages.append(reg.warp_page(img, r, scale))
+                sources.append('template')
+                quad_used.append(None)
+            # straighten the page by its own lines / text-line profiles: catches a
+            # quad corner that is off, and the rotation error of a template fit
+            pages[-1], sinfo = reg.straighten(pages[-1], scale)
+            straightened.append(sinfo)
+        info = {'pages': [r.as_dict() for r in regs], 'sources': sources,
+                'quad_iou': [round(step[2], 3) if step else None for step in plan],
+                'all_registered': all(r.ok for r in regs), 'deskewed': None,
+                'scale': round(scale, 4), 'page_size': list(reg.out_size(scale)),
+                'quads': [{'quad': q.round(1).tolist(), **qi} for q, qi in zip(quads, quad_infos)],
+                'quad_used': quad_used, 'straighten': straightened}
+        self.results._meta_results['PageRegistration'] = info
+        if pages:
+            # hand the pages over the same way DocDetector does (pages, the
+            # photo quads they came from, their placements on the canvas): the
+            # per-page deskew and field detection then work on THESE pages
+            page_quads = [quads[qi] if qi is not None else r.quad
+                          for r, qi, src in zip(regs, quad_used, sources) if src]
+            stitched, placements = stitch_pages(pages, page_quads, stack='vertical')
+            det['pages'] = pages
+            det['page_quads'] = page_quads
+            det['page_placements'] = placements
+            det['warped_img'] = stitched
+            self.results._meta_results['DocDetector'] = det
+
+    def _geometry_pages(self, img):
+        """Template-free page geometry for any document type (page_geometry=True).
+
+        Runs after _doc_detector (and after _register_pages, which takes
+        precedence when it rebuilt the canvas). Every Borders page is
+        re-cut from a quad of straight lines fitted to its contour, warped
+        the way the Borders path warps it (own side lengths, 1 % cushion),
+        then straightened by its own lines and unbent by their local tilt.
+        Pages, quads and placements are handed over the way DocDetector does,
+        so the per-page deskew and field detection work on these pages. The
+        evidence goes to meta_results['PageGeometry'].
+        """
+        det = self.results._meta_results.get('DocDetector') or {}
+        reg_info = self.results._meta_results.get('PageRegistration') or {}
+        if any(reg_info.get('sources') or []):
+            return                      # the registrar already rebuilt this canvas
+        segm = det.get('segm') or []
+        if not segm:
+            return
+        geo = self.page_geometry
+        quads, quad_infos = geo.quads(segm, img.shape, aspect_for(self.results.doctype))
+        pages, used, straightened = [], [], []
+        for q, qi in zip(quads, quad_infos):
+            # quad warp + straightening in one resampling; a side extrapolated
+            # past the frame keeps its corners outside the photo
+            page, sinfo = geo.rectify(img, q, keep_outside=qi.get('extrapolated') is not None)
+            if page is None:
+                continue
+            pages.append(page)
+            used.append(q)
+            straightened.append(sinfo)
+        if not pages:
+            return
+        stitched, placements = stitch_pages(pages, used, stack='auto')
+        det['pages'] = pages if len(pages) >= 2 else []
+        det['page_quads'] = used if len(pages) >= 2 else []
+        det['page_placements'] = placements if len(pages) >= 2 else []
+        det['warped_img'] = stitched
+        self.results._meta_results['DocDetector'] = det
+        self.results._meta_results['PageGeometry'] = {
+            'quads': [{'quad': q.round(1).tolist(), **qi} for q, qi in zip(quads, quad_infos)],
+            'straighten': straightened, 'n_pages': len(pages)}
+
     def _deskew(self, img):
         """Correct residual tilt of the perspective-fixed canvas and store it
-        back so img_with_fixed_perspective returns the deskewed image."""
+        back so img_with_fixed_perspective returns the deskewed image.
+
+        On a two-page spread each page is deskewed ON ITS OWN and the canvas is
+        stitched back from the deskewed pages. Two reasons, both real: the pages
+        of an open passport rarely lie at the same angle, and the per-page path
+        needs the pages themselves (not the canvas) to hand to the field
+        detector. The stitched result is still what every consumer sees.
+
+        Deskew stays on after page registration, on purpose: registration
+        aligns the printed BLANK, but the personalisation (names, MRZ, the
+        vertical series/number) is printed in a separate pass and can sit a
+        degree or two off the blank. The projection-profile deskew follows
+        the text lines, which is what the word crops and the OCR need
+        (measured: skipping it garbled the MRZ's second line on samples/).
+        """
+        info = self.results._meta_results.get('PageRegistration')
+        if info is not None and any(info.get('sources') or []) and self.page_registrar is not None \
+                and self.page_registrar.line_refine:
+            # The registration pages were already straightened by their own
+            # lines (line_refine, blob-tolerant). The projection-profile deskew
+            # is NOT run on top of them: on a small photo (canvas ~500 px) it
+            # took the dark cushion around a page for text and rotated the
+            # straight page by 6 deg, garbling the MRZ (conformance case
+            # 12_CR_INTPASSPORT_2011, measured 2026-09-17). The earlier note
+            # that deskew had to stay on dates from before line_refine existed.
+            info['deskewed'] = False
+            return img
+        if info is not None:
+            info['deskewed'] = True
+        meta = self.results._meta_results.get('DocDetector') or {}
+        pages = meta.get('pages') or []
+        if len(pages) >= 2:
+            desk_pages = [self.deskewer.deskew(p) for p in pages]
+            stitched, placements = stitch_pages(desk_pages, meta.get('page_quads') or [],
+                                                stack='auto')
+            if stitched is not None:
+                meta['pages'] = desk_pages
+                meta['page_placements'] = placements
+                meta['warped_img'] = stitched
+                return stitched
         desk = self.deskewer.deskew(img)
         if self.results._meta_results.get('DocDetector'):
             self.results._meta_results['DocDetector']['warped_img'] = desk
@@ -952,8 +1232,15 @@ class Pipeline:
         Returns:
             dict: Detected text fields and patches
         """
-        result = self.text_fields.predict_transform(img)
-        text_fields = result[self.text_fields.model_name]
+        meta = self.results._meta_results.get('DocDetector') or {}
+        pages = meta.get('pages') or []
+        placements = meta.get('page_placements') or []
+        if len(pages) >= 2 and len(placements) == len(pages):
+            text_fields = self._fields_from_pages(pages, placements)
+            result = {self.text_fields.model_name: text_fields}
+        else:
+            result = self.text_fields.predict_transform(img)
+            text_fields = result[self.text_fields.model_name]
 
         self._note_mrz_zone(text_fields, img)
 
@@ -966,6 +1253,32 @@ class Pipeline:
 
         self.results._meta_results = self.results._meta_results | result
 
+    def _fields_from_pages(self, pages, placements):
+        """Run the field detector on each page and report boxes on the canvas.
+
+        Why per page: the detector's input is 640x640 and the whole canvas is
+        letterboxed into it, so on a stitched spread each page gets about half
+        of that. Reading the pages separately gives each one the full input.
+
+        The boxes come back in page coordinates and are moved onto the stitched
+        canvas with the page's own (scale, dx, dy) from ``stitch_pages`` - every
+        later stage (word splitting, drawing, the address path) addresses the
+        canvas, so the boxes must speak its coordinates. The image PATCHES are
+        kept as cut from the page: they are what OCR reads, and cutting them
+        from the page rather than the canvas is exactly the point.
+        """
+        bbox, patches = [], []
+        for page, (scale, dx, dy) in zip(pages, placements):
+            got = self.text_fields.predict_transform(page)[self.text_fields.model_name]
+            for box, patch in zip(got.get('bbox') or [], got.get('warped_img') or []):
+                moved = list(box)
+                moved[0] = int(round(box[0] * scale + dx))
+                moved[1] = int(round(box[1] * scale + dy))
+                moved[2] = int(round(box[2] * scale + dx))
+                moved[3] = int(round(box[3] * scale + dy))
+                bbox.append(moved)
+                patches.append(patch)
+        return {'bbox': bbox, 'warped_img': patches}
 
     #: An empty stretch on a line wider than this many typical words means the
     #: split dropped a word, and the line is read whole instead.

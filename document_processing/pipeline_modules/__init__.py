@@ -12,7 +12,9 @@ from .ocr_cyrillic import OCRCyrillic
 from .ocr_latin import OCRLatin
 from .doctype_angles_classificator import DocTypeAngles
 from .deskewer import DocDeskewer
+from .page_registration import PageRegistrar
 
 __all__ = 'DocDetector', 'TextFieldsDetector', 'Blur', 'Glare', 'LCDSpoofing', 'PrintSpoofing', \
     'WordsDetector', 'OCRCyrillic', 'OCRLatin', \
-    'DocTypeAngles', 'DocDeskewer', 'AddressLinesDetector', 'AddressTextKindClassifier'
+    'DocTypeAngles', 'DocDeskewer', 'AddressLinesDetector', 'AddressTextKindClassifier', \
+    'PageRegistrar'

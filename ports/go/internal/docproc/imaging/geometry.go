@@ -153,20 +153,32 @@ const (
 // unchanged, and a port that returned an error instead would break every document the
 // border detector cannot read.
 //
-// The two-page branch exists for an open passport spread. 'auto' compares the pages'
-// centroid separation: further apart horizontally means side by side, so stitch left to
-// right; otherwise one above the other. The debug overlay the reference also produces
-// (`cnt_img`, the original with quads drawn) is not built here — nothing in the
-// conformance contract consumes it, and it would cost a full image copy per document.
+// Thin wrapper over RectifyPages + StitchPages (split out for the internal-passport
+// per-page pipeline - see those two docs), kept so every OTHER document type's call
+// site does not need to change.
 func FixPerspective(img Image, segments [][]Point, stack StackDirection,
 	margin float64) (Image, bool) {
 
-	type page struct {
-		quad  []Point
-		image Image
-	}
-	var pages []page
+	pages, quads := RectifyPages(img, segments, margin)
+	canvas, _, ok := StitchPages(pages, quads, stack)
+	return canvas, ok
+}
 
+// PagePlacement is stitch_pages's (scale, dx, dy): a box (x, y) found on the page maps
+// onto the stitched canvas as (x*scale + dx, y*scale + dy).
+type PagePlacement struct {
+	Scale, DX, DY float64
+}
+
+// RectifyPages rectifies each detected segment independently, WITHOUT stitching them
+// together — split out of FixPerspective so the pipeline can hand a passport spread's
+// pages to the field detector ONE AT A TIME (the detector's input is 640x640, and a
+// stitched spread gives each page only half of it; see pipeline.py's
+// _fields_from_pages). Returns one warped image and the (expanded, clipped) quad it
+// came from per page, in DETECTION order — the caller owns every returned Image.
+func RectifyPages(img Image, segments [][]Point, margin float64) ([]Image, [][]Point) {
+	var pages []Image
+	var quads [][]Point
 	for _, cnt := range segments {
 		quad := ExtractQuad(cnt)
 		if quad == nil {
@@ -185,20 +197,30 @@ func FixPerspective(img Image, segments [][]Point, stack StackDirection,
 		if !ok {
 			continue
 		}
-		pages = append(pages, page{quad: rect, image: warped})
+		pages = append(pages, warped)
+		quads = append(quads, rect)
 	}
+	return pages, quads
+}
 
+// StitchPages merges rectified pages into one canvas, reporting where each landed.
+// Split out of FixPerspective (see RectifyPages). With 2+ pages, every element of
+// `pages` is Closed by the time this returns (each is resized into a fresh scaled
+// copy, and the scaled copies are consumed by the merge) — the caller must not touch
+// them again. With exactly 1 page, that Image becomes the canvas itself and is
+// returned UNCLOSED, still owned by the caller.
+func StitchPages(pages []Image, quads [][]Point, stack StackDirection) (Image, []PagePlacement, bool) {
 	if len(pages) == 0 {
-		return Image{}, false
+		return Image{}, nil, false
 	}
 	if len(pages) == 1 {
-		return pages[0].image, true
+		return pages[0], []PagePlacement{{Scale: 1, DX: 0, DY: 0}}, true
 	}
 
 	direction := stack
 	if stack == StackAuto {
-		c0x, c0y := centroid(pages[0].quad)
-		c1x, c1y := centroid(pages[1].quad)
+		c0x, c0y := centroid(quads[0])
+		c1x, c1y := centroid(quads[1])
 		if math.Abs(c0x-c1x) >= math.Abs(c0y-c1y) {
 			direction = StackHorizontal
 		} else {
@@ -208,46 +230,70 @@ func FixPerspective(img Image, segments [][]Point, stack StackDirection,
 
 	// Only the first two pages are merged, as in the reference: `stack` inspects
 	// quads[0] and quads[1], and max_pages is 2 for the one doc type that spreads.
-	if direction == StackHorizontal {
-		sort.SliceStable(pages, func(a, b int) bool { return minX(pages[a].quad) < minX(pages[b].quad) })
-		commonH := pages[0].image.Height()
-		for _, p := range pages[1:] {
-			if p.image.Height() < commonH {
-				commonH = p.image.Height()
+	placements := make([]PagePlacement, len(pages))
+	horizontal := direction == StackHorizontal
+	var order []int
+	if horizontal {
+		order = argsortBy(quads, minX)
+	} else {
+		order = argsortBy(quads, minY)
+	}
+
+	if horizontal {
+		commonH := pages[order[0]].Height()
+		for _, i := range order[1:] {
+			if pages[i].Height() < commonH {
+				commonH = pages[i].Height()
 			}
 		}
-		scaled := make([]Image, len(pages))
-		for i, p := range pages {
-			// RoundToEven again: this is `int(round(...))` in the reference, and the
-			// two-page spread is where the one-pixel difference shows up as a changed
-			// canvas width.
-			w := int(math.RoundToEven(float64(p.image.Width()) * float64(commonH) / float64(p.image.Height())))
+		scaled := make([]Image, len(order))
+		offset := 0.0
+		for k, i := range order {
+			w := int(math.RoundToEven(float64(pages[i].Width()) * float64(commonH) / float64(pages[i].Height())))
 			if w < 1 {
 				w = 1
 			}
-			scaled[i] = Resize(p.image, w, commonH, InterLinear)
-			_ = p.image.Close()
+			scale := float64(commonH) / float64(pages[i].Height())
+			scaled[k] = Resize(pages[i], w, commonH, InterLinear)
+			placements[i] = PagePlacement{Scale: scale, DX: offset, DY: 0}
+			offset += float64(w)
+			_ = pages[i].Close()
 		}
-		return joinAll(scaled, HStack)
+		canvas, ok := joinAll(scaled, HStack)
+		return canvas, placements, ok
 	}
 
-	sort.SliceStable(pages, func(a, b int) bool { return minY(pages[a].quad) < minY(pages[b].quad) })
-	commonW := pages[0].image.Width()
-	for _, p := range pages[1:] {
-		if p.image.Width() < commonW {
-			commonW = p.image.Width()
+	commonW := pages[order[0]].Width()
+	for _, i := range order[1:] {
+		if pages[i].Width() < commonW {
+			commonW = pages[i].Width()
 		}
 	}
-	scaled := make([]Image, len(pages))
-	for i, p := range pages {
-		h := int(math.RoundToEven(float64(p.image.Height()) * float64(commonW) / float64(p.image.Width())))
+	scaled := make([]Image, len(order))
+	offset := 0.0
+	for k, i := range order {
+		h := int(math.RoundToEven(float64(pages[i].Height()) * float64(commonW) / float64(pages[i].Width())))
 		if h < 1 {
 			h = 1
 		}
-		scaled[i] = Resize(p.image, commonW, h, InterLinear)
-		_ = p.image.Close()
+		scale := float64(commonW) / float64(pages[i].Width())
+		scaled[k] = Resize(pages[i], commonW, h, InterLinear)
+		placements[i] = PagePlacement{Scale: scale, DX: 0, DY: offset}
+		offset += float64(h)
+		_ = pages[i].Close()
 	}
-	return joinAll(scaled, VStack)
+	canvas, ok := joinAll(scaled, VStack)
+	return canvas, placements, ok
+}
+
+// argsortBy returns indices 0..len(quads)-1 sorted ascending by key(quad), stable.
+func argsortBy(quads [][]Point, key func([]Point) float64) []int {
+	order := make([]int, len(quads))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool { return key(quads[order[a]]) < key(quads[order[b]]) })
+	return order
 }
 
 func joinAll(parts []Image, join func(a, b Image) (Image, error)) (Image, bool) {

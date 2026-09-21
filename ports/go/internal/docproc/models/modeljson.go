@@ -55,6 +55,10 @@ type Output struct {
 	Threshold  *float64        `json:"Threshold"`
 	IOU        *float64        `json:"IOU"`
 	CLS        *float64        `json:"CLS"`
+	// IOUPerClass / CLSPerClass override the shared thresholds for NAMED classes only
+	// (PerClassYOLODetector; postprocessing.py:521-566). Absent means "shared value".
+	IOUPerClass map[string]float64 `json:"IOUPerClass"`
+	CLSPerClass map[string]float64 `json:"CLSPerClass"`
 	MaskFilter *float64        `json:"MaskFilter"`
 	Metric     string          `json:"Metric"`
 	Centers    string          `json:"Centers"`

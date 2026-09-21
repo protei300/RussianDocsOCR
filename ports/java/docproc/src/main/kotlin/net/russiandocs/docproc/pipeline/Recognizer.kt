@@ -7,20 +7,29 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import net.russiandocs.docproc.config.ModelPaths
+import net.russiandocs.docproc.imaging.Geometry
 import net.russiandocs.docproc.imaging.Image
 import net.russiandocs.docproc.imaging.Io
+import net.russiandocs.docproc.imaging.Placement
 import net.russiandocs.docproc.imaging.Pt
+import net.russiandocs.docproc.imaging.StackDirection
+import net.russiandocs.docproc.modules.BordersResult
 import net.russiandocs.docproc.modules.DocDetector
 import net.russiandocs.docproc.modules.DocDeskewer
 import net.russiandocs.docproc.modules.DocTypeAngles
 import net.russiandocs.docproc.modules.Blur
 import net.russiandocs.docproc.modules.DocTypeResult
+import net.russiandocs.docproc.modules.Field
 import net.russiandocs.docproc.modules.Glare
 import net.russiandocs.docproc.modules.OcrEngine
+import net.russiandocs.docproc.modules.PageRegistrar
+import net.russiandocs.docproc.modules.PageRegistration
 import net.russiandocs.docproc.modules.TextFieldsDetector
 import net.russiandocs.docproc.modules.WordsDetector
 import net.russiandocs.docproc.modules.closeAllFields
 import net.russiandocs.docproc.modules.Spoofing
+import net.russiandocs.docproc.postprocess.Box
+import net.russiandocs.docproc.tensors.PyNum
 import net.russiandocs.docproc.viewmodel.Builder
 import net.russiandocs.docproc.viewmodel.Input
 import net.russiandocs.docproc.viewmodel.Payload
@@ -118,6 +127,18 @@ public class Results : AutoCloseable {
     public var words: List<FieldText> = emptyList()
         internal set
 
+    /** Lines read WHOLE because the word split lost most of them — `PipelineResults.words_fallback`. */
+    public var wordsFallback: List<WordsFallback> = emptyList()
+        internal set
+
+    /** Lines the gap guard declined to re-read because they carry no ink — `PipelineResults.words_no_ink`. */
+    public var wordsNoInk: List<WordsNoInk> = emptyList()
+        internal set
+
+    /** Canonical `dd.mm.yyyy` per date field that converted — `PipelineResults.ocr_normalized`. */
+    public var ocrNormalized: Map<String, String> = emptyMap()
+        internal set
+
     /** The selected border contours, or null when the model found none. Compared under R-01. */
     public var segments: List<List<Pt>>? = null
         internal set
@@ -191,6 +212,13 @@ public class Recognizer(
     private val cyrillic: OcrEngine
     private val latin: OcrEngine
 
+    /**
+     * `Pipeline.page_registrar` — `PageRegistrar()` with the reference's own defaults
+     * (`page_registration=True` since 2026-09-17). Pure OpenCV (SIFT + the `templates/` PNGs), no ONNX
+     * session, so unlike the fields above it needs no `device`/`threads`.
+     */
+    private val pageRegistrar: PageRegistrar
+
     init {
         // SLOW — 215 MB of weights and one session each — so construct once and keep the instance. The
         // reference loads them eagerly in its constructor for the same reason, and the service wraps the
@@ -206,6 +234,7 @@ public class Recognizer(
         deskewer = DocDeskewer.forPipeline()
         textFields = TextFieldsDetector(root, paths, device, intraOpThreads)
         words = WordsDetector(root, paths, device, intraOpThreads)
+        pageRegistrar = PageRegistrar()
 
         // **OCR stays on the CPU even when the detectors are on the GPU.** Measured, not assumed:
         // per-word dynamic widths make the CUDA provider recompile the graph on every distinct
@@ -269,21 +298,48 @@ public class Recognizer(
                 !meta.docType.contains("ADDR")) 2 else 1
 
             val bordersStart = System.nanoTime()
-            val (canvas, segments) = docDetector.predictTransform(upright, maxPages)
-            results.own(canvas)
+            val borders = docDetector.predictTransformFull(upright, maxPages)
+            val canvas = results.own(borders.canvas)
+            val segments = borders.segments
             results.segments = segments
+            // Per-page pieces (empty unless a genuine two-page spread) outlive this stage — the field
+            // detector reads them AFTER deskew, on the pre-deskew page pixels, exactly as the reference's
+            // `_fields_from_pages` does (see the note at its call site below). Owned by `results` so a
+            // thrown exception anywhere in between cannot leak them.
+            borders.pages.forEach { results.own(it) }
             results.timings[TIMING_DOC_DETECTOR] = (System.nanoTime() - bordersStart) / 1e9
 
-            options.sink.emit("borders.segments", encodeSegments(segments))
-            options.sink.emitImage("borders.canvas", canvas)
+            // `_register_pages` (pipeline.py:1026) runs right after border detection, whenever
+            // page_registration is on — which is the reference's DEFAULT since 2026-09-17, for every
+            // document type. It early-returns for anything but a non-address internal passport, and the
+            // reference's `_model_call` wrapper times the call regardless — so `timings` carries this key
+            // for EVERY document, not only passports.
+            val registerStart = System.nanoTime()
+            val registered = registerPages(upright, meta.docType, borders)
+            results.timings[TIMING_REGISTER_PAGES] = (System.nanoTime() - registerStart) / 1e9
+            // `registered` may be a DIFFERENT BordersResult (new canvas, new pages) than `borders` — its
+            // pieces are owned here too; the superseded ones stay in `results`' owned list and are simply
+            // released a little later than strictly necessary, which is safe (one document per run) and
+            // far simpler than unregistering a partial owner set mid-run.
+            val effectiveCanvas: Image
+            val effectiveSegments = segments
+            if (registered !== borders) {
+                effectiveCanvas = results.own(registered.canvas)
+                registered.pages.forEach { results.own(it) }
+            } else {
+                effectiveCanvas = canvas
+            }
+
+            options.sink.emit("borders.segments", encodeSegments(effectiveSegments))
+            options.sink.emitImage("borders.canvas", effectiveCanvas)
             if (options.upTo == "borders.canvas") {
-                results.canvas = canvas
+                results.canvas = effectiveCanvas
                 return results
             }
 
             // ---- stage: deskew.canvas ---------------------------------------------------------
             val deskewStart = System.nanoTime()
-            val (deskewed, _) = deskewer.deskew(canvas)
+            val (deskewed, _) = deskewer.deskew(effectiveCanvas)
             results.own(deskewed)
             results.timings[TIMING_DESKEW] = (System.nanoTime() - deskewStart) / 1e9
 
@@ -298,11 +354,27 @@ public class Recognizer(
             // ---- stage: fields.bbox -----------------------------------------------------------
             val ocrOptions = OcrOptions.forDocType(meta.docType)
             val fieldsStart = System.nanoTime()
-            val fields = textFields.predictTransform(deskewed, ocrOptions.needsLicenceRotation)
+            // `_fields_detector` (pipeline.py:1238): a genuine two-page spread (internal passport) is read
+            // PAGE BY PAGE — the detector's 640x640 input gives a stitched spread only half of itself per
+            // page — using the pages `_doc_detector`/`_register_pages` rectified, with each page's own boxes
+            // moved onto the (deskewed) canvas by its `Placement`. Everything else keeps the single
+            // whole-canvas call. The `placements.size == pages.size` check mirrors the reference's defensive
+            // equal-length check, which is never false here since both come from the same call ([Geometry.
+            // fixPerspective] or [registerPages]/[Geometry.stitchPages]).
+            val fields = if (registered.pages.size >= 2 && registered.placements.size == registered.pages.size) {
+                fieldsFromPages(registered.pages, registered.placements, ocrOptions.needsLicenceRotation)
+            } else {
+                textFields.predictTransform(deskewed, ocrOptions.needsLicenceRotation)
+            }
             results.timings[TIMING_FIELDS_DETECTOR] = (System.nanoTime() - fieldsStart) / 1e9
             results.boxes = fields.map { f ->
                 RawBox(f.box.x1, f.box.y1, f.box.x2, f.box.y2, f.box.conf, f.box.cls, f.box.label)
             }.toMutableList()
+
+            // `_note_mrz_zone` (pipeline.py:1245): built from the RAW detector boxes, right after field
+            // detection and before splitting — nothing here rewrites `fields.bbox`, it only remembers
+            // where each MRZ line was found so a wrong-length reading can be re-cropped later.
+            val mrzZone = MrzZone.from(fields.map { it.box }, deskewed)
 
             try {
                 options.sink.emit("fields.bbox", encodeBoxes(fields.map { it.box }))
@@ -313,8 +385,16 @@ public class Recognizer(
                 // ---- stages: words.<Field>.bbox ---------------------------------------------
                 // The address path (INTPASSPORTADDR) is out of scope for this port, so no
                 // address.lines stage is emitted and the checker skips it.
+                //
+                // The BARE type, without the year suffix: the gap guard's SNILS exclusion, the OCR
+                // parity rule and the date join all test it, and "SNILS_1996" would match none of them.
+                val (bareType, _) = OcrOptions.splitDocType(meta.docType)
+
                 val splitStart = System.nanoTime()
-                val fieldWords = SplitWords.run(fields, ocrOptions, words)
+                val split = SplitWords.run(fields, ocrOptions, words, bareType)
+                val fieldWords = split.fields
+                results.wordsFallback = split.fallback
+                results.wordsNoInk = split.noInk
                 results.timings[TIMING_SPLIT_WORDS] = (System.nanoTime() - splitStart) / 1e9
                 try {
                     for (fw in fieldWords) {
@@ -325,12 +405,8 @@ public class Recognizer(
                     }
 
                     // ---- stages: ocr.<Field>.words, join ------------------------------------
-                    // The BARE type, without the year suffix: the SNILS parity rule and the date join
-                    // both test it, and "SNILS_1996" would match neither.
-                    val (bareType, _) = OcrOptions.splitDocType(meta.docType)
-
                     val ocrStart = System.nanoTime()
-                    val texts = Ocr.run(fieldWords, bareType, ocrOptions, cyrillic, latin)
+                    val texts = Ocr.run(fieldWords, bareType, ocrOptions, cyrillic, latin, mrzZone)
                     results.timings[TIMING_OCR] = (System.nanoTime() - ocrStart) / 1e9
                     Ocr.fixFms(texts, bareType)
 
@@ -354,6 +430,19 @@ public class Recognizer(
                         JsonObject(joined.mapValues { JsonPrimitive(it.value) }),
                     )
                     results.words = texts
+
+                    // `_normalize_dates` (pipeline.py:1977): runs once, on the FINISHED reading, after
+                    // ruler cleanup — never touching `results.ocr` itself, since that is what the
+                    // accuracy measurement compares against. Fields are recognised BY NAME, the same
+                    // convention `_join_field` uses: any key whose name contains "date", case-insensitive.
+                    val normalized = LinkedHashMap<String, String>()
+                    for ((name, value) in results.ocr) {
+                        if (!name.lowercase().contains("date")) {
+                            continue
+                        }
+                        Dates.toDdMmYyyy(value)?.let { normalized[name] = it }
+                    }
+                    results.ocrNormalized = normalized
 
                     finaliseTimings(results.timings)
 
@@ -431,6 +520,166 @@ public class Recognizer(
     }
 
     /**
+     * Rebuilds the internal-passport canvas from template-registered pages, when possible. Port of
+     * `Pipeline._register_pages` (pipeline.py:1026).
+     *
+     * [img] is the UPRIGHT photo (before border detection), matching the reference's call site exactly:
+     * `_register_pages(img)` runs with `img` still the rotated frame — the local `img` in `process_img`
+     * is reassigned to `img_with_fixed_perspective` only AFTER this call returns, so this function reads
+     * and warps from the same pixels [DocDetector] itself started from, not from its output canvas.
+     *
+     * Returns [borders] UNCHANGED (by reference — callers use `!==` to tell) for every non-passport type,
+     * an address page, or whenever nothing could be registered; a NEW [BordersResult] — new canvas, new
+     * per-page pieces — when registration replaced the Borders-only warp for at least one page.
+     */
+    private fun registerPages(img: Image, docType: String, borders: BordersResult): BordersResult {
+        val lower = docType.lowercase()
+        if (!lower.contains("intpassport") || lower.contains("addr")) return borders
+
+        val (quads, _) = pageRegistrar.pageQuads(borders.segments, img.height to img.width)
+        val regs = pageRegistrar.register(img, quads)
+        val scale = pageRegistrar.nativeScale(regs)
+
+        // Which Borders quad (if any) agrees with each registered page, and whether to trust that quad's
+        // geometry over the template's — pipeline.py:1060-1084.
+        val used = HashSet<Int>()
+        val quadStep = arrayOfNulls<Int>(regs.size) // Borders quad index to warp from, per page
+        val useTemplate = BooleanArray(regs.size)   // true: warp from the registration's own homography
+        for (i in regs.indices) {
+            val r = regs[i]
+            if (!r.ok) continue
+            var bestI = -1
+            var bestIou = 0.0
+            for (qi in quads.indices) {
+                if (qi in used) continue
+                val iou = pageRegistrar.quadIou(quads[qi], r.quad!!)
+                if (iou > bestIou) {
+                    bestI = qi
+                    bestIou = iou
+                }
+            }
+            if (bestI >= 0 && bestIou >= QUAD_SAME_PAGE_IOU) {
+                used += bestI
+                val q = quads[bestI]
+                val clipped = q.any { it.x <= 1 || it.y <= 1 || it.x >= img.width - 2 || it.y >= img.height - 2 }
+                if (clipped && bestIou < QUAD_CLIPPED_IOU) {
+                    useTemplate[i] = true
+                } else {
+                    quadStep[i] = bestI
+                }
+            } else {
+                useTemplate[i] = true
+            }
+        }
+        // Spare Borders quads (not claimed by any registered page), top to bottom — fill a page the
+        // registrar could not find at all.
+        val spare = quads.indices.filter { it !in used }.sortedBy { quads[it].minOf { p -> p.y } }.toMutableList()
+
+        val pages = ArrayList<Image>()
+        val sources = arrayOfNulls<String>(regs.size)
+        val quadUsed = arrayOfNulls<Int>(regs.size)
+        var handedOff = false
+        try {
+            for (i in regs.indices) {
+                val r = regs[i]
+                val page: Image = when {
+                    // `!r.ok` implies neither of the two flags below was ever set for this page —
+                    // `plan.append(None)` in the reference.
+                    !r.ok -> {
+                        if (spare.isEmpty()) {
+                            continue
+                        }
+                        val qi = spare.removeAt(0)
+                        sources[i] = "borders-spare"
+                        quadUsed[i] = qi
+                        pageRegistrar.warpQuad(img, Geometry.expandQuad(quads[qi].toList(), Geometry.DOC_MARGIN_FRACTION).toTypedArray(), scale)
+                    }
+                    quadStep[i] != null -> {
+                        val qi = quadStep[i]!!
+                        sources[i] = "borders"
+                        quadUsed[i] = qi
+                        pageRegistrar.warpQuad(img, Geometry.expandQuad(quads[qi].toList(), Geometry.DOC_MARGIN_FRACTION).toTypedArray(), scale)
+                    }
+                    else -> {
+                        sources[i] = "template"
+                        pageRegistrar.warpPage(img, r, scale)
+                    }
+                }
+                val (straightened, _) = pageRegistrar.straighten(page, scale)
+                if (straightened !== page) page.close()
+                pages += straightened
+            }
+            if (pages.isEmpty()) {
+                return borders
+            }
+            val pageQuadsFinal = ArrayList<List<Pt>>()
+            for (i in regs.indices) {
+                if (sources[i] == null) continue
+                val qi = quadUsed[i]
+                pageQuadsFinal += if (qi != null) quads[qi].toList() else regs[i].quad!!.toList()
+            }
+            val (stitched, placements) = Geometry.stitchPages(pages, pageQuadsFinal, StackDirection.VERTICAL)
+            if (stitched == null) {
+                pages.forEach { it.close() }
+                return borders
+            }
+            // A SNAPSHOT (`toList()`), not the mutable `pages` list itself: `BordersResult.pages` would
+            // otherwise alias the same backing list, and `pages.clear()` below — needed so the `finally`
+            // does not close what was just handed off — would empty the result's list too. Exactly the
+            // bug this comment is replacing: found by a page count that silently became 0 after a
+            // successful registration, diagnosed with a one-line stderr trace, not assumed.
+            handedOff = true
+            return BordersResult(stitched, borders.segments, pages.toList(), placements)
+        } finally {
+            if (!handedOff) {
+                pages.forEach { it.close() } // only reached on an early return before hand-off
+            }
+        }
+    }
+
+    /**
+     * Detects text fields PAGE BY PAGE and reports every box in CANVAS coordinates. Port of
+     * `Pipeline._fields_from_pages` (pipeline.py:1256).
+     *
+     * Run in [pages] order (the ORIGINAL segment order — not left-to-right/top-to-bottom stitch order),
+     * exactly as the reference iterates `zip(pages, placements)`: that order is what `fields.bbox` records,
+     * and the harness compares it positionally. Detection runs on each page at its OWN resolution — the
+     * whole reason for this path — and only the box coordinates are remapped; the cropped patches already
+     * come from the page pixels and need no further transform.
+     */
+    private fun fieldsFromPages(
+        pages: List<Image>,
+        placements: List<Placement>,
+        rotateLicence: Boolean,
+    ): List<Field> {
+        val output = ArrayList<Field>()
+        try {
+            for (i in pages.indices) {
+                val (scale, dx, dy) = placements[i]
+                val onPage = textFields.predictTransform(pages[i], rotateLicence)
+                for (field in onPage) {
+                    // `int(round(box[0]*scale+dx))` etc — pipeline.py:1273. The patch is untouched: it was
+                    // already cropped from the page at full resolution.
+                    val moved = field.box.copy()
+                    moved.x1 = PyNum.roundHalfEvenToInt(field.box.x1 * scale + dx).toDouble()
+                    moved.y1 = PyNum.roundHalfEvenToInt(field.box.y1 * scale + dy).toDouble()
+                    moved.x2 = PyNum.roundHalfEvenToInt(field.box.x2 * scale + dx).toDouble()
+                    moved.y2 = PyNum.roundHalfEvenToInt(field.box.y2 * scale + dy).toDouble()
+                    output += Field(moved, field.patch)
+                    // The Field wrapper above now owns `field.patch`; `field` itself (the old wrapper) must
+                    // not close it too. `Field.close()` only closes `patch`, and both wrappers point at the
+                    // SAME Image, so leaving the original list alone (never calling closeAllFields on it) is
+                    // what keeps this a move rather than a double-free.
+                }
+            }
+            return output
+        } catch (e: Throwable) {
+            closeAllFields(output)
+            throw e
+        }
+    }
+
+    /**
      * Rounds every stage time and adds `total`.
      *
      * **`total` sums only the stages that ran SEQUENTIALLY.** The quality group's four members overlap inside
@@ -474,6 +723,7 @@ public class Recognizer(
             },
             timings = results.timings,
             segments = results.segments,
+            normalized = results.ocrNormalized,
         ),
         includeDebug,
     )
@@ -484,7 +734,7 @@ public class Recognizer(
         // memory in how long it takes to notice.
         val failures = mutableListOf<Throwable>()
         for (closeable in listOf(docTypeAngles, glare, blur, printSpoofing, lcdSpoofing, docDetector,
-            textFields, words, cyrillic, latin)) {
+            textFields, words, cyrillic, latin, pageRegistrar)) {
             try {
                 closeable.close()
             } catch (e: Throwable) {
@@ -569,6 +819,10 @@ public class Recognizer(
     )
 
     public companion object {
+        /** `_register_pages`'s IoU gate for trusting a Borders quad over the template match. pipeline.py:25-26. */
+        public const val QUAD_SAME_PAGE_IOU: Double = 0.40
+        public const val QUAD_CLIPPED_IOU: Double = 0.80
+
         /**
          * The stages this build can emit, in pipeline order. Grows one milestone at a time.
          *
@@ -604,6 +858,7 @@ public class Recognizer(
         public const val TIMING_PRINT_SPOOFING: String = "_print_spoofing"
         public const val TIMING_LCD_SPOOFING: String = "_lcd_spoofing"
         public const val TIMING_DOC_DETECTOR: String = "_doc_detector"
+        public const val TIMING_REGISTER_PAGES: String = "_register_pages"
         public const val TIMING_DESKEW: String = "_deskew"
         public const val TIMING_FIELDS_DETECTOR: String = "_fields_detector"
         public const val TIMING_SPLIT_WORDS: String = "_split_words"

@@ -1,6 +1,6 @@
 {
-  "models_version": "v5",
-  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v5/",
+  "models_version": "v6",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v6/",
   "files": [
     {
       "path": "AddressLines/ONNX/model.json",
@@ -155,14 +155,14 @@
     {
       "path": "TextFields/ONNX/model.json",
       "asset": "TextFields__ONNX__model.json",
-      "size": 2044,
-      "sha256": "523f470e40ad1c2a55ef268dfc33b34a731bf7bb81dc67305d9d64c30aa7d36a"
+      "size": 2118,
+      "sha256": "615575902aa9b53228ced07a9f3acf681174da40fa3ef935c6952356716ca08b"
     },
     {
       "path": "TextFields/ONNX/model.onnx",
       "asset": "TextFields__ONNX__model.onnx",
       "size": 37822910,
-      "sha256": "10fb5b9a9d6501cd7237a8480edf0283437111ec7d39ac834888d153e8bf4e8a"
+      "sha256": "c297d4221dbf2a47dd35f7b5ea2c2e706f24be91a7fd942862b618283cb8a4e9"
     },
     {
       "path": "Words/ONNX/model.json",
@@ -174,7 +174,7 @@
       "path": "Words/ONNX/model.onnx",
       "asset": "Words__ONNX__model.onnx",
       "size": 10452985,
-      "sha256": "0b2d7cb3668ee497b79c5651ad7035fc7cad590b6f295251d97dea4d4c73fa13"
+      "sha256": "cb414d61c2951fa17f01c34fa529603cce7a1e8336107e2de6c960437ad79585"
     }
   ]
 }

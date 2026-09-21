@@ -66,7 +66,10 @@ public sealed record OcrOptions
         {
             return new OcrOptions
             {
-                NeededSplit = ["Licence_number", "Birth_place_ru", "Issue_organization_ru"],
+                // `Middle_name_ru`: see the DL branch below — no OCR alphabet carries a space, so a
+                // double patronymic is returned glued unless the splitter runs (pipeline.py:134-139).
+                NeededSplit = ["Licence_number", "Birth_place_ru", "Issue_organization_ru",
+                    "Middle_name_ru"],
                 // MRZ is read by the Latin engine and is NOT in NeededSplit: the zone is detected
                 // one box per LINE, and each line must reach the engine whole — splitting it at its
                 // filler runs would destroy the fixed 44-character layout the check digits are
@@ -89,7 +92,12 @@ public sealed record OcrOptions
         {
             return new OcrOptions
             {
-                NeededSplit = ["Licence_number", "Birth_place_ru", "Birth_place_en"],
+                // `Issue_organization_ru` is split for the same reason as the DL branch's
+                // `Middle_name_*` below: no OCR alphabet contains a space, so a multi-word field that
+                // skips the splitter comes back glued («МИД РОССИИ» -> «МИДРОССИИ»,
+                // pipeline.py:211-219).
+                NeededSplit = ["Licence_number", "Birth_place_ru", "Birth_place_en",
+                    "Issue_organization_ru"],
                 // MRZ: Latin engine, never split — see intpassport above.
                 EnFields = ["Last_name_en", "First_name_en", "Issue_date",
                     "Expiration_date", "Birth_date", "Birth_place_en", "Issue_organization_en",
@@ -104,8 +112,12 @@ public sealed record OcrOptions
         {
             return new OcrOptions
             {
+                // `Middle_name_*` is split for the same reason as the external passport's
+                // `Issue_organization_ru` above: no OCR alphabet contains a space, so a double
+                // patronymic («ОГЛЫ», «КЫЗЫ») comes back glued unless the splitter runs
+                // (pipeline.py:256-263).
                 NeededSplit = ["Licence_number", "Driver_class", "Birth_place_ru", "Birth_place_en",
-                    "Living_region_ru", "Living_region_en"],
+                    "Living_region_ru", "Living_region_en", "Middle_name_ru", "Middle_name_en"],
                 EnFields = ["Last_name_en", "First_name_en", "Licence_number", "Issue_date",
                     "Expiration_date", "Driver_class", "Birth_date", "Birth_place_en",
                     "Issue_organization_en", "Living_region_en", "Issue_organisation_code",

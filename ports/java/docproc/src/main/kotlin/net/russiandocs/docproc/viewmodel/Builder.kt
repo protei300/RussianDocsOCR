@@ -23,6 +23,8 @@ public data class Input(
     val quality: Map<String, JsonElement> = emptyMap(),
     val timings: Map<String, Double> = emptyMap(),
     val segments: List<List<Pt>>? = null,
+    /** Canonical `dd.mm.yyyy` per date field that converted — `results.ocr_normalized`. */
+    val normalized: Map<String, String> = emptyMap(),
 )
 
 /** A detector box as the pipeline produces it, before the view model's own shape. */
@@ -66,7 +68,7 @@ public object Builder {
             coordSpace = "canvas",
             coordSpaceNote = COORD_SPACE_NOTE,
             boxes = boxes,
-            fields = buildFields(input.docType, input.ocr, boxes),
+            fields = buildFields(input.docType, input.ocr, boxes, input.normalized),
             ocr = input.ocr,
             quality = input.quality,
             timings = input.timings,
@@ -132,6 +134,7 @@ public object Builder {
         docType: String,
         ocr: Map<String, String>,
         boxes: List<Box>,
+        normalized: Map<String, String>,
     ): List<Field> {
         val byLabel = HashMap<String, MutableList<String>>()
         val confByLabel = HashMap<String, Double?>()
@@ -155,6 +158,9 @@ public object Builder {
                 script = Labels.fieldScript(name),
                 conf = confByLabel[name],
                 boxIds = byLabel[name] ?: emptyList(),
+                // Only where a canonical form exists — an empty string counts as none, as the
+                // reference's `if canonical:` does.
+                normalized = normalized[name]?.takeIf { it.isNotEmpty() },
             )
         }
     }

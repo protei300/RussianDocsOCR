@@ -116,6 +116,16 @@ public sealed class Field
     /// </para>
     /// </summary>
     [JsonPropertyName("box_ids")] public List<string> BoxIds { get; set; } = [];
+
+    /// <summary>
+    /// Canonical <c>dd.mm.yyyy</c> form of a date field's reading (<c>Results.OcrNormalized</c>,
+    /// <see cref="Pipeline.Dates"/>). Present ONLY where a canonical form exists — the KEY is absent,
+    /// not null, exactly like the reference (transform.py:244-246) — so a client can tell "there is
+    /// none" from "it equals the reading".
+    /// </summary>
+    [JsonPropertyName("normalized")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Normalized { get; set; }
 }
 
 public sealed class Debug

@@ -1,0 +1,39 @@
+{
+ "doc_type": "INTPASSPORT",
+ "page_mm": [
+  88,
+  125
+ ],
+ "page_px": [
+  1000,
+  704
+ ],
+ "pages": [
+  {
+   "name": "page2",
+   "refs": [
+    {
+     "image": "intpassport_page2_a.png",
+     "mask": "intpassport_page2_a_mask.png"
+    },
+    {
+     "image": "intpassport_page2_b.png",
+     "mask": "intpassport_page2_b_mask.png"
+    }
+   ]
+  },
+  {
+   "name": "page3",
+   "refs": [
+    {
+     "image": "intpassport_page3_a.png",
+     "mask": "intpassport_page3_a_mask.png"
+    },
+    {
+     "image": "intpassport_page3_b.png",
+     "mask": "intpassport_page3_b_mask.png"
+    }
+   ]
+  }
+ ]
+}

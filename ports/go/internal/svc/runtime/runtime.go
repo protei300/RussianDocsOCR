@@ -464,6 +464,7 @@ func (r *Runtime) Recognise(imagePath string, opts RecogniseOptions) (*Result, e
 			CanvasMissing: !res.HasCanvas,
 			Boxes:         res.Boxes,
 			Ocr:           res.Ocr,
+			Normalized:    res.OcrNormalized,
 			Quality:       res.Quality,
 			Timings:       res.Timings,
 			Segments:      res.Segments,

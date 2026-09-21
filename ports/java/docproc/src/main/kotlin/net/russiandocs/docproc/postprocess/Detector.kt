@@ -55,7 +55,32 @@ public class YoloDetector(
      * loses sub-pixel information the mask crop depends on.
      */
     public val numpyOnly: Boolean = false,
+    /**
+     * `{label: threshold}` overriding [iou] for the named classes only — `iou_per_class` in
+     * `PerClassYOLODetectorPostprocessing` (postprocessing.py:568). A multi-line field is labelled one
+     * box per line and those boxes share a class, so on a tilted document they suppress each other at
+     * the shared 0.2; the MRZ carries 0.6. Empty for every other detector.
+     */
+    private val iouPerClass: Map<String, Double> = emptyMap(),
+    /**
+     * The same for the CONFIDENCE threshold — `cls_per_class` (postprocessing.py:522). Two rules from
+     * the reference, both load-bearing: a row survives when ANY class passes its own threshold, and the
+     * classes that did NOT pass are zeroed before the argmax. Without the second, a row could survive on
+     * a low-threshold class while the argmax picked a higher-scoring class that failed its own bar, and
+     * the box would be kept under the wrong label.
+     */
+    private val clsPerClass: Map<String, Double> = emptyMap(),
 ) : Postprocessor {
+
+    /**
+     * Per-column confidence thresholds, `_thresholds` in the reference: the class's own override where
+     * one exists, the shared threshold otherwise. FLOAT, because the reference builds this vector as
+     * float32 and compares float32 scores against it; a double 0.4 sits below float32's 0.4 and would
+     * admit a score the reference rejects.
+     */
+    private val thresholds: FloatArray = FloatArray(labels.size) { c ->
+        (clsPerClass[labels[c]] ?: cls).toFloat()
+    }
 
     /**
      * A copy with raw-coordinate mode on.
@@ -64,7 +89,18 @@ public class YoloDetector(
      * needs the same detector with one flag flipped, and building a second one there would duplicate the
      * argument list the switch already owns.
      */
-    public fun withNumpyOnly(): YoloDetector = YoloDetector(labels, iou, cls, mode, numpyOnly = true)
+    public fun withNumpyOnly(): YoloDetector =
+        YoloDetector(labels, iou, cls, mode, numpyOnly = true, iouPerClass = iouPerClass,
+            clsPerClass = clsPerClass)
+
+    /** NMS threshold for one class — `iou_for` in the reference. */
+    private fun iouFor(cls: Int): Double {
+        if (iouPerClass.isEmpty()) {
+            return iou
+        }
+        val label = if (cls in labels.indices) labels[cls] else null
+        return iouPerClass[label] ?: iou
+    }
 
     override fun apply(output: NdArray, context: Context): ModelResult =
         DetectResult(decode(output, context))
@@ -95,17 +131,41 @@ public class YoloDetector(
             // Strict `>` for the best class, matching np.argmax's first-maximum rule.
             var best = 0
             var bestScore = Double.NEGATIVE_INFINITY
-            for (c in 0 until nc) {
-                val score = data[base + 4 + c].toDouble()
-                if (score > bestScore) {
-                    best = c
-                    bestScore = score
+            if (clsPerClass.isEmpty()) {
+                for (c in 0 until nc) {
+                    val score = data[base + 4 + c].toDouble()
+                    if (score > bestScore) {
+                        best = c
+                        bestScore = score
+                    }
                 }
-            }
-            // `!(score > cls)` rather than `score <= cls`: identical for real numbers, and it keeps the
-            // reference's own spelling, which also handles NaN the same way.
-            if (!(bestScore > cls)) {
-                continue
+                // `!(score > cls)` rather than `score <= cls`: identical for real numbers, and it keeps
+                // the reference's own spelling, which also handles NaN the same way.
+                if (!(bestScore > cls)) {
+                    continue
+                }
+            } else {
+                // `conf_keep` then `conf_scores` (postprocessing.py:552-566): the row stays when any
+                // class beats ITS OWN threshold, and the argmax runs over the scores with the failing
+                // classes zeroed — so it can only pick a class that passed. float32 comparison, as the
+                // reference's (see `thresholds`).
+                var passed = false
+                for (c in 0 until nc) {
+                    val raw = data[base + 4 + c]
+                    val score = if (raw > thresholds[c]) {
+                        passed = true
+                        raw.toDouble()
+                    } else {
+                        0.0
+                    }
+                    if (score > bestScore) {
+                        best = c
+                        bestScore = score
+                    }
+                }
+                if (!passed) {
+                    continue
+                }
             }
 
             val cx = data[base].toDouble()
@@ -243,7 +303,10 @@ public class YoloDetector(
         val classes = boxes.map { it.cls }.distinct().sorted()
         val keep = ArrayList<Int>()
         for (c in classes) {
-            keep += nms(boxes.indices.filter { boxes[it].cls == c }, boxes, threshold)
+            // The class's own threshold where the config names one (`iou_for`); the shared one
+            // otherwise. `threshold` is that shared value.
+            val classThreshold = if (iouPerClass.isEmpty()) threshold else iouFor(c)
+            keep += nms(boxes.indices.filter { boxes[it].cls == c }, boxes, classThreshold)
         }
         return keep
     }

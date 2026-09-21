@@ -26,6 +26,7 @@ public sealed class Timings
     public const string PrintSpoofing = "_print_spoofing";
     public const string LcdSpoofing = "_lcd_spoofing";
     public const string DocDetector = "_doc_detector";
+    public const string RegisterPages = "_register_pages";
     public const string Deskew = "_deskew";
     public const string FieldsDetector = "_fields_detector";
     public const string SplitWords = "_split_words";

@@ -233,11 +233,22 @@ def main():
     parser.add_argument('-d', '--device', default='cpu', choices=['cpu', 'gpu'])
     parser.add_argument('--ocr', default='accurate',
                         choices=['accurate', 'fast', 'legacy'])
+    parser.add_argument('--page-registration', action='store_true', dest='page_registration',
+                        default=True,
+                        help='rectify internal-passport pages against the blank templates '
+                             '(Pipeline(page_registration=True)); this is the default since 2026-09-17')
+    parser.add_argument('--no-page-registration', action='store_false', dest='page_registration',
+                        help='plain Borders canvas for internal passports (Pipeline(page_registration=False))')
+    parser.add_argument('--page-geometry', action='store_true',
+                        help='template-free page geometry for every document type: line-fitted '
+                             'quads, line straightening, bend map (Pipeline(page_geometry=True))')
     args = parser.parse_args()
 
     from document_processing import Pipeline
     pipeline = Pipeline(model_format=args.format, device=args.device,
-                        ocr=args.ocr, verbose=False)
+                        ocr=args.ocr, verbose=False,
+                        page_registration=args.page_registration,
+                        page_geometry=args.page_geometry)
 
     overall, by_doctype = eval_samples(pipeline, args.input, limit=args.limit)
     print(f'==== {args.input} ====')

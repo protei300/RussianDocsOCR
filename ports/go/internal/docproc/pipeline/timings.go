@@ -21,6 +21,7 @@ const (
 	StagePrintSpoofing     = "_print_spoofing"
 	StageLcdSpoofing       = "_lcd_spoofing"
 	StageDocDetector       = "_doc_detector"
+	StageRegisterPages     = "_register_pages"
 	StageDeskew            = "_deskew"
 	StageFieldsDetector    = "_fields_detector"
 	StageSplitWords        = "_split_words"

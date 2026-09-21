@@ -316,6 +316,16 @@ class YOLODetectorPostprocessing(BasePostprocessing):
         self.cls = cls
         self.labels = labels
 
+    # Two hooks, so a subclass can vary the confidence threshold per class
+    # without copying __call__. The base keeps one shared threshold, exactly as
+    # before.
+    def conf_keep(self, scores: np.ndarray) -> np.ndarray:
+        """Which rows survive the confidence threshold."""
+        return scores.max(axis=1) > self.cls
+
+    def conf_scores(self, scores: np.ndarray) -> np.ndarray:
+        """Scores as they go into argmax. The base does not touch them."""
+        return scores
 
     def __call__(self,
                  vector: np.ndarray,
@@ -349,7 +359,7 @@ class YOLODetectorPostprocessing(BasePostprocessing):
             return detect_res
 
         n_classes = len(self.labels)
-        vector = vector[vector[..., 4:4+n_classes].max(axis=1) > self.cls]
+        vector = vector[self.conf_keep(vector[..., 4:4+n_classes])]
 
         if len(vector) == 0:
             return []
@@ -357,6 +367,7 @@ class YOLODetectorPostprocessing(BasePostprocessing):
         box, det, seg = np.split(vector, [4, 4+n_classes], axis=1)
         box = self.xywh2xyxy(box)  # creating from x,y height, width -> xy xy coords of box
 
+        det = self.conf_scores(det)
         conf, j = det.max(axis=1, keepdims=True), det.argmax(axis=1, keepdims=True)
         i = self.nms_indices(box, conf, j)  # calculating non maximum suppression
         detect_res = np.concatenate((box, conf, j, seg), axis=1)[i]
@@ -509,14 +520,50 @@ class PerClassYOLODetectorPostprocessing(YOLODetectorPostprocessing):
     """
 
     def __init__(self, labels: list, iou=0.2, cls=0.5, iou_per_class: dict = None,
-                 verbose=False):
+                 cls_per_class: dict = None, verbose=False):
         """
         Args:
             iou_per_class (dict): optional ``{label: threshold}`` overriding the
-                shared threshold for named classes only.
+                shared NMS threshold for named classes only.
+            cls_per_class (dict): the same for the CONFIDENCE threshold.
+                Measured need (2026-09-02): the two MRZ lines are labeled one
+                box per line, and the second line's confidence sits right at the
+                shared 0.5 - 0.50/0.55/0.58/0.60 on the deployed model. That is
+                not headroom, it is a coincidence, and any retrain moves the
+                class across it: a from-scratch run with the same recipe put the
+                same lines at 0.31-0.49 and lost one line on 8 documents out of
+                42. Lowering the SHARED threshold instead would let every other
+                class fire more, so the override is per class - same reasoning
+                as for IOU.
         """
         super().__init__(labels, iou=iou, cls=cls, verbose=verbose)
         self.iou_per_class = iou_per_class or {}
+        self.cls_per_class = cls_per_class or {}
+        self._cls_vec = None
+
+    def _thresholds(self, n: int) -> np.ndarray:
+        """Per-column confidence thresholds, built once."""
+        if self._cls_vec is None or len(self._cls_vec) != n:
+            self._cls_vec = np.array(
+                [self.cls_per_class.get(self.labels[i], self.cls) if i < len(self.labels)
+                 else self.cls for i in range(n)], dtype=np.float32)
+        return self._cls_vec
+
+    def conf_keep(self, scores: np.ndarray) -> np.ndarray:
+        if not self.cls_per_class:
+            return super().conf_keep(scores)
+        return (scores > self._thresholds(scores.shape[1])).any(axis=1)
+
+    def conf_scores(self, scores: np.ndarray) -> np.ndarray:
+        """Zero out classes that did NOT pass their own threshold.
+
+        Without this the row could survive on a low-threshold class while argmax
+        picks a different, higher-scoring class that did not pass its own bar -
+        and the box would be kept under the wrong label.
+        """
+        if not self.cls_per_class:
+            return super().conf_scores(scores)
+        return np.where(scores > self._thresholds(scores.shape[1]), scores, 0.0)
 
     def iou_for(self, cls_idx: int) -> float:
         """NMS threshold for one class.

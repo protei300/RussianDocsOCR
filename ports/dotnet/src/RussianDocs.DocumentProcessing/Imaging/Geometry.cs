@@ -308,6 +308,80 @@ public static class Geometry
         }
     }
 
+    /// <summary>
+    /// Merges already-rectified pages into one canvas. Port of
+    /// <c>image_transformation.stitch_pages</c> — split out from <see cref="FixPerspective"/>'s own
+    /// join logic (rather than having <c>FixPerspective</c> call this) so that logic, already
+    /// verified against the 8 non-INTPASSPORT conformance cases, stays untouched; this is a second,
+    /// independent caller for <see cref="PageRegistration.PageRegistrar"/>'s <c>_register_pages</c>
+    /// port, which needs to stitch pages that were NOT produced by <c>FixPerspective</c>'s own
+    /// per-segment warp (they come from template registration or a Borders quad warped separately).
+    /// </summary>
+    /// <param name="pages">Rectified pages, in detection order. Not disposed here — the caller owns
+    /// them before and after this call.</param>
+    /// <param name="quads">The photo quad each page came from, same order — used only to pick the
+    /// stitch direction (on <see cref="StackDirection.Auto"/>) and the page order.</param>
+    public static Image? StitchPages(IReadOnlyList<Image> pages, IReadOnlyList<Point[]> quads,
+        StackDirection direction)
+    {
+        if (pages.Count == 0)
+        {
+            return null;
+        }
+        if (pages.Count == 1)
+        {
+            return pages[0].Clone();
+        }
+
+        StackDirection resolved = direction;
+        if (direction == StackDirection.Auto)
+        {
+            Point c0 = Centroid(quads[0]), c1 = Centroid(quads[1]);
+            resolved = Math.Abs(c0.X - c1.X) >= Math.Abs(c0.Y - c1.Y)
+                ? StackDirection.Horizontal
+                : StackDirection.Vertical;
+        }
+        bool horizontal = resolved == StackDirection.Horizontal;
+        List<int> ordered = horizontal
+            ? [.. Enumerable.Range(0, pages.Count).OrderBy(i => quads[i].Min(pt => pt.X))]
+            : [.. Enumerable.Range(0, pages.Count).OrderBy(i => quads[i].Min(pt => pt.Y))];
+
+        int common = horizontal
+            ? ordered.Min(i => pages[i].Height)
+            : ordered.Min(i => pages[i].Width);
+
+        var scaled = new List<Image>(ordered.Count);
+        try
+        {
+            foreach (int i in ordered)
+            {
+                Image p = pages[i];
+                int other = horizontal
+                    ? Math.Max(1, PyNum.RoundHalfEvenToInt((double)p.Width * common / p.Height))
+                    : Math.Max(1, PyNum.RoundHalfEvenToInt((double)p.Height * common / p.Width));
+                scaled.Add(horizontal
+                    ? Io.Resize(p, other, common, Interpolation.Linear)
+                    : Io.Resize(p, common, other, Interpolation.Linear));
+            }
+
+            Image joined = scaled[0].Clone();
+            for (int k = 1; k < scaled.Count; k++)
+            {
+                Image combined = horizontal ? Contours.HStack(joined, scaled[k]) : Contours.VStack(joined, scaled[k]);
+                joined.Dispose();
+                joined = combined;
+            }
+            return joined;
+        }
+        finally
+        {
+            foreach (Image part in scaled)
+            {
+                part.Dispose();
+            }
+        }
+    }
+
     private static Point Centroid(IReadOnlyList<Point> quad)
     {
         double cx = 0, cy = 0;

@@ -101,8 +101,8 @@ def test_filter_by_status(store):
 
 def test_search_uses_the_precomputed_haystack(store):
     record = _make(store, "scan.jpg")
-    repo.update(store, record, search_text="scan.jpg intpassport_2011 тестова")
-    assert repo.get_all(store, search="тестова")[1] == 1
+    repo.update(store, record, search_text="scan.jpg intpassport_2011 батурина")
+    assert repo.get_all(store, search="батурина")[1] == 1
     assert repo.get_all(store, search="ivanov")[1] == 0
 
 

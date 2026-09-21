@@ -70,8 +70,10 @@ public static class Loader
         // models that use it — and a fourth port would have copied that verbatim.
         "YOLODetector" => new YoloDetector(output.LabelsAsStrings(), output.Iou ?? 0.45,
             output.Cls ?? 0.5, NmsMode.ClassAgnostic),
+        // The per-class overrides ride only on this tag, as in the reference (models.py:150-156):
+        // the plain YOLODetector keeps one shared pair of thresholds.
         "PerClassYOLODetector" => new YoloDetector(output.LabelsAsStrings(), output.Iou ?? 0.45,
-            output.Cls ?? 0.5, NmsMode.PerClass),
+            output.Cls ?? 0.5, NmsMode.PerClass, output.IouPerClass, output.ClsPerClass),
         "YOLOOBBDetector" => new NotImplementedPostprocessor("YOLOOBBDetector"),
         "YOLOSegmentor" => new YoloSegmentor(output.MaskFilter ?? 0.5),
         "OCRProbs" => new OcrProbs(

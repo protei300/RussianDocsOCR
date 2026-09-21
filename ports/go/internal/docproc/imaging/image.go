@@ -56,6 +56,41 @@ func NewFilled(h, w int, r, g, b uint8) Image {
 	return Image{mat: mat}
 }
 
+// NewGrayFilled makes an h x w single-channel (CV_8U) image of one value - the "all
+// valid" mask the profile-tilt angle search rotates alongside the ink mask.
+func NewGrayFilled(h, w int, val uint8) Image {
+	mat := gocv.NewMatWithSizeFromScalar(gocv.NewScalar(float64(val), 0, 0, 0), h, w, gocv.MatTypeCV8U)
+	return Image{mat: mat}
+}
+
+// NewGrayFromBytes wraps a row-major h x w byte buffer as a CV_8U image (a copy).
+func NewGrayFromBytes(data []byte, w, h int) (Image, error) {
+	m, err := gocv.NewMatFromBytes(h, w, gocv.MatTypeCV8U, data)
+	if err != nil {
+		return Image{}, fmt.Errorf("imaging: NewGrayFromBytes: %w", err)
+	}
+	return Image{mat: m}, nil
+}
+
+// NewFloat32FromBytes wraps a row-major h x w float32 grid as a CV_32F image (a copy) -
+// used by line_dewarp's coarse displacement grid before it is resized up to full page
+// size.
+func NewFloat32FromBytes(data []float32, w, h int) (Image, error) {
+	m, err := gocv.NewMatFromBytes(h, w, gocv.MatTypeCV32F, float32sToBytes(data))
+	if err != nil {
+		return Image{}, fmt.Errorf("imaging: NewFloat32FromBytes: %w", err)
+	}
+	return Image{mat: m}, nil
+}
+
+// Float32Data reads a CV_32F image back into a row-major float32 slice.
+func Float32Data(img Image) ([]float32, error) {
+	if img.mat.Type() != gocv.MatTypeCV32F {
+		return nil, fmt.Errorf("imaging: Float32Data: expected CV_32F, got %v", img.mat.Type())
+	}
+	return bytesToFloat32s(img.mat.ToBytes()), nil
+}
+
 // Mat exposes the underlying matrix for use inside this package only. Returning it
 // does not transfer ownership.
 func (i Image) Mat() gocv.Mat { return i.mat }

@@ -39,6 +39,11 @@ type Recognizer struct {
 	borders    *modules.DocDetector
 	deskewer   *modules.DocDeskewer
 	fields     *modules.TextFieldsDetector
+	// pageRegistrar is nil only if templates failed to load - matching the
+	// reference's PageRegistrar(), which the Pipeline constructs unconditionally
+	// whenever page_registration=True (the default). A missing/broken template set
+	// is therefore a construction-time failure, not a silent feature disable.
+	pageRegistrar *modules.PageRegistrar
 	words      *modules.WordsDetector
 	cyr        *modules.OcrEngine
 	lat        *modules.OcrEngine
@@ -91,6 +96,15 @@ type Results struct {
 	// localise a single bad word.
 	Ocr   map[string]string
 	Words []FieldText
+	// OcrNormalized is the canonical dd.mm.yyyy view of the date fields, ALONGSIDE the
+	// reading - a separate map, deliberately: Ocr holds what is printed on the document,
+	// which is what the ground truth describes and the key set the service builds its
+	// field list from. Only fields that converted appear; nil when none did
+	// (PipelineResults.ocr_normalized, pipeline.py:170-181).
+	OcrNormalized map[string]string
+	// SplitFlags reports the lines the gap guard re-read whole, and the ones it declined
+	// to (PipelineResults.words_fallback / words_no_ink).
+	SplitFlags SplitFlags
 
 	// Canvas is the deskewed, perspective-corrected image in RGB. HasCanvas is false when
 	// the run short-circuited before producing one.
@@ -185,6 +199,7 @@ func NewRecognizer(opts RecognizerOptions) (*Recognizer, error) {
 	step(func() (e error) { r.words, e = modules.NewWordsDetector(root, paths, f, dev, th); return })
 	step(func() (e error) { r.cyr, e = modules.NewOcrCyrillic(root, paths, f, opts.OcrDevice, th, tier); return })
 	step(func() (e error) { r.lat, e = modules.NewOcrLatin(root, paths, f, opts.OcrDevice, th, tier); return })
+	step(func() (e error) { r.pageRegistrar, e = modules.NewPageRegistrar(root, "INTPASSPORT", 6000); return })
 	if buildErr != nil {
 		_ = r.Close()
 		return nil, buildErr
@@ -225,6 +240,9 @@ func (r *Recognizer) Close() error {
 	}
 	if r.lat != nil {
 		closers = append(closers, r.lat.Close)
+	}
+	if r.pageRegistrar != nil {
+		closers = append(closers, r.pageRegistrar.Close)
 	}
 	var first error
 	for _, c := range closers {
@@ -330,19 +348,57 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	// max_pages is 2 only for the internal-passport spread; every other type passes 1 so a
 	// background blob can never be stitched in as a second page. A SUBSTRING test of the
 	// raw label, matching the reference.
+	lowerType := strings.ToLower(meta.DocType)
+	isSpread := strings.Contains(lowerType, "intpassport")
+	// INTPASSPORTADDR is out of scope for this port (no anonymised sample -> no
+	// golden -> nothing to verify against - see MAPPING.md "Not ported"), but it
+	// still matches the "intpassport" substring above (is_spread, so maxPages=2,
+	// matching the reference's own _doc_detector). _register_pages additionally
+	// excludes it (pipeline.py: `'addr' in doc_type: return`), and so does the
+	// registration branch below.
+	canRegister := isSpread && !strings.Contains(lowerType, "addr")
 	maxPages := 1
-	if strings.Contains(strings.ToLower(meta.DocType), "intpassport") {
+	if isSpread {
 		maxPages = 2
 	}
-	var canvas imaging.Image
 	detectStart := time.Now()
-	if canvas, out.Segments, err = r.borders.PredictTransform(upright, maxPages); err != nil {
+	det, err := r.borders.PredictTransform(upright, maxPages)
+	if err != nil {
 		return fail(err)
 	}
+	canvas := det.Canvas
+	out.Segments = det.Segments
 	out.owned = append(out.owned, canvas)
+	pages, pageQuads, placements := det.Pages, det.PageQuads, det.Placements
+	out.owned = append(out.owned, pages...)
 
 	qualityTimes[StageDocDetector] = time.Since(detectStart)
 	timings.RecordGroup(StageQualityAndBorders, time.Since(groupStart), qualityTimes)
+
+	// _register_pages: rebuild the internal-passport canvas from template-registered
+	// pages when possible. Runs on EVERY document (the reference times it
+	// unconditionally too, returning at once for anything but a registrable
+	// passport), which is why the timings KEY SET always has it regardless of doc
+	// type - see DEVIATIONS for the measured canvas divergence this introduces on
+	// the two internal-passport conformance cases.
+	registeredWithLineRefine := false
+	if err := timings.Time(StageRegisterPages, func() error {
+		if !canRegister || r.pageRegistrar == nil {
+			return nil
+		}
+		regResult, ok := r.registerPages(upright, out.Segments)
+		if !ok {
+			return nil
+		}
+		canvas = regResult.Canvas
+		pages, pageQuads, placements = regResult.Pages, regResult.PageQuads, regResult.Placements
+		out.owned = append(out.owned, canvas)
+		out.owned = append(out.owned, pages...)
+		registeredWithLineRefine = r.pageRegistrar.LineRefine
+		return nil
+	}); err != nil {
+		return fail(err)
+	}
 
 	// Emitted before the canvas: the contours are upstream of the warp, so when both
 	// diverge this ordering tells the reader which one to blame.
@@ -358,8 +414,31 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	}
 
 	// ---- stage: deskew.canvas ---------------------------------------------
+	// Deskew stays off when the registrar already straightened these pages by their
+	// OWN lines (line_refine/line_dewarp, blur-tolerant, template-free): the
+	// whole-canvas projection-profile scan can mistake a small canvas's dark cushion
+	// for text and rotate an already-straight page (pipeline.py's _deskew docstring,
+	// measured on 12_CR_INTPASSPORT_2011). Otherwise, with 2+ pages (a spread that
+	// went through the plain Borders path), each page is deskewed ON ITS OWN and the
+	// canvas re-stitched - the two pages of an open passport rarely share one angle.
 	var deskewed imaging.Image
 	if err := timings.Time(StageDeskew, func() (e error) {
+		if registeredWithLineRefine {
+			deskewed = canvas.Clone()
+			return nil
+		}
+		if len(pages) >= 2 {
+			var ok bool
+			var deskPages []imaging.Image
+			deskewed, deskPages, placements, ok = r.deskewPages(pages, pageQuads)
+			if !ok {
+				deskewed, _, e = r.deskewer.Deskew(canvas)
+				return e
+			}
+			pages = deskPages
+			out.owned = append(out.owned, deskPages...)
+			return nil
+		}
 		deskewed, _, e = r.deskewer.Deskew(canvas)
 		return
 	}); err != nil {
@@ -385,6 +464,13 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 
 	var fields []modules.Field
 	if err := timings.Time(StageFieldsDetector, func() (e error) {
+		// _fields_from_pages: with 2+ pages, the field detector runs on EACH PAGE
+		// separately (its 640x640 input gives a stitched spread only half of itself
+		// per page) and the boxes are moved onto the canvas by that page's placement.
+		if len(pages) >= 2 && len(placements) == len(pages) {
+			fields, e = r.fieldsFromPages(pages, placements, ocrOpts.NeedsLicenceRotation)
+			return
+		}
 		fields, e = r.fields.PredictTransform(deskewed, ocrOpts.NeedsLicenceRotation)
 		return
 	}); err != nil {
@@ -404,9 +490,13 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	// ---- stages: words.<Field>.bbox ---------------------------------------
 	// The address path (INTPASSPORTADDR) is out of scope for this port, so no
 	// address.lines stage is emitted and the checker skips it.
+	// Remembered BEFORE the words are split, from the boxes as detected: the MRZ retry
+	// re-cuts a line from this canvas when its length comes out wrong (_note_mrz_zone).
+	mrzZone := NoteMrzZone(out.Boxes, deskewed)
+
 	var fieldWords []FieldWords
 	if err := timings.Time(StageSplitWords, func() (e error) {
-		fieldWords, e = SplitWords(fields, ocrOpts, r.words)
+		fieldWords, out.SplitFlags, e = SplitWords(fields, ocrOpts, r.words, bareType)
 		return
 	}); err != nil {
 		return fail(err)
@@ -426,7 +516,7 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	// ---- stages: ocr.<Field>.words, join ----------------------------------
 	var texts []FieldText
 	if err := timings.Time(StageOcr, func() (e error) {
-		texts, e = OcrFields(fieldWords, bareType, ocrOpts, r.cyr, r.lat)
+		texts, e = OcrFields(fieldWords, bareType, ocrOpts, r.cyr, r.lat, mrzZone)
 		return
 	}); err != nil {
 		return fail(err)
@@ -454,6 +544,15 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	if err := sink.Emit("join", joined); err != nil {
 		return fail(err)
 	}
+
+	// Canonical dates are built once, on the FINISHED dict, after the ruler cleanup:
+	// the reference's _normalize_dates runs after _ocr, which is where the cleanup
+	// happens too, so nothing upstream sees a rewritten value (pipeline.py:1144-1159).
+	order := make([]string, 0, len(texts))
+	for _, ft := range texts {
+		order = append(order, ft.Label)
+	}
+	out.OcrNormalized = NormalizeDates(out.Ocr, order)
 
 	out.Timings = timings.Report()
 	return out, nil

@@ -19,9 +19,9 @@
       "kind": "text",
       "x1": 456,
       "y1": 146,
-      "x2": 641,
-      "y2": 181,
-      "conf": 0.939,
+      "x2": 642,
+      "y2": 180,
+      "conf": 0.908,
       "cls": 5,
       "text": "139-295-990 60",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "Last_name_ru",
       "display": "Last name",
       "kind": "text",
-      "x1": 125,
-      "y1": 183,
-      "x2": 265,
-      "y2": 210,
-      "conf": 0.914,
+      "x1": 123,
+      "y1": 182,
+      "x2": 266,
+      "y2": 211,
+      "conf": 0.909,
       "cls": 1,
       "text": "ГЕРАСИМОВ",
       "ambiguous": false
@@ -49,7 +49,7 @@
       "y1": 210,
       "x2": 201,
       "y2": 235,
-      "conf": 0.914,
+      "conf": 0.912,
       "cls": 2,
       "text": "СЕМЁН",
       "ambiguous": false
@@ -62,8 +62,8 @@
       "x1": 123,
       "y1": 237,
       "x2": 262,
-      "y2": 265,
-      "conf": 0.935,
+      "y2": 266,
+      "conf": 0.923,
       "cls": 17,
       "text": "АНТОНОВИЧ",
       "ambiguous": false
@@ -73,11 +73,11 @@
       "label": "Birth_date",
       "display": "Date of birth",
       "kind": "text",
-      "x1": 294,
+      "x1": 290,
       "y1": 272,
       "x2": 517,
       "y2": 303,
-      "conf": 0.917,
+      "conf": 0.896,
       "cls": 10,
       "text": "6 СЕНТЯБРЯ 1955 ГОДА",
       "ambiguous": false
@@ -87,11 +87,11 @@
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 120,
-      "y1": 298,
+      "x1": 119,
+      "y1": 297,
       "x2": 346,
       "y2": 334,
-      "conf": 0.925,
+      "conf": 0.924,
       "cls": 11,
       "text": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
       "ambiguous": false
@@ -102,10 +102,10 @@
       "display": "Place of birth",
       "kind": "text",
       "x1": 122,
-      "y1": 324,
-      "x2": 414,
+      "y1": 323,
+      "x2": 413,
       "y2": 360,
-      "conf": 0.894,
+      "conf": 0.895,
       "cls": 11,
       "text": null,
       "ambiguous": true
@@ -119,7 +119,7 @@
       "y1": 394,
       "x2": 211,
       "y2": 422,
-      "conf": 0.934,
+      "conf": 0.94,
       "cls": 18,
       "text": "М",
       "ambiguous": false
@@ -130,10 +130,10 @@
       "display": "Date of issue",
       "kind": "text",
       "x1": 254,
-      "y1": 435,
-      "x2": 434,
+      "y1": 434,
+      "x2": 433,
       "y2": 464,
-      "conf": 0.912,
+      "conf": 0.891,
       "cls": 6,
       "text": "1 МАЯ 2013 ГОДА",
       "ambiguous": false
@@ -145,7 +145,7 @@
       "display": "Last name",
       "value": "ГЕРАСИМОВ",
       "script": "ru",
-      "conf": 0.914,
+      "conf": 0.909,
       "box_ids": [
         "b1"
       ]
@@ -155,7 +155,7 @@
       "display": "First name",
       "value": "СЕМЁН",
       "script": "ru",
-      "conf": 0.914,
+      "conf": 0.912,
       "box_ids": [
         "b2"
       ]
@@ -165,7 +165,7 @@
       "display": "Middle name",
       "value": "АНТОНОВИЧ",
       "script": "ru",
-      "conf": 0.935,
+      "conf": 0.923,
       "box_ids": [
         "b3"
       ]
@@ -175,7 +175,7 @@
       "display": "Sex",
       "value": "М",
       "script": "ru",
-      "conf": 0.934,
+      "conf": 0.94,
       "box_ids": [
         "b7"
       ]
@@ -185,17 +185,18 @@
       "display": "Date of birth",
       "value": "6 СЕНТЯБРЯ 1955 ГОДА",
       "script": "num",
-      "conf": 0.917,
+      "conf": 0.896,
       "box_ids": [
         "b4"
-      ]
+      ],
+      "normalized": "06.09.1955"
     },
     {
       "name": "Birth_place_ru",
       "display": "Place of birth",
       "value": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
       "script": "ru",
-      "conf": 0.925,
+      "conf": 0.924,
       "box_ids": [
         "b5",
         "b6"
@@ -206,7 +207,7 @@
       "display": "Document number",
       "value": "139-295-990 60",
       "script": "num",
-      "conf": 0.939,
+      "conf": 0.908,
       "box_ids": [
         "b0"
       ]
@@ -216,10 +217,11 @@
       "display": "Date of issue",
       "value": "1 МАЯ 2013 ГОДА",
       "script": "num",
-      "conf": 0.912,
+      "conf": 0.891,
       "box_ids": [
         "b8"
-      ]
+      ],
+      "normalized": "01.05.2013"
     }
   ],
   "ocr": {
@@ -240,18 +242,19 @@
     "LCDSpoofing": "FAKE"
   },
   "timings": {
-    "_doctype_angle": 0.0065,
-    "_quality_and_borders": 0.2691,
-    "_glare": 0.033,
-    "_blur": 0.031,
-    "_print_spoofing": 0.0065,
-    "_lcd_spoofing": 0.005,
-    "_doc_detector": 0.2016,
-    "_deskew": 0.0058,
-    "_fields_detector": 0.1265,
-    "_split_words": 0.3246,
-    "_ocr": 0.2352,
-    "total": 0.9677
+    "_doctype_angle": 0.005,
+    "_quality_and_borders": 0.2924,
+    "_glare": 0.1088,
+    "_blur": 0.0535,
+    "_print_spoofing": 0.018,
+    "_lcd_spoofing": 0.0192,
+    "_doc_detector": 0.17,
+    "_register_pages": 0.0,
+    "_deskew": 0.006,
+    "_fields_detector": 0.0985,
+    "_split_words": 0.275,
+    "_ocr": 0.215,
+    "total": 0.8919
   },
   "address": null
 }

@@ -280,6 +280,32 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
         warped: Rectified image (or the original if no valid quad is found).
         cnt_img: Original image with the detected quadrilaterals drawn.
     """
+    warps, quads, cnt_img = rectify_pages(img, segments, margin)
+    if not warps:
+        return img, cnt_img
+    stitched, _ = stitch_pages(warps, quads, stack)
+    return stitched, cnt_img
+
+
+def rectify_pages(img: np.ndarray, segments, margin: float = DOC_MARGIN_FRAC):
+    """Rectify each detected page on its own, without stitching them together.
+
+    Split out of ``fix_perspective`` so the pipeline can process a passport
+    spread ONE PAGE AT A TIME: the detectors take a 640x640 input, and a
+    stitched spread gives each page only half of it. Stitching then happens
+    afterwards, over pages that have already been deskewed and read.
+
+    Args:
+        img: Input document image (H, W, 3).
+        segments: List of contours (each (N, 2)) from the segmentation model.
+        margin: outward margin applied to each quad (see DOC_MARGIN_FRAC).
+
+    Returns:
+        warps: one rectified image per page, in detection order.
+        quads: the quad each page came from, same order (needed to decide the
+            stitch direction and the page order later).
+        cnt_img: Original image with the detected quadrilaterals drawn.
+    """
     quads, warps = [], []
 
     for cnt in segments:
@@ -301,10 +327,30 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
     for q in quads:
         cnt_img = cv2.polylines(cnt_img, [q.astype(np.int32)], True, (255, 0, 0), 4)
 
+    return warps, quads, cnt_img
+
+
+def stitch_pages(warps, quads, stack: str = 'auto'):
+    """Merge rectified pages into one canvas, reporting where each page landed.
+
+    Args:
+        warps: rectified pages (see ``rectify_pages``). May already have been
+            deskewed or otherwise processed - only their current sizes matter.
+        quads: the quads the pages came from; used to order them and to pick
+            the direction when ``stack='auto'``.
+        stack: 'auto' | 'horizontal' | 'vertical'.
+
+    Returns:
+        canvas: the stitched image.
+        placements: one (scale, dx, dy) per INPUT page, in the order of
+            ``warps`` - so a box (x, y) found on page i maps onto the canvas as
+            (x*scale + dx, y*scale + dy). This is what lets per-page detections
+            be reported in canvas coordinates.
+    """
     if not warps:
-        return img, cnt_img
+        return None, []
     if len(warps) == 1:
-        return warps[0], cnt_img
+        return warps[0], [(1.0, 0.0, 0.0)]
 
     # multiple documents (two pages of a spread): decide merge direction.
     # 'auto' picks it from the pages' actual layout — if their centroids are
@@ -318,28 +364,32 @@ def fix_perspective(img: np.ndarray, segments: np.ndarray, stack: str = 'auto',
     else:
         direction = stack
 
-    if direction == 'horizontal':
-        # side by side, left-to-right by leftmost x, common height
-        order = np.argsort([q[:, 0].min() for q in quads])
-        warps = [warps[i] for i in order]
-        common_h = min(w.shape[0] for w in warps)
-        warps = [
-            cv2.resize(w, (max(1, int(round(w.shape[1] * common_h / w.shape[0]))), common_h),
-                       interpolation=cv2.INTER_LINEAR)
-            for w in warps
-        ]
-        return np.hstack(warps), cnt_img
+    horizontal = direction == 'horizontal'
+    key = 0 if horizontal else 1
+    order = list(np.argsort([q[:, key].min() for q in quads]))
 
-    # vertical: top-to-bottom by topmost y, common width
-    order = np.argsort([q[:, 1].min() for q in quads])
-    warps = [warps[i] for i in order]
-    common_w = min(w.shape[1] for w in warps)
-    warps = [
-        cv2.resize(w, (common_w, max(1, int(round(w.shape[0] * common_w / w.shape[1])))),
-                   interpolation=cv2.INTER_LINEAR)
-        for w in warps
-    ]
-    return np.vstack(warps), cnt_img
+    placements = [None] * len(warps)
+    resized, offset = [], 0.0
+    if horizontal:
+        common = min(warps[i].shape[0] for i in order)
+        for i in order:
+            w = warps[i]
+            scale = common / w.shape[0]
+            new_w = max(1, int(round(w.shape[1] * scale)))
+            resized.append(cv2.resize(w, (new_w, common), interpolation=cv2.INTER_LINEAR))
+            placements[i] = (scale, offset, 0.0)
+            offset += new_w
+        return np.hstack(resized), placements
+
+    common = min(warps[i].shape[1] for i in order)
+    for i in order:
+        w = warps[i]
+        scale = common / w.shape[1]
+        new_h = max(1, int(round(w.shape[0] * scale)))
+        resized.append(cv2.resize(w, (common, new_h), interpolation=cv2.INTER_LINEAR))
+        placements[i] = (scale, 0.0, offset)
+        offset += new_h
+    return np.vstack(resized), placements
 
 
 

@@ -115,6 +115,30 @@ public class ModelOutput(private val root: JsonObject) {
     public val blankIndex: Int? get() = (root["BlankIndex"] as? JsonPrimitive)?.intOrNull
 
     /**
+     * `IOUPerClass`: `{label: threshold}` overriding the shared NMS threshold for the named classes only
+     * (postprocessing.py:568, `iou_for`). Null when the config has no such key, which every detector
+     * except TextFields is.
+     */
+    public val iouPerClass: Map<String, Double>? get() = numberMap("IOUPerClass")
+
+    /**
+     * `CLSPerClass`: the same for the CONFIDENCE threshold (postprocessing.py:522). The shipped
+     * TextFields config carries `{"MRZ": 0.4}`: the second MRZ line sits right at the shared 0.5 on the
+     * deployed model, and a retrain moves the class across it.
+     */
+    public val clsPerClass: Map<String, Double>? get() = numberMap("CLSPerClass")
+
+    private fun numberMap(key: String): Map<String, Double>? {
+        val obj = root[key] as? JsonObject ?: return null
+        val out = LinkedHashMap<String, Double>()
+        for ((label, value) in obj) {
+            out[label] = value.jsonPrimitive.doubleOrNull
+                ?: throw IllegalArgumentException("models: $key.$label is not a number")
+        }
+        return out
+    }
+
+    /**
      * Labels as strings, whichever way they were written.
      *
      * Numbers are formatted the way Python's `str()` would — `90`, not `90.0` — because the angle lookup

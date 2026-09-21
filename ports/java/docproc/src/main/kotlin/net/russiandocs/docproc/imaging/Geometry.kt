@@ -17,6 +17,33 @@ public enum class StackDirection {
     VERTICAL,
 }
 
+/**
+ * Where one page landed on the stitched canvas: `(scale, dx, dy)` from `stitch_pages`.
+ *
+ * A box `(x, y)` found on that ORIGINAL (unresized) page maps onto the canvas as
+ * `(x*scale + dx, y*scale + dy)` — `Pipeline._fields_from_pages` (pipeline.py:1256).
+ */
+public data class Placement(public val scale: Double, public val dx: Double, public val dy: Double)
+
+/**
+ * What [Geometry.fixPerspective] produces: the stitched canvas, plus — ONLY for a two-page spread —
+ * the individual pre-resize pages and where each landed. Port of `DocDetector.predict_transform`'s
+ * `pages`/`page_placements` (doc_detector.py:170-186).
+ *
+ * [pages] is empty for zero or one detected page, matching the reference: `_fields_detector` only takes
+ * the per-page path when `len(pages) >= 2`, so a single-page document's `pages` list is never read and is
+ * not worth carrying. [pages] and [placements] are the same length and same order — the ORIGINAL segment
+ * order, not the left-to-right/top-to-bottom order used to decide the stitch direction.
+ *
+ * [pages] is owned by the caller once returned.
+ */
+public class PerspectiveResult(
+    public val canvas: Image?,
+    public val ok: Boolean,
+    public val pages: List<Image> = emptyList(),
+    public val placements: List<Placement> = emptyList(),
+)
+
 /** Quadrilateral geometry: ordering corners, expanding a margin, and the perspective correction. */
 public object Geometry {
 
@@ -144,8 +171,12 @@ public object Geometry {
         segments: List<List<Pt>>,
         direction: StackDirection,
         margin: Double,
-    ): Pair<Image?, Boolean> {
+    ): PerspectiveResult {
         val pages = mutableListOf<Pair<List<Pt>, Image>>()
+        // Ownership tracking: everything in `pages` is closed in the `finally` UNLESS it was handed to the
+        // caller first — either as the single-page return or inside a two-page [PerspectiveResult]. `handedOff`
+        // records which indices escaped, since `pages` itself is cleared only in the single-page branch.
+        var handedOff = false
         try {
             for (segment in segments) {
                 val quad = extractQuad(segment) ?: continue
@@ -171,12 +202,16 @@ public object Geometry {
             }
 
             if (pages.isEmpty()) {
-                return null to false
+                return PerspectiveResult(null, false)
             }
             if (pages.size == 1) {
                 val only = pages[0].second
                 pages.clear() // ownership moves to the caller
-                return only to true
+                handedOff = true
+                // A single detected page never takes the per-page field-detection path in the reference
+                // (`len(pages) >= 2` gates it — pipeline.py:1238), so its own `pages`/`placements` are not
+                // worth returning; the canvas IS the page.
+                return PerspectiveResult(only, true)
             }
 
             // Direction from the FIRST TWO pages' centroids only, matching the reference. A wider
@@ -194,12 +229,15 @@ public object Geometry {
 
             // Ordered by the quad's MINIMUM coordinate, not its centroid: two pages of different sizes can
             // have centroids in the opposite order to their left edges. sortedBy is STABLE, which keeps
-            // two equal minima in detection order.
+            // two equal minima in detection order. `order` keeps the ORIGINAL index of each entry — the
+            // reference's `placements` array is indexed by that original index (stitch_pages, doc_detector's
+            // `image_transformation.py:371`), not by stitch position, and `_fields_from_pages` walks `pages`
+            // in ITS OWN (original) order too.
             val horizontal = resolved == StackDirection.HORIZONTAL
-            val inOrder = if (horizontal) {
-                pages.sortedBy { pg -> pg.first.minOf { it.x } }
+            val order = if (horizontal) {
+                pages.indices.sortedBy { i -> pages[i].first.minOf { it.x } }
             } else {
-                pages.sortedBy { pg -> pg.first.minOf { it.y } }
+                pages.indices.sortedBy { i -> pages[i].first.minOf { it.y } }
             }
 
             // **The pages are RESIZED to a common dimension before joining.** This is the step whose
@@ -207,28 +245,47 @@ public object Geometry {
             // vconcat require the shared dimension to match exactly, so the reference scales every page to
             // the SMALLEST of them and scales the other axis proportionally, rounding half to even.
             val common = if (horizontal) {
-                inOrder.minOf { it.second.height }
+                order.minOf { pages[it].second.height }
             } else {
-                inOrder.minOf { it.second.width }
+                order.minOf { pages[it].second.width }
             }
 
             val scaled = mutableListOf<Image>()
+            val placements = arrayOfNulls<Placement>(pages.size)
+            var offset = 0.0
             try {
-                for ((_, warped) in inOrder) {
-                    val other = if (horizontal) {
-                        max(1, PyNum.roundHalfEvenToInt(
-                            warped.width.toDouble() * common / warped.height))
+                for (i in order) {
+                    val warped = pages[i].second
+                    // `scale` computed FIRST, exactly as the reference's `scale = common / w.shape[...]`
+                    // then `new_w/new_h = round(w.shape[...] * scale)` — multiply-then-divide in one
+                    // expression is a DIFFERENT float64 operation order and can round half a bit
+                    // differently (CONVENTIONS §6), which is why this is two statements, not one.
+                    val scale = if (horizontal) {
+                        common.toDouble() / warped.height
                     } else {
-                        max(1, PyNum.roundHalfEvenToInt(
-                            warped.height.toDouble() * common / warped.width))
+                        common.toDouble() / warped.width
+                    }
+                    val other = if (horizontal) {
+                        max(1, PyNum.roundHalfEvenToInt(warped.width * scale))
+                    } else {
+                        max(1, PyNum.roundHalfEvenToInt(warped.height * scale))
                     }
                     scaled += if (horizontal) {
                         Io.resize(warped, other, common, Interpolation.LINEAR)
                     } else {
                         Io.resize(warped, common, other, Interpolation.LINEAR)
                     }
+                    placements[i] = if (horizontal) {
+                        Placement(scale, offset, 0.0)
+                    } else {
+                        Placement(scale, 0.0, offset)
+                    }
+                    offset += other
                 }
 
+                // `scaled` is built in `order` (stitch position), matching `np.hstack(resized)`/
+                // `np.vstack(resized)` on the reference's `resized` list — joining follows POSITION.
+                // The per-page pieces returned below follow ORIGINAL index instead; see `placements`.
                 var joined = scaled[0].clone()
                 for (k in 1 until scaled.size) {
                     val combined = if (horizontal) {
@@ -239,14 +296,79 @@ public object Geometry {
                     joined.close()
                     joined = combined
                 }
-                return joined to true
+
+                // Ownership of the original (unresized) per-page images transfers to the returned result —
+                // `_fields_from_pages` reads them at full per-page resolution, not the joining-time scale.
+                val originalPages = pages.map { it.second }
+                pages.clear()
+                handedOff = true
+                // Every index was filled: `order` is a permutation of `pages.indices`.
+                return PerspectiveResult(joined, true, originalPages, placements.map { it!! })
             } finally {
                 scaled.forEach { it.close() }
             }
         } catch (e: IllegalArgumentException) {
-            return null to false
+            return PerspectiveResult(null, false)
         } finally {
-            pages.forEach { it.second.close() }
+            if (!handedOff) {
+                pages.forEach { it.second.close() }
+            }
+        }
+    }
+
+    /**
+     * Merges already-rectified pages into one canvas, reporting where each page landed. Port of
+     * `image_transformation.py::stitch_pages`, as a STANDALONE function over pages the caller already
+     * warped — `page_registration.py`'s `_register_pages` calls this with `stack='vertical'` explicitly
+     * (never `AUTO`) on pages it built from template registration or a Borders quad, which is why this
+     * takes [Image]s directly rather than segmentation contours the way [fixPerspective] does.
+     *
+     * Does NOT take ownership of [pages] — the caller warped them and the caller closes them; only the
+     * joined result and its own resize intermediates are this function's to manage.
+     */
+    public fun stitchPages(pages: List<Image>, quads: List<List<Pt>>, direction: StackDirection): Pair<Image?, List<Placement>> {
+        if (pages.isEmpty()) return null to emptyList()
+        if (pages.size == 1) return pages[0].clone() to listOf(Placement(1.0, 0.0, 0.0))
+
+        var resolved = direction
+        if (direction == StackDirection.AUTO) {
+            val c0 = centroid(quads[0])
+            val c1 = centroid(quads[1])
+            resolved = if (abs(c0.x - c1.x) >= abs(c0.y - c1.y)) StackDirection.HORIZONTAL else StackDirection.VERTICAL
+        }
+        val horizontal = resolved == StackDirection.HORIZONTAL
+        val order = pages.indices.sortedBy { i -> if (horizontal) quads[i].minOf { it.x } else quads[i].minOf { it.y } }
+
+        val common = if (horizontal) order.minOf { pages[it].height } else order.minOf { pages[it].width }
+        val scaled = mutableListOf<Image>()
+        val placements = arrayOfNulls<Placement>(pages.size)
+        var offset = 0.0
+        try {
+            for (i in order) {
+                val warped = pages[i]
+                val scale = if (horizontal) common.toDouble() / warped.height else common.toDouble() / warped.width
+                val other = if (horizontal) {
+                    max(1, PyNum.roundHalfEvenToInt(warped.width * scale))
+                } else {
+                    max(1, PyNum.roundHalfEvenToInt(warped.height * scale))
+                }
+                scaled += if (horizontal) {
+                    Io.resize(warped, other, common, Interpolation.LINEAR)
+                } else {
+                    Io.resize(warped, common, other, Interpolation.LINEAR)
+                }
+                placements[i] = if (horizontal) Placement(scale, offset, 0.0) else Placement(scale, 0.0, offset)
+                offset += other
+            }
+            var joined = scaled[0].clone()
+            for (k in 1 until scaled.size) {
+                val combined = if (horizontal) Contours.hStack(joined, scaled[k]) else Contours.vStack(joined, scaled[k])
+                joined.close()
+                joined = combined
+            }
+            return joined to placements.map { it!! }
+        } finally {
+            scaled.forEach { it.close() }
         }
     }
 

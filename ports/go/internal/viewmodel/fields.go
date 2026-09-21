@@ -13,7 +13,8 @@ import "sort"
 //  2. ORDER. A JSON object has none, and insertion order is not document reading order.
 //  3. RENDERING. `script` selects proportional versus monospace type, which the UI cannot
 //     infer from the value.
-func buildFields(docType string, ocr map[string]string, boxes []Box) []Field {
+func buildFields(docType string, ocr map[string]string, boxes []Box,
+	normalized map[string]string) []Field {
 	byLabel := map[string][]string{}
 	confByLabel := map[string]*float64{}
 	for _, b := range boxes {
@@ -48,14 +49,19 @@ func buildFields(docType string, ocr map[string]string, boxes []Box) []Field {
 			// synthetic Address keys have none).
 			ids = []string{}
 		}
-		out = append(out, Field{
+		f := Field{
 			Name:    name,
 			Display: FieldDisplay(name),
 			Value:   value,
 			Script:  FieldScript(name),
 			Conf:    confByLabel[name],
 			BoxIds:  ids,
-		})
+		}
+		// `if canonical:` - an empty string is treated as absent too.
+		if canonical := normalized[name]; canonical != "" {
+			f.Normalized = str(canonical)
+		}
+		out = append(out, f)
 	}
 	return out
 }

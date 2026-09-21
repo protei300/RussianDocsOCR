@@ -3,6 +3,7 @@ using RussianDocs.DocumentProcessing.Imaging;
 using RussianDocs.DocumentProcessing.Inference;
 using RussianDocs.DocumentProcessing.Models;
 using RussianDocs.DocumentProcessing.Postprocess;
+using RussianDocs.DocumentProcessing.Tensors;
 
 namespace RussianDocs.DocumentProcessing.Modules;
 
@@ -20,6 +21,20 @@ public sealed class DocDetector : IDisposable
     /// </para>
     /// </summary>
     private const double SecondSegmentAreaFraction = 0.6;
+
+    /// <summary>
+    /// A segment with (almost) no ink inside it is not a document page, however confident the model
+    /// is: the white lid of a flatbed scanner next to a passport scores 0.90-0.96 as "Document" and,
+    /// being 3x larger than a page, used to win <see cref="SelectPages"/>'s area rule and push both
+    /// real pages out (~20 of 100 scans in the Damir set came out as an empty canvas). Ink is the
+    /// mean gradient magnitude inside the eroded mask at <see cref="InkScalePx"/>: measured 1.5-5.4
+    /// on lids, 19-101 on passport pages, 24-43 on the mostly bare registration page
+    /// (doc_detector.py:8-26). A blank segment is dropped only when another segment with real ink
+    /// exists, so a lone blank sheet still goes through as before.
+    /// </summary>
+    private const double BlankInk = 8.0;
+
+    private const int InkScalePx = 400;
 
     private readonly SegmentationModel _model;
 
@@ -51,6 +66,10 @@ public sealed class DocDetector : IDisposable
         {
             return (image.Clone(), null);
         }
+
+        // First drop segments without ink (a scanner lid, a blank sheet next to the document), THEN
+        // apply the area rule below — matching the reference's order (doc_detector.py:125-131).
+        segments = DropBlankSegments(image, segments);
 
         List<int> kept = SelectPages(segments, maxPages);
         if (kept.Count == 0)
@@ -109,6 +128,73 @@ public sealed class DocDetector : IDisposable
         }
         keep.Sort();
         return keep;
+    }
+
+    /// <summary>
+    /// Indices to keep: blank segments (ink &lt; <see cref="BlankInk"/>) are dropped when at least one
+    /// inked segment exists. Port of <c>doc_detector.drop_blank_segments</c> (doc_detector.py:48-58).
+    /// </summary>
+    private static List<Point[]> DropBlankSegments(Image image, List<Point[]> segments)
+    {
+        using Image gray = Io.ToGray(image);
+        List<double> ink = [.. segments.Select(s => s.Length >= 3 ? SegmentInk(gray.Mat, s) : 0.0)];
+        if (!ink.Any(v => v >= BlankInk))
+        {
+            return segments;
+        }
+        return [.. segments.Where((_, i) => ink[i] >= BlankInk)];
+    }
+
+    /// <summary>
+    /// Mean gradient magnitude inside <paramref name="contour"/> (eroded so the segment's own edge
+    /// does not count), on the image downscaled to <see cref="InkScalePx"/>. Port of
+    /// <c>doc_detector.segment_ink</c> (doc_detector.py:29-45).
+    ///
+    /// <para>
+    /// OpenCvSharp types are fully qualified rather than brought in with <c>using OpenCvSharp;</c>,
+    /// because this file's own <see cref="Point"/> (double-precision, from
+    /// <c>RussianDocs.DocumentProcessing.Imaging</c>) would otherwise collide with
+    /// <c>OpenCvSharp.Point</c> at every one of this file's many existing bare uses of the name.
+    /// </para>
+    /// </summary>
+    private static double SegmentInk(OpenCvSharp.Mat gray, Point[] contour)
+    {
+        int h = gray.Rows, w = gray.Cols;
+        double s = InkScalePx / (double)Math.Max(h, w);
+        // `max(1, int(w * s))` in the reference — TRUNCATION, not rounding.
+        int newW = Math.Max(1, (int)(w * s));
+        int newH = Math.Max(1, (int)(h * s));
+
+        using var small = new OpenCvSharp.Mat();
+        OpenCvSharp.Cv2.Resize(gray, small, new OpenCvSharp.Size(newW, newH),
+            interpolation: OpenCvSharp.InterpolationFlags.Area);
+
+        OpenCvSharp.Point[] scaled =
+        [
+            .. contour.Select(p => new OpenCvSharp.Point(
+                PyNum.RoundHalfEvenToInt(p.X * s), PyNum.RoundHalfEvenToInt(p.Y * s))),
+        ];
+
+        using var mask = new OpenCvSharp.Mat(small.Size(), OpenCvSharp.MatType.CV_8UC1,
+            OpenCvSharp.Scalar.All(0));
+        OpenCvSharp.Cv2.FillPoly(mask, new[] { scaled }, OpenCvSharp.Scalar.All(255));
+        using var kernel = new OpenCvSharp.Mat(5, 5, OpenCvSharp.MatType.CV_8UC1, OpenCvSharp.Scalar.All(1));
+        OpenCvSharp.Cv2.Erode(mask, mask, kernel);
+
+        if (OpenCvSharp.Cv2.CountNonZero(mask) == 0)
+        {
+            return 0.0;
+        }
+
+        using var gx = new OpenCvSharp.Mat();
+        using var gy = new OpenCvSharp.Mat();
+        OpenCvSharp.Cv2.Sobel(small, gx, OpenCvSharp.MatType.CV_32F, 1, 0, ksize: 3);
+        OpenCvSharp.Cv2.Sobel(small, gy, OpenCvSharp.MatType.CV_32F, 0, 1, ksize: 3);
+
+        using var magnitude = new OpenCvSharp.Mat();
+        OpenCvSharp.Cv2.Magnitude(gx, gy, magnitude);
+
+        return OpenCvSharp.Cv2.Mean(magnitude, mask).Val0;
     }
 
     public void Dispose() => _model.Dispose();

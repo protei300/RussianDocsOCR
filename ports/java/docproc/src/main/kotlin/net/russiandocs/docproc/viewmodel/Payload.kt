@@ -1,5 +1,7 @@
 package net.russiandocs.docproc.viewmodel
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -80,6 +82,7 @@ public data class Box(
     @SerialName("ambiguous") val ambiguous: Boolean = false,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 public data class Field(
     @SerialName("name") val name: String = "",
@@ -94,6 +97,19 @@ public data class Field(
      * two places — and split fields like `Birth_place_ru` legitimately span several boxes.
      */
     @SerialName("box_ids") val boxIds: List<String> = emptyList(),
+    /**
+     * The canonical `dd.mm.yyyy` form of a date field (`PipelineResults.ocr_normalized`). [value] stays
+     * the READING — dates are printed in words on birth certificates and on a SNILS, and the accuracy
+     * measurement compares against what was read.
+     *
+     * **Present ONLY where a canonical form exists** (transform.py:246): that is what lets a client tell
+     * "there is none" from "it equals the reading", and a field that is not a date never carries it. So
+     * this is the second key, after `debug`, that must be ABSENT rather than null — hence the
+     * `EncodeDefault(NEVER)`, which skips the property while it equals its default even though the
+     * serialiser writes every other null explicitly (J-04).
+     */
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("normalized") val normalized: String? = null,
 )
 
 @Serializable

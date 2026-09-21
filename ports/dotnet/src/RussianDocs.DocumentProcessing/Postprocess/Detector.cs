@@ -39,7 +39,8 @@ public enum NmsMode
 /// would silently call the wrong method, and reads the same in all four languages.
 /// </para>
 /// </summary>
-public sealed class YoloDetector(string[] labels, double iou, double cls, NmsMode mode)
+public sealed class YoloDetector(string[] labels, double iou, double cls, NmsMode mode,
+    Dictionary<string, double>? iouPerClass = null, Dictionary<string, double>? clsPerClass = null)
     : IPostprocessor
 {
     /// <summary>
@@ -62,7 +63,7 @@ public sealed class YoloDetector(string[] labels, double iou, double cls, NmsMod
     /// </para>
     /// </summary>
     public YoloDetector WithNumpyOnly() =>
-        new(labels, iou, cls, mode) { NumpyOnly = true };
+        new(labels, iou, cls, mode, iouPerClass, clsPerClass) { NumpyOnly = true };
 
     public IResult Apply(NdArray output, Context context) =>
         new DetectResult(Decode(output, context));
@@ -91,25 +92,40 @@ public sealed class YoloDetector(string[] labels, double iou, double cls, NmsMod
         }
         int segLen = stride - 4 - nc;
 
+        // Per-column confidence thresholds (postprocessing.py:544-550): shared `cls` everywhere,
+        // overridden per label by `clsPerClass` (only "MRZ" today, TextFields/ONNX/model.json). With
+        // no overrides this is just [cls]*nc, which — see the loop below — reduces exactly to the
+        // old single-threshold rule, so the plain "YOLODetector" tag (clsPerClass always null) is
+        // unaffected.
+        double[] clsThresholds = BuildClsThresholds(nc);
+
         var boxes = new List<Box>(64);
         for (int a = 0; a < anchors; a++)
         {
             ReadOnlySpan<float> row = data.Slice(a * stride, stride);
 
-            // Strict `>` for the best class, matching np.argmax's first-maximum rule.
+            // Row survival + winning class, fused (postprocessing.py: conf_keep 552-555, conf_scores
+            // 557-566, argmax 371). A row survives if ANY column beats its OWN threshold; the winner
+            // is the argmax AFTER zeroing every column that does not, so a class can never win on a
+            // raw score that failed its own bar. Strict `>` on the update matches np.argmax's
+            // first-maximum rule.
             int best = 0;
             double bestScore = double.NegativeInfinity;
             for (int c = 0; c < nc; c++)
             {
-                if (row[4 + c] > bestScore)
+                double raw = row[4 + c];
+                double zeroed = raw > clsThresholds[c] ? raw : 0.0;
+                if (zeroed > bestScore)
                 {
                     best = c;
-                    bestScore = row[4 + c];
+                    bestScore = zeroed;
                 }
             }
-            // `!(score > cls)` rather than `score <= cls`: identical for real numbers, and it keeps
-            // the reference's own spelling, which also handles NaN the same way.
-            if (!(bestScore > cls))
+            // `!(score > 0)` rather than `score <= 0`: identical for real numbers and keeps the
+            // reference's NaN-handling spelling (see comment on the pre-refactor version). A winning
+            // column is always > 0 here because it passed its own (non-negative, in every shipped
+            // config) threshold to survive zeroing.
+            if (!(bestScore > 0.0))
             {
                 continue;
             }
@@ -138,7 +154,7 @@ public sealed class YoloDetector(string[] labels, double iou, double cls, NmsMod
         }
 
         List<int> keep = mode == NmsMode.PerClass
-            ? NmsPerClass(boxes, iou)
+            ? NmsPerClass(boxes, iou, labels, iouPerClass)
             : Nms([.. Enumerable.Range(0, boxes.Count)], boxes, iou);
 
         var kept = keep.Select(i => boxes[i]).ToList();
@@ -266,16 +282,59 @@ public sealed class YoloDetector(string[] labels, double iou, double cls, NmsMod
     /// feeds the reading-order sort afterwards, so a different visit order can break ties
     /// differently — which is why this sorts the class list rather than iterating a set.
     /// </para>
+    ///
+    /// <para>
+    /// Each class gets its own NMS threshold via <paramref name="iouPerClass"/>
+    /// (postprocessing.py:568-584, <c>iou_for</c>) — only "MRZ" carries an override today, to stop
+    /// its own two lines from suppressing each other on a tilted document without loosening the
+    /// shared threshold that keeps unrelated field pairs (e.g. the ru/en pair on external passports)
+    /// from swallowing each other.
+    /// </para>
     /// </summary>
-    private static List<int> NmsPerClass(List<Box> boxes, double threshold)
+    private static List<int> NmsPerClass(List<Box> boxes, double iou, string[] labels,
+        Dictionary<string, double>? iouPerClass)
     {
         var classes = boxes.Select(b => b.Cls).Distinct().OrderBy(c => c).ToList();
         var keep = new List<int>();
         foreach (int c in classes)
         {
+            double threshold = IouFor(c, labels, iou, iouPerClass);
             var indices = Enumerable.Range(0, boxes.Count).Where(i => boxes[i].Cls == c).ToList();
             keep.AddRange(Nms(indices, boxes, threshold));
         }
         return keep;
+    }
+
+    /// <summary>NMS threshold for one class (postprocessing.py:568-584).</summary>
+    private static double IouFor(int clsIdx, string[] labels, double iou,
+        Dictionary<string, double>? iouPerClass)
+    {
+        if (iouPerClass is not { Count: > 0 })
+        {
+            return iou;
+        }
+        string? label = clsIdx >= 0 && clsIdx < labels.Length ? labels[clsIdx] : null;
+        return label is not null && iouPerClass.TryGetValue(label, out double t) ? t : iou;
+    }
+
+    /// <summary>
+    /// Per-column confidence thresholds (postprocessing.py:544-550, <c>_thresholds</c>): shared
+    /// <c>cls</c> everywhere, overridden per label by <c>clsPerClass</c>.
+    /// </summary>
+    private double[] BuildClsThresholds(int nc)
+    {
+        var thresholds = new double[nc];
+        Array.Fill(thresholds, cls);
+        if (clsPerClass is { Count: > 0 })
+        {
+            for (int c = 0; c < nc; c++)
+            {
+                if (c < labels.Length && clsPerClass.TryGetValue(labels[c], out double t))
+                {
+                    thresholds[c] = t;
+                }
+            }
+        }
+        return thresholds;
     }
 }

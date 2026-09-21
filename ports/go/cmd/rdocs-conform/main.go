@@ -281,6 +281,7 @@ func run(image string, c *commonFlags, sink pipeline.StageSink, upto string) (*v
 		CanvasMissing: !res.HasCanvas,
 		Boxes:         res.Boxes,
 		Ocr:           res.Ocr,
+		Normalized:    res.OcrNormalized,
 		Quality:       res.Quality,
 		Timings:       res.Timings,
 		Segments:      res.Segments,

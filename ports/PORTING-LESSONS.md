@@ -285,3 +285,45 @@ working as intended.
    as an estimate in the same sentence.
 5. **The container is part of the work.** "Written but not built" is worth roughly nothing; the
    first real build cost eight fixes, and every one was in a place already flagged as risky.
+
+---
+
+## 11. The 4.5.0 catch-up (page registration), written after all three ports finished
+
+Three sessions, one per language, brought the ports from 4.4.1 to the 4.5.0 reference (per-page
+passport feeding, template page registration, per-class thresholds, canonical dates, MRZ ladder).
+What was learned, in the order it cost time:
+
+- **Check what the OpenCV wrapper binds before planning the port.** `cv2.createLineSegmentDetector`
+  is bound in the JVM build and in neither gocv 0.43 nor OpenCvSharp4. Kotlin therefore converges
+  bitwise; Go and .NET substitute Canny+HoughLinesP and carry a declared residual (D-03: 1–10 px on
+  field boxes, one flipped glyph per case). SIFT and `USAC_MAGSAC` are available everywhere — pass
+  the raw flag value 38 where the enum is missing, and verify with one real call.
+- **Load the template exactly the way the reference does.** Kotlin decoded the template PNG with
+  `IMREAD_GRAYSCALE`; the reference reads colour and converts with `cvtColor`. The two paths round
+  differently, SIFT's contrast threshold then keeps a different keypoint set (521 vs 519 on the same
+  file), the homography gets a different inlier count and `native_scale` drifts by 1–3 %. It looked
+  like an OpenCV-version effect and was not: Go and .NET run the same 4.13 and match. Measure the
+  first quantity that diverges (keypoint counts per image) before naming a cause.
+- **A second copy of a helper is a second place for a sign error.** All three ports independently
+  got a sign wrong in polygon clipping (Sutherland–Hodgman with y down), so `QuadIoU` returned 0
+  for every pair and the Borders-quad-vs-registered-page agreement never triggered; Kotlin also
+  re-implemented `orderPoints` with `x - y` instead of `y - x` and swapped two corners. Delegate to
+  the one verified helper; add a synthetic test (two squares overlapping by a third must give 0.333).
+- **Per-class thresholds are two different things.** `CLSPerClass` zeroes scores below the class's
+  own threshold *before* argmax; `IOUPerClass` applies only inside per-class NMS. Getting the order
+  wrong passes unit tests and fails MRZ on the goldens.
+- **`least_squares` in `line_refine.py` is 4 parameters with a numeric Jacobian** inside IRLS with
+  Cauchy weights. A hand-written Levenberg–Marquardt (forward differences, ×10/÷10 damping, stop
+  on step norm or 100 evaluations) converges to the same minimum on all three ports; the residual
+  Go/.NET carry comes from the line evidence (Hough vs LSD), not from the solver.
+- **Pages are consumed twice.** Stitching the canvas and detecting fields per page both need the
+  page images; Go freed them on stitch and crashed with `free(): invalid next size` on every
+  internal passport. Clone before stitching or reference-count.
+- **The port's RANSAC must be seeded** (`default_rng(0)` in the reference). Seeded, the port is
+  deterministic run to run even where it differs from numpy; unseeded, conformance flickers.
+- **Build inside the container and leave it clean.** All three ports build in Docker on this
+  machine (no Go/JDK/.NET toolchains on the host); the host `conformance.runner` cannot execute
+  Linux binaries, so grade from inside the image too. The sessions left running containers, a
+  duplicate image per language and 4 GB of `bin/obj/build` behind — the cleanup rule now names
+  Docker explicitly.

@@ -185,10 +185,88 @@ its column name. Without that translation a pixel coordinate is graded with the 
 `fields.bbox[11][2]` at exactly 1.0 while the identical number passed as `boxes[3].x2` in
 the view model. Any port-agnostic checker needs the same mapping.
 
-**Result of the first GPU run under this profile:** PASS on all seven cases with zero
-skips, and every discrete outcome — document type, box counts, class labels and every OCR
-string — identical to the CPU goldens. The numeric allowances above were the only thing
-GPU needed.
+**Result of the first GPU run under this profile** (weight set `models-v4`, seven
+cases): PASS with zero skips, every discrete outcome identical to the CPU goldens.
+The numeric allowances above were the only thing GPU needed. **That is no longer
+true — see the next section.**
+
+## A cross-device run is refused, not graded
+
+Re-measured on `models-v5`, reference against its own goldens, 330 stages over 9
+cases:
+
+| run | verdict | failing stages | failing cases |
+|---|---|---|---|
+| `--device cpu --profile cpu` | PASS | 0 | 0 |
+| `--device gpu --profile cpu` | FAIL | 24 | 6 |
+| `--device gpu --profile gpu` | FAIL | 9 | 2 |
+
+Text was never the problem: OCR strings, labels and counts matched everywhere.
+Geometry was. Coordinates reach **3.0 px** against the profile's 1.0 px, and — the
+part that matters — the divergence is not confined to values that have tolerances:
+
+* `viewmodel.canvas.width` / `canvas.height` differ by 1–2 px (702 vs 701, 502 vs
+  500, 620 vs 622). They are `DISCRETE_NUMERIC_LEAVES`: exact on every profile;
+* `borders.canvas` and `deskew.canvas` differ in array **shape**
+  (`uint8[620,909,3]` vs `uint8[622,909,3]`).
+
+Both are exact **by design** — a canvas of a different size is a different result,
+and a checker that shrugs at it stops catching the substituted canvas it exists to
+catch. So the third profile that would make GPU green does not exist: widening
+these is deleting the check, not calibrating it.
+
+Therefore the runner **refuses** to grade when the requested device is not the one
+the goldens were recorded on (`conformance/device_pin.py`), in the same shape as the
+weight-set pin: one line naming the cause, before any work. `--ignore-device-pin`
+grades anyway for whoever wants to look at the numbers.
+
+The upstream cause is a one-node difference in the border mask contour between
+providers, which moves the fitted quadrilateral by a pixel and the canvas by two.
+That is a library question and is tracked as such. It is deliberately **not**
+answered by loosening this document: tuning the ruler to fit the current drift is
+an edit of the reference in favour of the thing being measured, and the next
+retrain would move it again.
+
+## Declared deviations, and why the verdict has three outcomes
+
+Normative. A tolerance says "this much numeric noise is always fine". A **declared
+deviation** says something narrower and dated: "this exact stage of this exact case
+differs, for this written reason, until this event". They are not interchangeable, and
+a deviation is never a loosening of the rules above.
+
+The mechanism is `conformance/deviations.json`, read by `conformance/deviations.py`.
+Every entry names its scope (ports, cases, stages, optionally JSON paths), its reason,
+its **basis** (a user decision number or a bus frame), the date it was declared, its
+owner, and `removed_when` — the *event* that retires it. A date is not an exit
+condition; an entry without one is a permanent loosening in disguise, and `validate()`
+rejects it, as it rejects an entry covering every case and every stage at once.
+
+Consequently the verdict has three outcomes, not two:
+
+| verdict | meaning | exit code |
+|---|---|---|
+| `CLEAN` | nothing differed | 0 |
+| `DECLARED` | everything that differed is accounted for by name | 0 |
+| `UNDECLARED` | something differed that nobody declared — the only real red | 1 |
+
+Classification is per DIFFERENCE, never per run: a declared difference in a stage does
+not absorb an undeclared one sitting next to it. A case that could not be graded at
+all (crash, missing golden) stays a failure — nothing was compared, so nothing can be
+declared about it.
+
+**Why this exists.** Two legitimate reds stood at once — ports lagging a deliberate
+reference change, and a view-model property about to land — each announced and
+explained. Nothing was wrong with either, but reading the gate had become an act of
+memory: subtract the known reds and see what is left. That is the mirror of a check
+that cannot fail: a check that always fails carries no information either, and it
+decays quietly, because every exception looks reasonable on the day it is added.
+
+**The list is itself checked.** An entry that applies to a run and matches nothing is
+reported as `STALE` and proposed for removal — otherwise the list becomes the very
+thing it was built to prevent. Every report also carries the health metric: how many
+declarations are active and how old the oldest is. Past **14 days** the report says so
+and escalates: a gate held up by an ageing list of exceptions is being held up by
+people remembering things.
 
 ## Reporting
 

@@ -53,7 +53,11 @@ func MakeOcrOptions(docType string) OcrOptions {
 		return OcrOptions{HasAddress: true}
 	case strings.Contains(t, "intpassport"):
 		return OcrOptions{
-			NeededSplit: []string{"Licence_number", "Birth_place_ru", "Issue_organization_ru"},
+			// Middle_name_ru: see the driving licence below - no OCR alphabet carries a
+			// space, so a double patronymic is returned glued unless the splitter runs
+			// (pipeline.py:134).
+			NeededSplit: []string{"Licence_number", "Birth_place_ru", "Issue_organization_ru",
+				"Middle_name_ru"},
 			// MRZ is read by the Latin engine and is NOT in NeededSplit: the zone is
 			// detected one box per LINE, and each line must reach the engine whole -
 			// splitting it at its filler runs would destroy the fixed 44-character
@@ -71,8 +75,26 @@ func MakeOcrOptions(docType string) OcrOptions {
 		}
 	case strings.Contains(t, "extpassport"):
 		return OcrOptions{
-			NeededSplit: []string{"Licence_number", "Birth_place_ru", "Birth_place_en"},
+			// Issue_organization_ru is split for a reason that is easy to undo by
+			// accident: NEITHER OCR alphabet contains a space (cyrillic 102 symbols,
+			// latin 147 - both carry '.', '-' and "'", neither carries ' '). A space can
+			// therefore only come from word splitting joining the words back together,
+			// so a multi-word field that skips the splitter is returned glued: «МИД
+			// РОССИИ» came back as «МИДРОССИИ». Measured over samples/ (2026-09-02): 12
+			// of the 99 acceptance failures were exactly this field on external passports
+			// of both generations, differing from the ground truth by spaces alone
+			// (pipeline.py:211-222).
+			NeededSplit: []string{"Licence_number", "Birth_place_ru", "Birth_place_en",
+				"Issue_organization_ru"},
 			// MRZ: Latin engine, never split - see intpassport above.
+			//
+			// Middle_name_en is listed and never arrives, ON PURPOSE - do not "clean it
+			// up". A Russian foreign passport carries no Latin patronymic; the entry is
+			// inert, and THE SAME LIST LIVES IN FOUR PLACES (Python, Go, .NET, Kotlin plus
+			// service/ml/labels.py). Dropping it in one alone would split the four, and
+			// conformance cannot report that: a field nobody produces is equally absent
+			// everywhere. If it is ever removed, remove it in all four at once
+			// (pipeline.py:224-243).
 			EnFields: []string{"Last_name_en", "First_name_en", "Issue_date",
 				"Expiration_date", "Birth_date", "Birth_place_en", "Issue_organization_en",
 				"Living_region_en", "Sex_en", "Issue_organisation_code", "Middle_name_en",
@@ -84,8 +106,15 @@ func MakeOcrOptions(docType string) OcrOptions {
 		}
 	case strings.Contains(t, "dl"):
 		return OcrOptions{
+			// Middle_name_* is split for the same reason as the external passport's
+			// Issue_organization_ru (see there): no OCR alphabet contains a space, so a
+			// field that skips the splitter can never return one. A double patronymic
+			// («ОГЛЫ», «КЫЗЫ») then comes back glued - four such failures over samples/
+			// (2026-09-02), all differing from the ground truth by spaces alone
+			// (pipeline.py:256-263).
 			NeededSplit: []string{"Licence_number", "Driver_class", "Birth_place_ru",
-				"Birth_place_en", "Living_region_ru", "Living_region_en"},
+				"Birth_place_en", "Living_region_ru", "Living_region_en",
+				"Middle_name_ru", "Middle_name_en"},
 			EnFields: []string{"Last_name_en", "First_name_en", "Licence_number", "Issue_date",
 				"Expiration_date", "Driver_class", "Birth_date", "Birth_place_en",
 				"Issue_organization_en", "Living_region_en", "Issue_organisation_code",

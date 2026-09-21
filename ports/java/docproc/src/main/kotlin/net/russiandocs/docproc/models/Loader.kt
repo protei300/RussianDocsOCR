@@ -88,9 +88,13 @@ public object Loader {
             output.labelsAsStrings(), output.iou ?: 0.45, output.cls ?: 0.5,
             NmsMode.CLASS_AGNOSTIC,
         )
+        // The two per-class overrides exist ONLY on this type, as in the reference (models.py:150):
+        // the plain detector keeps one shared threshold of each kind.
         "PerClassYOLODetector" -> YoloDetector(
             output.labelsAsStrings(), output.iou ?: 0.45, output.cls ?: 0.5,
             NmsMode.PER_CLASS,
+            iouPerClass = output.iouPerClass ?: emptyMap(),
+            clsPerClass = output.clsPerClass ?: emptyMap(),
         )
         "YOLOOBBDetector" -> NotImplementedPostprocessor("YOLOOBBDetector")
         "YOLOSegmentor" -> YoloSegmentor(output.maskFilter ?: 0.5)

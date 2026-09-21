@@ -35,6 +35,14 @@ func ThresholdOtsu(src Image, invert bool) (Image, float64) {
 	return Image{mat: dst}, float64(t)
 }
 
+// ThresholdFixed binarises at a fixed value (255 where src > thresh, else 0) -
+// PageTemplate's `(mask > 127).astype(np.uint8)`, which is NOT an Otsu threshold.
+func ThresholdFixed(src Image, thresh float64) Image {
+	dst := gocv.NewMat()
+	gocv.Threshold(src.mat, &dst, float32(thresh), 255, gocv.ThresholdBinary)
+	return Image{mat: dst}
+}
+
 // FindExternalContours returns the outer contours of a binary mask, largest first is
 // NOT guaranteed — callers that need the largest ask for it explicitly, as the
 // reference does.
