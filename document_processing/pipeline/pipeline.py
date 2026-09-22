@@ -13,7 +13,7 @@ from ..geometry import Chain, Homography, Offset, QuarterTurns, Scale, corners
 from ..pipeline_modules import *
 from ..pipeline_modules.doc_detector.image_transformation import (expand_quad, DOC_MARGIN_FRAC,
                                                                    stitch_pages, stitched_geometry,
-                                                                   placement_geometry)
+                                                                   placement_rect)
 from ..pipeline_modules.page_registration.geometry import PageGeometry, aspect_for
 from .dates import canonical_dates
 
@@ -1359,8 +1359,11 @@ class Pipeline:
         for page, placement in zip(pages, placements):
             scale, dx, dy = placement
             got = self.text_fields.predict_transform(page)[self.text_fields.model_name]
-            # patch -> page (the cut) -> canvas (the page's resize and offset)
-            placed = placement_geometry(page, placement)
+            # The frame is written as the stages that make the PATCH out of the
+            # CANVAS (geometry.py reads a chain that way round): take the page
+            # off its place on the canvas, undo its resize, cut at the box.
+            _, _, placed_w, placed_h = placement_rect(page, placement)
+            unplace = (Offset(-dx, -dy), Scale(page.shape[1] / placed_w, page.shape[0] / placed_h))
             for box, patch in zip(got.get('bbox') or [], got.get('warped_img') or []):
                 moved = list(box)
                 moved[0] = int(round(box[0] * scale + dx))
@@ -1369,7 +1372,7 @@ class Pipeline:
                 moved[3] = int(round(box[3] * scale + dy))
                 bbox.append(moved)
                 patches.append(patch)
-                frames.append(Chain((Offset(-float(box[0]), -float(box[1])), placed)))
+                frames.append(Chain((*unplace, Offset(-float(box[0]), -float(box[1])))))
         return {'bbox': bbox, 'warped_img': patches}, frames
 
     #: An empty stretch on a line wider than this many typical words means the

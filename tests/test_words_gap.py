@@ -116,6 +116,7 @@ def _split(doc_type, boxes, words, field='Birth_place_ru', width=100,
         _line_ink=Pipeline._line_ink,
         _duplicate_field_indices=lambda *a, **k: set(),
         _emit=lambda *a, **k: None,
+        _field_quads=lambda *a, **k: None,   # where the fields lie on the photo: not this test's question
     )
     text_fields = {'bbox': [[0, 0, width, 10, 0.9, 0, field]], 'patches': [line]}
     result = Pipeline._split_words(fake, text_fields, doc_type)

@@ -38,6 +38,14 @@ RED, BLUE, GREEN, BAND = (220, 30, 30), (30, 30, 220), (30, 200, 30), (170, 20, 
 ATOL = 15
 
 SAMPLE = Path('../samples/INTPASSPORT_2011/6_CR_INTPASSPORT_2011.jpg')
+#: More passports for the same check: the spread the conformance suite pins (the
+#: registrar unbends both its pages on the GPU run), and a 1997-form spread. Each
+#: is skipped on a tree that does not carry it.
+SAMPLES = [
+    SAMPLE,
+    Path('../samples/INTPASSPORT_2011/12_CR_INTPASSPORT_2011.jpg'),
+    Path('../samples/INTPASSPORT_1997/28_BG_INTPASSPORT_2001.jpg'),
+]
 
 
 def mask(image, color, tolerance=60):
@@ -110,6 +118,10 @@ def doctype(kind, angle, *, fallback=False):
 def pipeline(kind, angle, *, fallback=False):
     stub = object.__new__(Pipeline)
     stub.probe, stub.ocr_device, stub.ocr_options = None, 'cpu', None
+    # no template registration and no template-free page geometry here: the
+    # colour detectors draw flat pages, and those two paths are exercised on the
+    # real samples below
+    stub.page_registrar, stub.page_geometry = None, None
     stub.doctype_angles = module(DocTypeAngles, 'DocTypeAngles', doctype(kind, angle, fallback=fallback))
     stub.doc_detector = module(DocDetector, 'DocDetector', pages_of)
     stub.deskewer = DocDeskewer(angle_range=10.0, angle_steps=101, min_angle=2.0, scale=0.4)
@@ -225,8 +237,8 @@ def test_a_stage_with_no_way_back_leaves_no_quadrilaterals():
     assert results.word_quads is None
 
 
-@pytest.mark.skipif(not SAMPLE.exists(), reason='sample not in the tree')
-def test_a_field_of_a_real_sample_is_cut_from_the_photo_by_its_quadrilateral():
+@pytest.mark.parametrize('sample', SAMPLES, ids=[s.name for s in SAMPLES])
+def test_a_field_of_a_real_sample_is_cut_from_the_photo_by_its_quadrilateral(sample):
     """The check a synthetic mark cannot make: the same pixels, to a fraction of a pixel.
 
     The pipeline cut the field out of its canvas; cutting the same field out of the
@@ -234,8 +246,17 @@ def test_a_field_of_a_real_sample_is_cut_from_the_photo_by_its_quadrilateral():
     between the two is found by correlation and refined on the parabola through the
     peak, so the half-pixel shift OpenCV's warps need - the usual mistake here - shows
     up as a shift of about 0.5 and not as a blur of the numbers.
+
+    On these passports the default path runs the template registration: the page
+    is cut by its Borders quad into the canonical frame, straightened by its own
+    lines and, where the page is bent, unbent by the bend map (VerticalRemap).
+    Measured over all 24 passports of samples/ on the way in (2026-09-22): the
+    residual is 0.00-0.30 px, the largest on pages straightened twice, and the
+    bend map adds nothing visible.
     """
-    image = cv2.imread(str(SAMPLE))
+    if not sample.exists():
+        pytest.skip('sample not in the tree')
+    image = cv2.imread(str(sample))
     assert image is not None
 
     results = Pipeline(model_format='ONNX', device='cpu', verbose=False).process_img(

@@ -121,6 +121,7 @@ def _split(patch, boxes, words, doc_type='INTPASSPORT', field='First_name_ru'):
         _line_ink=Pipeline._line_ink,
         _duplicate_field_indices=lambda *a, **k: set(),
         _emit=lambda *a, **k: None,
+        _field_quads=lambda *a, **k: None,   # where the fields lie on the photo: not this test's question
     )
     text_fields = {'bbox': [[0, 0, patch.shape[1], patch.shape[0], 0.9, 0, field]],
                    'patches': [patch]}

@@ -384,14 +384,15 @@ def stitched_geometry(pages, placements, page_geometries) -> Pieces:
     return Pieces(tuple(pieces))
 
 
-def placement_geometry(page, placement) -> Chain:
-    """Map from a page as ``stitch_pages`` received it to its place on the canvas.
+def placement_rect(page, placement):
+    """Where ``stitch_pages`` put a page on the canvas: (dx, dy, width, height).
 
-    The page's resize to the common side (with the rounding ``stitch_pages``
-    applies) followed by its offset - so a point of the page lands where its
-    pixels went, not where ``scale`` alone would put it.
+    The width and height are the page's size after the resize to the common
+    side, with the rounding ``stitch_pages`` applies - so a map built from
+    them puts a point where the page's pixels went, not where ``scale`` alone
+    would put it.
     """
-    return _placed(page, placement)[1]
+    return _placed(page, placement)[0]
 
 
 def _placed(page, placement):

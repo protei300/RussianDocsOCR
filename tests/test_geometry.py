@@ -13,9 +13,11 @@ import cv2
 import numpy as np
 import pytest
 
-from document_processing.geometry import Chain, Offset, Pieces, QuarterTurns, Scale, Unknown
+from document_processing.geometry import Chain, Homography, Offset, Pieces, QuarterTurns, Scale, Unknown, VerticalRemap
 from document_processing.pipeline_modules import AddressLinesDetector, DocDeskewer
 from document_processing.pipeline_modules.doc_detector.image_transformation import fix_perspective
+from document_processing.pipeline_modules.page_registration.line_dewarp import apply_dewarp
+from document_processing.pipeline_modules.page_registration.line_refine import apply_refinement
 
 BACKGROUND = (40, 70, 110)
 PAPER = (235, 235, 235)
@@ -176,3 +178,48 @@ def test_a_rotated_address_line_crop_puts_the_mark_back_on_the_page(degrees):
     geometry = AddressLinesDetector.crop_geometry(obbox)
 
     assert_lands([geometry.to_input(point)[0] for point in marks(patch)], [(350.5, 250.5)], atol=1.0)
+
+
+def bend(width, height, amplitude):
+    """A smooth vertical displacement map, the shape line_dewarp fits: a bow across the page."""
+    xs = (np.arange(width, dtype=np.float32) - width / 2) / (width / 2)
+    ys = (np.arange(height, dtype=np.float32) - height / 2) / (width / 2)
+    return amplitude * (1.0 - xs[None, :] ** 2) * (0.5 + ys[:, None])
+
+
+@pytest.mark.parametrize('amplitude', [4.0, 12.0])
+def test_an_unbent_page_puts_the_mark_back_through_the_bend_map(amplitude):
+    """Against cv2.remap itself: the bend map is the way back, read at the right pixel.
+
+    The page registration unbends a curved passport page pixel by pixel; the map it
+    keeps is what the remap sampled with, so a box found on the unbent page goes back
+    through the same map. The mark is off-centre on purpose: the map is not uniform,
+    and a mark read at a wrong pixel of it lands a pixel or two away.
+    """
+    image = canvas(600, 400, color=PAPER)
+    cv2.circle(image, (170, 290), 4, MARK, -1)
+    cv2.circle(image, (450, 110), 4, MARK, -1)
+    v = bend(600, 400, amplitude)
+
+    unbent = apply_dewarp(image, v)
+
+    assert_lands([VerticalRemap(v).to_input(point)[0] for point in marks(unbent)],
+                 [(170.5, 290.5), (450.5, 110.5)], atol=1.0)
+    # not the identity: the marks did move
+    assert any(np.linalg.norm(point - (170.5, 290.5)) > 1.0 and np.linalg.norm(point - (450.5, 110.5)) > 1.0
+               for point in marks(unbent)) or amplitude < 6
+
+
+def test_a_straightened_and_unbent_page_chains_both_maps():
+    """The registration's straightening: a homography, then the bend map on its result."""
+    image = canvas(800, 500, color=PAPER)
+    cv2.circle(image, (300, 260), 4, MARK, -1)
+    Hm = cv2.getPerspectiveTransform(
+        np.float32([[0, 0], [800, 0], [800, 500], [0, 500]]),
+        np.float32([[6, 3], [792, -4], [805, 503], [-3, 496]]))
+    v = bend(800, 500, 8.0)
+
+    page = apply_dewarp(apply_refinement(image, Hm), v)
+    geometry = Chain((Homography(Hm), VerticalRemap(v)))
+
+    assert_lands([geometry.to_input(point)[0] for point in marks(page)], [(300.5, 260.5)], atol=1.0)
