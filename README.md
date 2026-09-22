@@ -281,6 +281,24 @@ pipeline.warmup("path/to/any/sample_document.jpg")  # реальный доку�
 | `.quality` | `dict` | `Glare`, `Blur`, `PrintSpoofing`, `LCDSpoofing`, `DocConf` |
 | `.full_report` | `dict` | всё вместе |
 | `.timings` | `dict` | тайминги по стадиям + `total` |
+| `.field_quads` | `dict` \| `None` | где каждое прочитанное поле лежит **на исходном снимке**: `метка → [четырёхугольник (4, 2), …]` в пикселях изображения, переданного в `process_img`, по одному на найденную рамку, сверху вниз |
+| `.word_quads` | `dict` \| `None` | то же для слов: `метка → [четырёхугольник на каждый лоскут words_patches[метка]['patches']]` |
+| `.address_line_quads` | `list` \| `None` | строки адреса прописки (`INTPASSPORTADDR`) на снимке, в порядке `meta_results['Address_lines']` |
+| `.to_input(points)` | `ndarray` \| `None` | любые точки холста `(N, 2)` → на исходный снимок |
+
+Четырёхугольники нужны, чтобы показать человеку поле на его фотографии, а не на
+холсте конвейера: холст уменьшен, довёрнут, выпрямлен по страницам, склеен и
+выровнен, и каждая из этих стадий умеет назвать свой обратный ход. Если для
+какой-то стадии прогона обратный ход неизвестен, все четырёхугольники этого
+прогона — `None` (рамка, которая молча легла не туда, хуже её отсутствия).
+
+```python
+quads = results.field_quads
+if quads is not None:
+    for label, boxes in quads.items():
+        for quad in boxes:                       # (4, 2), пиксели исходного снимка
+            cv2.polylines(img, [quad.round().astype(np.int32)], True, (255, 0, 0), 2)
+```
 
 ---
 
