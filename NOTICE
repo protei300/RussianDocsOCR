@@ -53,6 +53,23 @@ licence. Each font's file contains its own copyright line, so they are kept sepa
 merging them would mean deciding which notice belongs to which file, and getting that wrong is exactly
 the failure the clause exists to prevent.
 
+Gradle wrapper, in `ports/java/` — the four files Gradle generates so that the Kotlin
+port builds without a local Gradle install: `gradlew`, `gradlew.bat`,
+`gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gradle-wrapper.properties`:
+
+  * Gradle Wrapper — Apache License 2.0
+    Copyright (c) 2015 the original authors (Gradle)
+    https://github.com/gradle/gradle
+    Licence text: https://www.apache.org/licenses/LICENSE-2.0
+    (the SPDX identifier and the licence notice are in the header of `gradlew` and
+    `gradlew.bat`, unmodified)
+
+These files are Gradle's, not this project's: the MIT licence in `LICENSE` does NOT
+cover them, and they are redistributed unmodified under Apache-2.0. They are the only
+Apache-licensed files in the current tree. Releases up to and including 3.0.2 (and the
+tag `models-v4`, which points at a commit from before the change) carry an Apache-2.0
+`LICENSE` of their own — that was this project's licence until 4.0.0; see CHANGELOG.
+
 No other third-party source, binary or asset is vendored here. Runtime dependencies
 are declared in `requirements2026.txt`, `requirements-service.txt`, `web/package.json`
 and each port's manifest, and are fetched from their own repositories under their own
