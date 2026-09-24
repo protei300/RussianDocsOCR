@@ -47,6 +47,28 @@ _NOISE = {'Г', 'Г.', 'ГОД', 'ГОДА', 'ГОДУ'}
 _TOKEN = re.compile(r'[^\W\d_]+|\d+', re.UNICODE)
 
 
+def _drop_quote_letters(tokens):
+    """Drop a lone letter standing right next to the day number.
+
+    The 1998 birth certificate prints the issue date as «10» ЯНВАРЯ 2013 г.,
+    and the field box starts on the opening quote. «» are not in the Cyrillic
+    engine's alphabet, so the engine reads the quote as the nearest letter it
+    knows: «И 10 ЯНВАРЯ 2013» (issue #23). The letter carries no date
+    information, but as an unknown word it made the whole date refuse.
+
+    Only a SINGLE letter and only ADJACENT to a one- or two-digit number (the
+    day, on either side - the closing quote sits after it) is dropped. Anything
+    else - a longer word, a letter elsewhere - still refuses: this reads a
+    known misreading of printed punctuation, it does not guess.
+    """
+    def is_day(i):
+        return 0 <= i < len(tokens) and tokens[i].isdigit() and len(tokens[i]) <= 2
+
+    return [t for i, t in enumerate(tokens)
+            if not (len(t) == 1 and not t.isdigit() and t not in _MONTHS
+                    and (is_day(i - 1) or is_day(i + 1)))]
+
+
 def _as_date(day, month, year):
     """dd.mm.yyyy for a real calendar date, else None (31.02 is not a date)."""
     if not (1 <= month <= 12) or year < 1900 or year > 2100:
@@ -67,6 +89,7 @@ def to_ddmmyyyy(text: str):
     * ``'15 ОКТЯБРЯ 2020 Г.'``    -> ``'15.10.2020'``
     * ``'10 ДЕКАБРЯ 1999 ГОДА'``  -> ``'10.12.1999'``
     * ``'03.АВГУСТ.1989'``        -> ``'03.08.1989'``
+    * ``'И 10 ЯНВАРЯ 2013'``      -> ``'10.01.2013'`` (the quote « read as a letter)
     * ``'5 МАЯ'``                 -> None (no year: guessing one would invent data)
     * ``'31.02.2020'``            -> None (not a calendar date)
     """
@@ -75,6 +98,7 @@ def to_ddmmyyyy(text: str):
 
     tokens = [t.upper() for t in _TOKEN.findall(text)]
     tokens = [t for t in tokens if t not in _NOISE and t != 'Г']
+    tokens = _drop_quote_letters(tokens)
     if not tokens:
         return None
 
