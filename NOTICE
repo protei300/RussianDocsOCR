@@ -71,7 +71,7 @@ tag `models-v4`, which points at a commit from before the change) carry an Apach
 `LICENSE` of their own — that was this project's licence until 4.0.0; see CHANGELOG.
 
 No other third-party source, binary or asset is vendored here. Runtime dependencies
-are declared in `requirements2026.txt`, `requirements-service.txt`, `web/package.json`
+are declared in `requirements.txt`, `requirements-service.txt`, `web/package.json`
 and each port's manifest, and are fetched from their own repositories under their own
 terms — they are not redistributed by this project.
 

@@ -91,8 +91,8 @@ WORKDIR /app
 # landed last in site-packages — so the CPU wheel is uninstalled explicitly
 # rather than left to shadow the GPU one.
 # -----------------------------------------------------------------------------
-COPY requirements2026.txt requirements-service.txt ./
-RUN python -m pip install --no-cache-dir -r requirements2026.txt \
+COPY requirements.txt requirements-service.txt ./
+RUN python -m pip install --no-cache-dir -r requirements.txt \
     && python -m pip install --no-cache-dir -r requirements-service.txt \
     && python -m pip uninstall -y onnxruntime \
     && python -m pip install --no-cache-dir onnxruntime-gpu==1.21.1

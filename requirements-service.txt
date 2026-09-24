@@ -1,8 +1,8 @@
-# Web-service dependencies — install ON TOP of requirements2026.txt.
+# Web-service dependencies — install ON TOP of requirements.txt.
 #
-#   pip install -r requirements2026.txt -r requirements-service.txt
+#   pip install -r requirements.txt -r requirements-service.txt
 #
-# For a GPU host, swap the CPU onnxruntime from requirements2026.txt:
+# For a GPU host, swap the CPU onnxruntime from requirements.txt:
 #   pip uninstall -y onnxruntime && pip install onnxruntime-gpu==1.21.1
 # On Windows the CUDA/cuDNN DLLs are taken from torch/lib by
 # document_processing/__init__.py::_enable_cuda_dlls(), so torch must be

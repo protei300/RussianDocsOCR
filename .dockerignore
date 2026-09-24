@@ -25,7 +25,7 @@
 # Frontend sources for the build stage. Its own artefacts are re-excluded below.
 !web/
 
-!requirements2026.txt
+!requirements.txt
 !requirements-service.txt
 
 # The ports. This file predates them, and the allowlist is exactly as strict as

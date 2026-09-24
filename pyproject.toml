@@ -33,7 +33,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-# Пины совпадают с requirements2026.txt — проверенным набором проекта.
+# Пины совпадают с requirements.txt — проверенным набором проекта.
 # pandas/py-cpuinfo/pytest из него не входят: они нужны только скриптам
 # бенчмарка и тестам, которые в пакет не пакуются.
 dependencies = [

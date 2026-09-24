@@ -23,7 +23,7 @@ SAMPLES_DIR = Path('../samples')
 def _formats():
     """ONNX always; OpenVINO only where the runtime is installed.
 
-    `openvino` is an optional dependency - commented out in requirements2026.txt,
+    `openvino` is an optional dependency - commented out in requirements.txt,
     since the ONNX runtime is the default and OpenVINO only pays off on Intel
     CPUs. Parametrising over it unconditionally made these two cases fail with
     ModuleNotFoundError on any machine that took the file at its word, CI
@@ -36,7 +36,7 @@ def _formats():
         formats.append(pytest.param(
             'OpenVINO',
             marks=pytest.mark.skip(reason='openvino not installed (optional; '
-                                          'see requirements2026.txt)')))
+                                          'see requirements.txt)')))
     return formats
 
 

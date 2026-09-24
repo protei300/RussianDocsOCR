@@ -41,7 +41,7 @@
 
 ### Локально (основной режим разработки)
 
-Нужно окружение с установленными `requirements2026.txt` + `requirements-service.txt`.
+Нужно окружение с установленными `requirements.txt` + `requirements-service.txt`.
 На машине разработки это conda-окружение `russiandocs`.
 
 ```bash

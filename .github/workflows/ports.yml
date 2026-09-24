@@ -139,7 +139,7 @@ jobs:
       - name: Install the reference (the checker is Python)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements2026.txt
+          pip install -r requirements.txt
 
       # The ports read the weights from the same directory the reference does
       # (RDOCS_MODELS_ROOT); since 3.0.2 they are fetched, not checked out.
@@ -197,7 +197,7 @@ jobs:
       - name: Install the reference (the checker is Python)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements2026.txt
+          pip install -r requirements.txt
 
       # The ports read the weights from the same directory the reference does
       # (RDOCS_MODELS_ROOT); since 3.0.2 they are fetched, not checked out.
@@ -269,7 +269,7 @@ jobs:
       - name: Install the reference (the checker is Python)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements2026.txt
+          pip install -r requirements.txt
 
       # The ports read the weights from the same directory the reference does
       # (RDOCS_MODELS_ROOT); since 3.0.2 they are fetched, not checked out.
