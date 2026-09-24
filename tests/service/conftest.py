@@ -56,3 +56,57 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "slow" in item.keywords:
             item.add_marker(skip)
+
+
+# --- shared by the auth suites -------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _reset_auth_process_state():
+    """Clear the two pieces of auth state that live for the whole process.
+
+    The failed-login counters are module-level (a single-process service keeps
+    them in a dict), and every TestClient request comes from the same address,
+    "testclient". Without this, failures from one test count against the next —
+    the address-wide lockout fires in a test that never failed a login at all, and
+    the suite becomes order-dependent. The per-process JWT secret is reset for the
+    same reason: a test that forces the ephemeral secret must not leak it.
+    """
+    try:
+        from service.core import auth as auth_core
+    except Exception:                                   # library-only environment
+        yield
+        return
+    auth_core._attempts.clear()
+    auth_core._process_secret = None
+    yield
+    auth_core._attempts.clear()
+    auth_core._process_secret = None
+
+
+@pytest.fixture
+def app_factory(monkeypatch):
+    """Build the app with a given AUTH_MODE and a throwaway data directory.
+
+    Extra environment can be passed as keyword arguments; ``None`` unsets.
+    """
+    import importlib
+    import tempfile
+
+    def build(mode: str | None, **env: str | None):
+        base = {"DATA_DIR": tempfile.mkdtemp(), "JWT_SECRET": "test-secret",
+                "SEED_SAMPLES": "-1", "WARMUP_IMAGE": "", "COMPUTE_DEVICE": "cpu",
+                "AUTH_MODE": mode}
+        base.update(env)
+        for name, value in base.items():
+            if value is None:
+                monkeypatch.delenv(name, raising=False)
+            else:
+                monkeypatch.setenv(name, value)
+
+        from service.core.config import get_settings
+        get_settings.cache_clear()
+        import service.main as main
+        importlib.reload(main)
+        return main.app
+
+    return build

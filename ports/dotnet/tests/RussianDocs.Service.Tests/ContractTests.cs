@@ -90,7 +90,8 @@ public sealed class ContractTests
         // Port 0: the OS assigns one, so a developer's own service on 8004 cannot make this fail.
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         _app = builder.Build();
-        new ApiServer(db, runtime, worker, cfg, settings, _webRoot, log).MapRoutes(_app);
+        new ApiServer(db, runtime, worker, cfg, settings, AuthRuntime.Create(cfg, db), _webRoot, log)
+            .MapRoutes(_app);
         _app.Start();
 
         string address = _app.Services

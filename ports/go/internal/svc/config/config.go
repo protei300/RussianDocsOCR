@@ -35,6 +35,24 @@ type Settings struct {
 	JwtAlgorithm     string
 	JwtExpireMinutes int
 
+	// AuthMode selects how the website signs in: "pin" (the default — one shared PIN, one
+	// operator identity) or "users" (named accounts with roles). It is NOT a runtime setting
+	// and never appears on the settings page: the raw value is read ONLY by auth.ResolveMode,
+	// which turns anything unusable into PIN with a reason rather than refusing to start.
+	AuthMode string
+
+	// AdminUsername / AdminPassword seed the first administrator in users mode, when the
+	// store has no accounts at all. The password bypasses the composition rules — it is
+	// DefaultAdminPassword by design — and the account must change it at first sign-in. It is
+	// published on the login page ONLY while it is still that documented default.
+	AdminUsername string
+	AdminPassword string
+
+	// LoginMaxAttempts failures per (username, address) within LoginLockoutSeconds lock that
+	// pair out; an address is locked after three times as many across all usernames.
+	LoginMaxAttempts    int
+	LoginLockoutSeconds int
+
 	// DefaultApiKey is the bootstrap key: always present, never deletable — without it
 	// a restart (which wipes runtime-created keys) would leave the API with no way in.
 	//
@@ -91,17 +109,31 @@ type Settings struct {
 	GitCommit          string
 }
 
+// DefaultAdminPassword is the seeded administrator's documented demo password. Named once, here,
+// because two decisions key on it: whether /auth/config may publish it, and whether the startup
+// log may print it. A value set through ADMIN_PASSWORD is a secret by default; only this one is
+// not.
+const DefaultAdminPassword = "1234"
+
 // Defaults returns the settings with no environment applied.
 //
 // Separate from Load so tests and the settings schema can both see the baseline without
 // touching the process environment.
 func Defaults() Settings {
 	return Settings{
-		AuthPin:          "1234",
+		AuthPin: "1234",
+		// Must equal auth.DefaultJwtSecret — pinned by a test. It is never USED to sign: when
+		// JWT_SECRET is left at this value a random per-process secret is generated instead.
 		JwtSecret:        "changeme-in-production",
 		JwtAlgorithm:     "HS256",
 		JwtExpireMinutes: 480, // 8 h, one working day
 		DefaultApiKey:    "",
+
+		AuthMode:            "pin",
+		AdminUsername:       "admin",
+		AdminPassword:       DefaultAdminPassword,
+		LoginMaxAttempts:    10,
+		LoginLockoutSeconds: 300,
 
 		DatabaseConnectionString: "",
 		DataDir:                  "data",
@@ -180,6 +212,11 @@ func Load() (Settings, error) {
 	str("JWT_ALGORITHM", &s.JwtAlgorithm)
 	num("JWT_EXPIRE_MINUTES", &s.JwtExpireMinutes)
 	str("DEFAULT_API_KEY", &s.DefaultApiKey)
+	str("AUTH_MODE", &s.AuthMode)
+	str("ADMIN_USERNAME", &s.AdminUsername)
+	str("ADMIN_PASSWORD", &s.AdminPassword)
+	num("LOGIN_MAX_ATTEMPTS", &s.LoginMaxAttempts)
+	num("LOGIN_LOCKOUT_SECONDS", &s.LoginLockoutSeconds)
 
 	str("DATABASE_CONNECTIONSTRING", &s.DatabaseConnectionString)
 	str("RUSSIANDOCS_DATABASE_CONNECTIONSTRING", &s.DatabaseConnectionString)

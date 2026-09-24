@@ -34,6 +34,24 @@ public data class Settings(
      * this shares one publicly-known key. Empty means a random key is generated at startup and logged.
      */
     val defaultApiKey: String = "",
+    /**
+     * `pin` (the default) or `users`. **Read ONLY through `AuthMode.resolve`**, never directly: that one
+     * function turns every unusable value into PIN with a reason attached, so a typo cannot half-enable
+     * named accounts in one handler and not in another. Not a runtime setting — a mode switch changes who
+     * can sign in, and that is a restart, not a form field. See ports/AUTH.md §1.
+     */
+    val authMode: String = "",
+    /** The account seeded when `AUTH_MODE=users` starts with no users at all. */
+    val adminUsername: String = "admin",
+    /**
+     * Its initial password. The default is the documented demo value ([DEFAULT_ADMIN_PASSWORD]), which is
+     * the only case in which the login page and the startup log may show it; any other value is a secret
+     * and is never published.
+     */
+    val adminPassword: String = DEFAULT_ADMIN_PASSWORD,
+    /** Failed sign-ins per (identity, address) within the window before a 429. ports/AUTH.md §6. */
+    val loginMaxAttempts: Int = 10,
+    val loginLockoutSeconds: Int = 300,
 
     // --- Storage ------------------------------------------------------------
     /**
@@ -113,6 +131,13 @@ public data class Settings(
 
     public companion object {
         /**
+         * The seeded administrator's demo password. A NAMED constant because two decisions compare
+         * against it — whether `/auth/config` may advertise the credentials, and whether the startup log may
+         * print them — and both must mean "the published demo value", not "whatever is configured".
+         */
+        public const val DEFAULT_ADMIN_PASSWORD: String = "1234"
+
+        /**
          * Applies the environment over the defaults, collecting ALL parse errors before failing.
          *
          * Variable names are UPPER_SNAKE of the property, which is what pydantic-settings derives on the
@@ -151,6 +176,11 @@ public data class Settings(
                 jwtAlgorithm = str("JWT_ALGORITHM", d.jwtAlgorithm),
                 jwtExpireMinutes = num("JWT_EXPIRE_MINUTES", d.jwtExpireMinutes),
                 defaultApiKey = str("DEFAULT_API_KEY", d.defaultApiKey),
+                authMode = str("AUTH_MODE", d.authMode),
+                adminUsername = str("ADMIN_USERNAME", d.adminUsername),
+                adminPassword = str("ADMIN_PASSWORD", d.adminPassword),
+                loginMaxAttempts = num("LOGIN_MAX_ATTEMPTS", d.loginMaxAttempts),
+                loginLockoutSeconds = num("LOGIN_LOCKOUT_SECONDS", d.loginLockoutSeconds),
                 databaseConnectionString = str("RUSSIANDOCS_DATABASE_CONNECTIONSTRING",
                     str("DATABASE_CONNECTIONSTRING", d.databaseConnectionString)),
                 dataDir = str("DATA_DIR", d.dataDir),

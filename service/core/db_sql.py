@@ -428,3 +428,117 @@ class SqlStore:
 
     def dispose(self) -> None:
         self._engine.dispose()
+
+
+# =============================================================================
+#  NOT IMPLEMENTED ON PURPOSE: named accounts against a real database
+# =============================================================================
+#
+# The file-backed store implements users and the audit log fully, and that is
+# what the demo runs on. The database backend deliberately stops here, because
+# a user store is where a real deployment's own requirements live and a guess
+# would be worse than a gap: password policy and history, lockout counters that
+# survive a restart, group membership, LDAP or SSO federation, tenancy, legal
+# retention of the audit trail. None of that can be inferred from this project.
+#
+# WHAT YOU HAVE TO IMPLEMENT, IF YOU RUN AUTH_MODE=users WITH A DATABASE
+# ----------------------------------------------------------------------
+# Add the two tables and fill in the methods below. Everything above them —
+# hashing, session invalidation, role checks, the API, the UI — already works
+# and calls exactly these methods; nothing else has to change. That is the point
+# of the repository seam.
+#
+#   CREATE TABLE users (
+#       id                    INT IDENTITY PRIMARY KEY,   -- SERIAL on PostgreSQL
+#       username              NVARCHAR(64)  NOT NULL,
+#       role                  NVARCHAR(16)  NOT NULL,     -- viewer | operator | admin
+#       password_hash         NVARCHAR(255) NOT NULL,     -- PHC string, NEVER a plaintext password
+#       display_name          NVARCHAR(128) NULL,
+#       is_active             BIT           NOT NULL DEFAULT 1,
+#       must_change_password  BIT           NOT NULL DEFAULT 1,
+#       token_version         INT           NOT NULL DEFAULT 1,
+#       created_at            DATETIME2     NOT NULL DEFAULT GETDATE(),
+#       last_login_at         DATETIME2     NULL,
+#       CONSTRAINT uq_users_username UNIQUE (username)
+#   );
+#   CREATE TABLE audit_log (
+#       id           BIGINT IDENTITY PRIMARY KEY,
+#       at           DATETIME2     NOT NULL DEFAULT GETDATE(),
+#       actor        NVARCHAR(64)  NOT NULL,
+#       action       NVARCHAR(64)  NOT NULL,
+#       target_type  NVARCHAR(32)  NULL,
+#       target_id    NVARCHAR(64)  NULL,   -- an id, never a filename or a field value
+#       detail       NVARCHAR(256) NULL
+#   );
+#   CREATE INDEX ix_audit_at ON audit_log(at DESC);
+#
+# THREE RULES THAT ARE NOT NEGOTIABLE, whatever you build behind these methods
+# ---------------------------------------------------------------------------
+# 1. Store the PHC hash produced by ``core/passwords.py`` and nothing else.
+#    Never a plaintext password, never a reversible encryption of one, never an
+#    unsalted digest. If your schema has a column that could hold a readable
+#    password, it is the wrong schema.
+# 2. ``username`` must be unique case-insensitively. A database that treats
+#    "Admin" and "admin" as two rows is an impersonation waiting to happen; on
+#    MS SQL the default collation already folds case, on PostgreSQL add a unique
+#    index over ``lower(username)``.
+# 3. ``token_version`` must be read on every request and incremented whenever
+#    authority changes. It is what makes a disabled account stop working
+#    immediately instead of eight hours later.
+#
+# Until then the service refuses to enable named accounts on a database backend
+# and stays on the PIN — loudly, never silently. See ``core/auth.py``.
+
+class UserStoreNotImplemented(NotImplementedError):
+    """Raised by the database backend's user methods.
+
+    Carries the same message everywhere so the reason reaches whoever hits it,
+    instead of a bare NotImplementedError with an empty traceback line.
+    """
+
+    def __init__(self, what: str) -> None:
+        super().__init__(
+            f"{what} is not implemented for the database backend. Named accounts "
+            f"(AUTH_MODE=users) are demonstrated with the file store only — see "
+            f"docs/auth.md and the DDL in service/core/db_sql.py."
+        )
+
+
+def _user_methods_are_stubs(cls: type) -> type:
+    """Attach the stub user/audit methods to ``SqlStore``.
+
+    Written as a decorator applied after the class body so the gap is visible
+    in one place rather than scattered through 400 lines of working code.
+    """
+
+    def all_users(self):
+        raise UserStoreNotImplemented("Listing users")
+
+    def get_user(self, user_id: int):
+        raise UserStoreNotImplemented("Loading a user")
+
+    def find_user(self, username: str):
+        raise UserStoreNotImplemented("Looking a user up by name")
+
+    def next_user_id(self) -> int:
+        raise UserStoreNotImplemented("Allocating a user id")
+
+    def put_user(self, user):
+        raise UserStoreNotImplemented("Saving a user")
+
+    def drop_user(self, user_id: int) -> bool:
+        raise UserStoreNotImplemented("Deleting a user")
+
+    def append_audit(self, entry):
+        raise UserStoreNotImplemented("Writing an audit entry")
+
+    def recent_audit(self, limit: int = 200, *, action=None, actor=None):
+        raise UserStoreNotImplemented("Reading the audit log")
+
+    for method in (all_users, get_user, find_user, next_user_id, put_user, drop_user,
+                   append_audit, recent_audit):
+        setattr(cls, method.__name__, method)
+    return cls
+
+
+SqlStore = _user_methods_are_stubs(SqlStore)

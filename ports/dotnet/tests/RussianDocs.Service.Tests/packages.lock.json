@@ -24,6 +24,11 @@
         "resolved": "4.6.0",
         "contentHash": "R7e1+a4vuV/YS+ItfL7f//rG+JBvVeVLX4mHzFEZo4W1qEKl8Zz27AqvQSAqo+BtIzUCo4aAJMYa56VXS4hudw=="
       },
+      "Konscious.Security.Cryptography.Blake2": {
+        "type": "Transitive",
+        "resolved": "1.1.1",
+        "contentHash": "odwOyzj/J/lHJZNwFWJGU/LRecBShupAJ2S8TQqZfhUe9niHzu/voBYK5wuVKsvSpzbfupKQYZguVyIk1sgOkQ=="
+      },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
         "resolved": "17.11.1",
@@ -94,6 +99,7 @@
       "rdocs-service": {
         "type": "Project",
         "dependencies": {
+          "Konscious.Security.Cryptography.Argon2": "[1.3.1, )",
           "RussianDocs.DocumentProcessing": "[3.0.2, )"
         }
       },
@@ -103,6 +109,16 @@
           "Microsoft.ML.OnnxRuntime.Gpu": "[1.21.0, )",
           "OpenCvSharp4": "[4.13.0.20260627, )",
           "OpenCvSharp4.runtime.win": "[4.13.0.20260627, )"
+        }
+      },
+      "Konscious.Security.Cryptography.Argon2": {
+        "type": "CentralTransitive",
+        "requested": "[1.3.1, )",
+        "resolved": "1.3.1",
+        "contentHash": "T+OAGwzYYXftahpOxO7J4xA5K6urxwGnWQf3M+Jpi+76Azv/0T3M5SuN+h7/QvXuiqNw3ZEZ5QqVLI5ygDAylw==",
+        "dependencies": {
+          "Konscious.Security.Cryptography.Blake2": "1.1.1",
+          "System.Memory": "4.5.4"
         }
       },
       "Microsoft.ML.OnnxRuntime.Gpu": {

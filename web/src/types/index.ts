@@ -142,3 +142,65 @@ export interface DocumentFilter {
     sort_by: string
     sort_dir: 'asc' | 'desc'
 }
+
+
+// --- authentication ----------------------------------------------------------
+// `mode` decides what the login page renders and whether anything user-shaped
+// appears at all. `users_enabled` is separate from it on purpose: today they are
+// the same value, and the UI should not have to assume they always will be.
+
+export interface PasswordRule {
+    code: string
+    label: string
+    /** A regex the server also validates with — one source of truth, so the form
+     *  cannot accept a password the server then rejects. */
+    pattern: string
+}
+
+export interface AuthConfig {
+    mode: 'pin' | 'users'
+    pin_required: boolean
+    users_enabled: boolean
+    /** Set when a configured mode could not be honoured; shown rather than hidden,
+     *  because a silent downgrade to a shared PIN is exactly what nobody notices. */
+    downgrade_reason: string | null
+    password_rules?: PasswordRule[]
+    /** Only in the demo default: printed on the login page on purpose. */
+    demo_credentials?: { username: string; password: string }
+}
+
+export interface AuthUserPayload {
+    name: string
+    role: string
+    username?: string
+    user_id?: number
+    must_change_password?: boolean
+}
+
+export interface LoginResponse {
+    access_token: string
+    token_type: string
+    user: UserRow
+    must_change_password: boolean
+}
+
+export interface UserRow {
+    id: number
+    username: string
+    display_name: string
+    role: string
+    is_active: boolean
+    must_change_password: boolean
+    created_at: string
+    last_login_at: string | null
+}
+
+export interface AuditRow {
+    id: number
+    at: string
+    actor: string
+    action: string
+    target_type: string
+    target_id: string
+    detail: string
+}

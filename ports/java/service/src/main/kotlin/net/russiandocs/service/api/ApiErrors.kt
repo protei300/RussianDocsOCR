@@ -8,8 +8,46 @@ import net.russiandocs.service.errors.ServiceException
 import net.russiandocs.service.logging.ServiceLog
 import net.russiandocs.service.settings.SettingValidationException
 
-/** A status code and a JSON body, ready for the framework to write. */
-public data class HttpError(val status: Int, val body: JsonObject)
+/** A status code, a JSON body and any headers the status requires, ready for the framework to write. */
+public data class HttpError(
+    val status: Int,
+    val body: JsonObject,
+    val headers: Map<String, String> = emptyMap(),
+)
+
+/**
+ * An HTTP answer whose status AND text are fixed by a contract — the reference's `HTTPException`.
+ *
+ * Separate from the seven [ErrorKind]s on purpose. Those map a KIND of failure to a status and let the
+ * mapping pick generic text ("Not found", "Not authenticated"); the authentication contract (ports/AUTH.md)
+ * instead fixes each message word for word — `password_change_required` is a machine-readable code the UI
+ * routes on, and "Sign in to use this endpoint" versus "Provide an API key in X-API-Key, or sign in" tells
+ * the caller which credential was expected. Folding these into the taxonomy would have meant either losing
+ * the text or letting every kind pass its message through, which would change forty existing answers.
+ *
+ * Headers travel with the error because two statuses need one: 401 carries `WWW-Authenticate: Bearer`, 429
+ * carries `Retry-After`.
+ */
+public class ApiException(
+    public val status: Int,
+    public val detail: String,
+    public val headers: Map<String, String> = emptyMap(),
+) : RuntimeException(detail) {
+    public companion object {
+        /** A 401 from a guard. Always with `WWW-Authenticate`, which is what makes 401 mean "retry with". */
+        public fun unauthorized(detail: String): ApiException =
+            ApiException(401, detail, mapOf("WWW-Authenticate" to "Bearer"))
+
+        public fun forbidden(detail: String): ApiException = ApiException(403, detail)
+        public fun badRequest(detail: String): ApiException = ApiException(400, detail)
+        public fun notFound(detail: String): ApiException = ApiException(404, detail)
+        public fun conflict(detail: String): ApiException = ApiException(409, detail)
+        public fun unprocessable(detail: String): ApiException = ApiException(422, detail)
+
+        public fun tooManyAttempts(seconds: Int): ApiException = ApiException(
+            429, "Too many attempts. Try again in $seconds s", mapOf("Retry-After" to seconds.toString()))
+    }
+}
 
 /**
  * The HTTP error contract.
@@ -57,6 +95,9 @@ public object ApiErrors {
         if (error is ParamException) {
             return HttpError(422, JsonObject(mapOf("detail" to JsonArray(listOf(error.item.toJson())))))
         }
+        if (error is ApiException) {
+            return HttpError(error.status, detail(error.detail), error.headers)
+        }
 
         return when {
             error is ServiceException && error.kind == ErrorKind.NOT_FOUND ->
@@ -64,7 +105,7 @@ public object ApiErrors {
 
             error is ServiceException && error.kind == ErrorKind.UNAUTHORIZED ->
                 // 401, NOT 403 — see the type note.
-                HttpError(401, detail("Not authenticated"))
+                HttpError(401, detail("Not authenticated"), mapOf("WWW-Authenticate" to "Bearer"))
 
             error is ServiceException && error.kind == ErrorKind.CONFLICT ->
                 HttpError(409, detail(error.message ?: "Conflict"))

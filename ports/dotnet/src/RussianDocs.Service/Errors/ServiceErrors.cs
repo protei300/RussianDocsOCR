@@ -1,12 +1,13 @@
 namespace RussianDocs.Service.Errors;
 
 /// <summary>
-/// The seven service error kinds — one per genuinely different caller reaction.
+/// The service error kinds — one per genuinely different caller reaction.
 ///
 /// <para>
 /// D-02 licenses exceptions here where Go returns <c>(T, error)</c>. What must NOT change is the
-/// TAXONOMY: seven kinds, mapped to seven status codes in exactly one place, so a handler never picks
-/// a status code. That is what keeps 401-versus-403 and 409-versus-400 consistent across a dozen
+/// TAXONOMY: a fixed set of kinds, each mapped to one status code in exactly one place, so a handler
+/// never picks a status code. <see cref="Forbidden"/> arrived with roles (ports/AUTH.md §5): before
+/// them nothing was "authenticated but not allowed". That is what keeps 401-versus-403 and 409-versus-400 consistent across a dozen
 /// endpoints.
 /// </para>
 /// </summary>
@@ -23,6 +24,12 @@ public enum ErrorKind
 
     NotFound,
     Unauthorized,
+
+    /// <summary>Authenticated, but the role (or a pending password change) does not permit it. 403.</summary>
+    Forbidden,
+
+    /// <summary>Too many failed sign-ins. 429 with <c>Retry-After</c>.</summary>
+    TooManyAttempts,
     Conflict,
     BadRequest,
 }
@@ -59,6 +66,8 @@ public sealed class ServiceException(ErrorKind kind, string message)
 
     public static ServiceException Unauthorized(string message = "Not authenticated") =>
         new(ErrorKind.Unauthorized, message);
+
+    public static ServiceException Forbidden(string message) => new(ErrorKind.Forbidden, message);
 
     public static ServiceException Conflict(string message) => new(ErrorKind.Conflict, message);
 

@@ -20,6 +20,8 @@
 //	    result.json     the full recognition view model
 //	  api_keys.json
 //	  settings.json
+//	  users.json      named accounts (AUTH_MODE=users), Argon2id PHC hashes only
+//	  audit.jsonl     the action log, one JSON object per line, last AuditMaxEntries kept
 //
 // Four design notes worth reading before changing anything here:
 //
@@ -114,6 +116,28 @@ type DocumentStore interface {
 
 	AllSettings() map[string]string
 	SetSettings(values map[string]string) (map[string]string, error)
+
+	// Accounts. Present in both auth modes, but only ever populated in AUTH_MODE=users. Every
+	// read returns a COPY: the repository mutates what it gets back, and handing out the
+	// indexed instance made the "last administrator" rule a check-then-act race against
+	// whoever else held the same object (the first Python version did exactly that).
+	AllUsers() []*model.User // ordered by id
+	GetUser(id int) *model.User
+	// FindUser matches the username case-insensitively, after trimming: an account created
+	// as "Admin" that cannot be used by typing "admin" is a support ticket, and two accounts
+	// differing only in case are an impersonation waiting to happen.
+	FindUser(username string) *model.User
+	// NextUserID does NOT reserve the id; PutUser advances the counter. Callers allocate and
+	// store under the repository's write lock, which is what makes that safe.
+	NextUserID() int
+	PutUser(user *model.User) (*model.User, error)
+	DropUser(id int) (bool, error)
+
+	// The action log. AppendAudit assigns the id and never fails the caller — see FileStore.
+	AppendAudit(entry model.AuditEntry) model.AuditEntry
+	// RecentAudit is newest first: action is an exact match, actor a case-insensitive
+	// substring, either "" for no filter.
+	RecentAudit(limit int, action, actor string) []model.AuditEntry
 
 	// DocDir is a plain directory in every backend: binary artifacts stay on the
 	// filesystem regardless of where the metadata lives.

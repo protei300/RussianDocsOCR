@@ -15,52 +15,9 @@ using Results = Microsoft.AspNetCore.Http.Results;
 
 namespace RussianDocs.Service.Api;
 
-/// <summary>Auth, API keys, settings, logs, status and health.</summary>
+/// <summary>API keys, settings, logs, status and health. Sign-in and accounts are in ApiServer.Auth.</summary>
 public sealed partial class ApiServer
 {
-    // --- auth ---------------------------------------------------------------
-
-    /// <summary>
-    /// Exchanges the PIN for a session JWT.
-    ///
-    /// <para>
-    /// The failure message deliberately does not distinguish "wrong PIN" from "malformed request":
-    /// there is nothing useful for a legitimate user in the difference, and there is something useful
-    /// in it for somebody guessing.
-    /// </para>
-    /// </summary>
-    private IResult PinLogin(HttpRequest request)
-    {
-        try
-        {
-            JsonNode? body = JsonNode.Parse(ReadBody(request));
-            string pin = body?["pin"]?.GetValue<string>() ?? "";
-            if (!Tokens.VerifyPin(AuthConfig, pin))
-            {
-                // Logged, because repeated failures are the only signal available without rate
-                // limiting — see the note in Tokens about what a PIN is and is not.
-                log.LogWarning("[API] PIN login rejected");
-                return Results.Json(new ApiErrors.ErrorBody("Incorrect PIN"),
-                    statusCode: StatusCodes.Status401Unauthorized);
-            }
-        }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
-        {
-            return ApiErrors.Write(ServiceException.BadRequest("expected {\"pin\": \"...\"}"), log);
-        }
-
-        return Results.Json(new Dictionary<string, object?>(StringComparer.Ordinal)
-        {
-            ["access_token"] = Tokens.CreateAccessToken(AuthConfig, "operator"),
-            ["token_type"] = "bearer",
-            ["user"] = new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                ["name"] = Identity.Session.Name,
-                ["role"] = Identity.Session.Role,
-            },
-        });
-    }
-
     /// <summary>
     /// Reads the whole request body as text.
     ///

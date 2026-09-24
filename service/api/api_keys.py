@@ -6,7 +6,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
-from service.api.deps import require_session
+from service.api.deps import require_admin
 from service.core.database import DbSession, get_db
 from service.repositories import api_keys as key_repo
 
@@ -19,7 +19,7 @@ class KeyCreate(BaseModel):
 
 
 @router.get("")
-def list_keys(db: DbSession = Depends(get_db), _user=Depends(require_session)) -> dict:
+def list_keys(db: DbSession = Depends(get_db), _user=Depends(require_admin)) -> dict:
     return {
         "items": key_repo.public_list(db),
         # Surfaced so the UI can warn rather than letting a restart quietly
@@ -32,7 +32,7 @@ def list_keys(db: DbSession = Depends(get_db), _user=Depends(require_session)) -
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_key(body: KeyCreate, db: DbSession = Depends(get_db),
-               _user=Depends(require_session)) -> dict:
+               _user=Depends(require_admin)) -> dict:
     """Mint a key.
 
     ``key`` is the only time the plaintext exists outside the caller's hands —
@@ -46,7 +46,7 @@ def create_key(body: KeyCreate, db: DbSession = Depends(get_db),
 
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_key(key_id: int, db: DbSession = Depends(get_db),
-               _user=Depends(require_session)) -> Response:
+               _user=Depends(require_admin)) -> Response:
     if key_id == key_repo.DEFAULT_KEY_ID:
         # Refused rather than silently undone by the next restart: the default
         # key is derived from the environment every boot, so "deleting" it

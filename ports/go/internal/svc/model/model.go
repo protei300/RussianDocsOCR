@@ -201,3 +201,131 @@ func (k *ApiKey) Public() map[string]any {
 		"last_used_at": k.LastUsedAt,
 	}
 }
+
+// --- accounts -----------------------------------------------------------------
+
+// Roles is the closed role set, in ascending order of authority. The ORDER is the permission
+// model: RoleAtLeast compares positions in it.
+var Roles = []string{"viewer", "operator", "admin"}
+
+// Role names, for the places that need one by name.
+const (
+	RoleViewer   = "viewer"
+	RoleOperator = "operator"
+	RoleAdmin    = "admin"
+)
+
+// IsRole reports whether a string is one of Roles.
+func IsRole(role string) bool { return roleIndex(role) >= 0 }
+
+func roleIndex(role string) int {
+	for i, r := range Roles {
+		if r == role {
+			return i
+		}
+	}
+	return -1
+}
+
+// RoleAtLeast is true when role is required or higher.
+//
+// An UNKNOWN role satisfies nothing — on either side. Deny, never default to allow: a typo in a
+// stored role must lock that account out, not promote it.
+func RoleAtLeast(role, required string) bool {
+	have, need := roleIndex(role), roleIndex(required)
+	return have >= 0 && need >= 0 && have >= need
+}
+
+// User is a named account for the website, used when AUTH_MODE=users.
+//
+// Only the password HASH is stored, like ApiKey — but with a different algorithm, and
+// svc/passwords says why: an API key is random, a password is not.
+//
+// TokenVersion is the field worth reading twice. It is embedded in every issued JWT and
+// compared on each request; bumping it — on a password change, a role change, deactivation —
+// invalidates every token already handed out for the account, on every device. Without it a
+// disabled administrator keeps working access until their token expires, which here is eight
+// hours. It costs one integer and closes a real hole.
+//
+// MustChangePassword exists because the first account ships with a known, deliberately weak
+// password. A default credential that can be used indefinitely is the single most common way a
+// demo turns into an incident.
+//
+// Only value fields, deliberately: a plain struct copy IS a deep copy, which is what lets the
+// store hand out copies with `*u` and nothing that can drift out of date when a field is added.
+//
+// The JSON tags are the users.json format, shared with the other three services — field for
+// field, and never the wire format (see Public).
+type User struct {
+	ID                 int    `json:"id"`
+	Username           string `json:"username"`
+	Role               string `json:"role"`
+	PasswordHash       string `json:"password_hash"`
+	DisplayName        string `json:"display_name"`
+	IsActive           bool   `json:"is_active"`
+	MustChangePassword bool   `json:"must_change_password"`
+	TokenVersion       int    `json:"token_version"`
+	CreatedAt          Time   `json:"created_at"`
+	LastLoginAt        Time   `json:"last_login_at"`
+}
+
+// NewUser builds an account with the store's defaults: active, token version 1, created now.
+func NewUser(id int, username, role, passwordHash, displayName string, mustChange bool) *User {
+	return &User{
+		ID: id, Username: username, Role: role, PasswordHash: passwordHash,
+		DisplayName: displayName, IsActive: true, MustChangePassword: mustChange,
+		TokenVersion: 1, CreatedAt: At(StampNow()),
+	}
+}
+
+// Name is what the UI calls the account: the display name, or the username when there is none.
+func (u *User) Name() string {
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+	return u.Username
+}
+
+// Public is the only shape of an account that leaves the service — never the hash, never the
+// token version. A separate projection rather than `json:"-"` tags, for the reason ApiKey.Public
+// gives: the same struct is persisted WITH those fields.
+func (u *User) Public() map[string]any {
+	return map[string]any{
+		"id":                   u.ID,
+		"username":             u.Username,
+		"display_name":         u.Name(),
+		"role":                 u.Role,
+		"is_active":            u.IsActive,
+		"must_change_password": u.MustChangePassword,
+		"created_at":           u.CreatedAt,
+		"last_login_at":        u.LastLoginAt,
+	}
+}
+
+// AuditEntry is one recorded action: who did what, to which object, when.
+//
+// **No personal data goes in here, and that is a hard rule rather than a preference.**
+// Documents are erased at every restart in temporary mode; a log that named a file such as
+// Ivanov_passport.jpg — let alone a recognised field — would quietly carry personal data across
+// the very erasure the ephemeral store promises. So the target is an ID, the detail is a role
+// name or a username, and the client address is never written (it feeds the throttle, in
+// memory, and nothing else).
+//
+// Not tamper-proof: anyone with write access to the data directory can edit the file. Real
+// immutability needs signed records or an append-only store outside the service.
+type AuditEntry struct {
+	ID         int    `json:"id"`
+	Action     string `json:"action"`      // 'login', 'login_failed', 'user.create', …
+	Actor      string `json:"actor"`       // username, or 'pin' for the shared PIN session
+	TargetType string `json:"target_type"` // 'user', or empty
+	TargetID   string `json:"target_id"`   // an id as a STRING — never a filename
+	Detail     string `json:"detail"`      // short, non-personal: a role, a username
+	At         Time   `json:"at"`
+}
+
+// StampNow is UtcNow truncated to microseconds, for records the OTHER services read back.
+//
+// Python's datetime holds microseconds; Go's time holds nanoseconds, and Time marshals as many
+// fractional digits as are set. Truncating at creation keeps a users.json written here readable
+// by every fromisoformat the other implementations use, at no cost to anything that matters.
+func StampNow() time.Time { return UtcNow().Truncate(time.Microsecond) }

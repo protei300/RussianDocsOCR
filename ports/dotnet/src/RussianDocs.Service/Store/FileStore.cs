@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
@@ -20,6 +22,8 @@ namespace RussianDocs.Service.Store;
 ///     result.json     the full recognition view model
 ///   api_keys.json
 ///   settings.json
+///   users.json      named accounts (AUTH_MODE=users), a JSON array by id
+///   audit.jsonl     the action log, one JSON object per line, the last 5000
 /// </code>
 /// </para>
 ///
@@ -51,6 +55,34 @@ public sealed class FileStore : IDocumentStore
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
+    /// <summary>
+    /// For <c>users.json</c> and <c>audit.jsonl</c>: UTF-8 WITHOUT escaping non-ASCII.
+    ///
+    /// <para>
+    /// System.Text.Json escapes every non-ASCII character by default, so a display name "Иван" would
+    /// be written as <c>\u0418\u0432…</c> — valid JSON, and unreadable to the operator opening the
+    /// file, who is the one person these files are for. The reference writes them with
+    /// <c>ensure_ascii=False</c>. "Unsafe" in the encoder's name is about embedding JSON in HTML; these
+    /// files are never served to a browser.
+    /// </para>
+    /// </summary>
+    private static readonly JsonSerializerOptions Readable = new()
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    private static readonly JsonSerializerOptions ReadableLine = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    /// <summary>
+    /// How many audit entries are kept. A log that only grows is not something anyone reads; the
+    /// last 5000 covers weeks of a demo service. Trimming rewrites the file from memory.
+    /// </summary>
+    public const int AuditMaxEntries = 5000;
+
     private readonly string _root;
     private readonly string _docsDir;
     private readonly ILogger _log;
@@ -59,8 +91,12 @@ public sealed class FileStore : IDocumentStore
     private readonly Dictionary<int, Document> _records = [];
     private readonly Dictionary<int, ApiKey> _apiKeys = [];
     private Dictionary<string, string> _settings = new(StringComparer.Ordinal);
+    private readonly Dictionary<int, User> _users = [];
+    private List<AuditEntry> _audit = [];
     private int _nextDocId = 1;
     private int _nextKeyId = 1;
+    private int _nextUserId = 1;
+    private int _nextAuditId = 1;
 
     public FileStore(string root, ILogger log)
     {
@@ -225,6 +261,68 @@ public sealed class FileStore : IDocumentStore
             }
         }
 
+        if (File.Exists(UsersPath))
+        {
+            try
+            {
+                foreach (User user in
+                         JsonSerializer.Deserialize<List<User>>(File.ReadAllBytes(UsersPath)) ?? [])
+                {
+                    _users[user.Id] = user;
+                    _nextUserId = Math.Max(_nextUserId, user.Id + 1);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Same rule as every other file in this scan: unreadable must not stop the service.
+                // Starting with no users is safe — the bootstrap admin is re-seeded, and that is
+                // visible in the log rather than silent.
+                _users.Clear();
+                _nextUserId = 1;
+                _log.LogWarning("[STORE] users.json unreadable — starting with none: {Error}",
+                    ex.Message);
+            }
+        }
+
+        if (File.Exists(AuditPath))
+        {
+            try
+            {
+                foreach (string line in File.ReadAllLines(AuditPath))
+                {
+                    if (line.Trim().Length == 0)
+                    {
+                        continue;
+                    }
+                    AuditEntry? entry;
+                    try
+                    {
+                        entry = JsonSerializer.Deserialize<AuditEntry>(line);
+                    }
+                    catch (Exception)
+                    {
+                        continue; // one bad line, not a bad log
+                    }
+                    if (entry is null)
+                    {
+                        continue;
+                    }
+                    _audit.Add(entry);
+                    _nextAuditId = Math.Max(_nextAuditId, entry.Id + 1);
+                }
+                if (_audit.Count > AuditMaxEntries)
+                {
+                    _audit = _audit.GetRange(_audit.Count - AuditMaxEntries, AuditMaxEntries);
+                }
+            }
+            catch (Exception ex)
+            {
+                _audit = [];
+                _log.LogWarning("[STORE] audit.jsonl unreadable — starting with none: {Error}",
+                    ex.Message);
+            }
+        }
+
         if (loaded > 0)
         {
             _log.LogInformation("[STORE] recovered {Count} documents from {Dir}", loaded, _docsDir);
@@ -233,6 +331,8 @@ public sealed class FileStore : IDocumentStore
 
     private string ApiKeysPath => Path.Combine(_root, "api_keys.json");
     private string SettingsPath => Path.Combine(_root, "settings.json");
+    private string UsersPath => Path.Combine(_root, "users.json");
+    private string AuditPath => Path.Combine(_root, "audit.jsonl");
 
     public string DocDir(int id) =>
         Path.Combine(_docsDir, id.ToString(CultureInfo.InvariantCulture));
@@ -384,6 +484,156 @@ public sealed class FileStore : IDocumentStore
     /// </summary>
     private void FlushApiKeysLocked() =>
         AtomicWriteJson(ApiKeysPath, _apiKeys.Values.OrderBy(k => k.Id).ToList());
+
+    // -- users --------------------------------------------------------------
+    //
+    // Every read returns a COPY and every write stores one, for the reason the type note gives —
+    // and here it is not hygiene but correctness: handing out the indexed User made the last-admin
+    // rule a check-then-act race in the first Python version, because one request edited shared
+    // state before its own checks had finished.
+
+    public IReadOnlyList<User> AllUsers()
+    {
+        lock (_gate)
+        {
+            return _users.Values.OrderBy(u => u.Id).Select(u => u.Clone()).ToList();
+        }
+    }
+
+    public User? GetUser(int id)
+    {
+        lock (_gate)
+        {
+            return _users.TryGetValue(id, out User? user) ? user.Clone() : null;
+        }
+    }
+
+    /// <summary>
+    /// Case-insensitive, because an account created as <c>Admin</c> that cannot be used by typing
+    /// <c>admin</c> is a support ticket — and two accounts differing only in case are an impersonation
+    /// waiting to happen. Usernames are ASCII by rule, so ordinal-ignore-case is the whole of it.
+    /// </summary>
+    public User? FindUser(string username)
+    {
+        string wanted = (username ?? "").Trim();
+        lock (_gate)
+        {
+            foreach (User user in _users.Values)
+            {
+                if (string.Equals(user.Username, wanted, StringComparison.OrdinalIgnoreCase))
+                {
+                    return user.Clone();
+                }
+            }
+        }
+        return null;
+    }
+
+    public int NextUserId()
+    {
+        lock (_gate)
+        {
+            return _nextUserId;
+        }
+    }
+
+    public User PutUser(User user)
+    {
+        lock (_gate)
+        {
+            _users[user.Id] = user.Clone();
+            _nextUserId = Math.Max(_nextUserId, user.Id + 1);
+            FlushUsersLocked();
+        }
+        return user;
+    }
+
+    public bool DropUser(int id)
+    {
+        lock (_gate)
+        {
+            if (!_users.Remove(id))
+            {
+                return false;
+            }
+            FlushUsersLocked();
+            return true;
+        }
+    }
+
+    /// <summary>Assumes the lock is held; see the non-reentrancy note on the type.</summary>
+    private void FlushUsersLocked() => AtomicWriteBytes(UsersPath,
+        JsonSerializer.SerializeToUtf8Bytes(_users.Values.OrderBy(u => u.Id).ToList(), Readable));
+
+    // -- audit --------------------------------------------------------------
+
+    /// <summary>
+    /// Assigns the id, keeps the entry in memory and appends ONE line — or, when the cap is crossed,
+    /// rewrites the file from memory, the only moment this costs more than a line. Under the store
+    /// lock, so two appends cannot interleave their bytes.
+    ///
+    /// <para>
+    /// **A failed write is logged and swallowed.** An unwritable audit file must not break the action
+    /// being audited: losing the record is bad, refusing the user's work because of it is worse. The
+    /// in-memory log is already consistent, so the entry is still visible on the audit page.
+    /// </para>
+    /// </summary>
+    public AuditEntry AppendAudit(AuditEntry entry)
+    {
+        AuditEntry stored = entry.Clone();
+        lock (_gate)
+        {
+            stored.Id = _nextAuditId++;
+            _audit.Add(stored);
+            bool trimmed = _audit.Count > AuditMaxEntries;
+            if (trimmed)
+            {
+                _audit = _audit.GetRange(_audit.Count - AuditMaxEntries, AuditMaxEntries);
+            }
+            try
+            {
+                if (trimmed)
+                {
+                    AtomicWriteBytes(AuditPath, Encoding.UTF8.GetBytes(string.Concat(
+                        _audit.Select(e => JsonSerializer.Serialize(e, ReadableLine) + "\n"))));
+                }
+                else
+                {
+                    File.AppendAllText(AuditPath,
+                        JsonSerializer.Serialize(stored, ReadableLine) + "\n",
+                        new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError("[AUDIT] could not write {Path}: {Error}", AuditPath, ex.Message);
+            }
+        }
+        return stored.Clone();
+    }
+
+    public IReadOnlyList<AuditEntry> RecentAudit(int limit, string? action, string? actor)
+    {
+        List<AuditEntry> rows;
+        lock (_gate)
+        {
+            rows = _audit.Select(e => e.Clone()).ToList();
+        }
+        IEnumerable<AuditEntry> matched = rows;
+        if (!string.IsNullOrEmpty(action))
+        {
+            matched = matched.Where(e => e.Action == action);
+        }
+        if (!string.IsNullOrEmpty(actor))
+        {
+            matched = matched.Where(e => e.Actor.Contains(actor, StringComparison.OrdinalIgnoreCase));
+        }
+        List<AuditEntry> list = matched.ToList();
+        int take = Math.Max(0, Math.Min(limit, list.Count));
+        List<AuditEntry> newest = list.GetRange(list.Count - take, take);
+        newest.Reverse();
+        return newest;
+    }
 
     // -- settings -----------------------------------------------------------
 

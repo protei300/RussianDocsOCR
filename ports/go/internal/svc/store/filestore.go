@@ -1,6 +1,8 @@
 package store
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -27,6 +29,26 @@ func AtomicWriteJSON(path string, payload any) error {
 		return fmt.Errorf("store: encode %s: %w", path, err)
 	}
 	return AtomicWriteBytes(path, data)
+}
+
+// marshalText encodes JSON for the files the OTHER services read: pretty-printed or compact,
+// UTF-8, and WITHOUT Go's HTML escaping. encoding/json turns '>' into \u003e by default, so an
+// audit detail such as "role admin->viewer" would reach the file as "role admin-\u003eviewer" —
+// valid JSON, but not what Python's ensure_ascii=False writes, and unreadable to a person
+// grepping the log. Non-ASCII is never escaped by encoding/json, which is the other half of the
+// "UTF-8 without ASCII escaping" rule.
+func marshalText(payload any, indent bool) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if indent {
+		enc.SetIndent("", "  ")
+	}
+	if err := enc.Encode(payload); err != nil {
+		return nil, err
+	}
+	// Encode appends a newline; the callers decide their own line endings.
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
 // AtomicWriteBytes is the same guarantee for opaque bytes.
@@ -62,7 +84,17 @@ type FileStore struct {
 	settings  map[string]string
 	nextDocID int
 	nextKeyID int
+
+	users       map[int]*model.User
+	nextUserID  int
+	audit       []model.AuditEntry
+	nextAuditID int
 }
+
+// AuditMaxEntries is how many audit entries are kept. A log that only grows is not something a
+// scratch-pad service should carry; the last five thousand actions cover any investigation this
+// store is fit for, and the file is rewritten from memory whenever it is trimmed.
+const AuditMaxEntries = 5000
 
 // Open creates the store, scanning the directory once.
 func Open(root string) (*FileStore, error) {
@@ -78,6 +110,10 @@ func Open(root string) (*FileStore, error) {
 		settings:  map[string]string{},
 		nextDocID: 1,
 		nextKeyID: 1,
+
+		users:       map[int]*model.User{},
+		nextUserID:  1,
+		nextAuditID: 1,
 	}
 	if err := os.MkdirAll(s.docsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("store: create %s: %w", s.docsDir, err)
@@ -180,13 +216,85 @@ func (s *FileStore) scan() {
 		}
 	}
 
+	s.scanUsers()
+	s.scanAudit()
+
 	if loaded > 0 {
 		slog.Info("[STORE] recovered documents", "count", loaded, "dir", s.docsDir)
 	}
 }
 
+// scanUsers loads users.json. Unreadable means START EMPTY, never a crash — the same rule as
+// every other file in this scan. Starting with no users is safe: the bootstrap administrator is
+// re-seeded, and that is visible in the log rather than silent.
+func (s *FileStore) scanUsers() {
+	data, err := os.ReadFile(s.usersPath())
+	if err != nil {
+		if !os.IsNotExist(err) {
+			slog.Warn("[STORE] users.json unreadable — starting with none", "err", err)
+		}
+		return
+	}
+	var users []*model.User
+	if err := json.Unmarshal(data, &users); err != nil {
+		slog.Warn("[STORE] users.json unreadable — starting with none", "err", err)
+		return
+	}
+	for _, u := range users {
+		if u == nil {
+			continue
+		}
+		s.users[u.ID] = u
+		if u.ID+1 > s.nextUserID {
+			s.nextUserID = u.ID + 1
+		}
+	}
+}
+
+// scanAudit loads audit.jsonl line by line. One bad line is skipped — it is one bad line, not a
+// bad log — and only the newest AuditMaxEntries are kept.
+func (s *FileStore) scanAudit() {
+	file, err := os.Open(s.auditPath())
+	if err != nil {
+		if !os.IsNotExist(err) {
+			slog.Warn("[STORE] audit.jsonl unreadable — starting with none", "err", err)
+		}
+		return
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	// A detail is short by construction, but the default 64 KiB line cap turning one
+	// oversized line into "the rest of the log is gone" is not a trade worth making.
+	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		var entry model.AuditEntry
+		if err := json.Unmarshal(line, &entry); err != nil {
+			continue
+		}
+		s.audit = append(s.audit, entry)
+		if entry.ID+1 > s.nextAuditID {
+			s.nextAuditID = entry.ID + 1
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		slog.Warn("[STORE] audit.jsonl unreadable — starting with none", "err", err)
+		s.audit = nil
+		s.nextAuditID = 1
+		return
+	}
+	if len(s.audit) > AuditMaxEntries {
+		s.audit = append([]model.AuditEntry(nil), s.audit[len(s.audit)-AuditMaxEntries:]...)
+	}
+}
+
 func (s *FileStore) apiKeysPath() string  { return filepath.Join(s.root, "api_keys.json") }
 func (s *FileStore) settingsPath() string { return filepath.Join(s.root, "settings.json") }
+func (s *FileStore) usersPath() string    { return filepath.Join(s.root, "users.json") }
+func (s *FileStore) auditPath() string    { return filepath.Join(s.root, "audit.jsonl") }
 
 // DocDir is the artifact directory for one document.
 func (s *FileStore) DocDir(id int) string {
@@ -349,6 +457,181 @@ func (s *FileStore) SetSettings(values map[string]string) (map[string]string, er
 		out[k] = v
 	}
 	return out, AtomicWriteJSON(s.settingsPath(), s.settings)
+}
+
+// -- users ------------------------------------------------------------------
+// Every read returns a COPY — `copied := *u` is a deep copy because model.User holds only value
+// fields — and PutUser stores its own copy for the same reason. See the interface for why this
+// is load-bearing rather than tidy.
+
+func (s *FileStore) AllUsers() []*model.User {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]*model.User, 0, len(s.users))
+	for _, u := range s.users {
+		copied := *u
+		out = append(out, &copied)
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].ID < out[b].ID })
+	return out
+}
+
+func (s *FileStore) GetUser(id int) *model.User {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[id]
+	if !ok {
+		return nil
+	}
+	copied := *u
+	return &copied
+}
+
+func (s *FileStore) FindUser(username string) *model.User {
+	wanted := strings.TrimSpace(username)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Lowest id first, so that if a hand-edited file ever held two case-variants of one name
+	// the answer would at least be deterministic rather than whatever map order said.
+	var found *model.User
+	for _, u := range s.users {
+		if strings.EqualFold(u.Username, wanted) && (found == nil || u.ID < found.ID) {
+			found = u
+		}
+	}
+	if found == nil {
+		return nil
+	}
+	copied := *found
+	return &copied
+}
+
+func (s *FileStore) NextUserID() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.nextUserID
+}
+
+// PutUser stores a copy and rewrites users.json atomically, under the store lock so two writers
+// cannot interleave their renames.
+func (s *FileStore) PutUser(user *model.User) (*model.User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stored := *user
+	s.users[user.ID] = &stored
+	if user.ID+1 > s.nextUserID {
+		s.nextUserID = user.ID + 1
+	}
+	return user, s.flushUsersLocked()
+}
+
+func (s *FileStore) DropUser(id int) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.users[id]; !ok {
+		return false, nil
+	}
+	delete(s.users, id)
+	return true, s.flushUsersLocked()
+}
+
+// flushUsersLocked writes users.json as a JSON array ordered by id, pretty-printed UTF-8 —
+// readable by the Python, .NET and Kotlin services, which share this format field for field.
+func (s *FileStore) flushUsersLocked() error {
+	users := make([]*model.User, 0, len(s.users))
+	for _, u := range s.users {
+		users = append(users, u)
+	}
+	sort.Slice(users, func(a, b int) bool { return users[a].ID < users[b].ID })
+	data, err := marshalText(users, true)
+	if err != nil {
+		return fmt.Errorf("store: encode users.json: %w", err)
+	}
+	return AtomicWriteBytes(s.usersPath(), data)
+}
+
+// -- audit ------------------------------------------------------------------
+
+// AppendAudit assigns the next id, keeps the entry in memory and appends one line to the file.
+//
+// **A failed audit write is logged and swallowed.** An unwritable audit file must not break the
+// action being audited: losing the record is bad, refusing the user's sign-in or deletion
+// because of it is worse. It is logged at ERROR so it is not silent.
+//
+// The file write happens under the store lock, unlike the reference, which appends after
+// releasing it. Holding it costs one short append and makes the file's line order the id order
+// by construction — two concurrent appends can no longer land out of sequence.
+func (s *FileStore) AppendAudit(entry model.AuditEntry) model.AuditEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entry.ID = s.nextAuditID
+	s.nextAuditID++
+	s.audit = append(s.audit, entry)
+
+	var err error
+	if len(s.audit) > AuditMaxEntries {
+		// Trim and rewrite from memory — the one moment this costs more than a single line.
+		s.audit = append([]model.AuditEntry(nil), s.audit[len(s.audit)-AuditMaxEntries:]...)
+		err = s.rewriteAuditLocked()
+	} else {
+		err = s.appendAuditLineLocked(entry)
+	}
+	if err != nil {
+		slog.Error("[AUDIT] could not write the audit log", "path", s.auditPath(), "err", err)
+	}
+	return entry
+}
+
+func (s *FileStore) appendAuditLineLocked(entry model.AuditEntry) error {
+	line, err := marshalText(entry, false)
+	if err != nil {
+		return err
+	}
+	file, err := os.OpenFile(s.auditPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(append(line, '\n')); err != nil {
+		_ = file.Close()
+		return err
+	}
+	return file.Close()
+}
+
+func (s *FileStore) rewriteAuditLocked() error {
+	var buf bytes.Buffer
+	for _, e := range s.audit {
+		line, err := marshalText(e, false)
+		if err != nil {
+			return err
+		}
+		buf.Write(line)
+		buf.WriteByte('\n')
+	}
+	return AtomicWriteBytes(s.auditPath(), buf.Bytes())
+}
+
+// RecentAudit filters, then takes the newest `limit`, newest first — the reference's order of
+// operations, so `?action=user.delete&limit=5` means "the last five deletions", not "whatever
+// deletions are among the last five entries".
+func (s *FileStore) RecentAudit(limit int, action, actor string) []model.AuditEntry {
+	s.mu.Lock()
+	rows := append([]model.AuditEntry(nil), s.audit...)
+	s.mu.Unlock()
+
+	needle := strings.ToLower(actor)
+	out := []model.AuditEntry{}
+	for i := len(rows) - 1; i >= 0 && len(out) < limit; i-- {
+		e := rows[i]
+		if action != "" && e.Action != action {
+			continue
+		}
+		if needle != "" && !strings.Contains(strings.ToLower(e.Actor), needle) {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 // -- results ----------------------------------------------------------------

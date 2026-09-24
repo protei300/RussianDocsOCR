@@ -43,6 +43,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import threading
 from contextlib import contextmanager
 from pathlib import Path
@@ -50,16 +51,29 @@ from typing import Any, Iterator
 
 import dataclasses
 
-from service.core.models import ApiKey, DocumentRecord
+from service.core.models import ApiKey, AuditEntry, DocumentRecord, User
+
 from service.core.store import SORT_COLUMNS
 
 log = logging.getLogger(__name__)
+
+#: How many audit entries are kept. A log that only grows is not something
+#: to copy into a real deployment, and this is a reference implementation —
+#: so the cap exists even though the store is wiped at every restart anyway.
+AUDIT_MAX_ENTRIES = 5000
+
 
 
 def atomic_write_json(path: Path, payload: Any) -> None:
     """Write JSON so a crash can never leave a partial file behind."""
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)
 
 
@@ -93,6 +107,10 @@ class FileStore:
         self._settings: dict[str, str] = {}
         self._next_doc_id = 1
         self._next_key_id = 1
+        self._users: dict[int, User] = {}
+        self._next_user_id = 1
+        self._audit: list[AuditEntry] = []
+        self._next_audit_id = 1
         self._scan()
 
     # -- paths ---------------------------------------------------------------
@@ -103,6 +121,21 @@ class FileStore:
     @property
     def settings_path(self) -> Path:
         return self.root / "settings.json"
+
+    @property
+    def users_path(self) -> Path:
+        return self.root / "users.json"
+
+    @property
+    def audit_path(self) -> Path:
+        """Append-only, one JSON object per line.
+
+        JSON Lines rather than one array: an array has to be read, parsed and
+        rewritten in full for every appended entry, which is both slow and a way
+        to lose the whole log to one interrupted write. A line is appended with a
+        single write, and a truncated last line costs exactly that line.
+        """
+        return self.root / "audit.jsonl"
 
     def doc_dir(self, doc_id: int) -> Path:
         return self.docs_dir / str(doc_id)
@@ -142,6 +175,35 @@ class FileStore:
                                   json.loads(self.settings_path.read_text("utf-8")).items()}
             except Exception:
                 log.exception("[STORE] settings.json unreadable — using defaults")
+
+        if self.users_path.is_file():
+            try:
+                for raw in json.loads(self.users_path.read_text("utf-8")):
+                    user = User.from_json(raw)
+                    self._users[user.id] = user
+                    self._next_user_id = max(self._next_user_id, user.id + 1)
+            except Exception:
+                # Same rule as everywhere else in this scan: an unreadable file
+                # must not stop the service. Starting with no users is safe —
+                # the bootstrap admin is re-seeded, and that is visible in the
+                # log rather than silent.
+                log.exception("[STORE] users.json unreadable — starting with none")
+
+        if self.audit_path.is_file():
+            try:
+                for line in self.audit_path.read_text("utf-8").splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = AuditEntry.from_json(json.loads(line))
+                    except Exception:
+                        continue          # one bad line, not a bad log
+                    self._audit.append(entry)
+                    self._next_audit_id = max(self._next_audit_id, entry.id + 1)
+                self._audit = self._audit[-AUDIT_MAX_ENTRIES:]
+            except Exception:
+                log.exception("[STORE] audit.jsonl unreadable — starting with none")
 
         if loaded:
             log.info("[STORE] recovered %d document(s) from %s", loaded, self.docs_dir)
@@ -218,6 +280,103 @@ class FileStore:
                           [k.to_json() for k in self._api_keys.values()])
 
     # -- settings ------------------------------------------------------------
+    # -- users ---------------------------------------------------------------
+    # Present in both auth modes, but only ever populated in AUTH_MODE=users.
+    # In PIN mode the table stays empty and the API says 404 rather than
+    # returning an empty list: "no users here" and "users are not a thing in
+    # this mode" are different answers, and a UI that cannot tell them apart
+    # will show an empty management page nobody can use.
+
+    # Every read returns a COPY, as get_record already does for documents and for
+    # the reason its docstring gives: callers mutate what they get back. The first
+    # version handed out the indexed instances, which made every repository
+    # function edit shared state before its own checks had finished — and made the
+    # "last administrator" rule a check-then-act race against whoever else was
+    # holding the same object.
+    def all_users(self) -> list[User]:
+        with self.lock:
+            return [dataclasses.replace(u) for u in sorted(self._users.values(),
+                                                              key=lambda u: u.id)]
+
+    def get_user(self, user_id: int) -> User | None:
+        with self.lock:
+            user = self._users.get(user_id)
+            return dataclasses.replace(user) if user is not None else None
+
+    def find_user(self, username: str) -> User | None:
+        """Look up by username, case-insensitively.
+
+        Case folding matters here: an account created as ``Admin`` that cannot
+        be used by typing ``admin`` is a support ticket, and worse, two accounts
+        differing only in case are an impersonation waiting to happen.
+        """
+        wanted = (username or "").strip().casefold()
+        with self.lock:
+            for user in self._users.values():
+                if user.username.casefold() == wanted:
+                    return dataclasses.replace(user)
+        return None
+
+    def next_user_id(self) -> int:
+        with self.lock:
+            return self._next_user_id
+
+    def put_user(self, user: User) -> User:
+        with self.lock:
+            # Stored as its own copy for the same reason reads return one.
+            self._users[user.id] = dataclasses.replace(user)
+            self._next_user_id = max(self._next_user_id, user.id + 1)
+            self._flush_users_locked()
+            return user
+
+    def drop_user(self, user_id: int) -> bool:
+        with self.lock:
+            if self._users.pop(user_id, None) is None:
+                return False
+            self._flush_users_locked()
+            return True
+
+    def _flush_users_locked(self) -> None:
+        atomic_write_json(self.users_path,
+                          [u.to_json() for u in sorted(self._users.values(), key=lambda u: u.id)])
+
+    # -- audit ---------------------------------------------------------------
+    def append_audit(self, entry: AuditEntry) -> AuditEntry:
+        with self.lock:
+            entry.id = self._next_audit_id
+            self._next_audit_id += 1
+            self._audit.append(entry)
+            trimmed = len(self._audit) > AUDIT_MAX_ENTRIES
+            if trimmed:
+                self._audit = self._audit[-AUDIT_MAX_ENTRIES:]
+        # Outside the lock: one short append, and the in-memory list is already
+        # consistent. On trim the file is rewritten from memory, which is the
+        # only moment this costs more than a single line.
+        try:
+            if trimmed:
+                lines = [json.dumps(e.to_json(), ensure_ascii=False) for e in self._audit]
+                atomic_write_text(self.audit_path, "\n".join(lines) + "\n")
+            else:
+                with self.audit_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(entry.to_json(), ensure_ascii=False) + "\n")
+        except Exception:
+            # An unwritable audit file must not break the action being audited.
+            # It is logged loudly instead — losing the record is bad, refusing
+            # the user's work because of it is worse.
+            log.exception("[AUDIT] could not write %s", self.audit_path)
+        return entry
+
+    def recent_audit(self, limit: int = 200, *, action: str | None = None,
+                     actor: str | None = None) -> list[AuditEntry]:
+        with self.lock:
+            rows = list(self._audit)
+        if action:
+            rows = [r for r in rows if r.action == action]
+        if actor:
+            needle = actor.casefold()
+            rows = [r for r in rows if needle in r.actor.casefold()]
+        return list(reversed(rows[-limit:]))
+
     def all_settings(self) -> dict[str, str]:
         with self.lock:
             return dict(self._settings)
@@ -365,8 +524,30 @@ def init_store(data_dir: str | Path, *, wipe: bool = False) -> FileStore:
             size_mb = sum(p.stat().st_size for p in root.rglob("*") if p.is_file()) // (1024 * 1024)
         except OSError:
             pass
-        shutil.rmtree(root, ignore_errors=True)
-        log.info("[STORE] wiped data directory on startup (%d MB) — %s", size_mb, root)
+        # Failures are collected, not ignored. This used to be ignore_errors=True,
+        # which on Windows skips any file another process holds open — an antivirus
+        # scan, a second service instance, an editor — and then logged "wiped"
+        # regardless. A surviving users.json means the admin is NOT re-seeded and
+        # keeps whatever password was last set; a surviving document means personal
+        # data outlived the erasure this mode promises. Neither may be silent.
+        def _keep_going(_func, _path, _exc) -> None:
+            """Skip what cannot be deleted so the rest still goes; the check below
+            is what reports it. The handler signature is the same for onexc and the
+            older onerror, which is why one function serves both."""
+
+        if sys.version_info >= (3, 12):
+            shutil.rmtree(root, onexc=_keep_going)
+        else:                                            # onerror is deprecated from 3.12
+            shutil.rmtree(root, onerror=_keep_going)
+        # What is left on disk is the truth, whatever the handler saw.
+        survivors = [p for p in root.rglob("*") if p.is_file()] if root.exists() else []
+        if survivors:
+            log.error("[STORE] wipe INCOMPLETE — %d file(s) could not be deleted and remain "
+                      "in %s (first: %s). The store is NOT empty; the previous run's data "
+                      "is still in effect. Close whatever holds these files and restart.",
+                      len(survivors), root, ", ".join(str(p) for p in survivors[:3]))
+        else:
+            log.info("[STORE] wiped data directory on startup (%d MB) — %s", size_mb, root)
     root.mkdir(parents=True, exist_ok=True)
     _STORE = FileStore(root)
     return _STORE

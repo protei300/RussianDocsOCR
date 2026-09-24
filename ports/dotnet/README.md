@@ -107,9 +107,10 @@ Two things it does *not* buy:
   because OpenCvSharp's native package is not headless. See `D-07` in
   [`DEVIATIONS.md`](DEVIATIONS.md).
 
-What it does buy: one build for both devices (`N-01`), a service with **zero** dependencies
-beyond the two native libraries the library needs, and a Dockerfile a third the size of Go's
-because there is no OpenCV or ONNX Runtime to compile or download.
+What it does buy: one build for both devices (`N-01`), a service with **one** dependency
+beyond the two native libraries the library needs (Argon2id, for named accounts — pure managed,
+MIT), and a Dockerfile a third the size of Go's because there is no OpenCV or ONNX Runtime to
+compile or download.
 
 ## Quick start
 
@@ -135,6 +136,27 @@ DATA_DIR=/var/tmp/rdocs DEFAULT_API_KEY=rdk_dev JWT_SECRET=dev \
 
 Then <http://127.0.0.1:8004> — PIN `1234`. The log seeds itself from `service/seed_data/`, so
 there is something to click immediately.
+
+**Sign-in has two modes**, chosen by `AUTH_MODE` and nothing else:
+
+| `AUTH_MODE` | Sign-in | |
+|---|---|---|
+| unset / `pin` | the shared PIN (`AUTH_PIN`, default `1234`) | one operator, role admin — as before |
+| `users` | username + password, roles `viewer` < `operator` < `admin` | first account `ADMIN_USERNAME`/`ADMIN_PASSWORD` (default `admin`/`1234`), which must change its password at first sign-in |
+
+A mistyped value falls back to PIN and says so in the log and on `/auth/config` — the service
+never refuses to start over it. Also: `LOGIN_MAX_ATTEMPTS` (10) and `LOGIN_LOCKOUT_SECONDS`
+(300) for the failed-login throttle, and `JWT_SECRET` — left unset or at the published default,
+a random per-process secret is used, so sessions end at restart. Accounts and the action log live
+in `users.json` / `audit.jsonl` in `DATA_DIR`, in the same format as every other service.
+
+The operator guide — setting it up, the first sign-in, roles, what is and is not protected —
+is [`docs/auth-setup.md`](../../docs/auth-setup.md) and applies to this port unchanged. The
+contract this port implements is [`ports/AUTH.md`](../AUTH.md); check it with
+
+```bash
+python -m conformance.auth_contract --port dotnet     # from the repository root, after a Release build
+```
 
 Docker (from the repository root):
 

@@ -39,6 +39,29 @@ public sealed record Settings
     public int JwtExpireMinutes { get; init; } = 480;
 
     /// <summary>
+    /// <c>pin</c> (the default) or <c>users</c>. **Never read directly** — only through
+    /// <see cref="Auth.AuthMode.Resolve"/>, which turns every unusable value into PIN with a reason.
+    /// Not a runtime setting: it decides what a token means, so it changes only with a restart.
+    /// </summary>
+    public string AuthMode { get; init; } = "pin";
+
+    /// <summary>The account seeded at startup in users mode when there are no accounts at all.</summary>
+    public string AdminUsername { get; init; } = "admin";
+
+    /// <summary>
+    /// Its initial password. The default is the documented demo value, and ONLY that value is ever
+    /// published on the login page or written to the log — anything else is treated as a secret.
+    /// </summary>
+    public string AdminPassword { get; init; } = DefaultAdminPassword;
+
+    public const string DefaultAdminPassword = "1234";
+
+    /// <summary>Failed sign-ins per (identity, address) within the window; ×3 per address.</summary>
+    public int LoginMaxAttempts { get; init; } = 10;
+
+    public int LoginLockoutSeconds { get; init; } = 300;
+
+    /// <summary>
     /// The bootstrap key: always present, never deletable — without it a restart (which wipes
     /// runtime-created keys) would leave the API with no way in.
     ///
@@ -201,6 +224,11 @@ public sealed record Settings
             JwtSecret = Str("JWT_SECRET", s.JwtSecret),
             JwtAlgorithm = Str("JWT_ALGORITHM", s.JwtAlgorithm),
             JwtExpireMinutes = Num("JWT_EXPIRE_MINUTES", s.JwtExpireMinutes),
+            AuthMode = Str("AUTH_MODE", s.AuthMode),
+            AdminUsername = Str("ADMIN_USERNAME", s.AdminUsername),
+            AdminPassword = Str("ADMIN_PASSWORD", s.AdminPassword),
+            LoginMaxAttempts = Num("LOGIN_MAX_ATTEMPTS", s.LoginMaxAttempts),
+            LoginLockoutSeconds = Num("LOGIN_LOCKOUT_SECONDS", s.LoginLockoutSeconds),
             DefaultApiKey = Str("DEFAULT_API_KEY", s.DefaultApiKey),
 
             DatabaseConnectionString = Str("RUSSIANDOCS_DATABASE_CONNECTIONSTRING",

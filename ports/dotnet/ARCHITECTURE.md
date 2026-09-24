@@ -60,17 +60,19 @@ src/RussianDocs.DocumentProcessing/
 
 src/RussianDocs.Service/
   Config/        Settings                             environment tier
-  Model/         Document, ApiKey                     the record format AND future SQL columns
+  Model/         Document, ApiKey, User, AuditEntry   the record format AND future SQL columns
   Store/         IDocumentStore, FileStore            the SQL swap point
   Repositories/  Documents, ApiKeys, Artifacts,       the migration contract
-                 SettingsRepository
+                 SettingsRepository, Users, Audit
   Settings/      SettingsSchema                       server-owned, UI renders itself from it
-  Auth/          Tokens                               PIN → JWT, API keys
+  Auth/          Tokens, Passwords, AuthMode,         PIN or account → JWT, Argon2id,
+                 LoginThrottle, AuthRuntime           the mode, the throttle, API keys
   Logging/       LogRing, RingLoggerProvider          two sinks, one buffer
   Ml/            PipelineRuntime                      **the deliverable**
   Worker/        RecognitionWorker, SearchText        the drain loop
-  Api/           ApiErrors, Identity, SysInfo,        the HTTP surface
-                 ApiServer{,.Documents,.Misc}
+  Api/           ApiErrors, Identity (the gate and    the HTTP surface
+                 its Guards), SysInfo,
+                 ApiServer{,.Documents,.Misc,.Auth}
   Seed/          SeedData                             pre-computed samples
   Program.cs                                          startup order
 ```
@@ -216,7 +218,7 @@ Branch points a reader should know about:
 
 ---
 
-## 4. Concurrency: six mechanisms, each with a measurement behind it
+## 4. Concurrency: eight mechanisms, each with a measurement or a failure behind it
 
 | Mechanism | Where | Why this one |
 |---|---|---|
@@ -226,6 +228,8 @@ Branch points a reader should know about:
 | One long-running drain task | `Worker/RecognitionWorker.cs` | The concurrency bound is structural rather than configured: one loop, so one document at a time, so the pool of one is never contended by the worker itself. |
 | `SemaphoreSlim(0, 1)` as a wake flag | `Worker/RecognitionWorker.cs` | A flag, not a queue: many uploads collapse into one wake-up and no producer can block on a busy loop. |
 | `lock` around the store index | `Store/FileStore.cs` | Both the worker and the request handlers write. Long I/O — a 2 MB PNG — happens **outside** it; only the rename and the index update are inside. Every public method takes it **at most once**. |
+| One write lock around every account mutation | `Repositories/Users.cs` | "Is this the last admin" is only a check if it is atomic with the change: two admins demoting each other both pass an unlocked check. Each mutation **re-reads** the account inside the lock; hashing happens **before** it, and sign-in verifies **outside** it and re-reads before writing back, so a sign-in cannot undo a demotion made while it hashed. Proven with a forced interleaving (a barrier inside the admin count), not a race. |
+| `SemaphoreSlim(4)` around every Argon2 call | `Auth/Passwords.cs` | 64 MiB per hash, and sign-in needs no token: without the cap a login flood is a memory flood. |
 
 The timeout in `ProcessDocument` is the sharpest edge in the whole port: **it cannot cancel work
 already inside the library.** Synchronous native code has no kill. The job is marked failed and
@@ -278,7 +282,9 @@ managed counters — the Go port had the identical trap with `runtime.MemStats`.
 | `RuntimeNotReady` | 503 | yes | Models still loading, or failed to load. Requeue. |
 | `ImageUnreadable` | 422 | **no** | The bytes do not decode. Retrying is pointless. |
 | `NotFound` | 404 | no | |
-| `Unauthorized` | **401** | no | Not 403 — the SPA redirects to the PIN screen on 401 only. |
+| `Unauthorized` | **401** | no | Not 403 — the SPA redirects to the sign-in screen on 401 only. The guard's message passes through (`Sign in to use this endpoint`, …), and a guard's 401 carries `WWW-Authenticate: Bearer`. |
+| `Forbidden` | **403** | no | Authenticated, not allowed: `This action requires the <role> role`, or the machine-readable `password_change_required` the UI routes on. |
+| `TooManyAttempts` | **429** | no | The sign-in throttle; the handler sets `Retry-After` first. |
 | `Conflict` | 409 | no | Well-formed, allowed, but the *state* forbids it. |
 | `BadRequest` | 400 | no | |
 
@@ -290,6 +296,19 @@ put the sentinel's own name into the response, so a 409 read as `"conflict: The 
 `ErrorKind` is mapped to a status in exactly one place, `Api/ApiErrors.cs`, so no handler ever
 picks a status code. That is what keeps 401-versus-403 and 409-versus-400 consistent across a
 dozen endpoints.
+
+---
+
+### Authentication
+
+Two modes, chosen by `AUTH_MODE` and resolved once by `Auth/AuthMode.Resolve`, which never
+throws: an unknown value is PIN with a `downgrade_reason` that is logged and served by
+`/auth/config`. The gate is `Api/Identity.cs::Authenticator` — PIN mode **refuses** a token that
+carries a `uid`; users mode loads the account on every request and checks `is_active` and
+`token_version`, so a demotion, a reset or a deactivation ends every session at once. The full
+contract is [`../AUTH.md`](../AUTH.md); the operator guide is
+[`../../docs/auth-setup.md`](../../docs/auth-setup.md). What the black-box contract test cannot
+see is in `tests/RussianDocs.Service.Tests/AuthTests.cs`.
 
 ---
 
@@ -348,7 +367,9 @@ Three more were found by *running* the service, not by reading:
 | GC frees everything | `using` / `Dispose` on every `Mat` | See §5. |
 | `print()` to stdout | `ILogger`, two sinks | The library printing to stdout would corrupt a JSON log stream. Not applicable here; stated so nobody re-adds it. |
 | Reflection-driven config binding | A hand-written `Settings.Load` | Defaults stay next to the field they belong to, and the Go and Kotlin ports can read it line for line. |
-| `python-jose`, `python-json-logger` | Hand-rolled JWT and log writer | The service adds **zero** dependencies beyond the two native libraries the library already needs. For a reference project somebody has to audit, that is worth forty lines. |
+| `python-jose`, `python-json-logger` | Hand-rolled JWT and log writer | Forty lines of HMAC are cheaper to audit than a package. The JWT decoder pins `HS256` and reads the claims by hand, so an absent `uid` stays distinguishable from `uid: 0`. |
+| `argon2-cffi` | `Konscious.Security.Cryptography.Argon2` (MIT) + an own PHC encoder/parser | The one dependency the service adds: a memory-hard KDF is not something to hand-roll. Konscious does not speak PHC, so `Auth/Passwords.cs` does — standard base64 without padding, parameters read from the string and bounded before anything is allocated. Both argon2-cffi interop vectors verify in the unit tests. |
+| FastAPI `Depends(require_…)` | `Guard` objects in `Api/Identity.cs`, attached to each endpoint as metadata **and** run before the handler | The route test enumerates the endpoint data source and compares each route's guard *name* with ports/AUTH.md §5, and the name comes from the object that executes. |
 
 ---
 

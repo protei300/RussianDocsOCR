@@ -4,9 +4,9 @@
     The web service. One executable serving the REST API and the SPA out of web/dist.
 
     Microsoft.NET.Sdk.Web, and no package reference for the framework: ASP.NET Core ships with the
-    SDK. The whole service therefore adds ZERO dependencies beyond what the library already needs —
-    the JWT is hand-rolled in Auth/Auth.cs precisely so this stays true, which matters for a
-    reference project somebody has to audit.
+    SDK. The service adds exactly ONE dependency beyond what the library already needs — Argon2id
+    for named-account passwords, which cannot sensibly be hand-rolled. The JWT still is (Auth/Auth.cs),
+    because forty lines of HMAC is cheaper to audit than a package.
   -->
 
   <PropertyGroup>
@@ -25,6 +25,16 @@
     -->
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Argon2id for named accounts; see the note in Directory.Packages.props. -->
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The concurrency tests reach two internal seams in Repositories/Users; nothing else does. -->
+    <InternalsVisibleTo Include="RussianDocs.Service.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RussianDocs.DocumentProcessing\RussianDocs.DocumentProcessing.csproj" />

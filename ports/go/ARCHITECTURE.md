@@ -40,7 +40,7 @@ ports/go/
       pipeline/        the recognition sequence, timings, the stage probe
     viewmodel/         PipelineResults -> client JSON  (D-01: library side, not service)
     svc/               the SERVICE — port of service/
-      config errs model store repo auth settingsschema
+      config errs model store repo auth passwords settingsschema
       logging runtime worker api
 ```
 
@@ -274,7 +274,24 @@ nest. This port removes the need instead: every exported method takes the lock a
 **That is a constraint on future edits** — a helper that takes it again deadlocks rather than
 nesting — and it is documented on the type for that reason.
 
-### 4.6 The worker
+### 4.6 The account write lock — `repo.userWrite`
+
+Authentication (PIN or named accounts, `AUTH_MODE`) is specified in
+[`../AUTH.md`](../AUTH.md); this section covers only its one concurrency rule.
+
+Every account mutation takes **one** package-level `sync.Mutex` and re-reads the account inside
+it, because "is this the last active administrator" is only a check if it is atomic with the
+change. Python uses an `RLock`; here, as with the store lock, every exported mutation takes it
+exactly once and the helpers beneath it never do. Argon2 hashing happens **before** the lock is
+taken, and `Authenticate` verifies outside it and re-reads before writing `last_login_at` back —
+writing back the copy loaded before hashing would undo a demotion made during those ~80 ms.
+
+Both properties are tested with forced interleavings (test hooks inside the admin count and
+between verify and write-back), and both tests were shown to fail with the lock or the re-read
+removed. Argon2 itself is capped at four concurrent computations service-wide by a weighted
+semaphore in `svc/passwords` — 64 MiB each, on an endpoint reachable without a token.
+
+### 4.7 The worker
 
 **One** drain goroutine, so the "one document at a time" invariant holds by construction rather
 than by pool sizing. The wake signal is a capacity-1 channel with a non-blocking send: many
@@ -371,6 +388,10 @@ Seven sentinels, in `svc/errs`, one per genuinely different caller reaction:
 auditable in one place. **The default is false**, which is the safe direction: an unrecognised
 error retried forever stops the queue making progress with nothing in the log to say why.
 
+The authentication contract adds one more shape, `httpError` (status, exact `detail`, headers),
+for the responses the sentinels cannot express: 403, 429 with `Retry-After`, every guard 401 with
+`WWW-Authenticate: Bearer`, and 404s whose text is fixed by the contract ("No such user").
+
 `clientErr` carries a client-facing message *separately* from the sentinel. That type exists
 because the obvious alternative shipped a real defect: `fmt.Errorf("%w: msg", sentinel)` makes
 `Error()` return `"conflict: The default key ..."`, and that whole string went into the response
@@ -466,6 +487,7 @@ The service:
 
 ```bash
 DATA_DIR=/var/lib/rdocs JWT_SECRET=... DEFAULT_API_KEY=... ./bin/rdocs-service -addr :8003
+AUTH_MODE=users ADMIN_PASSWORD=... ./bin/rdocs-service -addr :8003   # named accounts
 ```
 
 `DATA_DIR` **must live outside the repository** — it holds uploaded documents, which are

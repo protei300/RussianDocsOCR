@@ -1,12 +1,52 @@
 import Api from '@/common/fetch'
 import type {
-    ApiKeyRow, DocumentDetail, DocumentFilter, DocumentListResponse, Progress, SettingDef,
+    ApiKeyRow, AuditRow, AuthConfig, AuthUserPayload, DocumentDetail, DocumentFilter,
+    DocumentListResponse, LoginResponse, PasswordRule, Progress, SettingDef, UserRow,
 } from '@/types'
 
 const $api = {
     auth: {
-        pinLogin(pin: string): Promise<{ access_token: string; user: { name: string; role: string } }> {
+        /** What the login page needs BEFORE anyone has signed in: which mode is live.
+         *  This is what lets one frontend serve both, and lets the Go/.NET/Kotlin
+         *  services — which only know about the PIN — keep using the same bundle. */
+        config(): Promise<AuthConfig> {
+            return Api.get('/auth/config')
+        },
+        pinLogin(pin: string): Promise<{ access_token: string; user: AuthUserPayload }> {
             return Api.post('/auth/pin-login', { pin })
+        },
+        login(username: string, password: string): Promise<LoginResponse> {
+            return Api.post('/auth/login', { username, password })
+        },
+        me(): Promise<{ mode: string; user: AuthUserPayload }> {
+            return Api.get('/auth/me')
+        },
+        changePassword(current_password: string, new_password: string):
+            Promise<{ status: string; reauthenticate: boolean }> {
+            return Api.post('/auth/change-password', { current_password, new_password })
+        },
+    },
+    users: {
+        list(): Promise<{ items: UserRow[]; roles: string[]; password_rules: PasswordRule[] }> {
+            return Api.get('/users')
+        },
+        create(body: { username: string; password: string; role: string; display_name?: string }):
+            Promise<UserRow> {
+            return Api.post('/users', body)
+        },
+        update(id: number, body: { role?: string; display_name?: string; is_active?: boolean }):
+            Promise<UserRow> {
+            return Api.patch(`/users/${id}`, body)
+        },
+        resetPassword(id: number, new_password: string): Promise<UserRow> {
+            return Api.post(`/users/${id}/password`, { new_password })
+        },
+        remove(id: number): Promise<void> {
+            return Api.delete(`/users/${id}`)
+        },
+        audit(params: { limit?: number; action?: string; actor?: string } = {}):
+            Promise<{ items: AuditRow[]; count: number }> {
+            return Api.get('/users/audit/entries', { params })
         },
     },
     documents: {

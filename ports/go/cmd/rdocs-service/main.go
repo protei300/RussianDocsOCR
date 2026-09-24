@@ -5,8 +5,10 @@
 //  1. logging, so everything after it is captured;
 //  2. config, so a bad value fails before anything expensive;
 //  3. the store, wiping first if configured — that has to precede anything that reads it;
-//  4. the worker, which starts model loading in the BACKGROUND and returns immediately;
-//  5. the HTTP listener, which is therefore serving within milliseconds.
+//  4. the authentication mode, resolved and announced, and in users mode the first
+//     administrator seeded — before the listener, so no request sees an empty account table;
+//  5. the worker, which starts model loading in the BACKGROUND and returns immediately;
+//  6. the HTTP listener, which is therefore serving within milliseconds.
 //
 // The service accepts uploads while the models are still loading. That is the entire point of
 // the queue, and it is why /health reports OK during the fifteen seconds startup takes —
@@ -34,6 +36,7 @@ import (
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/auth"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/config"
 	svclog "github.com/protei300/RussianDocsOCR/ports/go/internal/svc/logging"
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/repo"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/runtime"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/seed"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/store"
@@ -137,14 +140,24 @@ func run(addr string) error {
 		slog.Info("[MAIN] using DEFAULT_API_KEY from the environment")
 	}
 
-	if cfg.JwtSecret == config.Defaults().JwtSecret {
-		slog.Warn("[MAIN] JWT_SECRET is the built-in default — set it before exposing " +
-			"this service to anything you care about")
+	if auth.SecretIsEphemeral(authCfg) {
+		// Not a warning to ignore any more: the default is no longer USED. A random secret is
+		// generated per process instead, so a public default can never sign a token — the cost
+		// is only that sessions end at restart. Resolved here so the first sign-in does not pay
+		// for it.
+		if _, err := auth.SigningSecret(authCfg); err != nil {
+			return err
+		}
+		slog.Warn("[BOOT] JWT_SECRET is unset or still the published default — using a " +
+			"random per-process secret instead; every session ends when the service " +
+			"restarts. Set JWT_SECRET to keep sessions across restarts.")
 	}
 	if db.IsEphemeral() {
 		slog.Warn("[MAIN] storage is TEMPORARY: everything is lost on restart. " +
 			"Set a database connection string for anything real.")
 	}
+
+	announceAuthMode(db, cfg)
 
 	repoRoot := cfg.RepoRoot()
 
@@ -216,4 +229,47 @@ func run(addr string) error {
 	wk.Stop()
 	slog.Info("[MAIN] stopped")
 	return nil
+}
+
+// announceAuthMode says which authentication is in force, and seeds the first account.
+//
+// Loud on purpose, and loudest when the configuration was not honoured. A downgrade from named
+// accounts to a shared four-digit PIN is precisely the thing nobody notices from the outside:
+// the service works, the login page looks plausible, and the operator believes the accounts
+// they configured are in effect.
+//
+// NEVER fatal. A service that will not boot because it could not seed a demo account is worse
+// than one that boots with no accounts and says so.
+func announceAuthMode(db store.DocumentStore, cfg config.Settings) {
+	mode, reason := auth.ResolveMode(cfg.AuthMode, db.Backend())
+	if reason != nil {
+		slog.Warn("[AUTH] " + *reason)
+	}
+	if mode != auth.UsersMode {
+		slog.Info("[AUTH] PIN sign-in; user accounts are disabled " +
+			"(set AUTH_MODE=users to enable them)")
+		return
+	}
+
+	// Before any request can arrive: see repo.PrepareTimingDecoy.
+	repo.PrepareTimingDecoy()
+	created, err := repo.SeedAdmin(db, cfg.AdminUsername, cfg.AdminPassword)
+	if err != nil {
+		slog.Error("[AUTH] could not seed the first administrator", "err", err)
+		return
+	}
+
+	slog.Info("[AUTH] named accounts (AUTH_MODE=users)")
+	if created != nil {
+		// The password is printed only when it is the documented demo value. An earlier
+		// reference version logged ADMIN_PASSWORD unconditionally, which wrote a real secret
+		// into every log collector the service feeds.
+		shown := "from ADMIN_PASSWORD (not logged)"
+		if cfg.AdminPassword == config.DefaultAdminPassword {
+			shown = auth.PyRepr(config.DefaultAdminPassword)
+		}
+		slog.Warn("[AUTH] seeded the first administrator " + auth.PyRepr(created.Username) +
+			", password " + shown + " — it must be changed at first sign-in, and it is " +
+			"re-created after every restart because this store is temporary")
+	}
 }

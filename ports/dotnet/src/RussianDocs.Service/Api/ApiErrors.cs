@@ -73,9 +73,19 @@ public static class ApiErrors
             case ServiceException { Kind: ErrorKind.NotFound }:
                 return (StatusCodes.Status404NotFound, "Not found");
 
-            case ServiceException { Kind: ErrorKind.Unauthorized }:
-                // 401, NOT 403 — see the type note.
-                return (StatusCodes.Status401Unauthorized, "Not authenticated");
+            case ServiceException { Kind: ErrorKind.Unauthorized } unauthorized:
+                // 401, NOT 403 — see the type note. The message passes through: the guards' texts
+                // ("Sign in to use this endpoint", "Provide an API key in X-API-Key, or sign in") are
+                // part of the contract in ports/AUTH.md §5, and the UI shows them.
+                return (StatusCodes.Status401Unauthorized, unauthorized.Message);
+
+            case ServiceException { Kind: ErrorKind.Forbidden } forbidden:
+                // "password_change_required" is a MACHINE-READABLE code the UI routes on, so this
+                // message is never reworded on its way out.
+                return (StatusCodes.Status403Forbidden, forbidden.Message);
+
+            case ServiceException { Kind: ErrorKind.TooManyAttempts } throttled:
+                return (StatusCodes.Status429TooManyRequests, throttled.Message);
 
             case ServiceException { Kind: ErrorKind.Conflict } conflict:
                 return (StatusCodes.Status409Conflict, conflict.Message);

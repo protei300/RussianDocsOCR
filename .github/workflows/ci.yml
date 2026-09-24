@@ -123,6 +123,35 @@ jobs:
       - name: Tests
         run: python -m pytest tests/service -q
 
+  # The frontend had no CI at all — not a build, not a type check — so nothing
+  # stopped a component used with the wrong props from shipping. That is not
+  # hypothetical: the users page passed ConfirmDialog neither its required `open`
+  # nor its UPPER-CASE events, so Delete silently did nothing. `vite build` does not
+  # type-check; `vue-tsc` does, and caught it in seconds. Both run here now.
+  web:
+    name: web — type check and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Build
+        run: npm run build
+
   conformance:
     name: conformance — the reference against its own goldens
     runs-on: ubuntu-latest

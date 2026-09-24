@@ -224,3 +224,30 @@ words and the joined field string under load — a failure of exact comparison w
 
 The same reasoning applies to the worker's drain loop and the abandoned-work reaper: plain threads,
 because they block for seconds in native calls.
+
+## J-18 — Authentication: what differs from the reference, and nothing else
+
+`ports/AUTH.md` is implemented as written and `conformance/auth_contract.py` passes (53/53). What is
+genuinely different:
+
+- **No "argon2 library missing" downgrade.** BouncyCastle (`org.bouncycastle:bcprov-jdk18on`, Bouncy
+  Castle Licence, MIT-style) is a compile-time dependency, so `AuthMode.resolve` has three rows, not four —
+  AUTH.md §1 anticipates this. **Not `argon2-jvm`**: LGPL, and a native library that would join the J-01 /
+  J-16 loading story.
+- **`ApiException` sits beside the seven error kinds** instead of extending them. The reference raises
+  `HTTPException(status, detail)` with contractual text (`password_change_required`, "Sign in to use this
+  endpoint", 429 with `Retry-After`); the seven kinds map to fixed generic texts that forty existing answers
+  depend on. Widening the taxonomy to carry messages would have changed those answers.
+- **Body validation answers a string `detail`.** Unparsable JSON stays 400 (this port's existing answer,
+  pinned by a contract test); a missing, mistyped or over-long field is 422 like FastAPI's, but with
+  `{"detail": "<field> ..."}` rather than pydantic's list. AUTH.md §7 allows 400 or 422 and fixes the
+  string shape for every error.
+- **Order inside a handler:** guard → mode check (409/404) → body → throttle. FastAPI validates the body
+  before the handler body runs, so a malformed body in the wrong mode is a 422 there and a 409/404 here.
+  Every contract-relevant case sends a valid body, and the guard is first in both.
+- **`User` is mutable (`var`s), unlike `Document`.** The repository rules are "re-read the fresh copy and
+  change it", and with an immutable type the copy-on-read rule would be impossible to break — and so
+  impossible to test. The store copies on every read and write, and `UsersTests` proves it (a mutation
+  check removing the copy fails that test).
+- **Two test hooks in `Users`** (`onAdminCounted`, `onVerified`) stand in for the reference's
+  monkeypatching, so the concurrency tests force their interleavings. Null in production.

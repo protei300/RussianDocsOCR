@@ -127,3 +127,31 @@ twenty-three failures whose only visible symptom was `'<' is an invalid start of
 `UseProxy = false` is set explicitly rather than trusting `NO_PROXY` to be present in whatever
 environment runs the tests. The service's own `--healthcheck` probe talks to loopback for the
 same reason.
+
+## N-11 — Authentication: what differs from the reference, and why
+
+The contract is [`../AUTH.md`](../AUTH.md) and `conformance/auth_contract.py` passes in full.
+The differences, all deliberate:
+
+- **Argon2 cannot be missing.** The reference has a fourth `AUTH_MODE` row for `argon2-cffi` not
+  being installed; here `Konscious.Security.Cryptography.Argon2` (1.3.1, MIT) is a compile-time
+  dependency, so the row does not exist. Konscious computes digests but does not parse PHC
+  strings; `Auth/Passwords.cs` does, and both argon2-cffi vectors verify in the unit tests.
+  Only `v=19` is accepted — Konscious implements nothing else, and every hash any of the four
+  services writes says `v=19`.
+- **Password length counts code points explicitly.** The rule is served to the UI as `.{8,}`, but
+  a .NET `Regex` counts UTF-16 units, so four emoji would pass here and fail in Python. The server
+  checks the length rule with a code-point count (in runs between line feeds, which is what `.`
+  means); the other three rules are plain BMP character classes and use the pattern itself.
+- **A malformed request body is a 400 with a sentence, not pydantic's 422 list.** AUTH.md §7
+  allows either. The length limits (pin 1–32, username 1–64, password 1–256, display name ≤ 128)
+  are the reference's. A non-integer `{id}` on `/users/…` **is** a 422 in pydantic's shape, as in
+  the reference, because FastAPI declares it `int`.
+- **Two error kinds were added**, `Forbidden` (403) and `TooManyAttempts` (429), and
+  `Unauthorized` now passes its message through instead of a fixed "Not authenticated": the
+  guards' texts are part of the contract. `NotFound` is unchanged, so the users routes write their
+  `No such user` / `User accounts are disabled (AUTH_MODE=pin)` 404s directly.
+- **Account timestamps are truncated to microseconds.** A `DateTime` would write seven fractional
+  digits (N-02); Python writes six, and `users.json` is read by the reference too.
+- **The mode is resolved once at startup**, not per call — the environment tier is immutable here,
+  so it is the same answer computed fewer times.

@@ -154,3 +154,121 @@ class ApiKey:
             "created_at": iso(self.created_at),
             "last_used_at": iso(self.last_used_at),
         }
+
+
+#: The three roles, from least to most privileged. Ordered on purpose: the
+#: permission check is a comparison against this list, not a table of every
+#: (role, endpoint) pair — a table grows a hole the day someone adds an endpoint
+#: and forgets a row, and that hole is silent.
+ROLES = ("viewer", "operator", "admin")
+
+
+def role_at_least(role: str, required: str) -> bool:
+    """True when ``role`` is ``required`` or higher in the ROLES ordering."""
+    try:
+        return ROLES.index(role) >= ROLES.index(required)
+    except ValueError:                      # unknown role: deny, never default to allow
+        return False
+
+
+@dataclass
+class User:
+    """A named account for the website, used when ``AUTH_MODE=users``.
+
+    Only the hash is stored, like ``ApiKey`` — but the algorithm is different
+    and the reason is in ``core/passwords.py``: an API key is random, a password
+    is not.
+
+    ``token_version`` is the part worth reading twice. It is embedded in every
+    issued JWT and compared on each request. Bumping it — on a password change,
+    on deactivation, on deletion — invalidates every token already handed out
+    for that account, including ones on other devices. Without it a disabled
+    administrator keeps working access until their token expires, which on this
+    service is eight hours. It costs one integer and closes a real hole.
+
+    ``must_change_password`` exists because the first account ships with a
+    known, deliberately weak password. A default credential that can be used
+    indefinitely is the single most common way a demo turns into an incident.
+    """
+
+    id: int
+    username: str
+    role: str = "viewer"
+    password_hash: str = ""
+    display_name: str = ""
+    is_active: bool = True
+    must_change_password: bool = False
+    token_version: int = 1
+    created_at: datetime = field(default_factory=utcnow)
+    last_login_at: datetime | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        data = dataclasses.asdict(self)
+        data["created_at"] = iso(self.created_at)
+        data["last_login_at"] = iso(self.last_login_at)
+        return data
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> "User":
+        parsed = dict(data)
+        for key in ("created_at", "last_login_at"):
+            raw = parsed.get(key)
+            parsed[key] = datetime.fromisoformat(raw.replace("Z", "+00:00")) if raw else None
+        parsed.setdefault("created_at", utcnow())
+        known = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: v for k, v in parsed.items() if k in known})
+
+    def public(self) -> dict[str, Any]:
+        """What the UI may see — never the hash, never the token version."""
+        return {
+            "id": self.id,
+            "username": self.username,
+            "display_name": self.display_name or self.username,
+            "role": self.role,
+            "is_active": self.is_active,
+            "must_change_password": self.must_change_password,
+            "created_at": iso(self.created_at),
+            "last_login_at": iso(self.last_login_at),
+        }
+
+
+@dataclass
+class AuditEntry:
+    """One recorded action: who did what, to which object, when.
+
+    **No personal data goes in here, and that is a hard rule rather than a
+    preference.** Documents are erased at every restart in temporary mode; the
+    audit log deliberately is not. Writing a filename such as
+    ``Ivanov_passport.jpg`` — let alone a recognised field — would quietly carry
+    personal data across the very erasure that the ephemeral store promises. So
+    the target is an *id*, and the detail field is for things like a role name
+    or a username, never document content.
+
+    Not tamper-proof, and the documentation says so plainly: anyone with write
+    access to the data directory can edit this file. Real immutability needs
+    signed records or an append-only store outside the service.
+    """
+
+    id: int
+    action: str                      # 'login', 'login_failed', 'user.create', 'document.delete', …
+    actor: str = ""                  # username, or 'pin' for the shared PIN session
+    target_type: str = ""            # 'document' | 'user' | 'api_key' | 'settings'
+    target_id: str = ""              # id only — never a filename
+    detail: str = ""                 # short, non-personal: a role, a username, a status
+    at: datetime = field(default_factory=utcnow)
+
+    def to_json(self) -> dict[str, Any]:
+        data = dataclasses.asdict(self)
+        data["at"] = iso(self.at)
+        return data
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> "AuditEntry":
+        parsed = dict(data)
+        raw = parsed.get("at")
+        parsed["at"] = datetime.fromisoformat(raw.replace("Z", "+00:00")) if raw else utcnow()
+        known = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: v for k, v in parsed.items() if k in known})
+
+    def public(self) -> dict[str, Any]:
+        return self.to_json()

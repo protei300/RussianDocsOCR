@@ -30,10 +30,13 @@ All four ports and how they compare: [`../README.md`](../README.md).
 Verify it rather than trusting the table:
 
 ```bash
-./gradlew build                                                   # 10 + 30 tests
+./gradlew build                                                   # 10 + 62 tests
 python -m conformance.runner run --port java                       # cpu:  44/44, 0 skips
 python -m conformance.runner run --port java --profile gpu --device gpu
 ```
+
+The service's authentication has its own black-box check (`ports/AUTH.md`), which must report
+`0 failed` — see [the service section](#the-service-rdocs-service) below.
 
 
 ## Как библиотека, из своего приложения
@@ -171,6 +174,30 @@ import binds to the chosen copy.
 ```
 set RDOCS_OPENCV_HOME=<opencv build dir>
 set RDOCS_TOOLCHAIN_BIN=C:\msys64\mingw64\bin
+```
+
+## The service (`rdocs-service`)
+
+`./gradlew :service:bootJar` builds `service/build/dist/rdocs-service.jar`; run it with
+`java -jar service/build/dist/rdocs-service.jar --addr 127.0.0.1:8005` and the same environment as the
+Python service (`DATA_DIR`, `AUTH_PIN`, `JWT_SECRET`, …). On Windows the J-01/J-16 variables above apply,
+and `RDOCS_OPENCV_HOMEin` must be on `PATH` so the JNI library finds the OpenCV core DLLs.
+
+**Authentication** is the reference's, implemented to [`../AUTH.md`](../AUTH.md):
+
+| Variable | Default | |
+|---|---|---|
+| `AUTH_MODE` | `pin` | `pin` — the shared PIN, one operator; `users` — named accounts with roles (viewer / operator / admin), user management and an action log. A typo falls back to PIN, says why in the log and on `/auth/config`, and never stops the service |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / `1234` | the administrator seeded into an empty store in users mode; it must change the password at first sign-in. Only the demo value `1234` is ever shown on the login page or logged |
+| `LOGIN_MAX_ATTEMPTS` / `LOGIN_LOCKOUT_SECONDS` | `10` / `300` | failed sign-ins per account and address (×3 per address across all accounts) before a 429 |
+| `JWT_SECRET` | *(random per process)* | the published default `changeme-in-production` is never used to sign |
+
+The operator's guide applies unchanged: [`docs/auth-setup.md`](../../docs/auth-setup.md). Passwords are
+Argon2id PHC strings (BouncyCastle, MIT-style licence — not the LGPL `argon2-jvm`), so a `users.json`
+written by any of the four services verifies in the others.
+
+```bash
+python -m conformance.auth_contract --port java     # the black box: 53 checks, 0 failed
 ```
 
 ## Handling rules that are not negotiable

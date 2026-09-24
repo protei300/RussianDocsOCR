@@ -163,6 +163,26 @@ for field, value := range res.Ocr {   // поля документа
 написан: тот же порт содержит `rdocs-service`, а клиент к нему —
 [`web/src/client/rdocs-client.ts`](../../web/src/client/rdocs-client.ts).
 
+## The service: authentication
+
+`rdocs-service` implements the same authentication contract as the Python service —
+[`../AUTH.md`](../AUTH.md) is normative, and
+`python -m conformance.auth_contract --port go` is its executable form (53/53).
+
+| Variable | Default | |
+|---|---|---|
+| `AUTH_MODE` | `pin` | `pin` — one shared PIN, one operator identity (the old behaviour). `users` — named accounts with roles `viewer` < `operator` < `admin`, user management, the action log. Anything else falls back to PIN, with the reason logged and shown by `/auth/config` |
+| `AUTH_PIN` | `1234` | PIN mode |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / `1234` | the administrator seeded into an empty store in users mode; must change the password at first sign-in |
+| `JWT_SECRET` | *(random per process)* | unset or the published default → a random secret, so sessions end at restart |
+| `LOGIN_MAX_ATTEMPTS` / `LOGIN_LOCKOUT_SECONDS` | `10` / `300` | failed-login throttle |
+
+The operator guide — choosing a mode, first sign-in, roles, what survives a restart — is
+[`docs/auth-setup.md`](../../docs/auth-setup.md); it applies to this port unchanged. The
+frontend needs nothing: it asks `/auth/config` and renders the right screens. Passwords are
+Argon2id PHC strings via `golang.org/x/crypto/argon2` (BSD-3), so a `users.json` written by any
+of the four services verifies in the others.
+
 ## Build
 
 ```powershell
@@ -225,6 +245,8 @@ internal/docproc/      the library port
   preprocess/ postprocess/ inference/ models/ modules/ pipeline/
 internal/viewmodel/    PipelineResults -> the client JSON   (library side; D-01)
 internal/svc/          the service port                              (M9)
+  passwords/           Argon2id PHC hashing and the password rules
+  auth/                JWT, PIN, API keys, mode resolution, login throttle
 ```
 
 `internal/docproc/**` must not import `internal/svc/**`, and the service reaches the

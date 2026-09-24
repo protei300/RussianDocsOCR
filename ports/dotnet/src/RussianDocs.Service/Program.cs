@@ -25,6 +25,8 @@ namespace RussianDocs.Service;
 /// <item>logging, so everything after it is captured;</item>
 /// <item>config, so a bad value fails before anything expensive;</item>
 /// <item>the store, wiping first if configured — that has to precede anything that reads it;</item>
+/// <item>the authentication mode, resolved and announced, and the first administrator seeded in
+/// users mode — after the store, because both the mode and the seed depend on it;</item>
 /// <item>the worker, which starts model loading in the BACKGROUND and returns immediately;</item>
 /// <item>the HTTP listener, which is therefore serving within milliseconds.</item>
 /// </list>
@@ -155,6 +157,7 @@ public static class Program
 
         log.LogInformation("[MAIN] starting: version={Version} data_dir={Dir} device={Device}",
             cfg.GitCommit, cfg.DataDir, cfg.ComputeDevice);
+        Passwords.Log = log;
 
         // **The data directory must live OUTSIDE the repository.** It holds uploaded documents, which
         // are personal data; the default is relative, so a deployment that leaves it unset gets a
@@ -180,11 +183,7 @@ public static class Program
         // Resolved and logged HERE rather than at first use, because a generated key that nobody ever
         // sees is a service nobody can call. The masked/unmasked decision is in the repository layer;
         // this is only the log line.
-        var authCfg = new Tokens.Config
-        {
-            Pin = cfg.AuthPin, JwtSecret = cfg.JwtSecret, JwtAlgorithm = cfg.JwtAlgorithm,
-            JwtExpireMinutes = cfg.JwtExpireMinutes, DefaultApiKey = cfg.DefaultApiKey,
-        };
+        Tokens.Config authCfg = Tokens.Config.From(cfg);
         (string key, bool generated) = Tokens.ResolveDefaultKey(authCfg);
         if (generated)
         {
@@ -197,16 +196,23 @@ public static class Program
             log.LogInformation("[MAIN] using DEFAULT_API_KEY from the environment");
         }
 
-        if (cfg.JwtSecret == new Config.Settings().JwtSecret)
+        if (Tokens.SecretIsEphemeral(authCfg))
         {
-            log.LogWarning("[MAIN] JWT_SECRET is the built-in default — set it before exposing " +
-                           "this service to anything you care about");
+            // Not a warning to ignore any more: the default is no longer USED. A random secret is made
+            // per process instead, so a public default can never sign a token — the cost is only that
+            // sessions end at restart.
+            log.LogWarning("[BOOT] JWT_SECRET is unset or still the published default — using a " +
+                           "random per-process secret instead; every session ends when the " +
+                           "service restarts. Set JWT_SECRET to keep sessions across restarts.");
         }
         if (db.IsEphemeral)
         {
             log.LogWarning("[MAIN] storage is TEMPORARY: everything is lost on restart. " +
                            "Set a database connection string for anything real.");
         }
+
+        AuthRuntime auth = AuthRuntime.Create(cfg, db);
+        AnnounceAuthMode(auth, log);
 
         string? repoRoot = cfg.RepoRoot();
 
@@ -235,7 +241,7 @@ public static class Program
             log.LogInformation("[MAIN] serving frontend from {Dir}", webRoot);
         }
 
-        new ApiServer(db, runtime, worker, cfg, settings, webRoot, log).MapRoutes(app);
+        new ApiServer(db, runtime, worker, cfg, settings, auth, webRoot, log).MapRoutes(app);
 
         // CORS is applied by hand rather than through the middleware package: exact-origin matching is
         // four lines, and a wildcard reflected back with credentials enabled is the classic CORS mistake
@@ -253,7 +259,7 @@ public static class Program
                     context.Response.Headers.AccessControlAllowHeaders =
                         "Authorization, Content-Type, X-API-Key";
                     context.Response.Headers.AccessControlAllowMethods =
-                        "GET, POST, PUT, DELETE, OPTIONS";
+                        "GET, POST, PUT, PATCH, DELETE, OPTIONS";
                 }
                 if (HttpMethods.IsOptions(context.Request.Method))
                 {
@@ -276,6 +282,62 @@ public static class Program
         runtime.Dispose();
         log.LogInformation("[MAIN] stopped");
         return 0;
+    }
+
+    /// <summary>
+    /// Says which authentication is in force, and seeds the first account.
+    ///
+    /// <para>
+    /// Loud on purpose, and loudest when the configuration was NOT honoured. A downgrade from named
+    /// accounts to a shared four-digit PIN is precisely the thing nobody notices from outside: the
+    /// service works, the login page looks plausible, and the operator believes the accounts they
+    /// configured are in effect.
+    /// </para>
+    ///
+    /// <para>
+    /// **Seeding is never fatal.** A service that will not boot because it could not create a demo
+    /// account is worse than one that boots with no accounts and says so. And **the password is logged
+    /// only when it is the documented demo value**: the first Python version logged
+    /// <c>ADMIN_PASSWORD</c> unconditionally, writing a real secret into every log collector.
+    /// </para>
+    /// </summary>
+    private static void AnnounceAuthMode(AuthRuntime auth, ILogger log)
+    {
+        if (auth.DowngradeReason is { } reason)
+        {
+            log.LogWarning("[AUTH] {Reason}", reason);
+        }
+        if (!auth.UsersEnabled)
+        {
+            log.LogInformation("[AUTH] PIN sign-in; user accounts are disabled " +
+                               "(set AUTH_MODE=users to enable them)");
+            return;
+        }
+
+        Model.User? created;
+        try
+        {
+            // The decoy is hashed here, once, so the first unknown-user sign-in is not the slow one.
+            auth.Users.WarmDecoy();
+            created = auth.Users.SeedAdmin(auth.AdminUsername, auth.AdminPassword);
+        }
+        catch (Exception ex)
+        {
+            log.LogError("[AUTH] could not seed the first administrator: {Error}", ex.Message);
+            return;
+        }
+
+        log.LogInformation("[AUTH] named accounts (AUTH_MODE=users)");
+        if (created is not null)
+        {
+            string shown = auth.AdminPassword == Config.Settings.DefaultAdminPassword
+                ? PyRepr.Quote(auth.AdminPassword)
+                : "from ADMIN_PASSWORD (not logged)";
+            log.LogWarning("[AUTH] seeded the first administrator {Name}, password {Password} — it " +
+                           "must be changed at first sign-in, and it is re-created after every " +
+                           "restart because this store is temporary",
+                PyRepr.Quote(created.Username), shown);
+        }
     }
 
     /// <summary>

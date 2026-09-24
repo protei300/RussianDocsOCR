@@ -6,8 +6,11 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import net.russiandocs.service.model.ApiKey
+import net.russiandocs.service.model.AuditEntry
+import net.russiandocs.service.model.User
 import net.russiandocs.service.model.Document
 import net.russiandocs.service.model.DocumentStatus
+import net.russiandocs.service.model.Timestamps
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -99,6 +102,28 @@ public interface DocumentStore {
     public fun allSettings(): Map<String, String>
     public fun setSettings(values: Map<String, String>): Map<String, String>
 
+    // -- users and the audit log (ports/AUTH.md §9) --------------------------
+    // Present in both auth modes, populated only with AUTH_MODE=users. EVERY READ RETURNS A COPY and every
+    // write stores one: User is mutable, callers mutate what they get back, and the first Python version
+    // handed out the indexed instances — which made the "last administrator" rule a check-then-act race
+    // against whoever else held the same object.
+
+    /** Every account, ordered by id. */
+    public fun allUsers(): List<User>
+    public fun getUser(id: Int): User?
+
+    /** By username, CASE-INSENSITIVELY: `Admin` and `admin` are one account, never two. */
+    public fun findUser(username: String): User?
+    public fun nextUserId(): Int
+    public fun putUser(user: User): User
+    public fun dropUser(id: Int): Boolean
+
+    /** Assigns the id. **Never throws** — a failed audit write must not fail the action being audited. */
+    public fun appendAudit(entry: AuditEntry): AuditEntry
+
+    /** Newest first; [action] exact, [actor] a case-insensitive substring; empty means no filter. */
+    public fun recentAudit(limit: Int, action: String, actor: String): List<AuditEntry>
+
     /**
      * A plain directory in every backend: binary artifacts stay on the filesystem regardless of where the
      * metadata lives.
@@ -121,6 +146,8 @@ public interface DocumentStore {
  *     result.json     the full recognition view model
  *   api_keys.json
  *   settings.json
+ *   users.json        named accounts (AUTH_MODE=users), a JSON array ordered by id
+ *   audit.jsonl       the action log, one JSON object per line, the last 5000 kept
  * ```
  *
  * Four design notes worth reading before changing anything here:
@@ -150,6 +177,10 @@ public class FileStore(root: String, private val log: (String) -> Unit) : Docume
     private var settings = LinkedHashMap<String, String>()
     private var nextDocId = 1
     private var nextKeyId = 1
+    private val users = LinkedHashMap<Int, User>()
+    private var nextUserIdValue = 1
+    private var audit = ArrayList<AuditEntry>()
+    private var nextAuditId = 1
 
     init {
         docsDir.mkdirs()
@@ -213,6 +244,49 @@ public class FileStore(root: String, private val log: (String) -> Unit) : Docume
             }
         }
 
+        // Unreadable account files must not stop the service: starting with no users is safe (users mode
+        // re-seeds the administrator), and starting with no history loses only history.
+        if (usersPath.isFile) {
+            try {
+                for (user in json.decodeFromString(
+                    kotlinx.serialization.builtins.ListSerializer(User.serializer()),
+                    usersPath.readText(Charsets.UTF_8),
+                )) {
+                    users[user.id] = user
+                    nextUserIdValue = maxOf(nextUserIdValue, user.id + 1)
+                }
+            } catch (e: Exception) {
+                users.clear()
+                nextUserIdValue = 1
+                log("[STORE] users.json unreadable — starting with none: ${e.message}")
+            }
+        }
+
+        if (auditPath.isFile) {
+            try {
+                for (line in auditPath.readLines(Charsets.UTF_8)) {
+                    if (line.isBlank()) {
+                        continue
+                    }
+                    // One bad line costs that line, not the log: an append interrupted mid-write leaves
+                    // exactly one truncated line at the end.
+                    val entry = try {
+                        compactJson.decodeFromString(AuditEntry.serializer(), line)
+                    } catch (e: Exception) {
+                        continue
+                    }
+                    audit.add(entry)
+                    nextAuditId = maxOf(nextAuditId, entry.id + 1)
+                }
+                if (audit.size > AUDIT_MAX_ENTRIES) {
+                    audit = ArrayList(audit.subList(audit.size - AUDIT_MAX_ENTRIES, audit.size))
+                }
+            } catch (e: Exception) {
+                audit.clear()
+                log("[STORE] audit.jsonl unreadable — starting with none: ${e.message}")
+            }
+        }
+
         if (loaded > 0) {
             log("[STORE] recovered $loaded documents from $docsDir")
         }
@@ -220,6 +294,8 @@ public class FileStore(root: String, private val log: (String) -> Unit) : Docume
 
     private val apiKeysPath: File get() = File(root, "api_keys.json")
     private val settingsPath: File get() = File(root, "settings.json")
+    private val usersPath: File get() = File(root, "users.json")
+    private val auditPath: File get() = File(root, "audit.jsonl")
 
     override fun docDir(id: Int): String = File(docsDir, id.toString()).path
 
@@ -326,6 +402,97 @@ public class FileStore(root: String, private val log: (String) -> Unit) : Docume
             settings,
         ))
         LinkedHashMap(settings)
+    }
+
+    // -- users --------------------------------------------------------------
+    // Copies in, copies out: see the note on the interface. `copy()` is shallow, which is enough — every
+    // field of User is a value.
+
+    override fun allUsers(): List<User> = synchronized(gate) {
+        users.values.sortedBy { it.id }.map { it.copy() }
+    }
+
+    override fun getUser(id: Int): User? = synchronized(gate) { users[id]?.copy() }
+
+    override fun findUser(username: String): User? {
+        // Case-folded: an account created as `Admin` that cannot be used by typing `admin` is a support
+        // ticket, and two accounts differing only in case are an impersonation waiting to happen.
+        val wanted = username.trim().lowercase(java.util.Locale.ROOT)
+        return synchronized(gate) {
+            users.values.firstOrNull { it.username.lowercase(java.util.Locale.ROOT) == wanted }?.copy()
+        }
+    }
+
+    override fun nextUserId(): Int = synchronized(gate) { nextUserIdValue }
+
+    override fun putUser(user: User): User {
+        synchronized(gate) {
+            users[user.id] = user.copy()
+            nextUserIdValue = maxOf(nextUserIdValue, user.id + 1)
+            flushUsersLocked()
+        }
+        return user
+    }
+
+    override fun dropUser(id: Int): Boolean = synchronized(gate) {
+        if (users.remove(id) == null) {
+            return false
+        }
+        flushUsersLocked()
+        true
+    }
+
+    /** Assumes the lock is held. Pretty-printed UTF-8, Cyrillic display names written as-is, not escaped. */
+    private fun flushUsersLocked() {
+        atomicWriteText(usersPath, json.encodeToString(
+            kotlinx.serialization.builtins.ListSerializer(User.serializer()),
+            users.values.sortedBy { it.id },
+        ))
+    }
+
+    // -- audit --------------------------------------------------------------
+
+    /**
+     * Appends one line — or, when the cap is crossed, rewrites the file from memory — UNDER the store lock,
+     * so two entries can never interleave within a line.
+     *
+     * **A failed write is logged and swallowed.** Losing the record is bad; refusing the user's action
+     * because the log could not be written is worse, and the in-memory list still has it for this process.
+     */
+    override fun appendAudit(entry: AuditEntry): AuditEntry = synchronized(gate) {
+        val stored = entry.copy(id = nextAuditId++, at = entry.at ?: Timestamps.now())
+        audit.add(stored)
+        val trimmed = audit.size > AUDIT_MAX_ENTRIES
+        if (trimmed) {
+            audit = ArrayList(audit.subList(audit.size - AUDIT_MAX_ENTRIES, audit.size))
+        }
+        try {
+            if (trimmed) {
+                atomicWriteText(auditPath, audit.joinToString("") {
+                    compactJson.encodeToString(AuditEntry.serializer(), it) + "\n"
+                })
+            } else {
+                java.io.FileOutputStream(auditPath, true).use { out ->
+                    out.write((compactJson.encodeToString(AuditEntry.serializer(), stored) + "\n")
+                        .toByteArray(Charsets.UTF_8))
+                }
+            }
+        } catch (e: Exception) {
+            log("[AUDIT] could not write $auditPath: ${e.javaClass.simpleName}: ${e.message}")
+        }
+        stored.copy()
+    }
+
+    override fun recentAudit(limit: Int, action: String, actor: String): List<AuditEntry> {
+        var rows: List<AuditEntry> = synchronized(gate) { audit.map { it.copy() } }
+        if (action.isNotEmpty()) {
+            rows = rows.filter { it.action == action }
+        }
+        if (actor.isNotEmpty()) {
+            val needle = actor.lowercase(java.util.Locale.ROOT)
+            rows = rows.filter { it.actor.lowercase(java.util.Locale.ROOT).contains(needle) }
+        }
+        return rows.takeLast(maxOf(0, limit)).reversed()
     }
 
     // -- results ------------------------------------------------------------
@@ -523,8 +690,21 @@ public class FileStore(root: String, private val log: (String) -> Unit) : Docume
     override fun diskUsageBytes(): Long = dirSize(docsDir)
 
     public companion object {
+        /**
+         * How many audit entries are kept. A log that only grows is not something a temporary store should
+         * carry; 5000 is months of sign-ins for a small team and a few hundred KB.
+         */
+        public const val AUDIT_MAX_ENTRIES: Int = 5000
+
         internal val json = Json {
             prettyPrint = true
+            encodeDefaults = true
+            explicitNulls = true
+            ignoreUnknownKeys = true
+        }
+
+        /** One object per line for `audit.jsonl`: a pretty-printed entry would span lines and break the format. */
+        internal val compactJson = Json {
             encodeDefaults = true
             explicitNulls = true
             ignoreUnknownKeys = true

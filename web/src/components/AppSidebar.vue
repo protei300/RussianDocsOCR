@@ -9,6 +9,10 @@ const router = useRouter()
 const collapsed = computed(() => store.state.ui.sidebarCollapsed)
 const initials = computed(() => store.getters['auth/initials'])
 const user = computed(() => store.getters['auth/user'])
+// Hidden entirely in PIN mode rather than shown disabled: there is nothing to
+// manage there, and an inert menu item invites a support question.
+const canManageUsers = computed(() => store.getters['auth/canManageUsers'])
+const isAdmin = computed(() => store.getters['auth/isAdmin'])
 
 function logout(): void {
     store.dispatch('auth/logout')
@@ -70,7 +74,17 @@ function logout(): void {
         Status
       </router-link>
 
-      <router-link class="nav-link" to="/api-keys" title="API keys">
+      <router-link v-if="canManageUsers" class="nav-link" to="/users" title="Users">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        Users
+      </router-link>
+
+      <router-link v-if="isAdmin" class="nav-link" to="/api-keys" title="API keys">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
@@ -78,7 +92,7 @@ function logout(): void {
         API keys
       </router-link>
 
-      <router-link class="nav-link" to="/settings" title="Settings">
+      <router-link v-if="isAdmin" class="nav-link" to="/settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3" />
@@ -87,7 +101,7 @@ function logout(): void {
         Settings
       </router-link>
 
-      <router-link class="nav-link" to="/logs" title="Logs">
+      <router-link v-if="isAdmin" class="nav-link" to="/logs" title="Logs">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
           <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />

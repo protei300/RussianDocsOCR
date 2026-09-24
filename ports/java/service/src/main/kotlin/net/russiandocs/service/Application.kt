@@ -9,7 +9,9 @@ import java.time.Duration
 import net.russiandocs.docproc.NativeLibraries
 import net.russiandocs.service.api.ApiRoutes
 import net.russiandocs.service.api.ApiServer
+import net.russiandocs.service.auth.AuthMode
 import net.russiandocs.service.auth.Tokens
+import net.russiandocs.service.repositories.Users
 import net.russiandocs.service.config.Settings
 import net.russiandocs.service.logging.LogRing
 import net.russiandocs.service.logging.ServiceLog
@@ -175,9 +177,13 @@ private fun run(addr: String): Int {
         log.info("[MAIN] using DEFAULT_API_KEY from the environment")
     }
 
-    if (cfg.jwtSecret == Settings().jwtSecret) {
-        log.warn("[MAIN] JWT_SECRET is the built-in default — set it before exposing this service to " +
-            "anything you care about")
+    if (Tokens.secretIsEphemeral(authCfg)) {
+        // Not a warning to ignore any more: the default is no longer USED. A random secret is generated per
+        // process instead, so the published default can never sign a token — the cost is only that
+        // sessions end at restart.
+        log.warn("[BOOT] JWT_SECRET is unset or still the published default — using a random per-process " +
+            "secret instead; every session ends when the service restarts. Set JWT_SECRET to keep sessions " +
+            "across restarts.")
     }
     if (db.isEphemeral) {
         log.warn("[MAIN] storage is TEMPORARY: everything is lost on restart. Set a database " +
@@ -205,6 +211,7 @@ private fun run(addr: String): Int {
     }
 
     val api = ApiServer(db, runtime, worker, cfg, settings, webRoot, log)
+    announceAuthMode(api.mode, db, cfg, log)
 
     val (host, port) = splitAddr(addr)
     val properties = mutableMapOf<String, Any>(
@@ -252,6 +259,50 @@ private fun run(addr: String): Int {
     log.info("[MAIN] listening on $addr")
     app.run()
     return 0
+}
+
+/**
+ * Says which authentication is in force, and seeds the first account in users mode.
+ *
+ * Loud on purpose, and loudest when the configuration was NOT honoured: a downgrade from named accounts to a
+ * shared four-digit PIN is precisely the thing nobody notices from the outside — the service works, the login
+ * page looks plausible, and the operator believes the accounts they configured are in effect.
+ *
+ * **Never fatal.** A service that will not boot because it could not seed a demo account is worse than one
+ * that boots with no accounts and says so. And the password is logged only when it is the documented demo
+ * value: the reference once logged `ADMIN_PASSWORD` unconditionally, writing a real secret into every log
+ * collector the service feeds.
+ *
+ * Port of `_announce_auth_mode` in `service/main.py`.
+ */
+private fun announceAuthMode(mode: AuthMode.Resolved, db: FileStore, cfg: Settings, log: ServiceLog) {
+    mode.downgradeReason?.let { log.warn("[AUTH] $it") }
+    if (!mode.usersEnabled) {
+        log.info("[AUTH] PIN sign-in; user accounts are disabled (set AUTH_MODE=users to enable them)")
+        return
+    }
+
+    val created = try {
+        // The decoy is computed here, once, so the first sign-in for an unknown username does not pay for it
+        // and become measurably slower than a wrong password.
+        Users.warmDecoy()
+        Users.seedAdmin(db, cfg.adminUsername, cfg.adminPassword)
+    } catch (e: Exception) {
+        log.error("[AUTH] could not seed the first administrator", e)
+        return
+    }
+
+    log.info("[AUTH] named accounts (AUTH_MODE=users)")
+    if (created != null) {
+        val shown = if (cfg.adminPassword == Settings.DEFAULT_ADMIN_PASSWORD) {
+            "'${cfg.adminPassword}'"
+        } else {
+            "from ADMIN_PASSWORD (not logged)"
+        }
+        log.warn("[AUTH] seeded the first administrator '${created.username}', password $shown — it must be " +
+            "changed at first sign-in, and it is re-created after every restart because this store is " +
+            "temporary")
+    }
 }
 
 /**

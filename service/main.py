@@ -22,11 +22,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 
 from service import __version__, worker
-from service.api import api_keys, auth, documents, logs, settings_api, status
+from service.api import api_keys, auth, documents, logs, settings_api, status, users
+from service.core import auth as auth_core
 from service.core.auth import resolve_default_key
-from service.core.config import get_settings
+from service.core.config import DEFAULT_ADMIN_PASSWORD, get_settings
 from service.core.database import set_store
 from service.core.seed import seed_if_empty
+from service.repositories import users as user_repo
 from service.core.storage_mode import build_store
 from service.core.logging import setup_logging
 
@@ -105,6 +107,47 @@ def _announce_default_key() -> None:
         log.info("[BOOT] using DEFAULT_API_KEY from the environment (%s…)", key[:10])
 
 
+def _announce_auth_mode(store) -> None:
+    """Say which authentication is in force, and seed the first account.
+
+    Loud on purpose, and loudest when the configuration was not honoured. A
+    downgrade from named accounts to a shared four-digit PIN is precisely the
+    thing nobody notices from the outside: the service works, the login page
+    looks plausible, and the operator believes the accounts they configured are
+    in effect.
+    """
+    effective, downgrade_reason = auth_core.resolve_auth_mode()
+    if downgrade_reason:
+        log.warning("[AUTH] %s", downgrade_reason)
+
+    if effective != auth_core.USERS_MODE:
+        log.info("[AUTH] PIN sign-in; user accounts are disabled "
+                 "(set AUTH_MODE=users to enable them)")
+        return
+
+    settings = get_settings()
+    try:
+        created = user_repo.seed_admin(store, username=settings.admin_username,
+                                       password=settings.admin_password)
+    except Exception:
+        # Never fatal: a service that will not boot because it could not seed a
+        # demo account is worse than one that boots with no accounts and says so.
+        log.exception("[AUTH] could not seed the first administrator")
+        return
+
+    log.info("[AUTH] named accounts (AUTH_MODE=users)")
+    if created is not None:
+        # The password is printed only when it is the documented demo value. An
+        # earlier version logged settings.admin_password unconditionally, which
+        # wrote a real ADMIN_PASSWORD into every log collector the service feeds.
+        shown = (repr(settings.admin_password)
+                 if settings.admin_password == DEFAULT_ADMIN_PASSWORD
+                 else "from ADMIN_PASSWORD (not logged)")
+        log.warning("[AUTH] seeded the first administrator %r, password %s — it must "
+                    "be changed at first sign-in, and it is re-created after every "
+                    "restart because this store is temporary", created.username, shown)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
@@ -113,8 +156,13 @@ async def lifespan(app: FastAPI):
 
     log.info("[BOOT] RussianDocs service %s starting (commit=%s, python=%s)",
              __version__, settings.git_commit, sys.version.split()[0])
-    if settings.jwt_secret == "changeme-in-production":
-        log.warning("[BOOT] JWT_SECRET is still the default — set it before deploying")
+    if auth_core.jwt_secret_is_ephemeral():
+        # Not a warning to ignore any more: the default is no longer *used*. A
+        # random secret is generated per process instead, so a public default can
+        # never sign a token — the cost is only that sessions end at restart.
+        log.warning("[BOOT] JWT_SECRET is unset or still the published default — using a "
+                    "random per-process secret instead; every session ends when the "
+                    "service restarts. Set JWT_SECRET to keep sessions across restarts.")
 
     _announce_default_key()
 
@@ -124,6 +172,12 @@ async def lifespan(app: FastAPI):
     store, mode = build_store()
     set_store(store)
     app.state.storage_mode = mode
+
+    # Named accounts exist for the file store only, so the storage decision has
+    # to reach the auth layer before the mode is resolved — otherwise a database
+    # deployment would accept AUTH_MODE=users and fail at the first login.
+    auth_core.configure_storage_backend(mode.backend)
+    _announce_auth_mode(store)
 
     # Only when the store is empty, so a database keeps whatever the operator
     # left there and a deleted sample stays deleted.
@@ -155,6 +209,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix=PREFIX)
+app.include_router(users.router, prefix=PREFIX)
 app.include_router(documents.router, prefix=PREFIX)
 app.include_router(api_keys.router, prefix=PREFIX)
 app.include_router(settings_api.router, prefix=PREFIX)
@@ -221,6 +276,15 @@ if not (_web_root / "index.html").is_file():
     log.warning("[BOOT] %s Looked in %s. The API works; the UI will answer "
                 "with build instructions.", _UNBUILT_HINT, _web_root)
 
+# **index.html must always be revalidated.** Its asset references carry
+# content hashes, so the bundles under /assets/ can be cached forever — but the
+# document naming them cannot. A browser that keeps a stale index.html runs an
+# old application against a new server, which is how a rebuilt UI still shows
+# the previous one's login screen. That is not hypothetical: it happened here,
+# with the PIN keypad surviving the switch to named accounts. Applied to BOTH
+# places index.html is returned: the fallback and a direct hit on the file.
+_INDEX_HEADERS = {"Cache-Control": "no-cache, must-revalidate"}
+
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def spa_fallback(full_path: str):
@@ -235,5 +299,7 @@ async def spa_fallback(full_path: str):
     # comparison is meaningful.
     inside = candidate == _web_root or candidate.is_relative_to(_web_root)
     if inside and candidate.is_file():
+        if candidate == index.resolve():
+            return FileResponse(candidate, headers=_INDEX_HEADERS)
         return FileResponse(candidate)
-    return FileResponse(index)
+    return FileResponse(index, headers=_INDEX_HEADERS)

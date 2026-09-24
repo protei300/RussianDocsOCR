@@ -54,6 +54,27 @@ type clientErr struct {
 func (e *clientErr) Error() string { return e.msg }
 func (e *clientErr) Unwrap() error { return e.sentinel }
 
+// httpError is a response decided by the handler down to the status, the exact `detail` text
+// and any headers.
+//
+// It exists for the authentication contract (ports/AUTH.md), which fixes status and wording
+// together in a way the sentinel mapping cannot express: 403 has no sentinel at all, 429 needs
+// Retry-After, every guard 401 needs WWW-Authenticate, and "No such user" must reach the client
+// as written where classify would turn any ErrNotFound into a generic "Not found". Nothing else
+// in the service needs it, and the sentinels stay the default.
+type httpError struct {
+	status  int
+	detail  string
+	headers map[string]string
+}
+
+func (e *httpError) Error() string { return e.detail }
+
+// statusError builds an httpError with no extra headers.
+func statusError(status int, detail string) error {
+	return &httpError{status: status, detail: detail}
+}
+
 // clientError builds one. Use it for every error whose text reaches a response.
 func clientError(sentinel error, format string, args ...any) error {
 	return &clientErr{sentinel: sentinel, msg: fmt.Sprintf(format, args...)}
@@ -88,6 +109,14 @@ func writeError(w http.ResponseWriter, err error) {
 	if errors.As(err, &param) {
 		writeJSON(w, http.StatusUnprocessableEntity,
 			map[string]any{"detail": []paramErrorItem{param.item}})
+		return
+	}
+	var exact *httpError
+	if errors.As(err, &exact) {
+		for name, value := range exact.headers {
+			w.Header().Set(name, value)
+		}
+		writeJSON(w, exact.status, errorBody{Detail: exact.detail})
 		return
 	}
 	status, detail := classify(err)

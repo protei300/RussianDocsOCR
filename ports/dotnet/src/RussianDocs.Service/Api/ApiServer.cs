@@ -29,6 +29,7 @@ public sealed partial class ApiServer(
     Worker.RecognitionWorker worker,
     Config.Settings cfg,
     SettingsRepository settings,
+    AuthRuntime auth,
     string? webRoot,
     ILogger log)
 {
@@ -40,77 +41,77 @@ public sealed partial class ApiServer(
 
     private readonly long _startedTicks = Stopwatch.GetTimestamp();
 
-    private Tokens.Config AuthConfig => new()
-    {
-        Pin = cfg.AuthPin,
-        JwtSecret = cfg.JwtSecret,
-        JwtAlgorithm = cfg.JwtAlgorithm,
-        JwtExpireMinutes = cfg.JwtExpireMinutes,
-        DefaultApiKey = cfg.DefaultApiKey,
-    };
+    private Tokens.Config AuthConfig => auth.Tokens;
 
-    private Authenticator Auth => new(db, AuthConfig);
+    private readonly Authenticator _auth = new(db, auth);
 
     /// <summary>
-    /// Builds the routing table.
+    /// Builds the routing table — which is ports/AUTH.md §5's route table, line for line.
     ///
     /// <para>
     /// Minimal APIs, no controllers and no MVC: the routes below are the whole surface, and reading
-    /// them as a PERMISSION LIST is the point — <c>Guard(RequireSession, …)</c> versus
-    /// <c>Guard(RequireApiOrSession, …)</c> says who may call what, at the place the route is declared.
+    /// them as a PERMISSION LIST is the point. Every route goes through <see cref="Map"/>, which attaches
+    /// its <see cref="Guard"/> as endpoint metadata AND runs it before the handler — so the route test,
+    /// which enumerates the endpoints and reads that metadata, checks the guard that actually executes.
+    /// A route mapped any other way has no guard metadata, and that test fails on it.
     /// </para>
     /// </summary>
     public void MapRoutes(WebApplication app)
     {
-        // --- auth: no credential required, obviously ---------------------------
-        app.MapPost($"{Prefix}/auth/pin-login", PinLogin);
+        // --- public ----------------------------------------------------------
+        Map(app, "GET", "/health", Guard.Public, (_, _) => Health());
+        Map(app, "GET", $"{Prefix}/auth/config", Guard.Public, (_, _) => AuthConfigInfo());
+        Map(app, "POST", $"{Prefix}/auth/pin-login", Guard.Public, (r, _) => PinLogin(r));
+        Map(app, "POST", $"{Prefix}/auth/login", Guard.Public, (r, _) => Login(r));
 
-        // --- documents: API key OR session ------------------------------------
+        // --- the two routes a restricted session may reach ----------------------
+        Map(app, "GET", $"{Prefix}/auth/me", Guard.SessionAllowPasswordChange, (_, who) => Me(who!));
+        Map(app, "POST", $"{Prefix}/auth/change-password", Guard.SessionAllowPasswordChange,
+            (r, who) => ChangePassword(r, who!));
+
+        // --- documents: API key OR a session with the role ----------------------
         // The same routes serve the bundled SPA and third-party integrations, which is why they accept
-        // either credential rather than being duplicated per audience.
-        app.MapPost($"{Prefix}/documents",
-            (HttpRequest r) => Guard(r, Auth.RequireApiOrSession, _ => Upload(r)));
-        app.MapGet($"{Prefix}/documents",
-            (HttpRequest r) => Guard(r, Auth.RequireApiOrSession, _ => List(r)));
-        app.MapPost($"{Prefix}/documents/purge",
-            (HttpRequest r) => Guard(r, Auth.RequireSession, _ => Purge()));
+        // either credential rather than being duplicated per audience. Reads need viewer, writes need
+        // operator; an API key passes both, because its scope is the document API and nothing else.
+        Map(app, "GET", $"{Prefix}/documents", Guard.ApiOrViewer, (r, _) => List(r));
+        Map(app, "GET", $"{Prefix}/documents/{{id}}", Guard.ApiOrViewer,
+            (r, _) => GetDocument(ParseId(Route(r, "id"))));
+        Map(app, "GET", $"{Prefix}/documents/{{id}}/progress", Guard.ApiOrViewer,
+            (r, _) => DocumentProgress(ParseId(Route(r, "id"))));
+        Map(app, "GET", $"{Prefix}/documents/{{id}}/image/{{kind}}", Guard.ApiOrViewer,
+            (r, _) => ImageArtifact(ParseId(Route(r, "id")), Route(r, "kind")));
+        Map(app, "POST", $"{Prefix}/documents", Guard.ApiOrOperator, (r, _) => Upload(r));
+        Map(app, "POST", $"{Prefix}/documents/{{id}}/reprocess", Guard.ApiOrOperator,
+            (r, _) => Reprocess(ParseId(Route(r, "id"))));
+        Map(app, "DELETE", $"{Prefix}/documents/{{id}}", Guard.ApiOrOperator,
+            (r, _) => DeleteDocument(ParseId(Route(r, "id"))));
 
-        app.MapGet($"{Prefix}/documents/{{id}}",
-            (HttpRequest r, string id) =>
-                Guard(r, Auth.RequireApiOrSession, _ => GetDocument(ParseId(id))));
-        app.MapDelete($"{Prefix}/documents/{{id}}",
-            (HttpRequest r, string id) =>
-                Guard(r, Auth.RequireApiOrSession, _ => DeleteDocument(ParseId(id))));
-        app.MapGet($"{Prefix}/documents/{{id}}/progress",
-            (HttpRequest r, string id) =>
-                Guard(r, Auth.RequireApiOrSession, _ => DocumentProgress(ParseId(id))));
-        app.MapPost($"{Prefix}/documents/{{id}}/reprocess",
-            (HttpRequest r, string id) =>
-                Guard(r, Auth.RequireApiOrSession, _ => Reprocess(ParseId(id))));
-        app.MapGet($"{Prefix}/documents/{{id}}/image/{{kind}}",
-            (HttpRequest r, string id, string kind) =>
-                Guard(r, Auth.RequireApiOrSession, _ => ImageArtifact(ParseId(id), kind)));
+        // Purge is administration, not document work: one call removes every document. Admin, and a
+        // session — an integration has no business emptying the store.
+        Map(app, "POST", $"{Prefix}/documents/purge", Guard.Admin, (_, _) => Purge());
 
-        // --- operator surface: session only -----------------------------------
-        // An integration has no business managing keys, settings or logs, so these do not accept an API
-        // key at all.
-        app.MapGet($"{Prefix}/api-keys", (HttpRequest r) =>
-            Guard(r, Auth.RequireSession, _ => ListKeys()));
-        app.MapPost($"{Prefix}/api-keys", (HttpRequest r) =>
-            Guard(r, Auth.RequireSession, _ => CreateKey(r)));
-        app.MapDelete($"{Prefix}/api-keys/{{id}}", (HttpRequest r, string id) =>
-            Guard(r, Auth.RequireSession, _ => DeleteKey(ParseId(id))));
-        app.MapGet($"{Prefix}/settings", (HttpRequest r) =>
-            Guard(r, Auth.RequireSession, _ => GetSettings()));
-        app.MapPut($"{Prefix}/settings", (HttpRequest r) =>
-            Guard(r, Auth.RequireSession, _ => PutSettings(r)));
-        app.MapGet($"{Prefix}/logs", (HttpRequest r) =>
-            Guard(r, Auth.RequireSession, _ => Logs(r)));
-        app.MapGet($"{Prefix}/status", (HttpRequest r) =>
-            Guard(r, Auth.RequireSession, _ => Status()));
+        // --- operator surface: sessions only ------------------------------------
+        // An API key is refused here outright: keys, settings, logs and the machine's status are not
+        // an integration's concern.
+        Map(app, "GET", $"{Prefix}/status", Guard.Viewer, (_, _) => Status());
+        Map(app, "GET", $"{Prefix}/api-keys", Guard.Admin, (_, _) => ListKeys());
+        Map(app, "POST", $"{Prefix}/api-keys", Guard.Admin, (r, _) => CreateKey(r));
+        Map(app, "DELETE", $"{Prefix}/api-keys/{{id}}", Guard.Admin,
+            (r, _) => DeleteKey(ParseId(Route(r, "id"))));
+        Map(app, "GET", $"{Prefix}/settings", Guard.Admin, (_, _) => GetSettings());
+        Map(app, "PUT", $"{Prefix}/settings", Guard.Admin, (r, _) => PutSettings(r));
+        Map(app, "GET", $"{Prefix}/logs", Guard.Admin, (r, _) => Logs(r));
 
-        // --- health: no prefix, no auth, for the container ---------------------
-        app.MapGet("/health", Health);
+        // --- user management: administrators, and only in users mode -------------
+        Map(app, "GET", $"{Prefix}/users", Guard.Admin, (_, _) => ListUsers());
+        Map(app, "POST", $"{Prefix}/users", Guard.Admin, (r, who) => CreateUser(r, who!));
+        Map(app, "PATCH", $"{Prefix}/users/{{id}}", Guard.Admin,
+            (r, who) => UpdateUser(r, who!, Route(r, "id")));
+        Map(app, "POST", $"{Prefix}/users/{{id}}/password", Guard.Admin,
+            (r, who) => ResetPassword(r, who!, Route(r, "id")));
+        Map(app, "DELETE", $"{Prefix}/users/{{id}}", Guard.Admin,
+            (r, who) => DeleteUser(who!, Route(r, "id")));
+        Map(app, "GET", $"{Prefix}/users/audit/entries", Guard.Admin, (r, _) => ListAudit(r));
 
         // --- the SPA, as a catch-all ------------------------------------------
         //
@@ -125,42 +126,52 @@ public sealed partial class ApiServer(
     }
 
     /// <summary>
-    /// Wraps a handler with an authentication requirement and the single error path.
+    /// Maps one route with its guard.
     ///
     /// <para>
-    /// A wrapper rather than a check inside each handler: the check is then IMPOSSIBLE TO FORGET at the
-    /// routing table, where it is also visible — which is the property FastAPI's <c>Depends</c>
-    /// provides and the reason the routes read as a permission list.
+    /// **The guard runs BEFORE the handler touches the request body**, so a viewer's upload is a 403,
+    /// not a 413 or a 400 about the file — the handler that would read it never starts. And every error
+    /// leaves through <see cref="ApiErrors.Write"/>, the single place a status code is chosen.
     /// </para>
     ///
     /// <para>
-    /// The <c>WWW-Authenticate</c> header accompanies every 401, because that is what makes the status
-    /// code mean "you may retry with credentials" rather than "go away".
+    /// <c>WWW-Authenticate: Bearer</c> accompanies every 401 a guard produces, because that is what
+    /// makes the status mean "you may retry with credentials" rather than "go away". A 403 does not
+    /// carry it: the caller is known, and different credentials are not what is missing.
     /// </para>
     /// </summary>
-    private IResult Guard(HttpRequest request, Func<HttpRequest, Identity> require,
-        Func<Identity, IResult> handler)
+    private void Map(WebApplication app, string method, string pattern, Guard guard,
+        Func<HttpRequest, Identity?, IResult> handler)
     {
-        Identity identity;
-        try
+        app.MapMethods(pattern, [method], (HttpRequest request) =>
         {
-            identity = require(request);
-        }
-        catch (Exception ex)
-        {
-            request.HttpContext.Response.Headers.WWWAuthenticate = "Bearer";
-            return ApiErrors.Write(ex, log);
-        }
+            Identity? identity;
+            try
+            {
+                identity = guard.Admit(_auth, request);
+            }
+            catch (Exception ex)
+            {
+                if (ex is ServiceException { Kind: ErrorKind.Unauthorized })
+                {
+                    request.HttpContext.Response.Headers.WWWAuthenticate = "Bearer";
+                }
+                return ApiErrors.Write(ex, log);
+            }
 
-        try
-        {
-            return handler(identity);
-        }
-        catch (Exception ex)
-        {
-            return ApiErrors.Write(ex, log);
-        }
+            try
+            {
+                return handler(request, identity);
+            }
+            catch (Exception ex)
+            {
+                return ApiErrors.Write(ex, log);
+            }
+        }).WithMetadata(guard);
     }
+
+    private static string Route(HttpRequest request, string name) =>
+        request.RouteValues[name]?.ToString() ?? "";
 
     /// <summary>
     /// Parses the <c>{id}</c> path value.

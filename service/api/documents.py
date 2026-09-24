@@ -15,7 +15,12 @@ from fastapi import (APIRouter, Depends, File, HTTPException, Query, Response,
 from fastapi.responses import FileResponse
 
 from service import worker
-from service.api.deps import require_api_or_session, require_session
+from service.api.deps import (require_admin, require_api_or_role)
+
+#: Built once at import, not per request: each call to the factory makes a new
+#: dependency, and FastAPI caches dependencies by identity.
+require_api_or_viewer = require_api_or_role("viewer")
+require_api_or_operator = require_api_or_role("operator")
 from service.core.config import get_settings
 from service.core.database import DbSession, get_db
 from service.core.models import VALID_STATUSES, iso
@@ -103,7 +108,7 @@ def _detail(record) -> dict[str, Any]:
 async def upload_document(
     file: UploadFile = File(...),
     db: DbSession = Depends(get_db),
-    _identity=Depends(require_api_or_session),
+    _identity=Depends(require_api_or_operator),
 ) -> dict[str, Any]:
     """Accept one image and queue it.
 
@@ -175,7 +180,7 @@ def list_documents(
     sort_by: str = Query("created_at"),
     sort_dir: str = Query("desc"),
     db: DbSession = Depends(get_db),
-    _identity=Depends(require_api_or_session),
+    _identity=Depends(require_api_or_viewer),
 ) -> dict[str, Any]:
     if status_filter and status_filter not in VALID_STATUSES:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid status")
@@ -195,7 +200,7 @@ def list_documents(
 
 @router.get("/{doc_id}")
 def get_document(doc_id: int, db: DbSession = Depends(get_db),
-                 _identity=Depends(require_api_or_session)) -> dict[str, Any]:
+                 _identity=Depends(require_api_or_viewer)) -> dict[str, Any]:
     record = repo.get_by_id(db, doc_id)
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -204,7 +209,7 @@ def get_document(doc_id: int, db: DbSession = Depends(get_db),
 
 @router.get("/{doc_id}/progress")
 def get_progress(doc_id: int, db: DbSession = Depends(get_db),
-                 _identity=Depends(require_api_or_session)) -> dict[str, Any] | None:
+                 _identity=Depends(require_api_or_viewer)) -> dict[str, Any] | None:
     """Live progress, queue position, or a terminal state.
 
     Returns ``200`` with a JSON ``null`` body when there is nothing to report —
@@ -237,7 +242,7 @@ def get_progress(doc_id: int, db: DbSession = Depends(get_db),
 
 @router.get("/{doc_id}/image/{kind}")
 def get_image(doc_id: int, kind: str, db: DbSession = Depends(get_db),
-              _identity=Depends(require_api_or_session)) -> Response:
+              _identity=Depends(require_api_or_viewer)) -> Response:
     if kind not in ("original", "canvas", "thumb"):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown image kind")
     found = artifacts.open_artifact(db, doc_id, kind)
@@ -255,7 +260,7 @@ def get_image(doc_id: int, kind: str, db: DbSession = Depends(get_db),
 
 @router.post("/{doc_id}/reprocess")
 def reprocess_document(doc_id: int, db: DbSession = Depends(get_db),
-                       _identity=Depends(require_api_or_session)) -> dict[str, Any]:
+                       _identity=Depends(require_api_or_operator)) -> dict[str, Any]:
     record = repo.get_by_id(db, doc_id)
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -269,7 +274,7 @@ def reprocess_document(doc_id: int, db: DbSession = Depends(get_db),
 
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_document(doc_id: int, db: DbSession = Depends(get_db),
-                    _identity=Depends(require_api_or_session)) -> Response:
+                    _identity=Depends(require_api_or_operator)) -> Response:
     record = repo.get_by_id(db, doc_id)
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -279,7 +284,7 @@ def delete_document(doc_id: int, db: DbSession = Depends(get_db),
 
 @router.post("/purge", status_code=status.HTTP_200_OK)
 def purge_documents(db: DbSession = Depends(get_db),
-                    _user=Depends(require_session)) -> dict[str, int]:
+                    _user=Depends(require_admin)) -> dict[str, int]:
     """Clear the scratch store. Session-only — not something an integration does."""
     removed = 0
     for record in db.all_records():

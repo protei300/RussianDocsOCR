@@ -101,6 +101,44 @@ public interface IDocumentStore
     ApiKey PutApiKey(ApiKey key);
     bool DropApiKey(int id);
 
+    // -- named accounts (AUTH_MODE=users) and the audit log --------------------
+    //
+    // On the interface rather than hidden in the file store so a SQL backend is a BODY SWAP, not a
+    // redesign (ports/AUTH.md §9). Two rules every implementation must keep:
+    //
+    //   * reads return COPIES — a caller mutating a returned user must not change the index;
+    //   * FindUser is case-insensitive, because "Admin" and "admin" must be one account.
+    //
+    // The lock that makes the last-admin rule atomic is NOT here: it is in Repositories/Users, around
+    // the whole check-and-change. In SQL it becomes a transaction (SELECT … FOR UPDATE on the rows
+    // involved, or a serialisable transaction around the admin count).
+
+    /// <summary>Every account, ordered by id.</summary>
+    IReadOnlyList<User> AllUsers();
+
+    User? GetUser(int id);
+
+    /// <summary>By username, case-insensitively, after trimming.</summary>
+    User? FindUser(string username);
+
+    /// <summary>The id the next created account gets. Called under the repository's write lock.</summary>
+    int NextUserId();
+
+    User PutUser(User user);
+    bool DropUser(int id);
+
+    /// <summary>
+    /// Assigns the id and records the entry. **Never throws for a failed write** — losing an audit
+    /// line is bad, failing the user's action because of it is worse.
+    /// </summary>
+    AuditEntry AppendAudit(AuditEntry entry);
+
+    /// <summary>
+    /// Newest first, at most <paramref name="limit"/>; <paramref name="action"/> an exact match,
+    /// <paramref name="actor"/> a case-insensitive substring.
+    /// </summary>
+    IReadOnlyList<AuditEntry> RecentAudit(int limit, string? action, string? actor);
+
     Dictionary<string, string> AllSettings();
     Dictionary<string, string> SetSettings(IReadOnlyDictionary<string, string> values);
 

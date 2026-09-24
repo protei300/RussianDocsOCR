@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/auth"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/config"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/errs"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/runtime"
@@ -33,66 +34,138 @@ type Server struct {
 
 	startedAt time.Time
 	webRoot   string
+
+	// authMode is the EFFECTIVE mode, resolved once from AUTH_MODE and the storage backend by
+	// auth.ResolveMode; downgradeReason says why it differs from what was configured, or is
+	// nil. No handler reads cfg.AuthMode.
+	authMode        string
+	downgradeReason *string
+	// throttle is per-process state, like the store index: the service is pinned to one
+	// process, so an in-memory counter is the whole mechanism.
+	throttle *auth.Throttle
 }
 
 func NewServer(db store.DocumentStore, rt *runtime.Runtime, wk *worker.Worker,
 	cfg config.Settings, webRoot string) *Server {
 
+	mode, reason := auth.ResolveMode(cfg.AuthMode, db.Backend())
 	return &Server{db: db, rt: rt, worker: wk, cfg: cfg,
-		startedAt: time.Now(), webRoot: webRoot}
+		startedAt: time.Now(), webRoot: webRoot,
+		authMode: mode, downgradeReason: reason,
+		throttle: auth.NewThrottle(cfg.LoginMaxAttempts, cfg.LoginLockoutSeconds)}
 }
 
-// Handler builds the routing table.
+// route is one entry of the API surface: method, path, the guard it declares, and the handler.
+type route struct {
+	Method string
+	Path   string
+	// Guard is nil for a public route.
+	Guard   *Guard
+	handler http.HandlerFunc
+}
+
+// GuardName is the declared guard's name, "public" for none — what the route-table test reads.
+func (rt route) GuardName() string {
+	if rt.Guard == nil {
+		return guardPublic
+	}
+	return rt.Guard.Name
+}
+
+// routes is the whole API surface, as data.
 //
-// net/http's ServeMux with method patterns, no third-party router. The routes below are the
-// whole surface, and reading them as a PERMISSION LIST is the point: `guard(requireSession,
-// ...)` versus `guard(requireApiOrSession, ...)` says who may call what, at the place the
-// route is declared.
+// A list rather than a sequence of mux.HandleFunc calls, so the route-table test can compare
+// EXACTLY what is served — every route, each with its named guard — against ports/AUTH.md §5.
+// Handler registers this list and nothing else, so the table under test and the table in
+// service cannot drift apart.
+//
+// Reading it as a PERMISSION LIST is the point: who may call what is visible at the place the
+// route is declared. Role levels, lowest first:
+//
+//	documents, read          require_api_or_viewer    UI and integrations alike
+//	documents, write         require_api_or_operator
+//	status                   require_viewer           a session only; an integration has no
+//	                                                  business reading service internals
+//	purge, keys, settings,   require_admin            operator surface — an API key never
+//	logs, users, audit                                reaches it
+func (s *Server) routes() []route {
+	h := func(g *Guard, fn func(http.ResponseWriter, *http.Request, *Identity)) http.HandlerFunc {
+		return s.guard(g, fn)
+	}
+	return []route{
+		// --- health: no prefix, no auth, for the container ---------------------
+		{"GET", "/health", nil, s.handleHealth},
+
+		// --- auth: public, obviously — these are how a caller gets a credential ---
+		{"GET", Prefix + "/auth/config", nil, s.handleAuthConfig},
+		{"POST", Prefix + "/auth/pin-login", nil, s.handlePinLogin},
+		{"POST", Prefix + "/auth/login", nil, s.handleLogin},
+		// The only two routes a session that owes a password change may reach.
+		{"GET", Prefix + "/auth/me", requireSessionAllowPasswordChange,
+			h(requireSessionAllowPasswordChange, s.handleMe)},
+		{"POST", Prefix + "/auth/change-password", requireSessionAllowPasswordChange,
+			h(requireSessionAllowPasswordChange, s.handleChangePassword)},
+
+		// --- documents: API key OR session, by role ----------------------------
+		// The same routes serve the bundled SPA and third-party integrations, which is why they
+		// accept either credential rather than being duplicated per audience.
+		{"GET", Prefix + "/documents", requireApiOrViewer, h(requireApiOrViewer, s.handleList)},
+		{"GET", Prefix + "/documents/{id}", requireApiOrViewer,
+			h(requireApiOrViewer, s.withID(s.handleGetDocument))},
+		{"GET", Prefix + "/documents/{id}/progress", requireApiOrViewer,
+			h(requireApiOrViewer, s.withID(s.handleProgress))},
+		{"GET", Prefix + "/documents/{id}/image/{kind}", requireApiOrViewer,
+			h(requireApiOrViewer, func(w http.ResponseWriter, r *http.Request, id *Identity) {
+				docID, err := pathID(r)
+				if err != nil {
+					writeError(w, err)
+					return
+				}
+				s.handleImage(w, r, id, docID, r.PathValue("kind"))
+			})},
+		{"POST", Prefix + "/documents", requireApiOrOperator, h(requireApiOrOperator, s.handleUpload)},
+		{"POST", Prefix + "/documents/{id}/reprocess", requireApiOrOperator,
+			h(requireApiOrOperator, s.withID(s.handleReprocess))},
+		{"DELETE", Prefix + "/documents/{id}", requireApiOrOperator,
+			h(requireApiOrOperator, s.withID(s.handleDelete))},
+		// Purge is the one document route that is session-only and admin-only: it empties the
+		// store for everyone, which is service management rather than document work.
+		{"POST", Prefix + "/documents/purge", requireAdmin, h(requireAdmin, s.handlePurge)},
+
+		// --- operator surface: session only -----------------------------------
+		{"GET", Prefix + "/status", requireViewer, h(requireViewer, s.handleStatus)},
+		{"GET", Prefix + "/api-keys", requireAdmin, h(requireAdmin, s.handleListKeys)},
+		{"POST", Prefix + "/api-keys", requireAdmin, h(requireAdmin, s.handleCreateKey)},
+		{"DELETE", Prefix + "/api-keys/{id}", requireAdmin,
+			h(requireAdmin, s.withID(s.handleDeleteKey))},
+		{"GET", Prefix + "/settings", requireAdmin, h(requireAdmin, s.handleGetSettings)},
+		{"PUT", Prefix + "/settings", requireAdmin, h(requireAdmin, s.handlePutSettings)},
+		{"GET", Prefix + "/logs", requireAdmin, h(requireAdmin, s.handleLogs)},
+
+		// --- user management: admin, users mode (404 in PIN mode) --------------
+		{"GET", Prefix + "/users", requireAdmin, h(requireAdmin, s.handleListUsers)},
+		{"POST", Prefix + "/users", requireAdmin, h(requireAdmin, s.handleCreateUser)},
+		{"PATCH", Prefix + "/users/{id}", requireAdmin,
+			h(requireAdmin, s.withID(s.handleUpdateUser))},
+		{"POST", Prefix + "/users/{id}/password", requireAdmin,
+			h(requireAdmin, s.withID(s.handleResetPassword))},
+		{"DELETE", Prefix + "/users/{id}", requireAdmin,
+			h(requireAdmin, s.withID(s.handleDeleteUser))},
+		// The action log answers in BOTH modes — see handleListAudit.
+		{"GET", Prefix + "/users/audit/entries", requireAdmin, h(requireAdmin, s.handleListAudit)},
+	}
+}
+
+// Handler builds the routing table from routes().
+//
+// net/http's ServeMux with method patterns, no third-party router. `/users/audit/entries` and
+// `/users/{id}` do not collide: the mux prefers the more specific pattern, and the literal
+// segments win.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-
-	// --- auth: no credential required, obviously ---------------------------
-	mux.HandleFunc("POST "+Prefix+"/auth/pin-login", s.handlePinLogin)
-
-	// --- documents: API key OR session ------------------------------------
-	// The same routes serve the bundled SPA and third-party integrations, which is why they
-	// accept either credential rather than being duplicated per audience.
-	mux.HandleFunc("POST "+Prefix+"/documents", s.guard(s.requireApiOrSession, s.handleUpload))
-	mux.HandleFunc("GET "+Prefix+"/documents", s.guard(s.requireApiOrSession, s.handleList))
-	mux.HandleFunc("POST "+Prefix+"/documents/purge", s.guard(s.requireSession, s.handlePurge))
-
-	mux.HandleFunc("GET "+Prefix+"/documents/{id}",
-		s.guard(s.requireApiOrSession, s.withID(s.handleGetDocument)))
-	mux.HandleFunc("DELETE "+Prefix+"/documents/{id}",
-		s.guard(s.requireApiOrSession, s.withID(s.handleDelete)))
-	mux.HandleFunc("GET "+Prefix+"/documents/{id}/progress",
-		s.guard(s.requireApiOrSession, s.withID(s.handleProgress)))
-	mux.HandleFunc("POST "+Prefix+"/documents/{id}/reprocess",
-		s.guard(s.requireApiOrSession, s.withID(s.handleReprocess)))
-	mux.HandleFunc("GET "+Prefix+"/documents/{id}/image/{kind}",
-		s.guard(s.requireApiOrSession, func(w http.ResponseWriter, r *http.Request, id *Identity) {
-			docID, err := pathID(r)
-			if err != nil {
-				writeError(w, err)
-				return
-			}
-			s.handleImage(w, r, id, docID, r.PathValue("kind"))
-		}))
-
-	// --- operator surface: session only -----------------------------------
-	// An integration has no business managing keys, settings or logs, so these do not accept
-	// an API key at all.
-	mux.HandleFunc("GET "+Prefix+"/api-keys", s.guard(s.requireSession, s.handleListKeys))
-	mux.HandleFunc("POST "+Prefix+"/api-keys", s.guard(s.requireSession, s.handleCreateKey))
-	mux.HandleFunc("DELETE "+Prefix+"/api-keys/{id}",
-		s.guard(s.requireSession, s.withID(s.handleDeleteKey)))
-	mux.HandleFunc("GET "+Prefix+"/settings", s.guard(s.requireSession, s.handleGetSettings))
-	mux.HandleFunc("PUT "+Prefix+"/settings", s.guard(s.requireSession, s.handlePutSettings))
-	mux.HandleFunc("GET "+Prefix+"/logs", s.guard(s.requireSession, s.handleLogs))
-	mux.HandleFunc("GET "+Prefix+"/status", s.guard(s.requireSession, s.handleStatus))
-
-	// --- health: no prefix, no auth, for the container ---------------------
-	mux.HandleFunc("GET /health", s.handleHealth)
+	for _, rt := range s.routes() {
+		mux.HandleFunc(rt.Method+" "+rt.Path, rt.handler)
+	}
 
 	// --- the SPA, as a catch-all ------------------------------------------
 	mux.HandleFunc("/", s.handleSPA)
@@ -156,7 +229,7 @@ func (s *Server) withMiddleware(next http.Handler) http.Handler {
 					w.Header().Set("Access-Control-Allow-Headers",
 						"Authorization, Content-Type, X-API-Key")
 					w.Header().Set("Access-Control-Allow-Methods",
-						"GET, POST, PUT, DELETE, OPTIONS")
+						"GET, POST, PUT, PATCH, DELETE, OPTIONS")
 					break
 				}
 			}

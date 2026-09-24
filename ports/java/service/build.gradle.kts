@@ -32,6 +32,10 @@ dependencies {
     // kotlinx.serialization — see ApiJson — so Jackson only ever handles Spring's own plumbing.
     implementation(libs.jacksonModuleKotlin)
 
+    // Argon2id for named-account passwords. Pure Java, so it adds no native library to the J-01/J-16
+    // loading story; see the note in libs.versions.toml for why not argon2-jvm.
+    implementation(libs.bouncyCastle)
+
     testImplementation(libs.springBootStarterTest)
     testImplementation(libs.kotlinTest)
     testRuntimeOnly(libs.junitPlatformLauncher)

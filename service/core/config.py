@@ -19,6 +19,11 @@ from functools import lru_cache
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+#: The seeded password the demo advertises. Named so the one rule that depends on
+#: it — "only ever publish the password if it is this one" — compares against a
+#: constant instead of a literal that could drift from the field default.
+DEFAULT_ADMIN_PASSWORD = "1234"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8",
@@ -41,6 +46,41 @@ class Settings(BaseSettings):
     #: and logged. Set this env var when you need a stable key that survives
     #: restarts — integrations otherwise have to be re-pointed each time.
     default_api_key: str = ""
+
+    #: How the *website* authenticates. API endpoints are unaffected: they
+    #: always require an API key, in either mode.
+    #:
+    #: ``pin``   — one shared PIN, one anonymous operator identity, no roles.
+    #:             The historical behaviour, and still the default so existing
+    #:             deployments keep working.
+    #: ``users`` — named accounts with passwords and roles, user management in
+    #:             the UI, and an action log.
+    #:
+    #: **Environment only, deliberately not editable from the settings page.**
+    #: A mode that can be switched at runtime is a mode an administrator can use
+    #: to lock themselves out — or, worse, to drop a service full of passport
+    #: data back to a shared four-digit PIN with one click. It is not on the
+    #: settings page at all; the effective mode is reported by /auth/config and
+    #: in the startup log.
+    auth_mode: str = "pin"
+
+    #: The first account, created at startup when ``AUTH_MODE=users`` and no
+    #: users exist. The password is weak **on purpose**: this is a demo and the
+    #: credentials are printed on the login page. What makes that defensible is
+    #: ``must_change_password`` — the account cannot be used for anything until
+    #: the password is changed at first login.
+    #:
+    #: Re-seeded after every restart, because the store is wiped at every
+    #: restart. That is the documented behaviour of this service, not an
+    #: accident: see docs/auth.md.
+    admin_username: str = "admin"
+    admin_password: str = DEFAULT_ADMIN_PASSWORD
+
+    #: Failed-login throttling, per username and per client address. The PIN
+    #: path historically had none — SECURITY.md admits it — and "real
+    #: authentication" without it would be a poor example to copy.
+    login_max_attempts: int = 10
+    login_lockout_seconds: int = 300
 
     # --- Storage ------------------------------------------------------------
     #: SQLAlchemy connection URL for the metadata store. When empty the service

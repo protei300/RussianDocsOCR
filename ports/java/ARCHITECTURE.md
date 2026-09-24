@@ -60,15 +60,17 @@ docproc/src/main/kotlin/net/russiandocs/docproc/
 service/src/main/kotlin/net/russiandocs/service/
   errors/     the seven error kinds, mapped to seven status codes in exactly one place
   config/     Settings — the environment tier, hand-written, no @ConfigurationProperties
-  model/      Document, ApiKey, Timestamps
+  model/      Document, ApiKey, Timestamps, User, AuditEntry, Roles
   store/      DocumentStore (the SQL swap point) + FileStore
-  repositories/  Documents, ApiKeys, Artifacts, SettingsRepository
+  repositories/  Documents, ApiKeys, Artifacts, SettingsRepository, Users, Audit
   settings/   SettingsSchema — the server-owned schema the UI renders itself from
-  auth/       Tokens — hand-rolled HS256, no Spring Security
+  auth/       Tokens (hand-rolled HS256, pinned), Passwords (Argon2id PHC via BouncyCastle),
+              AuthMode (pin | users, never throws), LoginThrottle — no Spring Security
   logging/    LogRing — the ring buffer behind GET /logs, plus the stdout writer
   ml/         PipelineRuntime — THE DELIVERABLE. Ten numbered rules.
   worker/     RecognitionWorker, SearchText
-  api/        ApiErrors, Identity, SysInfo, ApiServer, ApiDocuments, ApiMisc, ApiRoutes
+  api/        ApiErrors, Identity (the gate + named Guards), SysInfo, ApiServer, ApiDocuments,
+              ApiMisc, ApiAuth, ApiUsers, ApiRoutes
   seed/       SeedData — reads the SAME service/seed_data as the Python service
   Application.kt   the entry point; builds every collaborator by hand, in order
 ```
@@ -252,6 +254,34 @@ shape is pydantic's list — reproduced deliberately, because a client parses wh
 sends. And a rejected SETTING is 400, not 422, because the reference raises `HTTPException(400)`
 there.
 
+### 6a. Authentication — ports/AUTH.md, implemented as written
+
+Two modes, chosen by `AUTH_MODE` and resolved ONCE by `AuthMode.resolve` (which never throws: a typo is
+PIN with a `downgrade_reason`, logged and served by `/auth/config`). The operator guide is
+[`docs/auth-setup.md`](../../docs/auth-setup.md); the normative contract is [`../AUTH.md`](../AUTH.md).
+
+- **The gate is `api/Identity.kt`.** Every request's bearer token is decoded (algorithm pinned to HS256,
+  signature before claims) and, in users mode, the account is LOADED FROM THE STORE and its
+  `token_version` compared — so a demotion, a reset or a deactivation kills live tokens at once. PIN mode
+  refuses any token carrying `uid`. Seven named `Guard`s; only `require_session_allow_password_change`
+  admits a session that owes a password change, and exactly two routes use it.
+- **Guards run before bodies are read.** No handler takes `@RequestBody` or a multipart parameter; the
+  JSON body (and the upload's file part) is read inside the guard's block, so a viewer's upload is 403.
+- **Errors whose text is contractual** travel as `ApiException(status, detail, headers)` — 401 with
+  `WWW-Authenticate: Bearer`, 403 `password_change_required`, 429 with `Retry-After`. The seven error kinds
+  above are unchanged.
+- **Accounts** (`repositories/Users.kt`): one `ReentrantLock` around every mutation, each mutation
+  re-reads the account inside it, Argon2 is computed before taking it. Sign-in verifies OUTSIDE the lock
+  and re-reads before writing back. Two test hooks (`onAdminCounted`, `onVerified`, null in production)
+  let `UsersTests` force the interleavings instead of hoping for them.
+- **Passwords** (`auth/Passwords.kt`): BouncyCastle's `Argon2BytesGenerator`, this file's own PHC
+  encoder/parser, parameters read from the stored string and bounded before anything is allocated, a
+  4-permit semaphore around every hash and verify, fail-closed verify.
+- **Storage**: `users.json` and `audit.jsonl` in `FileStore`, copies in and out (`User` is deliberately
+  mutable — see its KDoc — so the copy rule is something a test can fail).
+- **The signing secret**: the published default `changeme-in-production` is never used; an empty or
+  default `JWT_SECRET` yields 48 random bytes per process.
+
 ---
 
 ## 7. Numeric fidelity — the traps that actually bit
@@ -299,7 +329,8 @@ tolerance.
 | GC hides image lifetime | `AutoCloseable` everywhere, `takeCanvas()` for the one exception | A Mat is not heap memory. |
 | `print()` to stdout | `LogRing`, two sinks, UTF-8 forced | `J-10`, `J-11`. `System.out` is not UTF-8 on Windows, so Cyrillic became `?`. |
 | pydantic-settings | Hand-written `Settings.load` collecting ALL errors | Keeps each default beside its field, and the Go port reads it line for line. |
-| FastAPI `Depends` | `guard(request, response, auth::requireX) { }` | The routing table reads as a permission list; `J-12`. |
+| FastAPI `Depends` | `guard(request, response, api.auth.requireAdmin) { }` with a named `Guard` | The routing table reads as a permission list; `J-12`. The guard's NAME is the reference's dependency name, so `RouteTableTests` compares the router with `ports/AUTH.md` §5 string for string. |
+| `HTTPException(status, detail)` | `ApiException` beside the seven kinds | Authentication fixes each message word for word (`password_change_required` is a code the UI routes on); the seven kinds keep their generic texts. See §6a. |
 | One image, CPU and GPU | Two Docker targets, ONE jar | The GPU artefact's CUDA kernels are ~4 GB a CPU host will never execute. The device logic is identical in both. |
 
 ---

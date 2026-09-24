@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useStore } from 'vuex'
 import AppTopbar from '@/components/AppTopbar.vue'
 import AuthedImage from '@/components/AuthedImage.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -12,6 +13,8 @@ import { getData, getDataSearch, useHooks } from './controller'
 import { DOC_TYPES, documents, form, loading, stats, total, uploadOpen } from './model'
 
 const { setSort, sortIcon, goPage, reprocess, remove, onUploaded } = useHooks()
+const store = useStore()
+const canWrite = computed<boolean>(() => store.getters['auth/canWrite'])
 
 const confirmRow = ref<DocumentRow | null>(null)
 const pageDragging = ref(false)
@@ -75,6 +78,7 @@ const QUALITY_KEYS: [string, string][] = [
 // Drag anywhere on the page opens the upload modal, so the affordance is
 // discoverable without a permanent dropzone breaking the layout rhythm.
 function onPageDragOver(e: DragEvent): void {
+    if (!canWrite.value) return
     if (e.dataTransfer?.types?.includes('Files')) { pageDragging.value = true; uploadOpen.value = true }
 }
 onMounted(() => document.addEventListener('dragover', onPageDragOver))
@@ -89,7 +93,7 @@ function download(row: DocumentRow): void {
 <template>
   <AppTopbar :meta="topbarMeta">
     <template #actions>
-      <button class="btn btn-primary" @click="uploadOpen = true">Upload document</button>
+      <button v-if="canWrite" class="btn btn-primary" @click="uploadOpen = true">Upload document</button>
       <button class="btn btn-outline" :disabled="loading" @click="getData()">Refresh</button>
     </template>
   </AppTopbar>
@@ -162,9 +166,10 @@ function download(row: DocumentRow): void {
         <tbody v-else-if="!documents.length">
           <tr>
             <td colspan="8" style="padding:0">
-              <div class="dz" style="margin:20px" @click="uploadOpen = true">
+              <div class="dz" style="margin:20px" @click="canWrite && (uploadOpen = true)">
                 <div class="dz-main">No documents yet</div>
-                <div class="dz-sub">Drop an image anywhere on this page, or click to browse</div>
+                <div v-if="canWrite" class="dz-sub">Drop an image anywhere on this page, or click to browse</div>
+                <div v-else class="dz-sub">Your role can view documents; uploading needs an operator</div>
               </div>
             </td>
           </tr>
@@ -223,12 +228,12 @@ function download(row: DocumentRow): void {
                 <router-link :to="`/documents/${row.id}`" class="act-btn" title="View">
                   <Icon name="eye" />
                 </router-link>
-                <button v-if="row.status === 'done' || row.status === 'failed'" class="act-btn"
+                <button v-if="canWrite && (row.status === 'done' || row.status === 'failed')" class="act-btn"
                         title="Reprocess" @click="reprocess(row)"><Icon name="refresh" /></button>
                 <button class="act-btn" title="Download original" @click="download(row)">
                   <Icon name="download" />
                 </button>
-                <button class="act-btn" title="Delete" @click="confirmRow = row">
+                <button v-if="canWrite" class="act-btn" title="Delete" @click="confirmRow = row">
                   <Icon name="trash" />
                 </button>
               </div>

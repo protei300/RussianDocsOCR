@@ -51,7 +51,9 @@ public class CorsFilter(private val allowedOrigins: List<String>) : Filter {
             out.setHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
                 "Authorization, Content-Type, X-API-Key")
             out.setHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
-                "GET, POST, PUT, DELETE, OPTIONS")
+                // PATCH since named accounts: `PATCH /users/{id}` is the one route that uses it, and a
+                // method missing here fails its preflight as a blocked request with no visible reason.
+                "GET, POST, PUT, PATCH, DELETE, OPTIONS")
             out.setHeader(HttpHeaders.ACCESS_CONTROL_MAX_AGE, "600")
         }
 

@@ -12,8 +12,10 @@ func cfg() Config {
 		JwtExpireMinutes: 60}
 }
 
+func pinClaims() Claims { return Claims{Sub: "operator", Name: "Operator", Role: "admin"} }
+
 func TestTokenRoundTrip(t *testing.T) {
-	token, err := CreateAccessToken(cfg(), "operator")
+	token, err := CreateAccessToken(cfg(), pinClaims())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +36,7 @@ func TestTokenRoundTrip(t *testing.T) {
 func TestTokenFromAnotherSecretIsRejected(t *testing.T) {
 	other := cfg()
 	other.JwtSecret = "attacker-secret"
-	token, err := CreateAccessToken(other, "operator")
+	token, err := CreateAccessToken(other, pinClaims())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +48,7 @@ func TestTokenFromAnotherSecretIsRejected(t *testing.T) {
 // The classic JWT attack: re-encode the claims and leave the old signature. It must fail,
 // which it does because the signature covers header AND claims.
 func TestTamperedClaimsAreRejected(t *testing.T) {
-	token, err := CreateAccessToken(cfg(), "operator")
+	token, err := CreateAccessToken(cfg(), pinClaims())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +66,7 @@ func TestTamperedClaimsAreRejected(t *testing.T) {
 func TestExpiredTokenIsRejected(t *testing.T) {
 	expired := cfg()
 	expired.JwtExpireMinutes = -1 // already past
-	token, err := CreateAccessToken(expired, "operator")
+	token, err := CreateAccessToken(expired, pinClaims())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +88,7 @@ func TestMalformedTokensAreRejectedNotPanicking(t *testing.T) {
 func TestUnsupportedAlgorithmIsRefused(t *testing.T) {
 	rs := cfg()
 	rs.JwtAlgorithm = "RS256"
-	if _, err := CreateAccessToken(rs, "operator"); err == nil {
+	if _, err := CreateAccessToken(rs, pinClaims()); err == nil {
 		t.Fatal("RS256 was accepted; it must be refused, not downgraded")
 	}
 }

@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from service.api.deps import require_session
+from service.api.deps import require_viewer
 from service.core.config import get_settings
 from service.core.database import DbSession, get_db
 from service.ml import runtime
@@ -89,7 +89,7 @@ def _gpu_stats() -> dict[str, Any] | None:
 
 @router.get("/status")
 def get_status(request: Request, db: DbSession = Depends(get_db),
-               _user=Depends(require_session)) -> dict:
+               _user=Depends(require_viewer)) -> dict:
     settings = get_settings()
     info = runtime.device_info()
     stats = repo.stats(db)

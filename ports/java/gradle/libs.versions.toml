@@ -31,11 +31,17 @@ kotlin = "2.4.10"
 serialization = "1.11.0"
 # Boot 4.1 is the first line that supports Gradle 9 and JDK 21 without a compatibility flag.
 springBoot = "4.1.0"
+# Argon2id for named-account passwords (ports/AUTH.md §3). BouncyCastle, NOT `argon2-jvm`: that one is
+# LGPL and wraps a native library, while BouncyCastle is pure Java under its MIT-style licence and has
+# shipped `Argon2BytesGenerator` since 1.66. It does not parse PHC strings — `auth/Passwords.kt` owns
+# the encoder/parser, which is what keeps a users.json readable by all four services.
+bouncyCastle = "1.86"
 
 [libraries]
 onnxruntime = { module = "com.microsoft.onnxruntime:onnxruntime", version.ref = "onnxruntime" }
 onnxruntimeGpu = { module = "com.microsoft.onnxruntime:onnxruntime_gpu", version.ref = "onnxruntime" }
 kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+bouncyCastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncyCastle" }
 kotlinTest = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
 
 # **The BOM is not optional, and the Boot plugin does not supply it.** Since Boot 2.x the

@@ -57,7 +57,8 @@ func newTestServer(t *testing.T) *Server {
 // the actual guard is part of what is being checked.
 func sessionToken(t *testing.T, s *Server) string {
 	t.Helper()
-	token, err := auth.CreateAccessToken(s.authCfg(), "operator")
+	token, err := auth.CreateAccessToken(s.authCfg(),
+		auth.Claims{Sub: "operator", Name: "Operator", Role: "admin"})
 	if err != nil {
 		t.Fatal(err)
 	}

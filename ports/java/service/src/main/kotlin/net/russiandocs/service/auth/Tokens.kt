@@ -3,6 +3,10 @@ package net.russiandocs.service.auth
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -22,16 +26,19 @@ import javax.crypto.spec.SecretKeySpec
  * caller use accept either.
  *
  * Security notes, honestly:
- * - Comparison is constant-time. For the PIN that is mostly symbolic against a four-digit space: there is
- *   no rate limiting or lockout here, and a PIN is not a defence against an attacker who can reach the
- *   port. It keeps honest people out of the browser UI; the NETWORK BOUNDARY is the real control.
+ * - Comparison is constant-time. For the PIN that is mostly symbolic against a four-digit space; what
+ *   actually limits guessing is the failed-login throttle (`LoginThrottle`), and the NETWORK BOUNDARY
+ *   remains the real control.
  * - Only key HASHES are stored. A leaked data directory must not yield working credentials.
+ *
+ * With `AUTH_MODE=users` the same token carries a named account (`uid`, `tv`) instead of the shared
+ * operator; which shape a request may present is decided by the gate in `api/Identity.kt`, not here.
  *
  * Port of `service/core/auth.py`. **The JWT is hand-rolled rather than taken from a dependency** — HS256
  * with two base64url segments and an HMAC is about forty lines, and the JVM ships every primitive it
- * needs in `javax.crypto`. Spring Security would bring an authentication model this service does not have
- * (no users, no roles, no sessions) and would hide the two rules that actually matter, below. The Go and
- * .NET ports made the same choice, so all three files read alike.
+ * needs in `javax.crypto`. Spring Security would bring its own authentication model and would hide the
+ * three rules that actually matter, below. The Go and .NET ports made the same choice, so all three files
+ * read alike.
  */
 public object Tokens {
 
@@ -53,18 +60,74 @@ public object Tokens {
         val defaultApiKey: String = "",
     )
 
-    /** The JWT payload. Only what is actually used. */
+    /**
+     * The JWT payload, in both of its shapes (ports/AUTH.md §4).
+     *
+     * A PIN token is `{sub: "operator", name: "Operator", role: "admin", exp}`; an account token adds `uid`
+     * and `tv`. **`uid` and `tv` are nullable so ABSENT and ZERO stay different** — a non-null default of 0
+     * would make "no uid" and "uid 0" indistinguishable. [carriesUid] records presence separately again,
+     * because a `uid` that is present but not an integer must still count as "carries a uid" in PIN mode
+     * (refused) while being unusable in users mode (also refused).
+     */
     @Serializable
     public data class Claims(
         @SerialName("sub") val sub: String = "",
+        @SerialName("name") val name: String? = null,
+        @SerialName("role") val role: String? = null,
+        @SerialName("uid") val uid: Long? = null,
+        @SerialName("tv") val tv: Long? = null,
         @SerialName("exp") val exp: Long = 0,
+        @kotlinx.serialization.Transient val carriesUid: Boolean = uid != null,
     )
 
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    /**
+     * The published default secret. It is in this repository — so with it anyone can mint a token, and in
+     * users mode that is a full takeover: the administrator is uid 1 and `token_version` starts at 1, so a
+     * forged `{"uid": 1, "tv": 1}` is a guess, not an attack.
+     */
+    public const val DEFAULT_JWT_SECRET: String = "changeme-in-production"
+
+    // explicitNulls = false on the way OUT, so a PIN token has no `uid`/`tv` keys at all rather than
+    // `"uid": null`, which Python's `"uid" in claims` — and every port's gate — reads as present.
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
     private val random = SecureRandom()
 
-    /** Signs a JWT valid for the configured window. */
-    public fun createAccessToken(cfg: Config, subject: String): String {
+    private val secretGate = Any()
+    private var processSecret: String? = null
+
+    /** True when [signingSecret] is the random per-process one — logged at startup. */
+    public fun secretIsEphemeral(cfg: Config): Boolean {
+        val configured = cfg.jwtSecret.trim()
+        return configured.isEmpty() || configured == DEFAULT_JWT_SECRET
+    }
+
+    /**
+     * The signing secret actually in use.
+     *
+     * **A known secret is not a secret**, so the published default is never used to sign: when the
+     * configured value is empty or still the default, 48 random bytes are generated ONCE per process. The
+     * only cost is that sessions do not survive a restart — and on this service nothing does: the store is
+     * wiped at every start, so a session outliving it would point at an account that no longer exists.
+     */
+    public fun signingSecret(cfg: Config): String {
+        if (!secretIsEphemeral(cfg)) {
+            return cfg.jwtSecret.trim()
+        }
+        synchronized(secretGate) {
+            val existing = processSecret
+            if (existing != null) {
+                return existing
+            }
+            val bytes = ByteArray(48)
+            random.nextBytes(bytes)
+            val fresh = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+            processSecret = fresh
+            return fresh
+        }
+    }
+
+    /** Signs a JWT valid for the configured window. The `exp` of [claims] is replaced. */
+    public fun createAccessToken(cfg: Config, claims: Claims): String {
         if (cfg.jwtAlgorithm.isNotEmpty() && cfg.jwtAlgorithm != "HS256") {
             // Refused rather than silently downgraded: a caller who configured RS256 and got HS256 would
             // believe they had asymmetric signing.
@@ -72,39 +135,54 @@ public object Tokens {
                 "auth: unsupported JWT algorithm \"${cfg.jwtAlgorithm}\" (only HS256)")
         }
         val header = """{"alg":"HS256","typ":"JWT"}""".toByteArray(Charsets.UTF_8)
-        val claims = json.encodeToString(
+        val body = json.encodeToString(
             Claims.serializer(),
-            Claims(
-                sub = subject,
-                exp = System.currentTimeMillis() / 1000 + cfg.jwtExpireMinutes.toLong() * 60,
-            ),
+            claims.copy(exp = System.currentTimeMillis() / 1000 + cfg.jwtExpireMinutes.toLong() * 60),
         ).toByteArray(Charsets.UTF_8)
-        val signing = b64(header) + "." + b64(claims)
-        return signing + "." + b64(sign(signing, cfg.jwtSecret))
+        val signing = b64(header) + "." + b64(body)
+        return signing + "." + b64(sign(signing, signingSecret(cfg)))
     }
 
     /**
      * Returns the claims, or `null` for anything invalid or expired.
      *
-     * **The signature is verified BEFORE the claims are parsed**, and with a constant-time compare.
-     * Parsing first would mean acting on attacker-controlled JSON; a plain equality test on the MAC leaks
-     * how much of it matched.
+     * Three checks, in this order, and the order is the point:
+     * 1. **The algorithm is pinned.** A header that does not say exactly `HS256` is refused before anything
+     *    else is read — never negotiated, so `alg: none`, `HS512`, or an asymmetric algorithm keyed with our
+     *    own secret gets nowhere.
+     * 2. **The signature is verified BEFORE the claims are parsed**, with a constant-time compare. Parsing
+     *    first would mean acting on attacker-controlled JSON; a plain equality test on the MAC leaks how much
+     *    of it matched.
+     * 3. Expiry.
      */
     public fun decodeAccessToken(cfg: Config, token: String): Claims? {
         val parts = token.split('.')
         if (parts.size != 3) {
             return null
         }
+        val header = unb64(parts[0])?.let { parseObject(it) } ?: return null
+        val alg = header["alg"] as? JsonPrimitive
+        if (alg == null || !alg.isString || alg.content != "HS256") {
+            return null
+        }
+
         val signing = parts[0] + "." + parts[1]
-        val want = sign(signing, cfg.jwtSecret)
+        val want = sign(signing, signingSecret(cfg))
         val got = unb64(parts[2]) ?: return null
         if (!MessageDigest.isEqual(want, got)) {
             return null
         }
 
-        val raw = unb64(parts[1]) ?: return null
+        val payload = unb64(parts[1])?.let { parseObject(it) } ?: return null
         val claims = try {
-            json.decodeFromString(Claims.serializer(), String(raw, Charsets.UTF_8))
+            // uid/tv are read by hand: the decoder would throw on a non-integer uid and drop the whole token,
+            // losing the "it carried a uid" fact that PIN mode refuses on.
+            val rest = JsonObject(payload.filterKeys { it != "uid" && it != "tv" })
+            json.decodeFromJsonElement(Claims.serializer(), rest).copy(
+                uid = integer(payload["uid"]),
+                tv = integer(payload["tv"]),
+                carriesUid = payload.containsKey("uid"),
+            )
         } catch (e: Exception) {
             return null
         }
@@ -112,6 +190,21 @@ public object Tokens {
             return null
         }
         return claims
+    }
+
+    private fun parseObject(raw: ByteArray): JsonObject? = try {
+        json.parseToJsonElement(String(raw, Charsets.UTF_8)) as? JsonObject
+    } catch (e: Exception) {
+        null
+    }
+
+    /** A JSON integer, or null for absent, null, a string, a float or anything else. */
+    private fun integer(element: JsonElement?): Long? {
+        val primitive = element as? JsonPrimitive ?: return null
+        if (primitive is JsonNull || primitive.isString) {
+            return null
+        }
+        return primitive.content.toLongOrNull()
     }
 
     /**

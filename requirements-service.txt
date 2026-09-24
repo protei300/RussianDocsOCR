@@ -16,6 +16,7 @@ fastapi==0.136.3
 uvicorn[standard]==0.48.0
 python-multipart==0.0.31          # multipart upload parsing
 python-jose[cryptography]==3.5.0  # JWT for the browser session
+argon2-cffi==23.1.0               # password hashing for AUTH_MODE=users (see core/passwords.py)
 pydantic-settings==2.14.2
 python-json-logger==4.1.0         # structured stdout logs
 httpx2==2.13.0                    # fastapi/starlette TestClient (tests/service); starlette>=1.4 imports it

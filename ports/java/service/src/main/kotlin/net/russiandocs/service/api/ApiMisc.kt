@@ -26,37 +26,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 
-/** Auth, API keys, settings, logs, status, health and the SPA. */
-
-// --- auth ---------------------------------------------------------------
-
-/**
- * Exchanges the PIN for a session JWT.
- *
- * The failure message deliberately does not distinguish "wrong PIN" from "malformed request": there is
- * nothing useful for a legitimate user in the difference, and there is something useful in it for somebody
- * guessing.
- */
-internal fun ApiServer.pinLogin(request: HttpServletRequest): ResponseEntity<*> {
-    val body = bodyObject(request)
-        ?: return jsonResponse(400, ApiErrors.detail("expected {\"pin\": \"...\"}"))
-    val pin = runCatching { body["pin"]?.jsonPrimitive?.content }.getOrNull() ?: ""
-    if (!Tokens.verifyPin(authConfig, pin)) {
-        // Logged, because repeated failures are the only signal available without rate limiting — see the
-        // note in Tokens about what a PIN is and is not.
-        log.warn("[API] PIN login rejected")
-        return jsonResponse(401, ApiErrors.detail("Incorrect PIN"))
-    }
-
-    return ok(JsonObject(linkedMapOf(
-        "access_token" to JsonPrimitive(Tokens.createAccessToken(authConfig, "operator")),
-        "token_type" to JsonPrimitive("bearer"),
-        "user" to JsonObject(linkedMapOf(
-            "name" to JsonPrimitive(Identity.SESSION.name),
-            "role" to JsonPrimitive(Identity.SESSION.role),
-        )),
-    )))
-}
+/** API keys, settings, logs, status, health and the SPA. Sign-in is in `ApiAuth.kt`, accounts in `ApiUsers.kt`. */
 
 // --- api keys -----------------------------------------------------------
 
@@ -115,7 +85,7 @@ internal fun ApiServer.deleteKey(id: Int): ResponseEntity<*> {
 }
 
 /** Converts the repositories' `Map<String, Any?>` projections into JSON without a reflective mapper. */
-private fun anyMapToJson(map: Map<String, Any?>): JsonObject = JsonObject(
+internal fun anyMapToJson(map: Map<String, Any?>): JsonObject = JsonObject(
     map.mapValues { (_, value) ->
         when (value) {
             null -> JsonNull

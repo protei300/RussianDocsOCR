@@ -6,46 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/auth"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/errs"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/logging"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/repo"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/sysinfo"
 )
-
-// --- auth -------------------------------------------------------------------
-
-// handlePinLogin exchanges the PIN for a session JWT.
-//
-// The failure message deliberately does not distinguish "wrong PIN" from "malformed request":
-// there is nothing useful for a legitimate user in the difference, and there is something
-// useful in it for somebody guessing.
-func (s *Server) handlePinLogin(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Pin string `json:"pin"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, clientError(errs.ErrBadRequest, `expected {"pin": "..."}`))
-		return
-	}
-	if !auth.VerifyPin(s.authCfg(), body.Pin) {
-		// Logged, because repeated failures are the only signal available without rate
-		// limiting — see the note in the auth package about what a PIN is and is not.
-		slog.Warn("[API] PIN login rejected")
-		writeJSON(w, http.StatusUnauthorized, errorBody{Detail: "Incorrect PIN"})
-		return
-	}
-	token, err := auth.CreateAccessToken(s.authCfg(), "operator")
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"access_token": token,
-		"token_type":   "bearer",
-		"user":         map[string]any{"name": sessionUser.Name, "role": sessionUser.Role},
-	})
-}
 
 // --- api keys ---------------------------------------------------------------
 

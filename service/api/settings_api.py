@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from service.api.deps import require_session
+from service.api.deps import require_admin
 from service.core.database import DbSession, get_db
 from service.repositories import settings as settings_repo
 from service.core.settings_schema import SettingValidationError
@@ -22,13 +22,13 @@ class SettingsUpdate(BaseModel):
 
 @router.get("")
 def get_settings_values(db: DbSession = Depends(get_db),
-                        _user=Depends(require_session)) -> dict:
+                        _user=Depends(require_admin)) -> dict:
     return {"values": settings_repo.get_all(db), "schema": settings_repo.schema()}
 
 
 @router.put("")
 def update_settings(body: SettingsUpdate, db: DbSession = Depends(get_db),
-                    _user=Depends(require_session)) -> dict:
+                    _user=Depends(require_admin)) -> dict:
     """Validate and store.
 
     ``restart_required`` names settings baked into ``Pipeline.__init__`` that

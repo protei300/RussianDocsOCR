@@ -239,3 +239,33 @@ some builds, so "after construction" is not reliably after the overwrite.
 
 The port therefore does not yet install a signal handler at all. Adding one that silently
 does not work would be worse than its absence being visible.
+
+---
+
+## D-14 — authentication (ports/AUTH.md): what differs from the reference
+
+Every rule of `ports/AUTH.md` is implemented as written, and the black-box
+`conformance/auth_contract.py` passes 53/53. What differs, all of it deliberately:
+
+1. **No "Argon2 missing" downgrade.** Python guards its `argon2-cffi` import and falls back to
+   PIN without it. Here `golang.org/x/crypto/argon2` (BSD-3) is a compile-time dependency, so
+   that row of the mode table does not exist (AUTH.md §1 says so).
+2. **Own PHC encoder/parser** (`svc/passwords`), strict: six `$` fields, `argon2id` only,
+   `v=19`, each of `m`/`t`/`p` exactly once, parameter bounds checked before anything is
+   computed. argon2-cffi is more lenient about some shapes it never writes; every string any
+   of the four services writes is accepted, and both AUTH.md interop vectors verify.
+3. **The length rule is matched with the regexp, not a rune count.** RE2 matches runes, so
+   `.{8,}` counts characters as required; using the pattern also keeps the newline edge case
+   (`.` does not match `\n`) identical to Python and the browser.
+4. **Case folding is `strings.ToLower`/`EqualFold`**, not Python's `casefold`. Identical for
+   every username the rule admits (ASCII only); for others it only chooses which throttle
+   counter a doomed attempt lands in.
+5. **Body-validation errors are 422 with a string `detail`**, not pydantic's list of objects.
+   AUTH.md §7 allows 400 or 422; the SPA reads `detail` as text. A non-numeric path id is 404
+   (as for documents) where FastAPI answers 422.
+6. **The audit line is written under the store lock** — the reference appends after releasing
+   it. Costs one short append; makes file order equal id order by construction.
+7. **A throttle limit below 1 is raised to 1.** With `LOGIN_MAX_ATTEMPTS=0` the reference
+   blocks everyone and then indexes an empty list.
+8. **Account timestamps are truncated to microseconds** at creation, so a `users.json` written
+   here holds what Python's `datetime` can represent.

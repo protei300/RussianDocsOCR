@@ -13,6 +13,7 @@ import {
 } from './model'
 
 const { pickBox, pinField, reprocess, remove, copy } = useHooks()
+const canWrite = computed<boolean>(() => store.getters['auth/canWrite'])
 const store = useStore()
 const confirmDelete = ref(false)
 
@@ -92,9 +93,9 @@ function copyJson(): void {
     </div>
     <div class="topbar-right">
       <span v-if="d" :class="['badge', 'badge-' + d.status]"><span class="bdot"></span>{{ d.status }}</span>
-      <button v-if="d && (d.status === 'done' || d.status === 'failed')"
+      <button v-if="canWrite && d && (d.status === 'done' || d.status === 'failed')"
               class="btn btn-outline btn-sm" @click="reprocess()">Reprocess</button>
-      <button class="btn btn-danger-outline btn-sm" @click="confirmDelete = true">Delete</button>
+      <button v-if="canWrite" class="btn btn-danger-outline btn-sm" @click="confirmDelete = true">Delete</button>
       <button class="icon-btn" @click="store.dispatch('ui/toggleDark')">
         {{ store.state.ui.dark ? '☀' : '☾' }}
       </button>

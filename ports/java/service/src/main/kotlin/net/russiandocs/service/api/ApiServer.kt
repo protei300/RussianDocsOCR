@@ -7,6 +7,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import net.russiandocs.service.auth.AuthMode
+import net.russiandocs.service.auth.LoginThrottle
 import net.russiandocs.service.auth.Tokens
 import net.russiandocs.service.config.Settings
 import net.russiandocs.service.errors.ServiceException
@@ -18,6 +20,7 @@ import net.russiandocs.service.worker.RecognitionWorker
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.web.servlet.HandlerMapping
 
 /**
  * The HTTP surface, minus the handler bodies.
@@ -115,7 +118,32 @@ public class ApiServer(
             defaultApiKey = cfg.defaultApiKey,
         )
 
-    internal val auth: Authenticator get() = Authenticator(db, authConfig)
+    /**
+     * The effective authentication mode, resolved ONCE from the environment tier and the store's backend.
+     * Every handler asks this, never `cfg.authMode` — see [AuthMode].
+     */
+    internal val mode: AuthMode.Resolved = AuthMode.resolve(cfg.authMode, db.backend)
+
+    /** One per process, like the store index: the service is pinned to a single process. */
+    internal val throttle: LoginThrottle = LoginThrottle(cfg.loginMaxAttempts, cfg.loginLockoutSeconds)
+
+    /** The gate. One instance, so its [Guard]s are stable values the route test can name. */
+    internal val auth: Authenticator = Authenticator(db, { authConfig }, mode)
+
+    /**
+     * Test hook: told `(method, route pattern, guard name)` every time a guard runs. Null in production.
+     * It is how the route test learns which guard each mapping actually calls, from the router itself
+     * rather than from a second, hand-kept copy of the table that could drift from it.
+     */
+    @Volatile
+    internal var guardObserver: ((String, String, String) -> Unit)? = null
+
+    /**
+     * The address the throttle keys on: the TCP peer, and nothing a client can write. `X-Forwarded-For` is
+     * deliberately ignored — behind a proxy every caller shares the proxy's address, which throttles too
+     * much, and trusting the header would throttle nothing at all.
+     */
+    internal fun clientAddress(request: HttpServletRequest): String = request.remoteAddr ?: "-"
 
     // -- response helpers ---------------------------------------------------
 
@@ -139,28 +167,51 @@ public class ApiServer(
      * routing table, where it is also visible — which is the property FastAPI's `Depends` provides and the
      * reason the routes read as a permission list.
      *
+     * **The guard runs before the handler reads or validates the body**, which is why handlers read their
+     * JSON bodies inside the block rather than taking `@RequestBody` parameters Spring would bind first: a
+     * viewer's upload must be a 403, not a 422 about the file.
+     *
      * The `WWW-Authenticate` header accompanies every 401, because that is what makes the status code mean
      * "you may retry with credentials" rather than "go away".
      */
     internal fun guard(
         request: HttpServletRequest,
         response: HttpServletResponse,
-        require: (HttpServletRequest) -> Identity,
+        require: Guard,
         handler: (Identity) -> ResponseEntity<*>,
     ): ResponseEntity<*> {
+        guardObserver?.invoke(
+            request.method,
+            request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)?.toString() ?: "",
+            require.name,
+        )
         val identity = try {
-            require(request)
+            require.admit(request)
         } catch (e: Throwable) {
-            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
-            val error = ApiErrors.write(e, log)
-            return jsonResponse(error.status, error.body)
+            return errorResponse(e)
         }
         return try {
             handler(identity)
         } catch (e: Throwable) {
-            val error = ApiErrors.write(e, log)
-            jsonResponse(error.status, error.body)
+            errorResponse(e)
         }
+    }
+
+    /** The single error path for handlers outside [guard] too — the public auth endpoints. */
+    internal fun errorResponse(e: Throwable): ResponseEntity<String> {
+        val error = ApiErrors.write(e, log)
+        val builder = ResponseEntity.status(error.status).contentType(MediaType.APPLICATION_JSON)
+        for ((name, value) in error.headers) {
+            builder.header(name, value)
+        }
+        return builder.body(json.encodeToString(JsonElement.serializer(), error.body))
+    }
+
+    /** Runs a PUBLIC handler through the same error path a guarded one gets. */
+    internal fun public(handler: () -> ResponseEntity<*>): ResponseEntity<*> = try {
+        handler()
+    } catch (e: Throwable) {
+        errorResponse(e)
     }
 
     /**
