@@ -20,6 +20,7 @@ argon2-cffi==23.1.0               # password hashing for AUTH_MODE=users (see co
 pydantic-settings==2.14.2
 python-json-logger==4.1.0         # structured stdout logs
 httpx2==2.13.0                    # fastapi/starlette TestClient (tests/service); starlette>=1.4 imports it
+httpx==0.28.1                     # conformance/auth_contract.py drives the four services over HTTP with it
 psutil==7.2.2                     # CPU/RAM/disk for the status page
 nvidia-ml-py==13.610.43           # GPU stats; provides the `pynvml` module
 
