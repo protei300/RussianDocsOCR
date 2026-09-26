@@ -115,6 +115,7 @@ def _split(doc_type, boxes, words, field='Birth_place_ru', width=100,
         _widest_gap=Pipeline._widest_gap,
         _line_ink=Pipeline._line_ink,
         _duplicate_field_indices=lambda *a, **k: set(),
+        _paired_duplicate_indices=lambda *a, **k: set(),
         _emit=lambda *a, **k: None,
         _field_quads=lambda *a, **k: None,   # where the fields lie on the photo: not this test's question
     )

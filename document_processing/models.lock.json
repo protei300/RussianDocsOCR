@@ -1,6 +1,6 @@
 {
-  "models_version": "v6",
-  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v6/",
+  "models_version": "v7",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v7/",
   "files": [
     {
       "path": "AddressLines/ONNX/model.json",
@@ -48,7 +48,7 @@
       "path": "Borders/ONNX/model.onnx",
       "asset": "Borders__ONNX__model.onnx",
       "size": 40401449,
-      "sha256": "af501c60f543421a808cebc2ef9b1fe1779542f5d7f1c231ca8308769e64de00"
+      "sha256": "b11e3d5b3c2cf8ffbc182a589f3132f864998bd06b28a88c78972b4117160111"
     },
     {
       "path": "DocTypeAngles/ONNX/model.json",
@@ -60,13 +60,13 @@
       "path": "DocTypeAngles/ONNX/model.onnx",
       "asset": "DocTypeAngles__ONNX__model.onnx",
       "size": 9967217,
-      "sha256": "c915b26d858cfac7ed356521a7004fd2b08b4ec944fa07ff95f1afdc0c1a1be8"
+      "sha256": "ac2260ce7ba1a445eed130c975d8566051f321eaaa432e8d540852311f88abc2"
     },
     {
       "path": "DocTypeAngles/ONNX/resources/centers.npz",
       "asset": "DocTypeAngles__ONNX__resources__centers.npz",
-      "size": 50048,
-      "sha256": "7558be111847328b5c5e392a1de790e49c8f5401d90a02ea7800dd2e0bb43f51"
+      "size": 67968,
+      "sha256": "9b1633c93111bea16773d4b6d2468e5844ed6789f8dff44cd6afcd62972031ee"
     },
     {
       "path": "Glare/ONNX/model.json",
@@ -155,14 +155,14 @@
     {
       "path": "TextFields/ONNX/model.json",
       "asset": "TextFields__ONNX__model.json",
-      "size": 2118,
-      "sha256": "615575902aa9b53228ced07a9f3acf681174da40fa3ef935c6952356716ca08b"
+      "size": 2914,
+      "sha256": "dd445c48bcadd0a87b70eb28d1a06da2b51672a9e8c2609de2794fe08b15f5c2"
     },
     {
       "path": "TextFields/ONNX/model.onnx",
       "asset": "TextFields__ONNX__model.onnx",
-      "size": 37822910,
-      "sha256": "c297d4221dbf2a47dd35f7b5ea2c2e706f24be91a7fd942862b618283cb8a4e9"
+      "size": 37860071,
+      "sha256": "5ca5eca1ef71c7bddbe68af2a359145630637953278035750cf85306a8dadd6a"
     },
     {
       "path": "Words/ONNX/model.json",

@@ -260,8 +260,14 @@ public class PageRegistrar(
             var disp = Array(src.size) { Pt(pred[it].x - dst[it].x, pred[it].y - dst[it].y) }
             val rough = disp.indices.filter { hypot(disp[it].x, disp[it].y) < 2.5 * radius }
             if (rough.size >= 6) {
-                val mx = rough.sumOf { disp[it].x } / rough.size
-                val my = rough.sumOf { disp[it].y } / rough.size
+                // MEDIAN per axis, as np.median in page_registration.py::_match - not the mean.
+                // The rough window still holds outliers, and the mean follows them: on
+                // INTPASSPORT_1997-15_CR (models-v7) it moved the window enough to drop one
+                // match at radius 15, the chain step of page 3 fell under MIN_SPREAD_PX_CHAIN
+                // (139.0 < 140), the port fell back to a weak quad prior and built a 648x450
+                // canvas instead of 742x514. Go and .NET always used the median.
+                val mx = median(rough.map { disp[it].x })
+                val my = median(rough.map { disp[it].y })
                 disp = Array(disp.size) { Pt(disp[it].x - mx, disp[it].y - my) }
             }
             val keep = disp.indices.filter { hypot(disp[it].x, disp[it].y) < radius }
@@ -635,6 +641,13 @@ public class PageRegistrar(
     // ---------------------------------------------------------------- small geometry helpers
 
     private fun dist(a: Pt, b: Pt): Double = hypot(a.x - b.x, a.y - b.y)
+
+    /** `np.median` of a non-empty list: the middle value, or the mean of the two middle ones. */
+    private fun median(values: List<Double>): Double {
+        val s = values.sorted()
+        val n = s.size
+        return if (n % 2 == 1) s[n / 2] else (s[n / 2 - 1] + s[n / 2]) / 2.0
+    }
 
     /** `_order_points`: TL (min sum), TR, BR (max sum), BL. Delegates to the already-verified
      * [net.russiandocs.docproc.imaging.Geometry.orderPoints] instead of keeping a second copy here -

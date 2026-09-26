@@ -125,6 +125,10 @@ class OCROptionsClass:
             return OCROptionsSNILS()
         elif 'birthcert' in doc_type.lower():
             return OCROptionsBIRTHCERT()
+        # 'stsback' contains 'sts': both sides of the certificate land here
+        # on purpose (one options class for both, see OCROptionsSTS).
+        elif 'sts' in doc_type.lower():
+            return OCROptionsSTS()
         # Unknown type: return the empty base options instead of None, so the
         # caller's `.needs_licence_rotation`/`.ru_fields` access doesn't crash
         # (the pipeline then simply produces no OCR fields for it).
@@ -276,6 +280,59 @@ class OCROptionsSNILS(OCROptionsClass):
                     "Birth_date", "Birth_place_ru", "Middle_name_ru", "Sex_ru", ]
     en_fields = ["Licence_number", "Issue_date", "Birth_date"]
     ru_fields = ["Last_name_ru", "First_name_ru", "Birth_place_ru", "Middle_name_ru", "Sex_ru", ]
+
+
+class OCROptionsSTS(OCROptionsClass):
+    """OCR options for the vehicle registration certificate (issue #17), old
+    form: the vehicle side (STS_<year>) and the owner side (STSBACK_<year>)
+    share one options class, as the birth-certificate eras do - make_options
+    cannot tell the sides apart and does not need to: a field the detector
+    does not find on a side simply produces nothing.
+
+    Engine routing follows the alphabet the field is printed in, with the two
+    project precedents kept: the series/number goes to the Cyrillic engine
+    (digits read better there, issue #12, and old blanks carry Cyrillic series
+    letters), and mixed fields go where MOST of their values live -
+    Chassis_number is «ОТСУТСТВУЕТ» on nearly every car (Cyrillic), while
+    Body_number is the VIN on nearly every car (Latin). The PTS line mixes a
+    Cyrillic series with digits («77ТС272158») - Cyrillic. House_number can
+    carry a Cyrillic letter («38Б») - Cyrillic. Reg_number and VIN are Latin
+    by decision (2026-09-05): plate letters are the GOST subset that shares
+    its glyphs with Latin, and VIN never contains I, O or Q.
+
+    The new form (order 267/2019, STS_2019/STSBACK_2019) adds the model on a
+    line of its own (Latin), the type-approval number (Latin-routed: its
+    «ТС»/«ЕАЭС» prefix shares glyphs with Latin, the rest is Latin and
+    digits) and the building as its own address line; its issue date is
+    digits, which the Cyrillic engine reads as well as the worded one.
+
+    The original edition of the old form (order 1001/2008 before its 2013
+    amendment) also prints the engine model, engine number and displacement:
+    Latin letters and digits, Latin-routed. Its owner side has no unit code;
+    it names the issuing unit in words on two lines («МРЭО ГИБДД ГУВД ПО /
+    ЧЕЛЯБИНСКОЙ ОБЛАСТИ») - Issue_organization_ru, Cyrillic and split into
+    words like the birth certificate's, since no OCR alphabet has a space.
+
+    Each name here is ALSO in the .NET, Go and Kotlin ports and in
+    `service/ml/labels.py`; the ports follow after this type lands (decision
+    #132), so until then only the Python reference produces these fields."""
+
+    needed_split = ["Vehicle_make_ru", "Vehicle_make_en", "Vehicle_model_en", "Vehicle_type",
+                    "Special_marks", "Living_region_ru", "Licence_number",
+                    "Issue_date", "PTS_number", "Eco_class", "Vehicle_color",
+                    "Issue_organization_ru"]
+    en_fields = ["Reg_number", "VIN", "Vehicle_make_en", "Vehicle_model_en",
+                 "Type_approval", "Engine_model", "Engine_number", "Engine_volume",
+                 "Last_name_en",
+                 "First_name_en", "Vehicle_category", "Vehicle_year",
+                 "Body_number", "Engine_power", "Max_mass", "Curb_mass",
+                 "Expiration_date", "Apartment_number", "Issue_organisation_code"]
+    ru_fields = ["Last_name_ru", "First_name_ru", "Middle_name_ru",
+                 "Living_region_ru", "Vehicle_make_ru", "Vehicle_type",
+                 "Vehicle_color", "Eco_class", "Chassis_number", "Special_marks",
+                 "Licence_number", "Issue_date", "PTS_number", "House_number",
+                 "Building_number", "Issue_organization_ru"]
+
 
 class PipelineResults:
     """Stores results and metadata from a model pipeline.
@@ -1628,6 +1685,7 @@ class Pipeline:
         # highest-confidence one to avoid OCR'ing the same value twice.
         UNIQUE_FIELDS = ('Licence_number', 'Issue_organisation_code')
         drop = self._duplicate_field_indices(bboxes, UNIQUE_FIELDS)
+        drop |= self._paired_duplicate_indices(bboxes)
         if drop:
             bboxes = [b for i, b in enumerate(bboxes) if i not in drop]
             patches = [p for i, p in enumerate(patches) if i not in drop]
@@ -1912,6 +1970,41 @@ class Pipeline:
             if len(idxs) > 1:
                 best = max(idxs, key=lambda i: bboxes[i][4])
                 drop.update(i for i in idxs if i != best)
+        return drop
+
+    #: IoU above which a <name>_ru box and a <name>_en box are one line read as
+    #: both fields. Real pairs sit apart: ru/en lines of an external passport
+    #: overlap at 0.2-0.3, of a driving licence at up to 0.5 (labels, 2026-09-26);
+    #: the duplicates seen on a retrained detector overlap at 0.97-1.00.
+    PAIRED_DUPLICATE_IOU = 0.8
+
+    @classmethod
+    def _paired_duplicate_indices(cls, bboxes) -> set:
+        """Indices of the weaker box wherever a <name>_ru and a <name>_en box
+        cover the same line (bbox layout: [x1,y1,x2,y2,conf,cls,label]).
+
+        NMS runs per class on purpose (the ru/en pairs must not suppress each
+        other), so nothing else removes a line the detector labels as BOTH
+        languages. Seen on a retrained TextFields (2026-09-26): «Г. ВОЛГОГРАД/USSR»
+        came out as Birth_place_ru at 0.92 and Birth_place_en at 0.62 on the same
+        box, and the Latin engine read the Cyrillic line into Birth_place_en.
+        The more confident label keeps the line.
+        """
+        def iou(a, b):
+            w = min(a[2], b[2]) - max(a[0], b[0])
+            h = min(a[3], b[3]) - max(a[1], b[1])
+            if w <= 0 or h <= 0:
+                return 0.0
+            inter = w * h
+            return inter / ((a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter)
+
+        drop = set()
+        ru = [i for i, b in enumerate(bboxes) if str(b[-1]).endswith('_ru')]
+        for i in ru:
+            name = str(bboxes[i][-1])[:-3]
+            for j, b in enumerate(bboxes):
+                if b[-1] == name + '_en' and iou(bboxes[i], b) > cls.PAIRED_DUPLICATE_IOU:
+                    drop.add(j if bboxes[i][4] >= b[4] else i)
         return drop
 
     def _ocr(self, words_dict: dict, doc_type: str):

@@ -17,11 +17,14 @@ SAMPLES_DIR = Path('../samples')
 #: to be visible as a refusal rather than as a quiet "checked what there was".
 
 
-#: Classes the model knows that samples/ does not cover. **Empty in this
-#: repository, and that is a statement about this tree's material, not a
-#: weakening of the check.** The two classes that are uncovered in the closed
-#: tree - the registration page and the 2019 SNILS - have their material here:
-#: `samples/INTPASSPORTADDR_ALL/` and `samples/SNILS_2019/`, two images each.
+#: Classes the model knows that samples/ does not cover. The two classes that
+#: are uncovered in the closed tree - the registration page and the 2019 SNILS -
+#: have their material here: `samples/INTPASSPORTADDR_ALL/` (one image) and
+#: `samples/SNILS_2019/` (two). A second registration-page image was removed
+#: with weight set v7: a 330x376 frame, half of it a wooden table, with only the
+#: bottom edge of the page and one stamp in view - not a registration page a
+#: user would submit, and the classifiers of v4..v9 put it on either side of the
+#: threshold (held-out registration pages score 185-196 of 200 across them).
 #: The sample sets of the two repositories are not the same set, so this line
 #: is read off THIS one; copying the closed tree's value would declare a gap
 #: that does not exist here and would hide a real one behind it.
@@ -34,10 +37,13 @@ SAMPLES_DIR = Path('../samples')
 #: red, demanding that the entry be struck from here. Self-cleaning in both
 #: directions, and a known gap stays distinguishable from fresh breakage.
 #:
-#: With the set empty the equality is strict in the useful direction: every class
-#: the model claims must be covered by material in this tree, and the day one is
-#: not, the test says which.
-KNOWN_UNCOVERED_DOC_TYPES = frozenset()
+#: The four vehicle registration certificate classes (STS_*, weight set v7) are
+#: the one gap here: no anonymised independent certificate exists yet. The only
+#: real ones behind this work are personal documents, and the synthetic renders
+#: come from the generator the classifier was trained on - measuring the model on
+#: them would measure it against its own mirror. An anonymised independent sample
+#: closes the gap and turns this test red until the entry is struck.
+KNOWN_UNCOVERED_DOC_TYPES = frozenset({'STS_1996', 'STSBACK_1996', 'STS_2019', 'STSBACK_2019'})
 
 
 def required_doc_types(module):

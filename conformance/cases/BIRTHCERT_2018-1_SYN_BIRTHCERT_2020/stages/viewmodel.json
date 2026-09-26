@@ -5,8 +5,8 @@
   "recognised": true,
   "device": "cpu",
   "canvas": {
-    "width": 1010,
-    "height": 1230,
+    "width": 1018,
+    "height": 1231,
     "is_fallback": false
   },
   "coord_space": "canvas",
@@ -21,7 +21,7 @@
       "y1": 238,
       "x2": 557,
       "y2": 259,
-      "conf": 0.928,
+      "conf": 0.936,
       "cls": 1,
       "text": "КАЗАКОВ",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "First_name_ru",
       "display": "First name",
       "kind": "text",
-      "x1": 378,
+      "x1": 377,
       "y1": 273,
-      "x2": 636,
-      "y2": 302,
-      "conf": 0.912,
+      "x2": 635,
+      "y2": 303,
+      "conf": 0.933,
       "cls": 2,
       "text": "ЛЕОНИД ВАДИМОВИЧ",
       "ambiguous": false
@@ -45,11 +45,11 @@
       "label": "Birth_date",
       "display": "Date of birth",
       "kind": "text",
-      "x1": 407,
+      "x1": 405,
       "y1": 311,
-      "x2": 641,
-      "y2": 340,
-      "conf": 0.923,
+      "x2": 642,
+      "y2": 341,
+      "conf": 0.931,
       "cls": 10,
       "text": "15 ОКТЯБРЯ 2020 Г.",
       "ambiguous": false
@@ -59,28 +59,28 @@
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 313,
+      "x1": 311,
       "y1": 338,
       "x2": 819,
-      "y2": 375,
-      "conf": 0.933,
+      "y2": 376,
+      "conf": 0.915,
       "cls": 11,
-      "text": "РОССИЙСКАЯ ФЕДЕРАЦИЯ, ТЮМЕНСКАЯ ОБЛАСТЬ, Г. ТЮМЕНЬ",
-      "ambiguous": false
+      "text": null,
+      "ambiguous": true
     },
     {
       "id": "b4",
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 456,
-      "y1": 380,
+      "x1": 455,
+      "y1": 381,
       "x2": 574,
-      "y2": 400,
-      "conf": 0.916,
+      "y2": 401,
+      "conf": 0.939,
       "cls": 11,
-      "text": null,
-      "ambiguous": true
+      "text": "РОССИЙСКАЯ ФЕДЕРАЦИЯ, ТЮМЕНСКАЯ ОБЛАСТЬ, Г. ТЮМЕНЬ",
+      "ambiguous": false
     },
     {
       "id": "b5",
@@ -91,7 +91,7 @@
       "y1": 431,
       "x2": 848,
       "y2": 455,
-      "conf": 0.941,
+      "conf": 0.931,
       "cls": 30,
       "text": "110202778751843181007",
       "ambiguous": false
@@ -101,11 +101,11 @@
       "label": "Father_last_name_ru",
       "display": "Father_last_name_ru",
       "kind": "text",
-      "x1": 457,
-      "y1": 450,
-      "x2": 561,
+      "x1": 455,
+      "y1": 451,
+      "x2": 560,
       "y2": 471,
-      "conf": 0.916,
+      "conf": 0.933,
       "cls": 22,
       "text": "КАЗАКОВ",
       "ambiguous": false
@@ -117,9 +117,9 @@
       "kind": "text",
       "x1": 385,
       "y1": 487,
-      "x2": 626,
-      "y2": 513,
-      "conf": 0.899,
+      "x2": 625,
+      "y2": 515,
+      "conf": 0.929,
       "cls": 23,
       "text": "ВАДИМ АНТОНОВИЧ",
       "ambiguous": false
@@ -129,11 +129,11 @@
       "label": "Father_birth_date",
       "display": "Father_birth_date",
       "kind": "text",
-      "x1": 113,
-      "y1": 567,
-      "x2": 358,
-      "y2": 597,
-      "conf": 0.897,
+      "x1": 112,
+      "y1": 568,
+      "x2": 357,
+      "y2": 598,
+      "conf": 0.914,
       "cls": 27,
       "text": "20 ДЕКАБРЯ 1992",
       "ambiguous": false
@@ -143,11 +143,11 @@
       "label": "Mother_last_name_ru",
       "display": "Mother_last_name_ru",
       "kind": "text",
-      "x1": 451,
+      "x1": 450,
       "y1": 642,
       "x2": 570,
-      "y2": 661,
-      "conf": 0.921,
+      "y2": 662,
+      "conf": 0.937,
       "cls": 24,
       "text": "КАЗАКОВА",
       "ambiguous": false
@@ -159,9 +159,9 @@
       "kind": "text",
       "x1": 406,
       "y1": 677,
-      "x2": 624,
+      "x2": 623,
       "y2": 704,
-      "conf": 0.918,
+      "conf": 0.932,
       "cls": 25,
       "text": "ИРИНА ПЕТРОВНА",
       "ambiguous": false
@@ -172,10 +172,10 @@
       "display": "Mother_birth_date",
       "kind": "text",
       "x1": 117,
-      "y1": 753,
+      "y1": 755,
       "x2": 359,
-      "y2": 775,
-      "conf": 0.832,
+      "y2": 777,
+      "conf": 0.856,
       "cls": 28,
       "text": "21 ИЮНЯ 1985",
       "ambiguous": false
@@ -185,11 +185,11 @@
       "label": "Issue_organization_ru",
       "display": "Issuing authority",
       "kind": "text",
-      "x1": 431,
+      "x1": 432,
       "y1": 793,
-      "x2": 904,
-      "y2": 823,
-      "conf": 0.911,
+      "x2": 903,
+      "y2": 824,
+      "conf": 0.919,
       "cls": 13,
       "text": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
       "ambiguous": false
@@ -199,11 +199,11 @@
       "label": "Issue_organization_ru",
       "display": "Issuing authority",
       "kind": "text",
-      "x1": 313,
-      "y1": 837,
-      "x2": 725,
-      "y2": 863,
-      "conf": 0.898,
+      "x1": 312,
+      "y1": 838,
+      "x2": 723,
+      "y2": 862,
+      "conf": 0.893,
       "cls": 13,
       "text": null,
       "ambiguous": true
@@ -213,11 +213,11 @@
       "label": "Issue_place_ru",
       "display": "Issue_place_ru",
       "kind": "text",
-      "x1": 403,
+      "x1": 400,
       "y1": 891,
-      "x2": 902,
-      "y2": 916,
-      "conf": 0.897,
+      "x2": 900,
+      "y2": 917,
+      "conf": 0.903,
       "cls": 29,
       "text": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ УПРАВЛЕНИЯ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
       "ambiguous": false
@@ -229,9 +229,9 @@
       "kind": "text",
       "x1": 317,
       "y1": 926,
-      "x2": 720,
+      "x2": 718,
       "y2": 948,
-      "conf": 0.88,
+      "conf": 0.871,
       "cls": 29,
       "text": null,
       "ambiguous": true
@@ -242,10 +242,10 @@
       "display": "Date of issue",
       "kind": "text",
       "x1": 297,
-      "y1": 1024,
+      "y1": 1025,
       "x2": 553,
       "y2": 1047,
-      "conf": 0.876,
+      "conf": 0.894,
       "cls": 6,
       "text": "30 ОКТЯБРЯ 2020",
       "ambiguous": false
@@ -257,9 +257,9 @@
       "kind": "text",
       "x1": 437,
       "y1": 1100,
-      "x2": 657,
+      "x2": 656,
       "y2": 1119,
-      "conf": 0.882,
+      "conf": 0.907,
       "cls": 5,
       "text": "-ТВ 911395",
       "ambiguous": false
@@ -271,7 +271,7 @@
       "display": "Act_number",
       "value": "110202778751843181007",
       "script": "ru",
-      "conf": 0.941,
+      "conf": 0.931,
       "box_ids": [
         "b5"
       ]
@@ -281,7 +281,7 @@
       "display": "Date of birth",
       "value": "15 ОКТЯБРЯ 2020 Г.",
       "script": "num",
-      "conf": 0.923,
+      "conf": 0.931,
       "box_ids": [
         "b2"
       ],
@@ -292,7 +292,7 @@
       "display": "Place of birth",
       "value": "РОССИЙСКАЯ ФЕДЕРАЦИЯ, ТЮМЕНСКАЯ ОБЛАСТЬ, Г. ТЮМЕНЬ",
       "script": "ru",
-      "conf": 0.933,
+      "conf": 0.939,
       "box_ids": [
         "b3",
         "b4"
@@ -303,7 +303,7 @@
       "display": "Father_birth_date",
       "value": "20 ДЕКАБРЯ 1992",
       "script": "ru",
-      "conf": 0.897,
+      "conf": 0.914,
       "box_ids": [
         "b8"
       ],
@@ -314,7 +314,7 @@
       "display": "Father_first_middle_ru",
       "value": "ВАДИМ АНТОНОВИЧ",
       "script": "ru",
-      "conf": 0.899,
+      "conf": 0.929,
       "box_ids": [
         "b7"
       ]
@@ -324,7 +324,7 @@
       "display": "Father_last_name_ru",
       "value": "КАЗАКОВ",
       "script": "ru",
-      "conf": 0.916,
+      "conf": 0.933,
       "box_ids": [
         "b6"
       ]
@@ -334,7 +334,7 @@
       "display": "First name",
       "value": "ЛЕОНИД ВАДИМОВИЧ",
       "script": "ru",
-      "conf": 0.912,
+      "conf": 0.933,
       "box_ids": [
         "b1"
       ]
@@ -344,7 +344,7 @@
       "display": "Date of issue",
       "value": "30 ОКТЯБРЯ 2020",
       "script": "num",
-      "conf": 0.876,
+      "conf": 0.894,
       "box_ids": [
         "b16"
       ],
@@ -355,7 +355,7 @@
       "display": "Issuing authority",
       "value": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
       "script": "ru",
-      "conf": 0.911,
+      "conf": 0.919,
       "box_ids": [
         "b12",
         "b13"
@@ -366,7 +366,7 @@
       "display": "Issue_place_ru",
       "value": "27787518 ЦЕНТРАЛЬНЫЙ ОТДЕЛ УПРАВЛЕНИЯ ЗАГС УПРАВЛЕНИЯ ЗАГС ТЮМЕНСКОЙ ОБЛАСТИ",
       "script": "ru",
-      "conf": 0.897,
+      "conf": 0.903,
       "box_ids": [
         "b14",
         "b15"
@@ -377,7 +377,7 @@
       "display": "Last name",
       "value": "КАЗАКОВ",
       "script": "ru",
-      "conf": 0.928,
+      "conf": 0.936,
       "box_ids": [
         "b0"
       ]
@@ -387,7 +387,7 @@
       "display": "Document number",
       "value": "-ТВ 911395",
       "script": "num",
-      "conf": 0.882,
+      "conf": 0.907,
       "box_ids": [
         "b17"
       ]
@@ -397,7 +397,7 @@
       "display": "Mother_birth_date",
       "value": "21 ИЮНЯ 1985",
       "script": "ru",
-      "conf": 0.832,
+      "conf": 0.856,
       "box_ids": [
         "b11"
       ],
@@ -408,7 +408,7 @@
       "display": "Mother_first_middle_ru",
       "value": "ИРИНА ПЕТРОВНА",
       "script": "ru",
-      "conf": 0.918,
+      "conf": 0.932,
       "box_ids": [
         "b10"
       ]
@@ -418,7 +418,7 @@
       "display": "Mother_last_name_ru",
       "value": "КАЗАКОВА",
       "script": "ru",
-      "conf": 0.921,
+      "conf": 0.937,
       "box_ids": [
         "b9"
       ]
@@ -442,26 +442,26 @@
     "Licence_number": "-ТВ 911395"
   },
   "quality": {
-    "DocConf": 0.99,
+    "DocConf": 0.98,
     "Glare": "good",
     "Blur": "good",
     "PrintSpoofing": "FAKE",
     "LCDSpoofing": "FAKE"
   },
   "timings": {
-    "_doctype_angle": 0.0172,
-    "_quality_and_borders": 0.317,
-    "_glare": 0.039,
-    "_blur": 0.0291,
-    "_print_spoofing": 0.005,
-    "_lcd_spoofing": 0.0306,
-    "_doc_detector": 0.1933,
+    "_doctype_angle": 0.0091,
+    "_quality_and_borders": 0.3457,
+    "_glare": 0.0654,
+    "_blur": 0.1324,
+    "_print_spoofing": 0.0688,
+    "_lcd_spoofing": 0.0096,
+    "_doc_detector": 0.25,
     "_register_pages": 0.0,
-    "_deskew": 0.012,
-    "_fields_detector": 0.0972,
-    "_split_words": 0.4024,
-    "_ocr": 0.628,
-    "total": 1.4738
+    "_deskew": 0.0134,
+    "_fields_detector": 0.1177,
+    "_split_words": 0.4932,
+    "_ocr": 0.8373,
+    "total": 1.8164
   },
   "address": null
 }

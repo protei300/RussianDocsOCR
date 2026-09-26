@@ -4,27 +4,27 @@
     {
       "ambiguous": false,
       "cls": 1,
-      "conf": 0.906,
+      "conf": 0.922,
       "display": "Last name",
       "id": "b0",
       "kind": "text",
       "label": "Last_name_ru",
       "text": "БОРИСОВА",
       "x1": 300,
-      "x2": 368,
-      "y1": 205,
+      "x2": 367,
+      "y1": 204,
       "y2": 221
     },
     {
       "ambiguous": false,
       "cls": 2,
-      "conf": 0.877,
+      "conf": 0.92,
       "display": "First name",
       "id": "b1",
       "kind": "text",
       "label": "First_name_ru",
       "text": "АНАСТАСИЯ АЛЕКСЕЕВНА",
-      "x1": 254,
+      "x1": 252,
       "x2": 399,
       "y1": 226,
       "y2": 242
@@ -32,91 +32,91 @@
     {
       "ambiguous": false,
       "cls": 10,
-      "conf": 0.908,
+      "conf": 0.933,
       "display": "Date of birth",
       "id": "b2",
       "kind": "text",
       "label": "Birth_date",
       "text": "22.06.2010",
-      "x1": 352,
+      "x1": 350,
       "x2": 427,
-      "y1": 249,
+      "y1": 248,
       "y2": 262
     },
     {
       "ambiguous": false,
       "cls": 11,
-      "conf": 0.919,
+      "conf": 0.953,
       "display": "Place of birth",
       "id": "b3",
       "kind": "text",
       "label": "Birth_place_ru",
       "text": "2 ИРКУТСК, ИРКУТСКАЯ ОБЛАСТЬ, РОССИЯ",
-      "x1": 304,
+      "x1": 303,
       "x2": 400,
-      "y1": 324,
-      "y2": 344
+      "y1": 325,
+      "y2": 345
     },
     {
       "ambiguous": true,
       "cls": 11,
-      "conf": 0.917,
+      "conf": 0.936,
       "display": "Place of birth",
       "id": "b4",
       "kind": "text",
       "label": "Birth_place_ru",
       "text": null,
-      "x1": 270,
-      "x2": 433,
-      "y1": 349,
-      "y2": 370
+      "x1": 269,
+      "x2": 432,
+      "y1": 350,
+      "y2": 371
     },
     {
       "ambiguous": true,
       "cls": 11,
-      "conf": 0.917,
+      "conf": 0.915,
       "display": "Place of birth",
       "id": "b5",
       "kind": "text",
       "label": "Birth_place_ru",
       "text": null,
       "x1": 315,
-      "x2": 364,
+      "x2": 363,
       "y1": 374,
-      "y2": 385
+      "y2": 386
     },
     {
       "ambiguous": false,
       "cls": 30,
-      "conf": 0.899,
+      "conf": 0.917,
       "display": "Act_number",
       "id": "b6",
       "kind": "text",
       "label": "Act_number",
       "text": "2521",
-      "x1": 367,
-      "x2": 403,
+      "x1": 366,
+      "x2": 402,
       "y1": 419,
       "y2": 432
     },
     {
       "ambiguous": false,
       "cls": 22,
-      "conf": 0.935,
+      "conf": 0.914,
       "display": "Father_last_name_ru",
       "id": "b7",
       "kind": "text",
       "label": "Father_last_name_ru",
       "text": "БОРИСОВ",
-      "x1": 308,
+      "x1": 306,
       "x2": 372,
-      "y1": 446,
-      "y2": 463
+      "y1": 447,
+      "y2": 464
     },
     {
       "ambiguous": false,
       "cls": 23,
-      "conf": 0.893,
+      "conf": 0.907,
       "display": "Father_first_middle_ru",
       "id": "b8",
       "kind": "text",
@@ -124,8 +124,8 @@
       "text": "АЛЕКСЕЙ ОЛЕГОВИЧ",
       "x1": 257,
       "x2": 398,
-      "y1": 470,
-      "y2": 485
+      "y1": 471,
+      "y2": 486
     },
     {
       "ambiguous": false,
@@ -136,10 +136,10 @@
       "kind": "text",
       "label": "Mother_last_name_ru",
       "text": "БОРИСОВА",
-      "x1": 301,
+      "x1": 300,
       "x2": 373,
       "y1": 547,
-      "y2": 563
+      "y2": 564
     },
     {
       "ambiguous": false,
@@ -152,55 +152,55 @@
       "text": "АННА НИКИТИЧНА",
       "x1": 257,
       "x2": 395,
-      "y1": 571,
-      "y2": 586
+      "y1": 572,
+      "y2": 587
     },
     {
       "ambiguous": false,
       "cls": 13,
-      "conf": 0.844,
+      "conf": 0.842,
       "display": "Issuing authority",
       "id": "b11",
       "kind": "text",
       "label": "Issue_organization_ru",
       "text": "ОТДЕЛ ЗАГС ЗАВОДСКОГО РАЙОНА 2. ИРКУТСК ПРАВЛЕНИЯ ПО ДЕЛАМ ЗАГС ИРКУТСКОЙ ОБЛАСТ",
-      "x1": 172,
-      "x2": 508,
+      "x1": 170,
+      "x2": 507,
       "y1": 668,
-      "y2": 686
+      "y2": 687
     },
     {
       "ambiguous": true,
       "cls": 13,
-      "conf": 0.803,
+      "conf": 0.543,
       "display": "Issuing authority",
       "id": "b12",
       "kind": "text",
       "label": "Issue_organization_ru",
       "text": null,
-      "x1": 159,
+      "x1": 158,
       "x2": 506,
-      "y1": 692,
-      "y2": 712
+      "y1": 693,
+      "y2": 713
     },
     {
       "ambiguous": false,
       "cls": 6,
-      "conf": 0.822,
+      "conf": 0.805,
       "display": "Date of issue",
       "id": "b13",
       "kind": "text",
       "label": "Issue_date",
       "text": "28 ИЮЛЯ 2010",
-      "x1": 277,
-      "x2": 589,
-      "y1": 726,
-      "y2": 744
+      "x1": 275,
+      "x2": 590,
+      "y1": 727,
+      "y2": 747
     },
     {
       "ambiguous": false,
       "cls": 5,
-      "conf": 0.908,
+      "conf": 0.923,
       "display": "Document number",
       "id": "b14",
       "kind": "text",
@@ -208,14 +208,14 @@
       "text": "П-МЮ 715330",
       "x1": 281,
       "x2": 434,
-      "y1": 833,
-      "y2": 847
+      "y1": 834,
+      "y2": 848
     }
   ],
   "canvas": {
-    "height": 936,
+    "height": 937,
     "is_fallback": false,
-    "width": 674
+    "width": 675
   },
   "coord_space": "canvas",
   "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
@@ -228,7 +228,7 @@
       "box_ids": [
         "b6"
       ],
-      "conf": 0.899,
+      "conf": 0.917,
       "display": "Act_number",
       "name": "Act_number",
       "script": "ru",
@@ -238,7 +238,7 @@
       "box_ids": [
         "b2"
       ],
-      "conf": 0.908,
+      "conf": 0.933,
       "display": "Date of birth",
       "name": "Birth_date",
       "normalized": "22.06.2010",
@@ -251,7 +251,7 @@
         "b4",
         "b5"
       ],
-      "conf": 0.919,
+      "conf": 0.953,
       "display": "Place of birth",
       "name": "Birth_place_ru",
       "script": "ru",
@@ -261,7 +261,7 @@
       "box_ids": [
         "b8"
       ],
-      "conf": 0.893,
+      "conf": 0.907,
       "display": "Father_first_middle_ru",
       "name": "Father_first_middle_ru",
       "script": "ru",
@@ -271,7 +271,7 @@
       "box_ids": [
         "b7"
       ],
-      "conf": 0.935,
+      "conf": 0.914,
       "display": "Father_last_name_ru",
       "name": "Father_last_name_ru",
       "script": "ru",
@@ -281,7 +281,7 @@
       "box_ids": [
         "b1"
       ],
-      "conf": 0.877,
+      "conf": 0.92,
       "display": "First name",
       "name": "First_name_ru",
       "script": "ru",
@@ -291,7 +291,7 @@
       "box_ids": [
         "b13"
       ],
-      "conf": 0.822,
+      "conf": 0.805,
       "display": "Date of issue",
       "name": "Issue_date",
       "normalized": "28.07.2010",
@@ -303,7 +303,7 @@
         "b11",
         "b12"
       ],
-      "conf": 0.844,
+      "conf": 0.842,
       "display": "Issuing authority",
       "name": "Issue_organization_ru",
       "script": "ru",
@@ -313,7 +313,7 @@
       "box_ids": [
         "b0"
       ],
-      "conf": 0.906,
+      "conf": 0.922,
       "display": "Last name",
       "name": "Last_name_ru",
       "script": "ru",
@@ -323,7 +323,7 @@
       "box_ids": [
         "b14"
       ],
-      "conf": 0.908,
+      "conf": 0.923,
       "display": "Document number",
       "name": "Licence_number",
       "script": "num",
@@ -373,18 +373,18 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.1059,
-    "_deskew": 0.0093,
-    "_doc_detector": 0.2929,
-    "_doctype_angle": 0.0074,
-    "_fields_detector": 0.1155,
-    "_glare": 0.1029,
-    "_lcd_spoofing": 0.0375,
-    "_ocr": 0.4272,
-    "_print_spoofing": 0.1239,
-    "_quality_and_borders": 0.3334,
+    "_blur": 0.1226,
+    "_deskew": 0.0147,
+    "_doc_detector": 0.2812,
+    "_doctype_angle": 0.006,
+    "_fields_detector": 0.1451,
+    "_glare": 0.1276,
+    "_lcd_spoofing": 0.0145,
+    "_ocr": 0.7956,
+    "_print_spoofing": 0.0238,
+    "_quality_and_borders": 0.3373,
     "_register_pages": 0.0,
-    "_split_words": 0.318,
-    "total": 1.2108
+    "_split_words": 0.4745,
+    "total": 1.7732
   }
 }

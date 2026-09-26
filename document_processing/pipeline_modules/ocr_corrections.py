@@ -34,6 +34,18 @@ def check_driver_class(driver_class: str) -> str:
     return ''.join(c for c in driver_class.replace(' ', '') if c in allowed)
 
 
+def check_vin(vin: str) -> str:
+    """Replace the letter O with the digit 0 in a VIN.
+
+    ISO 3779 excludes the letters I, O and Q from a VIN, so an O here is always
+    a misread 0 - the Latin engine confuses the two on real STS photos (issue
+    #17: a VIN starting 'WF0DX' came out as 'WFODX'). Only O is mapped,
+    by decision: I and Q have no single safe digit (I could be 1 or a stray
+    stroke), and nothing else is touched.
+    """
+    return vin.replace('O', '0')
+
+
 def strip_edge_dots(name: str) -> str:
     """Strip stray leading dots the detector/OCR sometimes prepends to names."""
     return name.lstrip('.')

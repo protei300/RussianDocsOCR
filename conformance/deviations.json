@@ -84,6 +84,18 @@
       "declared": "2026-08-25",
       "owner": "Приёмка и замеры",
       "removed_when": "a synthetic replacement sample is added for this case (programme of decision #35) — then the case runs again and this entry goes stale"
+    },
+    {
+      "id": "D-04-rounding-edge-dl2011-issue-code",
+      "ports": ["go", "dotnet", "java"],
+      "cases": ["DL_2011-10_BG_DL_2010"],
+      "stages": ["fields.bbox", "viewmodel"],
+      "paths": ["^fields\\.bbox\\[13\\]\\[3\\]$", "^viewmodel\\.boxes\\[13\\]\\.y2$"],
+      "reason": "One coordinate of one field box sits on the rounding edge. With the models-v7 text-field detector, the y2 of Issue_organisation_code on this sample comes out of the letterbox back-scaling as 570.50024 in the reference, 0.0002 px above the half: the reference rounds it to 571, and all three ports, which carry the same arithmetic at a different float precision, land a hair below the half and round to 570. Identical on Go, .NET and Kotlin; every other box and every later stage of the case match. Not a defect in any implementation - a value that happens to fall on the boundary. The sample is withdrawn from this tree (W-02); the entry applies where the case runs.",
+      "basis": "user decision 2026-09-26 (release 4.6.0 with weight set models-v7)",
+      "declared": "2026-09-26",
+      "owner": "основная сессия (выпуск 4.6.0)",
+      "removed_when": "the next weight set or detector change moves this coordinate off the rounding edge (the entry then matches nothing and is reported STALE - delete it), or the reference and the ports are brought to the same float precision in the letterbox back-scaling"
     }
   ]
 }

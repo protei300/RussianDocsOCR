@@ -5,8 +5,8 @@
   "recognised": true,
   "device": "cpu",
   "canvas": {
-    "width": 702,
-    "height": 468,
+    "width": 701,
+    "height": 472,
     "is_fallback": false
   },
   "coord_space": "canvas",
@@ -17,11 +17,11 @@
       "label": "Licence_number",
       "display": "Document number",
       "kind": "text",
-      "x1": 456,
-      "y1": 146,
-      "x2": 642,
-      "y2": 180,
-      "conf": 0.908,
+      "x1": 450,
+      "y1": 148,
+      "x2": 638,
+      "y2": 184,
+      "conf": 0.885,
       "cls": 5,
       "text": "139-295-990 60",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "Last_name_ru",
       "display": "Last name",
       "kind": "text",
-      "x1": 123,
-      "y1": 182,
-      "x2": 266,
-      "y2": 211,
-      "conf": 0.909,
+      "x1": 121,
+      "y1": 187,
+      "x2": 261,
+      "y2": 214,
+      "conf": 0.921,
       "cls": 1,
       "text": "ГЕРАСИМОВ",
       "ambiguous": false
@@ -45,11 +45,11 @@
       "label": "First_name_ru",
       "display": "First name",
       "kind": "text",
-      "x1": 120,
-      "y1": 210,
-      "x2": 201,
-      "y2": 235,
-      "conf": 0.912,
+      "x1": 117,
+      "y1": 214,
+      "x2": 197,
+      "y2": 239,
+      "conf": 0.937,
       "cls": 2,
       "text": "СЕМЁН",
       "ambiguous": false
@@ -59,11 +59,11 @@
       "label": "Middle_name_ru",
       "display": "Middle name",
       "kind": "text",
-      "x1": 123,
-      "y1": 237,
-      "x2": 262,
-      "y2": 266,
-      "conf": 0.923,
+      "x1": 121,
+      "y1": 242,
+      "x2": 258,
+      "y2": 270,
+      "conf": 0.934,
       "cls": 17,
       "text": "АНТОНОВИЧ",
       "ambiguous": false
@@ -73,11 +73,11 @@
       "label": "Birth_date",
       "display": "Date of birth",
       "kind": "text",
-      "x1": 290,
-      "y1": 272,
-      "x2": 517,
-      "y2": 303,
-      "conf": 0.896,
+      "x1": 289,
+      "y1": 276,
+      "x2": 512,
+      "y2": 307,
+      "conf": 0.882,
       "cls": 10,
       "text": "6 СЕНТЯБРЯ 1955 ГОДА",
       "ambiguous": false
@@ -87,28 +87,28 @@
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 119,
-      "y1": 297,
-      "x2": 346,
-      "y2": 334,
-      "conf": 0.924,
+      "x1": 117,
+      "y1": 304,
+      "x2": 342,
+      "y2": 338,
+      "conf": 0.911,
       "cls": 11,
-      "text": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
-      "ambiguous": false
+      "text": null,
+      "ambiguous": true
     },
     {
       "id": "b6",
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 122,
-      "y1": 323,
-      "x2": 413,
-      "y2": 360,
-      "conf": 0.895,
+      "x1": 121,
+      "y1": 329,
+      "x2": 408,
+      "y2": 364,
+      "conf": 0.912,
       "cls": 11,
-      "text": null,
-      "ambiguous": true
+      "text": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
+      "ambiguous": false
     },
     {
       "id": "b7",
@@ -116,10 +116,10 @@
       "display": "Sex",
       "kind": "text",
       "x1": 114,
-      "y1": 394,
-      "x2": 211,
-      "y2": 422,
-      "conf": 0.94,
+      "y1": 399,
+      "x2": 208,
+      "y2": 426,
+      "conf": 0.915,
       "cls": 18,
       "text": "М",
       "ambiguous": false
@@ -129,11 +129,11 @@
       "label": "Issue_date",
       "display": "Date of issue",
       "kind": "text",
-      "x1": 254,
-      "y1": 434,
-      "x2": 433,
-      "y2": 464,
-      "conf": 0.891,
+      "x1": 252,
+      "y1": 439,
+      "x2": 430,
+      "y2": 468,
+      "conf": 0.885,
       "cls": 6,
       "text": "1 МАЯ 2013 ГОДА",
       "ambiguous": false
@@ -145,7 +145,7 @@
       "display": "Last name",
       "value": "ГЕРАСИМОВ",
       "script": "ru",
-      "conf": 0.909,
+      "conf": 0.921,
       "box_ids": [
         "b1"
       ]
@@ -155,7 +155,7 @@
       "display": "First name",
       "value": "СЕМЁН",
       "script": "ru",
-      "conf": 0.912,
+      "conf": 0.937,
       "box_ids": [
         "b2"
       ]
@@ -165,7 +165,7 @@
       "display": "Middle name",
       "value": "АНТОНОВИЧ",
       "script": "ru",
-      "conf": 0.923,
+      "conf": 0.934,
       "box_ids": [
         "b3"
       ]
@@ -175,7 +175,7 @@
       "display": "Sex",
       "value": "М",
       "script": "ru",
-      "conf": 0.94,
+      "conf": 0.915,
       "box_ids": [
         "b7"
       ]
@@ -185,7 +185,7 @@
       "display": "Date of birth",
       "value": "6 СЕНТЯБРЯ 1955 ГОДА",
       "script": "num",
-      "conf": 0.896,
+      "conf": 0.882,
       "box_ids": [
         "b4"
       ],
@@ -196,7 +196,7 @@
       "display": "Place of birth",
       "value": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
       "script": "ru",
-      "conf": 0.924,
+      "conf": 0.912,
       "box_ids": [
         "b5",
         "b6"
@@ -207,7 +207,7 @@
       "display": "Document number",
       "value": "139-295-990 60",
       "script": "num",
-      "conf": 0.908,
+      "conf": 0.885,
       "box_ids": [
         "b0"
       ]
@@ -217,7 +217,7 @@
       "display": "Date of issue",
       "value": "1 МАЯ 2013 ГОДА",
       "script": "num",
-      "conf": 0.891,
+      "conf": 0.885,
       "box_ids": [
         "b8"
       ],
@@ -235,26 +235,26 @@
     "Issue_date": "1 МАЯ 2013 ГОДА"
   },
   "quality": {
-    "DocConf": 0.98,
+    "DocConf": 0.99,
     "Glare": "good",
     "Blur": "bad",
     "PrintSpoofing": "FAKE",
     "LCDSpoofing": "FAKE"
   },
   "timings": {
-    "_doctype_angle": 0.005,
-    "_quality_and_borders": 0.2924,
-    "_glare": 0.1088,
-    "_blur": 0.0535,
-    "_print_spoofing": 0.018,
-    "_lcd_spoofing": 0.0192,
-    "_doc_detector": 0.17,
+    "_doctype_angle": 0.0062,
+    "_quality_and_borders": 0.3199,
+    "_glare": 0.1081,
+    "_blur": 0.1518,
+    "_print_spoofing": 0.0156,
+    "_lcd_spoofing": 0.01,
+    "_doc_detector": 0.2077,
     "_register_pages": 0.0,
     "_deskew": 0.006,
-    "_fields_detector": 0.0985,
-    "_split_words": 0.275,
-    "_ocr": 0.215,
-    "total": 0.8919
+    "_fields_detector": 0.0993,
+    "_split_words": 0.304,
+    "_ocr": 0.2461,
+    "total": 0.9815
   },
   "address": null
 }

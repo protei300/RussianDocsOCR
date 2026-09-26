@@ -258,6 +258,9 @@ def test_a_field_of_a_real_sample_is_cut_from_the_photo_by_its_quadrilateral(sam
         pytest.skip('sample not in the tree')
     image = cv2.imread(str(sample))
     assert image is not None
+    # The pipeline takes an ndarray as RGB (README). Handing it cv2.imread's BGR worked by
+    # luck with the v6 classifier and turned the public one-page sample into NONE with v7.
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     results = Pipeline(model_format='ONNX', device='cpu', verbose=False).process_img(
         image, ocr=False, check_quality=False,

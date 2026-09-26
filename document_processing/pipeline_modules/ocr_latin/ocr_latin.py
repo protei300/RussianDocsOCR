@@ -5,7 +5,7 @@ import numpy as np
 
 from ..base_module import BaseModule
 from ..ocr_batch import predict_batch_padded
-from ..ocr_corrections import check_ddmmyyyy, check_en_sex, check_driver_class
+from ..ocr_corrections import check_ddmmyyyy, check_en_sex, check_driver_class, check_vin
 
 _CFG_KEY = {'accurate': 'OCRLatinAccurate', 'fast': 'OCRLatinFast'}
 
@@ -50,7 +50,7 @@ class OCRLatin(BaseModule):
         return predict_batch_padded(self.model, patches)
 
     def fix_errors(self, field_type: str, text: str) -> str:
-        """Apply field-specific corrections (dates, sex, driver class)."""
+        """Apply field-specific corrections (dates, sex, driver class, VIN)."""
         if field_type in ('Issue_date', 'Expiration_date', 'Birth_date'):
             try:
                 return check_ddmmyyyy(text)
@@ -60,4 +60,6 @@ class OCRLatin(BaseModule):
             return check_en_sex(text)
         if field_type == 'Driver_class':
             return check_driver_class(text)
+        if field_type == 'VIN':
+            return check_vin(text)
         return text
