@@ -96,6 +96,17 @@
       "declared": "2026-09-26",
       "owner": "основная сессия (выпуск 4.6.0)",
       "removed_when": "the next weight set or detector change moves this coordinate off the rounding edge (the entry then matches nothing and is reported STALE - delete it), or the reference and the ports are brought to the same float precision in the letterbox back-scaling"
+    },
+    {
+      "id": "D-05-kotlin-spare-page-cut-not-bitwise",
+      "ports": ["java"],
+      "cases": ["INTPASSPORT_2011-12_CR_INTPASSPORT_2011"],
+      "stages": ["fields.bbox", "words.*.bbox", "viewmodel"],
+      "reason": "On this case with models-v7 the template locates page 2 only; page 3 is cut straight from its Borders quad ('borders-spare') in the reference and in the Kotlin port alike. Everything before that cut matches (sources, page-2 registration method and 26 inliers, native scale 0.4954, page-2 line refinement to the 5th decimal, the same dewarp decision). The spare page itself does not: the line refinement finds 30 LSD segments on it against 31 in the reference - a different input picture, since LSD is the same binding on both sides - so its refinement homography and its dewarp decision differ, and field boxes move by 1-4 px (38 values in fields.bbox, 19 in words, 45 in the view model; the recognised text is identical). Narrowed to the spare page's cut, not pinned: the likeliest source is quad_fit's RANSAC, which draws with Kotlin's own PRNG instead of NumPy's PCG64 (QuadFit.kt says so and names this as the place to revisit); warp interpolation is the other candidate. Measured 2026-09-26/27 by a traced run against the reference. The sample is withdrawn from this tree (W-01); the entry applies where the case runs.",
+      "basis": "user decision 2026-09-26 (release 4.6.0 with weight set models-v7); the 4.5.0 rule that a residual which cannot be made pixel-exact is declared with its measured size rather than left to hold the release (decision of 2026-09-19)",
+      "declared": "2026-09-27",
+      "owner": "основная сессия (выпуск 4.6.0)",
+      "removed_when": "quad_fit's RANSAC in the Kotlin port draws the same samples as the reference (a PCG64 port), or the spare-page cut is otherwise shown to match - then this case runs clean and the entry goes stale and must be deleted"
     }
   ]
 }
