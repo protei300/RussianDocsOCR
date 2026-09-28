@@ -94,8 +94,8 @@ which the binary threshold turns into whole pixels of outline. Compare instead:
 | quantity | CPU profile | GPU profile |
 |---|---|---|
 | polygon **area**, relative | 1e-3 | 1e-3 |
-| **centroid**, absolute px | 1e-3 | 2.0 |
-| **Hausdorff distance**, px | 1.0 | 8.0 |
+| **centroid**, absolute px | 1e-2 | 2.0 |
+| **Hausdorff distance** between the outlines, px | 1.0 | 8.0 |
 
 Not the point list.
 
@@ -107,6 +107,34 @@ the outline, so their mean shifts toward wherever the extra points landed. Measu
 `INTPASSPORT_2011`, GPU against CPU: 173 points versus 176 moved the vertex mean by
 **4.8 px** while the shape itself was unchanged. The shoelace-moment centroid is
 invariant to how the outline is sampled, which is the property the rule needs.
+
+**The CPU centroid allowance is one pixel of mask, not one thousandth of a pixel.** The
+outline is traced from a mask thresholded at 0.5, so its points are integers and the
+centroid can only move in steps: one mask pixel crossing the threshold. Measured on all
+12 conformance contours (models-v8), flipping each of the 200 pixels nearest the
+threshold one at a time moved the centroid by **4e-4 to 2.1e-3 px** per pixel. The
+original 1e-3 therefore meant "no mask pixel may change" — while the area allowance
+admits hundreds — and it failed CI on 2026-09-28 (run 36398094956, attempt 1):
+`INTPASSPORT_2011-12` page 1 has one pixel **1.8e-7** from the threshold, and the
+runner's arithmetic put it on the other side, moving the centroid by exactly 1.353e-3.
+The same flip was reproduced locally, with the model and the code unchanged, by
+changing only ONNX Runtime's operation order (graph optimisation off, explicit thread
+count), on Windows (1.22.0) and in a Linux container with the CI pins (1.21.1). With
+default settings both reproduce the golden bit for bit; the spread is either zero or
+that one pixel. **1e-2 px** admits a few pixels at the threshold and nothing more: the
+same probe with a *different Borders checkpoint* (v5/v6 weights inside the v8 set)
+moved the centroid by **0.178 to 1.40 px** on every contour, 18× the allowance at the
+closest. The area check missed that substitution on one contour of twelve
+(1.5e-4 relative); the centroid is what holds R-01.
+
+**Hausdorff is measured between the OUTLINES — vertex to nearest segment — not
+between the vertex sets**, for the same reason as the centroid. `CHAIN_APPROX_SIMPLE`
+keeps only corners, so one pixel flipped in the middle of a straight run inserts a
+vertex far from every old vertex. In the same measurement one flipped pixel moved the
+vertex-set distance by up to **71 px** (over 1 px in 14–64 % of flips per contour),
+and the outline distance by at most **1.0 px** on every contour. The substituted
+checkpoint gave **3.0 to 17.5 px** between outlines. The outline distance is never
+larger than the vertex-set one, so this only removes false failures, on both profiles.
 
 ### R-02 warped images (`prepare`, `rotate`, `borders.canvas`, `deskew.canvas`)
 

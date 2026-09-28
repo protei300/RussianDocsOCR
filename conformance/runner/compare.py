@@ -343,7 +343,7 @@ def compare_contours(golden: Any, actual: Any, profile: Profile = CPU,
       * the NUMBER of contours -- exactly, because that is how many pages were found;
       * each polygon's AREA, within a relative tolerance;
       * each polygon's AREA-WEIGHTED CENTROID;
-      * the HAUSDORFF distance between the two point sets.
+      * the HAUSDORFF distance between the two closed OUTLINES (vertex to segment).
 
     Area and centroid catch a wrong or shifted polygon; Hausdorff catches a polygon
     that has the right area and centre but the wrong shape, which the first two would
@@ -359,6 +359,13 @@ def compare_contours(golden: Any, actual: Any, profile: Profile = CPU,
     against 176 moved the vertex mean by 4.8 px while the shape was unchanged. The
     area-weighted centroid is invariant to how the outline is sampled, which is the
     property R-01 needs.
+
+    Hausdorff is measured between the OUTLINES for the same reason. Between vertex sets
+    it is sampling-sensitive too: CHAIN_APPROX_SIMPLE keeps only corner points, so one
+    mask pixel flipped in the middle of a long straight run inserts a vertex tens of
+    pixels from any old vertex. Measured over all conformance contours, one flipped
+    pixel moved the vertex-set distance by up to 71 px and the outline distance by at
+    most 1.0 px (spec/tolerances.md, R-01).
     """
     diffs: list[Diff] = []
     if golden is None and actual is None:
@@ -398,7 +405,9 @@ def compare_contours(golden: Any, actual: Any, profile: Profile = CPU,
                               f"(max |d| {cdiff:.3e} > {centroid_abs:g})"))
 
         hd = _hausdorff(gp, ap)
-        if hd > hausdorff_px:
+        # One flipped pixel gives exactly 1.0 here, the value the tolerance admits; the
+        # nudge keeps rounding in the projection from rejecting it (see compare_json).
+        if hd > hausdorff_px * (1 + 2 ** -40):
             diffs.append(Diff(here + ".hausdorff", "value", f"{hd:.3f} px > {hausdorff_px:g} px"))
 
     return diffs
@@ -416,10 +425,18 @@ def _contour_tolerances(profile: Profile) -> tuple[float, float, float]:
     an area around 3.5e5, so 1e-3 relative is ~350 px^2, roughly a one-pixel band along a
     third of the perimeter. A genuinely wrong polygon fails these by orders of magnitude,
     which is what keeps the GPU profile a measurement allowance rather than a blindfold.
+
+    The CPU centroid allowance is in the unit the difference arrives in: a pixel of the
+    thresholded mask. The outline is integer pixels, so the centroid can only move in
+    steps -- one pixel crossing the 0.5 mask threshold -- and one step moved it by
+    4e-4..2.1e-3 px over all conformance contours. The earlier 1e-3 therefore meant
+    "no mask pixel may change", and it failed CI when a runner's arithmetic flipped a
+    pixel sitting 1.8e-7 from the threshold. 1e-2 admits a few such pixels; a
+    substituted Borders checkpoint moved the centroid by 0.178..1.40 px.
     """
     if profile.name == "gpu":
         return 1e-3, 2.0, 8.0
-    return 1e-3, 1e-3, 1.0
+    return 1e-3, 1e-2, 1.0
 
 
 def _polygon_area(pts: np.ndarray) -> float:
@@ -452,15 +469,32 @@ def _polygon_centroid(pts: np.ndarray) -> tuple[float, float]:
 
 
 def _hausdorff(a: np.ndarray, b: np.ndarray) -> float:
-    """Symmetric Hausdorff distance between two point sets.
+    """Symmetric Hausdorff distance between two CLOSED outlines.
 
-    Brute force over the full distance matrix. Contours here run to a few hundred
-    points, so this is microseconds; a spatial index would be more code for no gain.
+    Each vertex of one outline is measured to the nearest SEGMENT of the other, not to
+    the nearest vertex, so the result does not depend on where the vertices happen to
+    sit along a straight edge (see compare_contours). Only vertices are measured, not
+    points in the middle of an edge; this vertex-to-outline form is the one the R-01
+    numbers in spec/tolerances.md were measured with.
+
+    Brute force over all vertex-segment pairs. Contours here run to at most about a
+    thousand points, so this is milliseconds; a spatial index would be more code for
+    no gain.
     """
     if len(a) == 0 or len(b) == 0:
         return float("inf")
-    d = np.linalg.norm(a[:, None, :] - b[None, :, :], axis=2)
-    return float(max(d.min(axis=1).max(), d.min(axis=0).max()))
+    return float(max(_directed_to_outline(a, b), _directed_to_outline(b, a)))
+
+
+def _directed_to_outline(p: np.ndarray, q: np.ndarray) -> float:
+    """Largest distance from a vertex of ``p`` to the closed polyline ``q``."""
+    q1 = q
+    d = np.roll(q, -1, axis=0) - q1
+    length2 = (d ** 2).sum(axis=1)
+    length2[length2 == 0] = 1.0  # a zero-length segment is its start point
+    t = ((p[:, None, :] - q1[None]) * d[None]).sum(axis=2) / length2[None]
+    nearest = q1[None] + np.clip(t, 0.0, 1.0)[..., None] * d[None]
+    return float(np.linalg.norm(p[:, None, :] - nearest, axis=2).min(axis=1).max())
 
 
 def first_divergence(results: Iterable[StageResult]) -> str | None:
