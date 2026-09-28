@@ -90,3 +90,18 @@ func TestStripEdgeDotsIsLeadingOnly(t *testing.T) {
 		t.Fatalf("got %q, want %q", got, "ИВАНОВ.")
 	}
 }
+
+func TestStripDayQuote(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"28,", "28"}, {"28.", "28"}, {"5,", "5"},
+		{"28", "28"}, {"ИЮЛЯ", "ИЮЛЯ"}, {"2010", "2010"}, {"Г.", "Г."},
+		{"22.06.2010", "22.06.2010"}, // a digit date is one word: untouched
+		{"2010,", "2010,"},           // not a day: four digits
+		{"28,,", "28,,"}, {",", ","}, {"", ""},
+	}
+	for _, c := range cases {
+		if got := StripDayQuote(c.in); got != c.want {
+			t.Errorf("StripDayQuote(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

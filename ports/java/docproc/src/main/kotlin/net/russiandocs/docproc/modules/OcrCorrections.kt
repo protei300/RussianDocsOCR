@@ -81,4 +81,17 @@ public object OcrCorrections {
      * matters.
      */
     public fun stripEdgeDots(name: String): String = name.trimStart('.')
+
+    /**
+     * '28,' -> '28': a day number followed by one comma or dot is the closing quote » of «28» ИЮЛЯ 2010 г.,
+     * which a field box with a margin around the letters takes in and the Cyrillic engine reads as a mark.
+     * Port of `ocr_corrections.strip_day_quote`: only a word of one or two digits plus that single mark is
+     * touched, so a digit date ('22.06.2010', one word) and every other word pass through.
+     */
+    public fun stripDayQuote(word: String): String {
+        if (word.length != 2 && word.length != 3) return word
+        if (word.last() != ',' && word.last() != '.') return word
+        if (!word.dropLast(1).all { it.isDigit() }) return word
+        return word.dropLast(1)
+    }
 }

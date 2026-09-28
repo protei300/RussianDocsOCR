@@ -86,18 +86,6 @@
       "removed_when": "a synthetic replacement sample is added for this case (programme of decision #35) — then the case runs again and this entry goes stale"
     },
     {
-      "id": "D-04-rounding-edge-dl2011-issue-code",
-      "ports": ["go", "dotnet", "java"],
-      "cases": ["DL_2011-10_BG_DL_2010"],
-      "stages": ["fields.bbox", "viewmodel"],
-      "paths": ["^fields\\.bbox\\[13\\]\\[3\\]$", "^viewmodel\\.boxes\\[13\\]\\.y2$"],
-      "reason": "One coordinate of one field box sits on the rounding edge. With the models-v7 text-field detector, the y2 of Issue_organisation_code on this sample comes out of the letterbox back-scaling as 570.50024 in the reference, 0.0002 px above the half: the reference rounds it to 571, and all three ports, which carry the same arithmetic at a different float precision, land a hair below the half and round to 570. Identical on Go, .NET and Kotlin; every other box and every later stage of the case match. Not a defect in any implementation - a value that happens to fall on the boundary. The sample is withdrawn from this tree (W-02); the entry applies where the case runs.",
-      "basis": "user decision 2026-09-26 (release 4.6.0 with weight set models-v7)",
-      "declared": "2026-09-26",
-      "owner": "основная сессия (выпуск 4.6.0)",
-      "removed_when": "the next weight set or detector change moves this coordinate off the rounding edge (the entry then matches nothing and is reported STALE - delete it), or the reference and the ports are brought to the same float precision in the letterbox back-scaling"
-    },
-    {
       "id": "D-05-kotlin-spare-page-cut-not-bitwise",
       "ports": ["java"],
       "cases": ["INTPASSPORT_2011-12_CR_INTPASSPORT_2011"],
@@ -107,6 +95,19 @@
       "declared": "2026-09-27",
       "owner": "основная сессия (выпуск 4.6.0)",
       "removed_when": "quad_fit's RANSAC in the Kotlin port draws the same samples as the reference (a PCG64 port), or the spare-page cut is otherwise shown to match - then this case runs clean and the entry goes stale and must be deleted"
+    },
+    {
+      "id": "D-06-dl2011-birth-place-en-box-half-pixel",
+      "kind": "deviation",
+      "ports": ["go", "dotnet", "java"],
+      "cases": ["DL_2011-10_BG_DL_2010"],
+      "stages": ["fields.bbox", "words.Birth_place_en.bbox", "viewmodel"],
+      "paths": ["^fields\\.bbox\\[9\\]\\[0\\]$", "^words\\.Birth_place_en\\.bbox\\[0\\]", "^viewmodel\\.boxes\\[9\\]\\.x1$"],
+      "reason": "With the models-v8 text-field detector, one field box of this sample comes out 1 px apart: the x0 of Birth_place_en (box 9) is 611 in the reference and 610 in all three ports, identically. The reference's value before rounding is 610.988, so this is NOT a rounding edge like the retired D-04 - the ports' detector output for this one box is about half a pixel lower. The word split of that field inherits it: its two word boxes move by 1-3 px and one confidence by 0.002 (7 values in all, the same on every port); the recognised text is identical and every other box and stage of the case match. Cause not established; the likeliest is the ONNX Runtime version - the goldens were written on onnxruntime 1.22.0, the ports run 1.21. The sample is withdrawn from this tree (W-02); the entry applies where the case runs.",
+      "basis": "user decision 2026-09-28 (release 4.6.1 with weight set models-v8, decision #137); the 4.5.0 rule that a residual which cannot be made pixel-exact is declared with its measured size rather than left to hold the release (decision of 2026-09-19). Replaces D-04, which went STALE with these weights",
+      "declared": "2026-09-28",
+      "owner": "основная сессия (выпуск 4.6.1)",
+      "removed_when": "the goldens and the ports run the same onnxruntime version and the box matches (then this entry goes STALE - delete it), or the next weight set moves the difference away"
     }
   ]
 }

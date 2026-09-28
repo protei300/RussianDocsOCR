@@ -15,7 +15,7 @@ from ..pipeline_modules.doc_detector.image_transformation import (expand_quad, D
                                                                    stitch_pages, stitched_geometry,
                                                                    placement_rect)
 from ..pipeline_modules.page_registration.geometry import PageGeometry, aspect_for
-from .dates import canonical_dates
+from .dates import canonical_dates, to_ddmmyyyy
 
 # A Borders quad overlapping the template-registered page by at least this
 # much is the same page, and its edges (the physical page edges) give the
@@ -1012,6 +1012,7 @@ class Pipeline:
             #OCR words
             if ocr and words_splitted:
                 self._model_call(self._ocr, words_splitted, doc_type)
+                self._reread_dates_whole()
                 self._normalize_dates()
 
         return self.results
@@ -1677,6 +1678,7 @@ class Pipeline:
             dict: Text fields splitted into words
         """
 
+        self._date_lines = {}   # filled below; never carried over from the previous image
         bboxes, patches = text_fields.values()
         frames = self.results._meta_results.get('FieldFrames') or [None] * len(bboxes)
 
@@ -1764,6 +1766,19 @@ class Pipeline:
             self.results._meta_results['WordsFallback'] = fallback
         if no_ink:
             self.results._meta_results['WordsNoInk'] = no_ink
+
+        # Whole lines of the date fields that were read word by word, kept for
+        # _reread_dates_whole: the split can drop a word without leaving a hole
+        # wide enough for the gap guard (see there). SNILS is excluded for the
+        # same parity reason as above; a line the guard already reads whole has
+        # nothing to add.
+        if doc_type != 'SNILS':
+            for i in kept:
+                label = bboxes[i][-1]
+                if (i in split_idxs and 'date' in label.lower()
+                        and not (len(words_by_idx.get(i, [])) == 1
+                                 and words_by_idx[i][0] is patches[i])):
+                    self._date_lines.setdefault(label, []).append(patches[i])
 
         result = {}
         word_bboxes = {}
@@ -2217,6 +2232,49 @@ class Pipeline:
             else:
                 ocr_dict[field_name] = ' '.join(ocred_words)
         ocr_dict[field_name] = ocr_dict[field_name].replace('  ', ' ').strip()
+
+    def _reread_dates_whole(self):
+        """Re-read a date field line by line WHOLE when the word-by-word reading
+        is not a date and the whole reading is.
+
+        The word splitter can drop a word without leaving a hole the gap guard
+        sees: on a real 1998 birth certificate (2026-09-27) the issue
+        date «ДД» МЕСЯЦА ГГГГ г. came out as month and year only - the day, pressed
+        against the left edge of the field crop, was not taken for a word at all
+        (padding the crop does not change that), and the empty stretch it left
+        was 2.6 typical words wide against the guard's measured 3.0. Read whole,
+        the same crop gives the day glued to the month and year, which converts.
+
+        The rule checks itself: it replaces a reading only when that reading
+        does NOT convert to dd.mm.yyyy and the whole-line one DOES, so a date
+        that already converts is never touched. The price is the one the gap
+        guard pays too - a line read whole comes back without spaces; the
+        canonical view is unaffected. Every replacement is recorded in
+        meta_results['DatesReadWhole'].
+        """
+        lines_by_field = getattr(self, '_date_lines', None) or {}
+        ocr = self.results._meta_results.get('OCR')
+        if not lines_by_field or not ocr:
+            return
+        done = []
+        for field_name, lines in lines_by_field.items():
+            split_reading = ocr.get(field_name, '')
+            if to_ddmmyyyy(split_reading) is not None:
+                continue
+            if field_name in self.ocr_options.ru_fields:
+                engine = self.ocr_cyr
+            else:
+                engine = self.ocr_lat
+            reads = [engine.fix_errors(field_type=field_name,
+                                       text=engine.predict(line)[engine.model_name]['ocr_output'])
+                     for line in lines]
+            whole = ' '.join(r for r in reads if r).strip()
+            if to_ddmmyyyy(whole) is None:
+                continue
+            ocr[field_name] = whole
+            done.append({'field': field_name, 'split': split_reading, 'whole': whole})
+        if done:
+            self.results._meta_results['DatesReadWhole'] = done
 
     def _normalize_dates(self):
         """Build the canonical ``dd.mm.yyyy`` view next to the reading.

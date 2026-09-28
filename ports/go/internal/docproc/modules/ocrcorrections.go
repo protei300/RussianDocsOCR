@@ -122,3 +122,25 @@ func CheckDriverClass(driverClass string) string {
 //
 // Leading only, despite the name: Python's lstrip. A trailing dot is left in place.
 func StripEdgeDots(name string) string { return strings.TrimLeft(name, ".") }
+
+// StripDayQuote turns '28,' into '28': a day number followed by one comma or dot is the
+// closing quote » of «28» ИЮЛЯ 2010 г., which a field box with a margin around the letters
+// takes in and the Cyrillic engine reads as a mark. Port of ocr_corrections.strip_day_quote:
+// only a word of one or two digits plus that single mark is touched, so a digit date
+// ('22.06.2010', one word) and every other word pass through. Length is counted in runes,
+// as Python's len counts characters.
+func StripDayQuote(word string) string {
+	r := []rune(word)
+	if len(r) != 2 && len(r) != 3 {
+		return word
+	}
+	if last := r[len(r)-1]; last != ',' && last != '.' {
+		return word
+	}
+	for _, c := range r[:len(r)-1] {
+		if !unicode.IsDigit(c) {
+			return word
+		}
+	}
+	return string(r[:len(r)-1])
+}

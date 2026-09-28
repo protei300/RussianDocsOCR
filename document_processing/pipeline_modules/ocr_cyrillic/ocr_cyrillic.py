@@ -5,7 +5,7 @@ import numpy as np
 
 from ..base_module import BaseModule
 from ..ocr_batch import predict_batch_padded
-from ..ocr_corrections import check_ddmmyyyy, check_rus_sex, strip_edge_dots
+from ..ocr_corrections import check_ddmmyyyy, check_rus_sex, strip_day_quote, strip_edge_dots
 
 _CFG_KEY = {'accurate': 'OCRCyrillicAccurate', 'fast': 'OCRCyrillicFast'}
 
@@ -68,11 +68,12 @@ class OCRCyrillic(BaseModule):
             # Rewrites only when the text holds exactly eight digits, so a date
             # spelled out in words passes through untouched - «15 ОКТЯБРЯ 2020 Г.»
             # has six, and SNILS reaches this per word ('26', 'СЕНТЯБРЯ', '1997')
-            # with four at most.
+            # with four at most. A day read with the closing quote as a comma or
+            # a dot ('28,') loses the mark (strip_day_quote).
             try:
-                return check_ddmmyyyy(text)
+                return strip_day_quote(check_ddmmyyyy(text))
             except ValueError:
-                return text
+                return strip_day_quote(text)
         if field_type == 'Sex_ru':
             return check_rus_sex(text)
         if field_type in _RU_NAME_FIELDS:

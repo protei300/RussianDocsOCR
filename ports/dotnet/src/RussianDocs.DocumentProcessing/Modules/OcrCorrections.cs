@@ -117,4 +117,23 @@ public static class OcrCorrections
     /// </para>
     /// </summary>
     public static string StripEdgeDots(string name) => name.TrimStart('.');
+
+    /// <summary>
+    /// '28,' -> '28': a day number followed by one comma or dot is the closing quote » of
+    /// «28» ИЮЛЯ 2010 г., which a field box with a margin around the letters takes in and the
+    /// Cyrillic engine reads as a mark. Port of ocr_corrections.strip_day_quote: only a word of
+    /// one or two digits plus that single mark is touched, so a digit date ('22.06.2010', one
+    /// word) and every other word pass through.
+    /// </summary>
+    public static string StripDayQuote(string word)
+    {
+        if (word.Length is not (2 or 3)) return word;
+        char last = word[^1];
+        if (last != ',' && last != '.') return word;
+        for (int i = 0; i < word.Length - 1; i++)
+        {
+            if (!char.IsDigit(word[i])) return word;
+        }
+        return word[..^1];
+    }
 }

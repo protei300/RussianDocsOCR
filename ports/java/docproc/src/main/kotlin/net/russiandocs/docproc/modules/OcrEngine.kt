@@ -67,7 +67,8 @@ public class OcrEngine private constructor(
             if (fieldType in CYR_DATE_FIELDS) {
                 // Rewrites only when the text holds exactly eight digits, so a date spelled out in words
                 // passes through — which is what lets one rule serve both birth-certificate blanks and SNILS.
-                return OcrCorrections.checkDdmmyyyy(text)
+                // A day read with the closing quote as a comma or a dot ('28,') loses the mark (stripDayQuote).
+                return OcrCorrections.stripDayQuote(OcrCorrections.checkDdmmyyyy(text))
             }
             if (fieldType == "Sex_ru") {
                 return OcrCorrections.checkRusSex(text)

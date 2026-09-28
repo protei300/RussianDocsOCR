@@ -109,8 +109,9 @@ public sealed class OcrEngine : IDisposable
             {
                 // Rewrites only when the text holds exactly eight digits, so a date spelled out in
                 // words passes through — which is what lets one rule serve both birth-certificate
-                // blanks and SNILS.
-                return OcrCorrections.CheckDdmmyyyy(text);
+                // blanks and SNILS. A day read with the closing quote as a comma or a dot
+                // ('28,') loses the mark (StripDayQuote).
+                return OcrCorrections.StripDayQuote(OcrCorrections.CheckDdmmyyyy(text));
             }
             if (fieldType == "Sex_ru")
             {

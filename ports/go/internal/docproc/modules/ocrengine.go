@@ -131,8 +131,9 @@ func (e *OcrEngine) FixErrors(fieldType, text string) string {
 		if contains(cyrDateFields, fieldType) {
 			// Rewrites only when the text holds exactly eight digits, so a date spelled
 			// out in words passes through - which is what lets one rule serve both
-			// birth-certificate blanks and SNILS.
-			return CheckDdmmyyyy(text)
+			// birth-certificate blanks and SNILS. A day read with the closing quote as a
+			// comma or a dot ('28,') loses the mark (StripDayQuote).
+			return StripDayQuote(CheckDdmmyyyy(text))
 		}
 		if fieldType == "Sex_ru" {
 			return CheckRusSex(text)

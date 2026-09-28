@@ -107,6 +107,25 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends python3
   docker run --rm -v <repo>:/host -w /host --entrypoint sh rdocs-go-conform:check -c     "cp /usr/local/bin/rdocs-conform /host/ports/go/bin/ && chmod +x /host/ports/go/bin/rdocs-conform && python3 -m conformance.runner run --port go"
   ```
 
+  **The binary in the image is as old as the image.** After any change to `ports/go`, that
+  copy grades yesterday's code — measured 2026-09-28: a binary from a month-old image reported
+  38 undeclared differences (missing `normalized` dates, no page registration) that the current
+  code does not have. Build from the mounted sources instead, in an image that has Go, the
+  OpenCV headers and libonnxruntime (the Dockerfile's `go-builder` stage; locally
+  `rdocs-go-soak:check`), with the Dockerfile's own cgo flags and `-tags customenv`:
+
+  ```bash
+  docker run --rm -v <repo>:/host -w /host/ports/go --entrypoint sh rdocs-go-soak:check -c '
+    libs=""; for so in /usr/local/lib/libopencv_*.so; do b=$(basename $so .so); libs="$libs -l${b#lib}"; done
+    CGO_ENABLED=1 GOFLAGS=-mod=mod CGO_CXXFLAGS="--std=c++11 -DNDEBUG" \
+    CGO_CPPFLAGS=-I/usr/local/include/opencv4 CGO_LDFLAGS="-L/usr/local/lib$libs" \
+    GOCACHE=/tmp/gocache GOPATH=/tmp/gopath \
+    go build -tags customenv -o bin/rdocs-conform ./cmd/rdocs-conform'
+  ```
+
+  then run the runner in `rdocs-go-conform:check` as above, without the `cp` (that image has
+  numpy, the builder does not).
+
 - **.NET** — build and evaluate in `mcr.microsoft.com/dotnet/sdk:8.0-jammy` with
   GTK/Pango/Cairo installed (the OpenCvSharp native package is not headless). Watch one
   trap: the Linux restore rewrites `packages.lock.json` to `linux-x64` runtime packages —
