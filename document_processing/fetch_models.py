@@ -20,11 +20,20 @@ it before any dependencies are installed - it must not import the package.
 Only files whose checksum does not match are transferred, so a release that
 changed one model.json costs a kilobyte rather than 215 MB.
 
+Where each file lives. Since models-v8 a weight set does not re-publish the
+networks that did not change: every entry names the release it lives in
+(`release`, e.g. "models-v7"), and `release_url` turns that into an address. A
+manifest without those fields (models-v4 ... v7 as published) falls back to the
+single `base_url`, so older manifests keep working unchanged.
+
 Environment:
   RDOCS_MODELS_ROOT  directory CONTAINING document_processing/models - the same
                      variable the Go/.NET/Kotlin ports use to locate them.
   RDOCS_MODELS_URL   base URL override. This is the air-gapped path: mirror the
-                     assets internally, point this at them, no code changes.
+                     assets internally into ONE flat directory (asset names are
+                     unique within a manifest, and files published since the
+                     per-release scheme carry their checksum in the name, so
+                     several sets can share a mirror), point this at it.
 
 Standard library only, on purpose: this runs before dependencies are installed
 and inside the Docker model stage, neither of which has boto3 or requests.
@@ -71,6 +80,23 @@ def state_of(entry: dict, dest: Path) -> str:
     return 'ok' if sha256(dest) == entry['sha256'] else 'corrupt'
 
 
+def entry_url(manifest: dict, entry: dict, override: str = '') -> str:
+    """Address of one file.
+
+    An override (the air-gapped mirror) wins and is flat: the mirror holds every
+    asset in one directory. Otherwise a file that names its own release is fetched
+    from there, and one that does not - every file of a manifest written before
+    the per-release scheme - from the set's single base_url.
+    """
+    if override:
+        return (override if override.endswith('/') else override + '/') + entry['asset']
+    if entry.get('release') and manifest.get('release_url'):
+        base = manifest['release_url'].replace('{release}', entry['release'])
+    else:
+        base = manifest['base_url']
+    return (base if base.endswith('/') else base + '/') + entry['asset']
+
+
 def download(url: str, dest: Path, expected_sha: str) -> None:
     """Fetch to a temporary neighbour, verify, then move into place.
 
@@ -110,16 +136,22 @@ def main():
     if not MANIFEST.exists():
         sys.exit(f'no manifest at {MANIFEST} - run scripts/build_models_manifest.py')
     manifest = json.loads(MANIFEST.read_text(encoding='utf8'))
-    # `or`, not a get() default: the Docker model stage exports the variable as
+    # `or ''`, not a get() default: the Docker model stage exports the variable as
     # an EMPTY string via `ENV RDOCS_MODELS_URL=${RDOCS_MODELS_URL}`, and an empty
     # base URL turns every asset into "unknown url type: '/<asset>'".
-    base_url = os.environ.get('RDOCS_MODELS_URL') or manifest['base_url']
-    if not base_url.endswith('/'):
-        base_url += '/'
+    override = os.environ.get('RDOCS_MODELS_URL') or ''
 
     target = models_dir()
     print(f'model set {manifest["models_version"]} -> {target}')
-    print(f'source {base_url}\n')
+    if manifest.get('networks'):
+        print('networks ' + ', '.join(f'{n} {v}' for n, v in sorted(manifest['networks'].items())))
+    if override:
+        print(f'source {override} (RDOCS_MODELS_URL)\n')
+    elif manifest.get('release_url'):
+        releases = sorted({e.get('release') or '?' for e in manifest['files']})
+        print(f'source {manifest["release_url"]} for {", ".join(releases)}\n')
+    else:
+        print(f'source {manifest["base_url"]}\n')
 
     todo, ok = [], 0
     for entry in manifest['files']:
@@ -149,7 +181,7 @@ def main():
     def fetch(item):
         entry, dest, _ = item
         try:
-            download(base_url + entry['asset'], dest, entry['sha256'])
+            download(entry_url(manifest, entry, override), dest, entry['sha256'])
             print(f'  ok  {entry["path"]}', flush=True)
         except Exception as exc:  # noqa: BLE001 - reported below, not swallowed
             failures.append((entry['path'], exc))

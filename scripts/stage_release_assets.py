@@ -19,6 +19,12 @@ models inside the v3.0.2 release, whose code predated them:
 
 Files are hardlinked when the filesystem allows, so staging 225 MB costs no
 extra disk.
+
+Since models-v8 a set publishes only what changed: by default only the files
+whose `release` is this set are staged - the rest already live in the releases
+the manifest names. `--all` stages every file, which is what an air-gapped mirror
+wants (one flat directory, see RDOCS_MODELS_URL in fetch_models.py). A manifest
+without `release` fields (v7 and older) stages everything, as before.
 """
 import argparse
 import json
@@ -36,17 +42,27 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--out', default=None, help='staging directory (default dist/models-<set>)')
+    ap.add_argument('--all', action='store_true',
+                    help='stage every file, not only this set\'s new ones (for a mirror)')
     args = ap.parse_args()
 
     if not MANIFEST.exists():
         sys.exit(f'no manifest at {MANIFEST} - run scripts/build_models_manifest.py')
     manifest = json.loads(MANIFEST.read_text(encoding='utf8'))
+    this_release = f'models-{manifest["models_version"]}'
 
-    out = Path(args.out) if args.out else REPO_ROOT / 'dist' / f'models-{manifest["models_version"]}'
+    out = Path(args.out) if args.out else REPO_ROOT / 'dist' / this_release
     out.mkdir(parents=True, exist_ok=True)
 
+    per_release = any(e.get('release') for e in manifest['files'])
+    chosen = [e for e in manifest['files']
+              if args.all or not per_release or e.get('release') == this_release]
+    if per_release and not args.all:
+        kept = len(manifest['files']) - len(chosen)
+        print(f'{kept} file(s) already published in earlier releases - not staged')
+
     seen, total = set(), 0
-    for entry in manifest['files']:
+    for entry in chosen:
         src = MODELS_DIR / entry['path']
         if not src.exists():
             sys.exit(f'missing: {src}')
@@ -63,7 +79,10 @@ def main():
         total += entry['size']
 
     print(f'{len(seen)} assets, {total / 1e6:.1f} MB -> {out}')
-    tag = f'models-{manifest["models_version"]}'
+    if args.all:
+        print('\nmirror staged: serve this directory and set RDOCS_MODELS_URL to it')
+        return
+    tag = this_release
     print(f'\nupload with:\n  gh release create {tag} {out}/* '
           f'--repo protei300/RussianDocsOCR --title "models {manifest["models_version"]}"')
     print('\nthen verify a clean fetch:')

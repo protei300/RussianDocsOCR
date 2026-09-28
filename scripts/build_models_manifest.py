@@ -12,8 +12,27 @@ pre-retrain weights, and a MaskFilter left at the previous checkpoint's value
 when model.onnx was swapped. `fetch_models.py --check` turns both into a
 one-second failure.
 
+Per-release layout (since models-v8). A new weight set publishes only the files
+that changed. Each entry carries `release` - the tag the file lives in - and the
+manifest a `release_url` template, so an unchanged network keeps pointing at the
+release that first published those exact bytes:
+
+  * same path and same checksum as the previous manifest -> its release and asset
+    name are carried over (nothing to upload);
+  * a previous manifest without `release` fields (v7 and older) -> the release is
+    looked up in the manifest's git history: the earliest models-vN set that
+    listed this path with this checksum;
+  * anything new or changed -> the release of THIS set, and an asset name with the
+    checksum in it ('TextFields__ONNX__model.<sha12>.onnx'), so a flat mirror can
+    hold several sets without two files fighting over one name.
+
+`networks` names each network's version: the set in which any of its files last
+changed ('TextFields': 'v8', 'Borders': 'v7'). A network is the path up to its
+'ONNX' folder ('OCR/latin_accurate').
+
 Usage:
   python scripts/build_models_manifest.py                     # refresh in place
+  python scripts/build_models_manifest.py --models-version v9 # a new set
   python scripts/build_models_manifest.py --base-url https://…/models/3.0.1/
 """
 import argparse
@@ -39,17 +58,105 @@ MANIFEST = REPO_ROOT / 'document_processing' / 'models.lock.json'
 # their own identity: retraining no longer needs a code release, and a code
 # release no longer needs 225 MB re-uploaded.
 DEFAULT_BASE_URL = 'https://github.com/protei300/RussianDocsOCR/releases/download/models-{models_version}/'
+RELEASE_URL = 'https://github.com/protei300/RussianDocsOCR/releases/download/{release}/'
+SHA_IN_NAME = 12
 
 
-def asset_name(rel_path: str, flatten: bool) -> str:
+def asset_name(rel_path: str, flatten: bool, sha: str = '') -> str:
     """Remote object name for a file.
 
     Release assets are a flat namespace, so 'Borders/ONNX/model.onnx' is
     published as 'Borders__ONNX__model.onnx'. Object storage keeps directories,
     so there --no-flatten leaves the path alone. Storing the name per file means
     the downloader never has to know which of the two it is talking to.
+
+    With `sha`, the start of the checksum goes before the extension
+    ('model.<sha12>.onnx'): files published since the per-release scheme are
+    content-addressed, so one flat mirror can hold several sets.
     """
-    return rel_path.replace('/', '__') if flatten else rel_path
+    name = rel_path
+    if sha:
+        stem, dot, ext = name.rpartition('.')
+        name = f'{stem}.{sha[:SHA_IN_NAME]}.{ext}' if dot and '/' not in ext else f'{name}.{sha[:SHA_IN_NAME]}'
+    return name.replace('/', '__') if flatten else name
+
+
+def network_of(rel_path: str) -> str:
+    """'OCR/latin_accurate/ONNX/model.onnx' -> 'OCR/latin_accurate'; the path up to ONNX."""
+    parts = rel_path.split('/')
+    return '/'.join(parts[:parts.index('ONNX')]) if 'ONNX' in parts else parts[0]
+
+
+def set_number(release: str) -> int:
+    """'models-v7' or 'v7' -> 7, for ordering sets; anything else sorts first."""
+    m = re.search(r'v(\d+)$', release or '')
+    return int(m.group(1)) if m else -1
+
+
+def history_releases() -> dict:
+    """(path, sha256) -> the earliest models-vN release that listed exactly that file.
+
+    Read from the manifest's own git history, oldest first. Only sets named vN
+    count: the first manifest was published under the code tag v3.0.2, which is
+    exactly the mistake the separate weight-set tags were introduced to stop.
+    """
+    rel = MANIFEST.relative_to(REPO_ROOT).as_posix()
+    revs = subprocess.run(['git', 'log', '--reverse', '--format=%H', '--', rel],
+                          cwd=REPO_ROOT, capture_output=True, text=True).stdout.split()
+    first = {}
+    for rev in revs:
+        shown = subprocess.run(['git', 'show', f'{rev}:{rel}'], cwd=REPO_ROOT,
+                               capture_output=True, text=True, encoding='utf8')
+        if shown.returncode:
+            continue
+        old = json.loads(shown.stdout)
+        version = old.get('models_version') or ''
+        if set_number(version) < 0:
+            continue
+        for e in old.get('files', []):
+            first.setdefault((e['path'], e['sha256']), (f'models-{version}', e['asset']))
+    return first
+
+
+def place_entries(entries: list, previous: dict, models_version: str, flatten: bool,
+                  history=None) -> list:
+    """Give each entry its `release` and `asset` (see the module docstring).
+
+    Pure apart from `history`, a callable returning history_releases()'s mapping,
+    called only when a file matches the previous manifest but that manifest had no
+    release fields - i.e. once, when converting an old manifest.
+    """
+    this_release = f'models-{models_version}'
+    prev = {e['path']: e for e in previous.get('files', [])}
+    prev_release = f'models-{previous["models_version"]}' if previous.get('models_version') else ''
+    looked_up = None
+    for entry in entries:
+        old = prev.get(entry['path'])
+        if old and old['sha256'] == entry['sha256']:
+            if old.get('release'):
+                entry['release'], entry['asset'] = old['release'], old['asset']
+                continue
+            if looked_up is None:
+                looked_up = history() if history else {}
+            found = looked_up.get((entry['path'], entry['sha256']))
+            if found:
+                entry['release'], entry['asset'] = found
+            else:
+                entry['release'], entry['asset'] = prev_release or this_release, old['asset']
+            continue
+        entry['release'] = this_release
+        entry['asset'] = asset_name(entry['path'], flatten, entry['sha256'])
+    return entries
+
+
+def network_versions(entries: list) -> dict:
+    """Each network's version: the newest release among its files ('TextFields': 'v8')."""
+    nets = {}
+    for e in entries:
+        n = network_of(e['path'])
+        if set_number(e['release']) > set_number(nets.get(n, '')):
+            nets[n] = e['release']
+    return {n: r.replace('models-', '') for n, r in sorted(nets.items())}
 
 
 # NOTE: deliberately no reference to document_processing.__version__ here. Taking
@@ -167,13 +274,24 @@ def main():
             'size': size,
             'sha256': sha256(path),
         })
-        print(f'  {rel:<52} {size / 1e6:8.2f} MB')
+
+    # Where each file lives. The GitHub release layout only: a custom --base-url
+    # (object storage) keeps the old single-location manifest.
+    per_release = not args.base_url and not args.no_flatten
+    if per_release:
+        place_entries(entries, previous, models_version, flatten=True, history=history_releases)
+    for e in entries:
+        where = e.get('release', '')
+        print(f'  {e["path"]:<52} {e["size"] / 1e6:8.2f} MB  {where}')
 
     manifest = {
         'models_version': models_version,
         'base_url': base_url,
-        'files': entries,
     }
+    if per_release:
+        manifest['release_url'] = RELEASE_URL
+        manifest['networks'] = network_versions(entries)
+    manifest['files'] = entries
     MANIFEST.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf8')
 
     old = {e['path']: e['sha256'] for e in previous.get('files', [])}
@@ -192,6 +310,12 @@ def main():
             print(f'  ~ {p}')
         for p in removed:
             print(f'  - {p}')
+    if per_release:
+        this_release = f'models-{models_version}'
+        new = [e for e in entries if e['release'] == this_release]
+        print(f'\nnetworks: ' + ', '.join(f'{n} {v}' for n, v in manifest['networks'].items()))
+        print(f'to upload to {this_release}: {len(new)} file(s), '
+              f'{sum(e["size"] for e in new) / 1e6:.1f} MB (the rest stay where they are)')
     report_strays(files)
 
 
