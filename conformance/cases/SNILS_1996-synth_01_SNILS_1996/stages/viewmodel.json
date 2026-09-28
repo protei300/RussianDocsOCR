@@ -17,11 +17,11 @@
       "label": "Licence_number",
       "display": "Document number",
       "kind": "text",
-      "x1": 450,
-      "y1": 148,
-      "x2": 638,
+      "x1": 451,
+      "y1": 147,
+      "x2": 639,
       "y2": 184,
-      "conf": 0.885,
+      "conf": 0.903,
       "cls": 5,
       "text": "139-295-990 60",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "Last_name_ru",
       "display": "Last name",
       "kind": "text",
-      "x1": 121,
+      "x1": 120,
       "y1": 187,
-      "x2": 261,
+      "x2": 262,
       "y2": 214,
-      "conf": 0.921,
+      "conf": 0.899,
       "cls": 1,
       "text": "ГЕРАСИМОВ",
       "ambiguous": false
@@ -45,11 +45,11 @@
       "label": "First_name_ru",
       "display": "First name",
       "kind": "text",
-      "x1": 117,
+      "x1": 116,
       "y1": 214,
       "x2": 197,
-      "y2": 239,
-      "conf": 0.937,
+      "y2": 240,
+      "conf": 0.926,
       "cls": 2,
       "text": "СЕМЁН",
       "ambiguous": false
@@ -60,10 +60,10 @@
       "display": "Middle name",
       "kind": "text",
       "x1": 121,
-      "y1": 242,
+      "y1": 241,
       "x2": 258,
       "y2": 270,
-      "conf": 0.934,
+      "conf": 0.921,
       "cls": 17,
       "text": "АНТОНОВИЧ",
       "ambiguous": false
@@ -73,11 +73,11 @@
       "label": "Birth_date",
       "display": "Date of birth",
       "kind": "text",
-      "x1": 289,
+      "x1": 288,
       "y1": 276,
       "x2": 512,
       "y2": 307,
-      "conf": 0.882,
+      "conf": 0.905,
       "cls": 10,
       "text": "6 СЕНТЯБРЯ 1955 ГОДА",
       "ambiguous": false
@@ -88,38 +88,38 @@
       "display": "Place of birth",
       "kind": "text",
       "x1": 117,
-      "y1": 304,
+      "y1": 303,
       "x2": 342,
-      "y2": 338,
+      "y2": 339,
       "conf": 0.911,
       "cls": 11,
-      "text": null,
-      "ambiguous": true
+      "text": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
+      "ambiguous": false
     },
     {
       "id": "b6",
       "label": "Birth_place_ru",
       "display": "Place of birth",
       "kind": "text",
-      "x1": 121,
-      "y1": 329,
-      "x2": 408,
+      "x1": 122,
+      "y1": 328,
+      "x2": 409,
       "y2": 364,
-      "conf": 0.912,
+      "conf": 0.897,
       "cls": 11,
-      "text": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
-      "ambiguous": false
+      "text": null,
+      "ambiguous": true
     },
     {
       "id": "b7",
       "label": "Sex_ru",
       "display": "Sex",
       "kind": "text",
-      "x1": 114,
-      "y1": 399,
+      "x1": 113,
+      "y1": 400,
       "x2": 208,
       "y2": 426,
-      "conf": 0.915,
+      "conf": 0.929,
       "cls": 18,
       "text": "М",
       "ambiguous": false
@@ -129,11 +129,11 @@
       "label": "Issue_date",
       "display": "Date of issue",
       "kind": "text",
-      "x1": 252,
+      "x1": 251,
       "y1": 439,
       "x2": 430,
-      "y2": 468,
-      "conf": 0.885,
+      "y2": 467,
+      "conf": 0.851,
       "cls": 6,
       "text": "1 МАЯ 2013 ГОДА",
       "ambiguous": false
@@ -145,7 +145,7 @@
       "display": "Last name",
       "value": "ГЕРАСИМОВ",
       "script": "ru",
-      "conf": 0.921,
+      "conf": 0.899,
       "box_ids": [
         "b1"
       ]
@@ -155,7 +155,7 @@
       "display": "First name",
       "value": "СЕМЁН",
       "script": "ru",
-      "conf": 0.937,
+      "conf": 0.926,
       "box_ids": [
         "b2"
       ]
@@ -165,7 +165,7 @@
       "display": "Middle name",
       "value": "АНТОНОВИЧ",
       "script": "ru",
-      "conf": 0.934,
+      "conf": 0.921,
       "box_ids": [
         "b3"
       ]
@@ -175,7 +175,7 @@
       "display": "Sex",
       "value": "М",
       "script": "ru",
-      "conf": 0.915,
+      "conf": 0.929,
       "box_ids": [
         "b7"
       ]
@@ -185,7 +185,7 @@
       "display": "Date of birth",
       "value": "6 СЕНТЯБРЯ 1955 ГОДА",
       "script": "num",
-      "conf": 0.882,
+      "conf": 0.905,
       "box_ids": [
         "b4"
       ],
@@ -196,7 +196,7 @@
       "display": "Place of birth",
       "value": "ГОР СВЕРДЛОВСК СВЕРДЛОВСКАЯ ОБЛАСТЬ",
       "script": "ru",
-      "conf": 0.912,
+      "conf": 0.911,
       "box_ids": [
         "b5",
         "b6"
@@ -207,7 +207,7 @@
       "display": "Document number",
       "value": "139-295-990 60",
       "script": "num",
-      "conf": 0.885,
+      "conf": 0.903,
       "box_ids": [
         "b0"
       ]
@@ -217,7 +217,7 @@
       "display": "Date of issue",
       "value": "1 МАЯ 2013 ГОДА",
       "script": "num",
-      "conf": 0.885,
+      "conf": 0.851,
       "box_ids": [
         "b8"
       ],
@@ -242,19 +242,19 @@
     "LCDSpoofing": "FAKE"
   },
   "timings": {
-    "_doctype_angle": 0.0062,
-    "_quality_and_borders": 0.3199,
-    "_glare": 0.1081,
-    "_blur": 0.1518,
-    "_print_spoofing": 0.0156,
-    "_lcd_spoofing": 0.01,
-    "_doc_detector": 0.2077,
+    "_doctype_angle": 0.006,
+    "_quality_and_borders": 0.2814,
+    "_glare": 0.1272,
+    "_blur": 0.0246,
+    "_print_spoofing": 0.005,
+    "_lcd_spoofing": 0.004,
+    "_doc_detector": 0.1862,
     "_register_pages": 0.0,
-    "_deskew": 0.006,
-    "_fields_detector": 0.0993,
-    "_split_words": 0.304,
-    "_ocr": 0.2461,
-    "total": 0.9815
+    "_deskew": 0.0054,
+    "_fields_detector": 0.0987,
+    "_split_words": 0.2938,
+    "_ocr": 0.2455,
+    "total": 0.9308
   },
   "address": null
 }
