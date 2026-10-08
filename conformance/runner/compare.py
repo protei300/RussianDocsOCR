@@ -43,7 +43,7 @@ IGNORED_PATHS = (
 #: sub-pixel allowance instead of an absolute 1e-3 one -- measured necessity, see
 #: spec/tolerances.md: CUDA differs from CPU by up to 0.50 on values reaching 635,
 #: which is 0.08 % and changes no discrete outcome.
-COORDINATE_LEAVES = frozenset({"x1", "y1", "x2", "y2", "cx", "cy", "w", "h"})
+COORDINATE_LEAVES = frozenset({"x1", "y1", "x2", "y2", "cx", "cy", "w", "h", "quad"})
 
 #: Leaf names that are 0..1 confidences.
 SCORE_LEAVES = frozenset({"conf", "doc_conf", "DocConf", "p_handwritten"})
@@ -165,6 +165,11 @@ def _leaf(path: str) -> str:
     the column's name ('fields.bbox[11][2]' -> 'x2'), so a coordinate gets the same
     tolerance whether it is reached by name or by position.
     """
+    if path.startswith("quads."):
+        # Every number of the `quads` stage is a corner coordinate on the input image;
+        # without this its leaf would be the field name and the GPU profile's
+        # coordinate allowance would not reach it (the same trap as the bbox rows).
+        return "quad"
     if path.endswith("]"):
         open_bracket = path.rfind("[")
         if any(p.match(path[:open_bracket]) for p in _BBOX_ROW_PATHS):

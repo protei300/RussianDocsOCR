@@ -145,7 +145,16 @@ public object Contours {
     }
 
     /** Warps a quadrilateral onto an axis-aligned rectangle of the given size. */
-    public fun warpPerspectiveQuad(src: Image, quad: List<Pt>, width: Int, height: Int): Image {
+    public fun warpPerspectiveQuad(src: Image, quad: List<Pt>, width: Int, height: Int): Image =
+        warpPerspectiveQuadWithMatrix(src, quad, width, height).first
+
+    /**
+     * [warpPerspectiveQuad], and the 3x3 matrix it warped with (input -> output). The matrix is what maps a warped
+     * page back (`four_point_matrix`, geometry.py).
+     */
+    public fun warpPerspectiveQuadWithMatrix(
+        src: Image, quad: List<Pt>, width: Int, height: Int,
+    ): Pair<Image, Array<DoubleArray>> {
         require(quad.size == 4) { "imaging: warp needs 4 points, got ${quad.size}" }
 
         val source = toMatOfPoint2f(quad)
@@ -160,7 +169,8 @@ public object Contours {
             val dst = Mat()
             Imgproc.warpPerspective(src.mat, dst, transform,
                 Size(width.toDouble(), height.toDouble()))
-            return Image.wrap(dst)
+            val matrix = Array(3) { r -> DoubleArray(3).also { transform.get(r, 0, it) } }
+            return Image.wrap(dst) to matrix
         } finally {
             source.release()
             destination.release()

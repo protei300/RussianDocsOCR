@@ -20,6 +20,87 @@ public class DatesTests
         Assert.That(Dates.ToDdmmyyyy(text), Is.EqualTo(expected));
     }
 
+    // Record date of the civil-registry entry (Act_date): the 1998 form prints the parts in reverse
+    // order with printed words between them and the box spans them; the 2018 form uses the usual
+    // order. Mirrors PRINTED in tests/test_date_canon.py.
+    [TestCase("2010 ГОДА ИЮНЯ МЕСЯЦА 15 ЧИСЛА", "15.06.2010", TestName = "RecordDate_1998Layout")]
+    [TestCase("2010 года июня месяца 15", "15.06.2010", TestName = "RecordDate_NumberWordOutsideBox")]
+    [TestCase("2 МАРТА 2025 Г.", "02.03.2025", TestName = "RecordDate_2018Layout")]
+    public void ToDdmmyyyy_ReadsTheRecordDate(string text, string expected)
+    {
+        Assert.That(Dates.ToDdmmyyyy(text), Is.EqualTo(expected));
+    }
+
+    // BIRTHCERT_1998 prints «10» ЯНВАРЯ 2013 г.; the box starts on the quote, which the engine reads
+    // as the nearest letter (issue #23). A lone letter right next to the day is that quote. Mirrors
+    // PRINTED in tests/test_date_canon.py.
+    [TestCase("И 10 ЯНВАРЯ 2013", "10.01.2013", TestName = "QuoteLetter_Opening")]
+    [TestCase("И10 ЯНВАРЯ 2013", "10.01.2013", TestName = "QuoteLetter_NoSpace")]
+    [TestCase("И 10 Н ЯНВАРЯ 2013", "10.01.2013", TestName = "QuoteLetter_BothQuotes")]
+    [TestCase("10 П ЯНВАРЯ 2013 Г.", "10.01.2013", TestName = "QuoteLetter_Closing")]
+    public void ToDdmmyyyy_DropsAQuoteReadAsALetter(string text, string expected)
+    {
+        Assert.That(Dates.ToDdmmyyyy(text), Is.EqualTo(expected));
+    }
+
+    // A letter NOT next to the day, and a word longer than a letter, are garbage and still refuse.
+    // Mirrors REFUSED in tests/test_date_canon.py.
+    [TestCase("ИЗ 10 ЯНВАРЯ 2013", TestName = "Refuses_AWordNotALetter")]
+    [TestCase("10 ЯНВАРЯ И 2013", TestName = "Refuses_LetterNextToTheYear")]
+    [TestCase("И 10 ЯНВАРЯ", TestName = "Refuses_QuoteDroppedButNoYear")]
+    public void ToDdmmyyyy_StillRefusesGarbageThatIsNotAQuote(string text)
+    {
+        Assert.That(Dates.ToDdmmyyyy(text), Is.Null);
+    }
+
+    [TestCase("2010 ГОДА ИЮНЯ МЕСЯЦА 31 ЧИСЛА", TestName = "NoSuchDay")]
+    [TestCase("2010 ГОДА ИЮНЯ МЕСЯЦА ЧИСЛА", TestName = "NoDay")]
+    public void ToDdmmyyyy_RefusesAnImpossibleRecordDate(string text)
+    {
+        Assert.That(Dates.ToDdmmyyyy(text), Is.Null);
+    }
+
+    // Mirrors RECORD_READ in tests/test_date_canon.py.
+    [TestCase("2015ГОДАИЮНЯИЕСЯЦА16", "16.06.2015", TestName = "Glued_MisreadMonthsWord")]
+    [TestCase("2026ТОДАМАЯНСЯЦА3", "03.05.2026", TestName = "Glued_MisreadYearAndMonthsWords")]
+    [TestCase("2002ТОДАИЮНЯ,МЕСЯЦА18", "18.06.2002", TestName = "Glued_WithComma")]
+    [TestCase("2003 ДЕКАБРЯ МЕСЯЦА 27", "27.12.2003", TestName = "Spaced")]
+    [TestCase("2 МАРТА 2025 Г.", "02.03.2025", TestName = "UsualOrderUsesTheGeneralReading")]
+    public void RecordDateToDdmmyyyy_ReadsThroughGlueAndMisreadWords(string text, string expected)
+    {
+        Assert.That(Dates.RecordDateToDdmmyyyy(text), Is.EqualTo(expected));
+    }
+
+    // Mirrors RECORD_REFUSED in tests/test_date_canon.py.
+    [TestCase("2010 ГОДА ЦЮЛЯ МЕСЯЦА 17", TestName = "MonthItselfMisread")]
+    [TestCase("2020 ГОДА ИЮЛЯ МЕСЯЦА", TestName = "NoDay")]
+    [TestCase("2020 ЯНВАРЯ 110201114335", TestName = "RecordNumberInTheBox")]
+    [TestCase(".110266032", TestName = "OnlyANumber")]
+    [TestCase("2010 ИЮНЯ МАЯ 15", TestName = "TwoMonths")]
+    [TestCase("2010ГОДАИЮНЯ 15 16", TestName = "TwoDays")]
+    public void RecordDateToDdmmyyyy_StillRefusesRatherThanGuesses(string text)
+    {
+        Assert.That(Dates.RecordDateToDdmmyyyy(text), Is.Null);
+    }
+
+    [Test]
+    public void CanonicalDates_OnlyTheRecordDateGetsTheLenientReading()
+    {
+        var ocr = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Act_date"] = "2015ГОДАИЮНЯИЕСЯЦА16",
+            ["Issue_date"] = "2015ГОДАИЮНЯИЕСЯЦА16",
+        };
+
+        Dictionary<string, string> canonical = Dates.CanonicalDates(ocr, ["Act_date", "Issue_date"]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(canonical, Has.Count.EqualTo(1));
+            Assert.That(canonical["Act_date"], Is.EqualTo("16.06.2015"));
+        });
+    }
+
     [Test]
     public void ToDdmmyyyy_NeverGuessesAMissingYear()
     {

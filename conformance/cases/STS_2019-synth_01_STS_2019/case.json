@@ -1,0 +1,16 @@
+{
+  "slug": "STS_2019-synth_01_STS_2019",
+  "sample": "conformance/material/STS_2019/synth_01_STS_2019.jpg",
+  "doc_type": "STS_2019",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "STS_2019"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

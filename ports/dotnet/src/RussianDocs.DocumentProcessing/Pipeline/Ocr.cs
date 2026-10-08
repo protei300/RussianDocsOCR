@@ -16,18 +16,34 @@ public static class Ocr
     /// <summary>
     /// Routes every word crop to an engine and joins the results per field.
     /// </summary>
+    /// <param name="zone">
+    /// The machine-readable zone as <see cref="MrzZone.Note"/> recorded it, or null when the document
+    /// has none. With one, every MRZ line of the wrong length is re-read from a wider crop.
+    /// </param>
+    /// <param name="year">
+    /// The form year of the label (the suffix of "STS_2019"), or null when the label has none; it picks
+    /// the engine of a field whose alphabet follows the form edition (<see cref="OcrOptions.EngineByYear"/>).
+    /// </param>
     public static List<FieldText> Run(List<FieldWords> fields, string docType, OcrOptions options,
-        OcrEngine cyrillic, OcrEngine latin)
+        OcrEngine cyrillic, OcrEngine latin, MrzZone? zone = null, string? year = null)
     {
         var output = new List<FieldText>(fields.Count);
 
         foreach (FieldWords fw in fields)
         {
             var words = new List<string>();
+            // Per field, not per word: the year decides, not the word (_engine_by_year).
+            string? byYear = options.EngineForYear(fw.Label, year);
             for (int i = 0; i < fw.Patches.Count; i++)
             {
                 Image patch = fw.Patches[i];
 
+                // A line whose alphabet follows the form edition (the make on the new STS is Latin):
+                // checked FIRST, it overrides the lists for that year only.
+                if (byYear == "lat")
+                {
+                    words.Add(latin.FixErrors(fw.Label, latin.Predict(patch)));
+                }
                 // **SNILS routes by word-index PARITY, not by field semantics.** Its dates read like
                 // "26 СЕНТЯБРЯ 1997 ГОДА", so odd-indexed words go to the CYRILLIC engine even inside
                 // a date field. It looks like a bug and it is load-bearing: without it the Russian
@@ -35,7 +51,7 @@ public static class Ocr
                 //
                 // The order of these branches is the reference's, and it matters — the parity rule is
                 // checked BEFORE the date rule, or SNILS months would be routed as dates.
-                if ((docType == "SNILS" && i % 2 == 1)
+                else if (byYear == "cyr" || (docType == "SNILS" && i % 2 == 1)
                     || Array.IndexOf(options.RuFields, fw.Label) >= 0)
                 {
                     words.Add(cyrillic.FixErrors(fw.Label, cyrillic.Predict(patch)));
@@ -46,12 +62,26 @@ public static class Ocr
                 }
                 else if (Array.IndexOf(options.EnFields, fw.Label) >= 0)
                 {
-                    words.Add(latin.FixErrors(fw.Label, latin.Predict(patch)));
+                    string text = latin.FixErrors(fw.Label, latin.Predict(patch));
+                    if (fw.Label == "MRZ")
+                    {
+                        // `i` is the line's index within the field: the MRZ is never split, so its
+                        // patches are its detections, top to bottom, exactly as the zone recorded
+                        // them. The retry runs only on a line whose length is already wrong.
+                        text = MrzZone.Read(zone, latin, i, text);
+                    }
+                    words.Add(text);
                 }
                 // No else: a field that is neither Russian, a date, nor English contributes no words.
                 // The reference has the same gap, and a fallback here would invent text.
             }
-            output.Add(new FieldText { Label = fw.Label, Words = words });
+            // Words a line break tore apart are glued back, for the fields the options name; the stage
+            // and the join both see the glued words (`_glue_torn` runs before `_join_field`).
+            output.Add(new FieldText
+            {
+                Label = fw.Label,
+                Words = GlueTorn(fw.Label, fw.LineWordCounts, options, words),
+            });
         }
 
         // Joining happens in a SECOND pass, because a field detected twice appends to what the first
@@ -62,6 +92,33 @@ public static class Ocr
             field.Value = JoinField(joined, field.Label, docType, field.Words);
         }
         return output;
+    }
+
+    /// <summary>
+    /// Glues the words a line break tore apart (<see cref="StsMarks.GlueTornWords"/>), for the fields
+    /// the options name. Port of <c>Pipeline._glue_torn</c>. The words come flat; the per-detection word
+    /// counts recorded by the split (<see cref="FieldWords.LineWordCounts"/>) cut them back into lines,
+    /// and counts that do not add up to the words leave them alone.
+    /// </summary>
+    public static List<string> GlueTorn(string label, IReadOnlyList<int> lineWordCounts, OcrOptions options,
+        List<string> words)
+    {
+        if (Array.IndexOf(options.GlueTorn, label) < 0)
+        {
+            return words;
+        }
+        if (lineWordCounts.Count == 0 || lineWordCounts.Sum() != words.Count)
+        {
+            return words;
+        }
+        var lines = new List<IReadOnlyList<string>>();
+        int start = 0;
+        foreach (int n in lineWordCounts)
+        {
+            lines.Add(words.GetRange(start, n));
+            start += n;
+        }
+        return StsMarks.GlueTornWords(lines);
     }
 
     /// <summary>

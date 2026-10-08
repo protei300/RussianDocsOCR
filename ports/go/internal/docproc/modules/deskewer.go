@@ -3,6 +3,7 @@ package modules
 import (
 	"math"
 
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/geometry"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/imaging"
 )
 
@@ -60,22 +61,36 @@ func NewDocDeskewer(angleRange float64, angleSteps int, minAngle, scale float64,
 // always calls `deskew(img)` with the default, so that branch is unreachable from
 // production. Noted rather than silently omitted.
 func (d *DocDeskewer) Deskew(img imaging.Image) (imaging.Image, float64, error) {
+	out, angle, _, err := d.DeskewWithGeometry(img)
+	return out, angle, err
+}
+
+// DeskewWithGeometry is DocDeskewer.deskew_with_geometry: the same image, plus where it came from
+// - the rotation matrix as a geometry.Homography, so a box found on the returned image maps back
+// onto img. The geometry is nil when the image is returned unchanged (the stage adds no map).
+func (d *DocDeskewer) DeskewWithGeometry(img imaging.Image) (imaging.Image, float64, geometry.Geometry, error) {
 	angle, err := d.findAngle(img)
 	if err != nil {
-		return imaging.Image{}, 0, err
+		return imaging.Image{}, 0, nil, err
 	}
 	// Below min_angle the estimate is noise, not tilt — handwriting and textured
 	// backgrounds routinely produce a spurious degree or two, and rotating on that
 	// resamples the whole canvas for nothing.
 	if math.Abs(angle) < d.minAngle {
-		return img.Clone(), angle, nil
+		return img.Clone(), angle, nil, nil
 	}
 	m := imaging.RotationMatrix2D(float64(img.Width())/2.0, float64(img.Height())/2.0, angle, 1.0)
 	defer m.Close()
+	var M [2][3]float64
+	for r := 0; r < 2; r++ {
+		for c := 0; c < 3; c++ {
+			M[r][c] = m.GetDoubleAt(r, c)
+		}
+	}
 	// Linear interpolation and edge REPLICATION for the final rotation: constant-zero
 	// borders would introduce black wedges that field detection then sees as content.
 	return imaging.WarpAffine(img, m, img.Width(), img.Height(), false, imaging.BorderReplicate),
-		angle, nil
+		angle, geometry.NewAffine(M), nil
 }
 
 // findAngle scores candidate angles by the variance of the horizontal projection

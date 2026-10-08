@@ -1,4 +1,5 @@
 from .doc_detector import DocDetector
+from .document_detector import DocumentDetector
 from .blur_detector import Blur
 from .glare_detector import Glare
 from .textfields_detector import TextFieldsDetector
@@ -14,7 +15,7 @@ from .doctype_angles_classificator import DocTypeAngles
 from .deskewer import DocDeskewer
 from .page_registration import PageRegistrar
 
-__all__ = 'DocDetector', 'TextFieldsDetector', 'Blur', 'Glare', 'LCDSpoofing', 'PrintSpoofing', \
+__all__ = 'DocDetector', 'DocumentDetector', 'TextFieldsDetector', 'Blur', 'Glare', 'LCDSpoofing', 'PrintSpoofing', \
     'WordsDetector', 'OCRCyrillic', 'OCRLatin', \
     'DocTypeAngles', 'DocDeskewer', 'AddressLinesDetector', 'AddressTextKindClassifier', \
     'PageRegistrar'

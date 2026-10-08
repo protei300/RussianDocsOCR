@@ -46,7 +46,8 @@ public sealed class OcrEngine : IDisposable
     /// reformatting one as a date would be silent and wrong. Mirrors _DATE_FIELDS in ocr_cyrillic.py.
     /// </summary>
     private static readonly string[] CyrDateFields =
-        ["Issue_date", "Birth_date", "Expiration_date", "Father_birth_date", "Mother_birth_date"];
+        ["Issue_date", "Birth_date", "Expiration_date", "Father_birth_date", "Mother_birth_date",
+            "Act_date"];
 
     private readonly string _script;
     private readonly Session _session;
@@ -132,6 +133,7 @@ public sealed class OcrEngine : IDisposable
         {
             "Sex_en" => OcrCorrections.CheckEnSex(text),
             "Driver_class" => OcrCorrections.CheckDriverClass(text),
+            "VIN" => OcrCorrections.CheckVin(text),
             _ => text,
         };
     }

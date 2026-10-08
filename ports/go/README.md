@@ -29,6 +29,29 @@ for the whole set.
 | M9 | the service | **done — verified against `service/seed_data`** |
 | M10 / M10.5 | Docker (cpu + gpu, both built) / [`ARCHITECTURE.md`](ARCHITECTURE.md) | **done** |
 
+Since 2026-10-07 the port also carries the reference's later changes: the `documents` stage
+(find documents first, cut the largest at full resolution — decision #142), the whole-line re-read
+of dates, and the quote-letter rule of the date parser. The conformance CLI now lists `documents`
+first in `stages_implemented`. See ARCHITECTURE.md §3 (branch points) and §10 for what is left out.
+
+Since 2026-10-08 it carries the vehicle registration certificate (STS, decision #144): the four
+types `STS_1996`, `STSBACK_1996`, `STS_2019`, `STSBACK_2019` with the reference's options, the
+straightening of the card by its printed blank, the margin of the special marks, the engine by
+form year, the torn-word glue and the leasing flag (conformance stage `leasing`), the rule for
+a line labelled as both the Russian and the English field, `RunFrame` (every document of a
+frame) and `PairSides`. Conformance on the four STS cases: STS_1996, STSBACK_1996 clean; STS_2019
+and STSBACK_2019 differ exactly as D-07 and D-08 declare (the reference decides that card
+differently on another platform). What the port needed that the Go binding does not give is in
+DEVIATIONS.md G-01 (the line segment detector, through a small C++ file of this repository -
+the build must be able to compile C++, which cgo and gocv already require) and G-02 (the order
+of the SIFT keypoints that survive the budget).
+
+Since 2026-10-08 it also carries the way back to the input photo (PR #19, decision #132): the
+conformance stage `quads` (where every read field and word patch lies on the photo, unrounded,
+graded as coordinates), `Results.Geometry`, `Results.ToInput` and `Results.Quads`. Clean on all
+cases except those under a declared deviation (D-03, D-07, D-08). Not ported: the address-line
+quadrilaterals (the address path is not read) and `Pipeline(page_geometry=True)` (off by default).
+
 Verify it rather than trusting the table:
 
 ```bash

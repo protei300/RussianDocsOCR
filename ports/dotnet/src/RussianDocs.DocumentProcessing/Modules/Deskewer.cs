@@ -1,3 +1,4 @@
+using RussianDocs.DocumentProcessing.Maps;
 using OpenCvSharp;
 using RussianDocs.DocumentProcessing.Imaging;
 
@@ -59,17 +60,36 @@ public sealed class DocDeskewer
     /// </summary>
     public (Image Deskewed, double Angle) Deskew(Image image)
     {
+        (Image deskewed, double angle, _) = DeskewWithMap(image);
+        return (deskewed, angle);
+    }
+
+    /// <summary>
+    /// <see cref="Deskew"/>, plus where the returned image came from (<c>deskew_with_geometry</c>): the
+    /// rotation applied, so a box found on the returned image maps back onto <paramref name="image"/>.
+    /// The map is null when the image is returned unchanged.
+    /// </summary>
+    public (Image Deskewed, double Angle, IMap? Map) DeskewWithMap(Image image)
+    {
         double angle = FindAngle(image);
         if (Math.Abs(angle) < _minAngle)
         {
-            return (image.Clone(), angle);
+            return (image.Clone(), angle, null);
         }
 
         using Mat rotation = RotationMatrix(image.Width / 2.0, image.Height / 2.0, angle, 1.0);
         var dst = new Mat();
         Cv2.WarpAffine(image.Mat, dst, rotation, new Size(image.Width, image.Height),
             InterpolationFlags.Linear, BorderTypes.Replicate);
-        return (Image.Wrap(dst), angle);
+        var matrix = new double[2, 3];
+        for (int i = 0; i < 2; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                matrix[i, j] = rotation.At<double>(i, j);
+            }
+        }
+        return (Image.Wrap(dst), angle, new HomographyMap(matrix));
     }
 
     private double FindAngle(Image image)

@@ -74,6 +74,15 @@ public object OcrCorrections {
     }
 
     /**
+     * Replaces the letter O with the digit 0 in a VIN. `check_vin`.
+     *
+     * ISO 3779 excludes the letters I, O and Q from a VIN, so an O here is always a misread 0 — the Latin
+     * engine confuses the two on real STS photos (issue #17: a VIN starting 'WF0DX' came out as 'WFODX'). Only
+     * O is mapped, by decision: I and Q have no single safe digit, and nothing else is touched.
+     */
+    public fun checkVin(vin: String): String = vin.replace('O', '0')
+
+    /**
      * Strips LEADING dots only.
      *
      * `lstrip('.')`, not `strip('.')`. Names pick up a spurious leading dot from the crop edge; a trailing one

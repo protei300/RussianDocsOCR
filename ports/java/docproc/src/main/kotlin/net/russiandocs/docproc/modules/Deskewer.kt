@@ -53,9 +53,19 @@ public class DocDeskewer(
      * downstream lands in the same place.
      */
     public fun deskew(image: Image): Pair<Image, Double> {
+        val (out, angle, _) = deskewWithGeometry(image)
+        return out to angle
+    }
+
+    /**
+     * [deskew], plus where the returned image came from: the rotation it applied (`deskew_with_geometry`), so a
+     * box found on the result maps back onto [image]. The map is null when the image is returned unchanged — the
+     * stage then adds nothing to the chain.
+     */
+    public fun deskewWithGeometry(image: Image): Triple<Image, Double, net.russiandocs.docproc.geometry.Homography?> {
         val angle = findAngle(image)
         if (abs(angle) < minAngle) {
-            return image.clone() to angle
+            return Triple(image.clone(), angle, null)
         }
 
         val rotation = rotationMatrix(image.width / 2.0, image.height / 2.0, angle, 1.0)
@@ -64,7 +74,8 @@ public class DocDeskewer(
             Imgproc.warpAffine(image.mat, dst, rotation,
                 Size(image.width.toDouble(), image.height.toDouble()),
                 Imgproc.INTER_LINEAR, Core.BORDER_REPLICATE, Scalar(0.0))
-            return Image.wrap(dst) to angle
+            val matrix = Array(2) { r -> DoubleArray(3).also { rotation.get(r, 0, it) } }
+            return Triple(Image.wrap(dst), angle, net.russiandocs.docproc.geometry.Homography(matrix))
         } finally {
             rotation.release()
         }

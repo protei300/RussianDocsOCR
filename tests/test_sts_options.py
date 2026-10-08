@@ -21,8 +21,9 @@ FIELDS_FRONT = ('Reg_number', 'VIN', 'Vehicle_make_ru', 'Vehicle_make_en', 'Vehi
 FIELDS_BACK = ('Licence_number', 'Last_name_ru', 'Last_name_en', 'First_name_ru',
                'First_name_en', 'Middle_name_ru', 'Living_region_ru', 'House_number',
                'Apartment_number', 'Special_marks', 'Issue_organisation_code', 'Issue_date')
-#: Added by the new form (order 267/2019).
-FIELDS_NEW_FORM = ('Vehicle_model_en', 'Type_approval', 'Building_number')
+#: Added by the new form (order 267/2019). There is no model class: make and model
+#: are labelled by blank line, upper Vehicle_make_ru, lower Vehicle_make_en (2026-10-04).
+FIELDS_NEW_FORM = ('Type_approval', 'Building_number')
 #: Added by the original edition of the old form (order 1001/2008, ~2010).
 FIELDS_OLD_2010 = ('Engine_model', 'Engine_number', 'Engine_volume',
                    'Issue_organization_ru', 'Issue_date', 'Building_number')
@@ -91,3 +92,11 @@ def test_vin_fix_leaves_other_fields_alone():
     assert fix(None, 'VIN', 'WFODX') == 'WF0DX'
     assert fix(None, 'Last_name_en', 'SOKOLOV') == 'SOKOLOV'
     assert fix(None, 'Body_number', 'WFODX') == 'WFODX'
+
+
+def test_there_is_no_model_field():
+    """Make and model share the make lines (decision of 2026-10-04): a model field
+    the detector can no longer produce must not linger in the routing lists."""
+    options = OCROptionsSTS()
+    assert 'Vehicle_model_en' not in options.ru_fields + options.en_fields
+    assert 'Vehicle_model_en' not in options.needed_split

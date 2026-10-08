@@ -77,6 +77,15 @@ class RunReport:
         # fault and nothing to blame in the output.
         if not self.cases:
             return "NOTHING VERIFIED"
+        # The same lie one level down: a case whose probe crashed (or whose golden or
+        # sample is missing) produced no stages, so it has no differences, and the
+        # classification below read it as clean. On 2026-10-07 a Go run without
+        # RDOCS_MODELS_ROOT failed in all 10 cases and printed CLEAN (the exit code,
+        # from _hard_error, was already non-zero - only the words lied). A case that
+        # was not compared is said first, before any classification of the rest.
+        errored = [c for c in self.cases if c.error]
+        if errored:
+            return f"NOT VERIFIED ({len(errored)} of {len(self.cases)} cases not compared)"
         if self.deviations is None:
             return "PASS" if self.ok else "FAIL"
         return self.deviations.verdict()

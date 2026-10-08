@@ -41,7 +41,7 @@ func measureCells(gray imaging.Image, inset int) []dewarpRow {
 	H, W := float64(gray.Height()), float64(gray.Width())
 	var rows []dewarpRow
 
-	half := imaging.ResizeArea(gray, maxInt(1, gray.Width()/2), maxInt(1, gray.Height()/2))
+	half := imaging.ResizeAreaBy(gray, 0.5)
 	segs := imaging.DetectSegments(half, lsdMinLenFrac*W*0.5)
 	half.Close()
 	for _, s := range segs {
@@ -60,21 +60,177 @@ func measureCells(gray imaging.Image, inset int) []dewarpRow {
 		return rows
 	}
 	cw, ch := (x1-x0)/3.0, (y1-y0)/3.0
+	type cellBox struct{ x, y, w, h float64 }
+	var cells []cellBox
+	var centres [][2]float64
 	for _, yb := range linspace(y0, y1-ch, dewarpGrid) {
 		for _, xb := range linspace(x0, x1-cw, dewarpGrid) {
-			crop, err := imaging.ClampedCrop(gray, int(xb), int(yb), int(xb+cw), int(yb+ch))
-			if err != nil {
-				continue
-			}
-			tilt, ratio := profileTilt(crop)
-			crop.Close()
-			if ratio >= profileMinPeak {
-				w := profileWeight * math.Min(1.0, ratio-1.0)
-				rows = append(rows, dewarpRow{xb + 0.5*cw, yb + 0.5*ch, tilt, w, 1})
-			}
+			cells = append(cells, cellBox{xb - x0, yb - y0, cw, ch})
+			centres = append(centres, [2]float64{xb + 0.5*cw, yb + 0.5*ch})
+		}
+	}
+	region, err := imaging.ClampedCrop(gray, int(x0), int(y0), int(x1), int(y1))
+	if err != nil {
+		return rows
+	}
+	defer region.Close()
+	boxes := make([][4]float64, len(cells))
+	for i, c := range cells {
+		boxes[i] = [4]float64{c.x, c.y, c.w, c.h}
+	}
+	for i, tr := range cellTilts(region, boxes) {
+		tilt, ratio := tr[0], tr[1]
+		if ratio >= profileMinPeak {
+			w := profileWeight * math.Min(1.0, ratio-1.0)
+			rows = append(rows, dewarpRow{centres[i][0], centres[i][1], tilt, w, 1})
 		}
 	}
 	return rows
+}
+
+// cellTilts is line_dewarp._cell_tilts: the tilt and peak ratio of the row profile in every
+// cell (x, y, w, h of region), like profileTilt but rotating the WHOLE region once per angle
+// and slicing the cells out of it. Rotation about the region centre instead of the cell
+// centre only shifts a cell's content by a few pixels at these angles, which the profile does
+// not mind - but it is not the same number, and the cell count that decides whether the page
+// is bent at all (MIN_CELLS) sits on it: a port that rotated each cell about its own centre
+// found 16 cells where the reference found 5 and bent a page the reference left flat.
+func cellTilts(region imaging.Image, cells [][4]float64) [][2]float64 {
+	results := make([][2]float64, len(cells))
+	small := imaging.ResizeAreaBy(region, profileScale)
+	defer small.Close()
+	w, h := small.Width(), small.Height()
+	ink, w2, h2 := otsuInvDropTallBlobs(small, blobMaxFrac*(cells[0][3]*profileScale))
+	if w2 != w || h2 != h {
+		return results
+	}
+	inkImg, err := imaging.NewGrayFromBytes(ink, w, h)
+	if err != nil {
+		return results
+	}
+	defer inkImg.Close()
+	validImg := imaging.NewGrayFilled(h, w, 255)
+	defer validImg.Close()
+
+	type box struct{ x, y, w, h int }
+	boxes := make([]box, len(cells))
+	for i, c := range cells {
+		boxes[i] = box{int(c[0] * profileScale), int(c[1] * profileScale),
+			maxInt(2, int(c[2]*profileScale)), maxInt(2, int(c[3]*profileScale))}
+	}
+
+	score := func(angles []float64) [][]float64 {
+		out := make([][]float64, len(angles))
+		for i, a := range angles {
+			out[i] = make([]float64, len(boxes))
+			rot := imaging.RotateNearestZero(inkImg, a)
+			cnt := imaging.RotateNearestZero(validImg, a)
+			rb, errR := rot.Bytes()
+			cb, errC := cnt.Bytes()
+			if errR != nil || errC != nil {
+				rot.Close()
+				cnt.Close()
+				continue
+			}
+			for j, b := range boxes {
+				x2 := minInt(b.x+b.w, w) // exclusive
+				y2 := minInt(b.y+b.h, h)
+				if b.y >= y2 || b.x >= x2 {
+					continue
+				}
+				inkRow := make([]int64, y2-b.y)
+				cntRow := make([]int64, y2-b.y)
+				var cmax int64
+				for y := b.y; y < y2; y++ {
+					var si, sc int64
+					for x := b.x; x < x2; x++ {
+						si += int64(rb[y*w+x])
+						sc += int64(cb[y*w+x])
+					}
+					// the images hold 0 / 255: counts of pixels, as the reference's 0 / 1 floats
+					inkRow[y-b.y], cntRow[y-b.y] = si/255, sc/255
+					if sc/255 > cmax {
+						cmax = sc / 255
+					}
+				}
+				if cmax <= 0 {
+					continue
+				}
+				var prof []float64
+				for r := range cntRow {
+					if enoughValid(cntRow[r], cmax) {
+						prof = append(prof, float64(inkRow[r])/float64(maxInt64(cntRow[r], 1)))
+					}
+				}
+				if len(prof) > 2 {
+					out[i][j] = varianceF64(prof)
+				}
+			}
+			rot.Close()
+			cnt.Close()
+		}
+		return out
+	}
+
+	coarse := score(profileCoarse)
+	column := func(m [][]float64, j int) []float64 {
+		c := make([]float64, len(m))
+		for i := range m {
+			c[i] = m[i][j]
+		}
+		return c
+	}
+	peaks := make([]int, len(boxes))
+	fineCache := map[int][][]float64{}
+	for j := range boxes {
+		col := column(coarse, j)
+		ib := argmaxFloat(col)
+		if ib == 0 || ib == len(profileCoarse)-1 || col[ib] <= 0 {
+			peaks[j] = -1
+			continue
+		}
+		peaks[j] = ib
+	}
+	fineAngles := []float64{}
+	for a := -1.0; a <= 1.001; a += profileFineStep {
+		fineAngles = append(fineAngles, a)
+	}
+	for _, ib := range peaks {
+		if ib < 0 {
+			continue
+		}
+		if _, seen := fineCache[ib]; seen {
+			continue
+		}
+		angles := make([]float64, len(fineAngles))
+		for k, fa := range fineAngles {
+			angles[k] = profileCoarse[ib] + fa
+		}
+		fineCache[ib] = score(angles)
+	}
+	for j := range boxes {
+		ib := peaks[j]
+		if ib < 0 {
+			continue
+		}
+		fs := column(fineCache[ib], j)
+		jb := argmaxFloat(fs)
+		best := profileCoarse[ib] + fineAngles[jb]
+		if jb > 0 && jb < len(fs)-1 {
+			y0v, y1v, y2v := fs[jb-1], fs[jb], fs[jb+1]
+			den := y0v - 2*y1v + y2v
+			if den < 0 {
+				best += profileFineStep * 0.5 * (y0v - y2v) / den
+			}
+		}
+		med := medianOf(column(coarse, j))
+		ratio := 0.0
+		if med > 0 {
+			ratio = fs[jb] / med
+		}
+		results[j] = [2]float64{best, ratio}
+	}
+	return results
 }
 
 func basis5(xn, yn float64) [5]float64 {
@@ -235,4 +391,26 @@ func DewarpByLines(gray imaging.Image, inset int) ([]float32, StraightenInfo) {
 // line_dewarp.apply_dewarp.
 func ApplyDewarp(page imaging.Image, v []float32) imaging.Image {
 	return imaging.RemapVerticalDisplacement(page, v, page.Width(), page.Height())
+}
+
+// enoughValid is `c >= 0.6 * c.max()` on the reference's float32 count arrays: NumPy keeps a
+// float32 array float32 against a Python number, so the limit is the float32 product of
+// float32(0.6) and the maximum - not a float64 0.6 * max, and not an integer truncation of it
+// (a row whose count is 4 does not pass a limit of 4.2).
+func enoughValid(c, cmax int64) bool {
+	return float32(c) >= float32(float32(0.6)*float32(cmax))
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }

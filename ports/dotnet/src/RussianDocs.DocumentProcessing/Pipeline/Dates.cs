@@ -50,13 +50,67 @@ public static class Dates
         ["ДЕКАБРЬ"] = 12, ["ДЕКАБРЯ"] = 12,
     };
 
-    /// <summary>Words a document prints next to a date that carry no date information.</summary>
+    /// <summary>
+    /// Words a document prints next to a date that carry no date information. «месяца» and «числа»
+    /// belong to the 1998 birth certificate's record date, printed in reverse order around the
+    /// values: «2010 года июня месяца 15 числа».
+    /// </summary>
     private static readonly HashSet<string> Noise = new(StringComparer.Ordinal)
-        { "Г", "Г.", "ГОД", "ГОДА", "ГОДУ" };
+        { "Г", "Г.", "ГОД", "ГОДА", "ГОДУ", "МЕСЯЦ", "МЕСЯЦА", "ЧИСЛО", "ЧИСЛА" };
+
+    /// <summary>
+    /// Fields printed as a civil-registry record date: year, month, day in a FIXED order with
+    /// printed words between them — «2010 года июня месяца 15 числа» on the 1998 birth certificate.
+    /// The box spans the printed words, the word split often loses the gaps («2015ГОДАИЮНЯМЕСЯЦА16»)
+    /// and the printed words come back misread («ИЕСЯЦА», «ТОДА»), so the general converter refuses
+    /// most of them. Mirrors <c>RECORD_DATE_FIELDS</c> in dates.py.
+    /// </summary>
+    private static readonly string[] RecordDateFields = ["Act_date"];
+
+    /// <summary>Month names in the genitive — the only case a record date prints.</summary>
+    private static readonly KeyValuePair<string, int>[] Genitive =
+        [.. Months.Where(kv => kv.Key.EndsWith('Я') || kv.Key.EndsWith('А'))];
 
     /// <summary><c>[^\W\d_]+|\d+</c> with <c>re.UNICODE</c>: runs of letters, or runs of digits.</summary>
     private static readonly Regex Token = new(@"[^\W\d_]+|\d+",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Drops a lone letter standing right next to the day number. Port of
+    /// <c>dates._drop_quote_letters</c> (issue #23).
+    ///
+    /// <para>
+    /// The 1998 birth certificate prints the issue date as «10» ЯНВАРЯ 2013 г., and the field box
+    /// starts on the opening quote. «» are not in the Cyrillic engine's alphabet, so the engine reads
+    /// the quote as the nearest letter it knows: «И 10 ЯНВАРЯ 2013». The letter carries no date
+    /// information, but as an unknown word it made the whole date refuse.
+    /// </para>
+    ///
+    /// <para>
+    /// Only a SINGLE letter and only ADJACENT to a one- or two-digit number (the day, on either side
+    /// — the closing quote sits after it) is dropped, and "adjacent" is judged on the ORIGINAL token
+    /// list, as the reference does. Anything else — a longer word, a letter elsewhere, a one-letter
+    /// month name — still refuses: this reads a known misreading of printed punctuation, it does not
+    /// guess.
+    /// </para>
+    /// </summary>
+    private static List<string> DropQuoteLetters(List<string> tokens)
+    {
+        bool IsDay(int i) => i >= 0 && i < tokens.Count && IsDigits(tokens[i]) && tokens[i].Length <= 2;
+
+        var kept = new List<string>(tokens.Count);
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            string t = tokens[i];
+            bool quoteLetter = t.Length == 1 && !IsDigits(t) && !Months.ContainsKey(t)
+                && (IsDay(i - 1) || IsDay(i + 1));
+            if (!quoteLetter)
+            {
+                kept.Add(t);
+            }
+        }
+        return kept;
+    }
 
     /// <summary><c>dd.mm.yyyy</c> for a real calendar date, else null (31.02 is not a date).</summary>
     private static string? AsDate(int day, int month, int year)
@@ -101,6 +155,7 @@ public static class Dates
             }
             tokens.Add(t);
         }
+        tokens = DropQuoteLetters(tokens);
         if (tokens.Count == 0)
         {
             return null;
@@ -151,6 +206,83 @@ public static class Dates
         return AsDate(day, month, year);
     }
 
+    /// <summary>
+    /// Canonical <c>dd.mm.yyyy</c> of a civil-registry record date, or null. Port of
+    /// <c>dates.record_date_to_ddmmyyyy</c>.
+    ///
+    /// <para>
+    /// Whatever the general converter accepts is taken as is. Otherwise the parts are found by their
+    /// FORM, which is what the fixed layout allows: exactly one four-digit year, exactly one one- or
+    /// two-digit day, and exactly one genitive month name found INSIDE the letters (glued or not),
+    /// whatever the printed words around it were read as. Any ambiguity — two days, two months, no
+    /// year — refuses, as everywhere in this module:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><c>'2015ГОДАИЮНЯИЕСЯЦА16'</c> -> <c>'16.06.2015'</c></item>
+    /// <item><c>'2010 ГОДА ЦЮЛЯ МЕСЯЦА 17'</c> -> null (the month itself is misread)</item>
+    /// <item><c>'2020 ГОДА ИЮЛЯ МЕСЯЦА'</c> -> null (no day)</item>
+    /// </list>
+    /// </summary>
+    public static string? RecordDateToDdmmyyyy(string? text)
+    {
+        string? canonical = ToDdmmyyyy(text);
+        if (!string.IsNullOrEmpty(canonical) || string.IsNullOrEmpty(text))
+        {
+            return canonical;
+        }
+
+        var years = new List<string>();
+        var days = new List<string>();
+        bool stray = false;
+        var letters = new System.Text.StringBuilder();
+        foreach (Match m in Token.Matches(text.ToUpperInvariant()))
+        {
+            string r = m.Value;
+            if (!IsDigits(r))
+            {
+                letters.Append(r);
+            }
+            else if (r.Length == 4)
+            {
+                years.Add(r);
+            }
+            else if (r.Length <= 2)
+            {
+                days.Add(r);
+            }
+            else
+            {
+                stray = true;
+            }
+        }
+        if (years.Count != 1 || days.Count != 1 || stray)
+        {
+            return null;
+        }
+
+        string joined = letters.ToString();
+        var months = new HashSet<int>();
+        foreach (KeyValuePair<string, int> kv in Genitive)
+        {
+            if (joined.Contains(kv.Key, StringComparison.Ordinal))
+            {
+                months.Add(kv.Value);
+            }
+        }
+        if (months.Count != 1)
+        {
+            return null;
+        }
+        return AsDate(int.Parse(days[0], NumberStyles.None, CultureInfo.InvariantCulture),
+            months.First(), int.Parse(years[0], NumberStyles.None, CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>The canonical view of one field: by its printed layout. Port of <c>dates.canonical_date</c>.</summary>
+    public static string? CanonicalDate(string field, string? text) =>
+        Array.IndexOf(RecordDateFields, field) >= 0
+            ? RecordDateToDdmmyyyy(text)
+            : ToDdmmyyyy(text);
+
     private static bool IsDigits(string s)
     {
         if (s.Length == 0)
@@ -186,7 +318,7 @@ public static class Dates
             {
                 continue;
             }
-            string? canonical = ToDdmmyyyy(value);
+            string? canonical = CanonicalDate(name, value);
             if (!string.IsNullOrEmpty(canonical))
             {
                 outMap[name] = canonical;

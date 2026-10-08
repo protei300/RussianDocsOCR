@@ -19,14 +19,8 @@ namespace RussianDocs.DocumentProcessing.PageRegistration;
 /// </para>
 ///
 /// <para>
-/// <b>Simplified relative to the reference, deliberately — matching the Go port's own choice:</b>
-/// Python's <c>_cell_tilts</c> rotates the WHOLE region once per candidate angle and slices every
-/// cell's row-sum out of a shared cumulative sum (a performance optimisation: 25 cells x 22 angles
-/// would otherwise be 550 small warps). This port instead calls <see cref="LineRefine.ProfileTilt"/>
-/// PER CELL directly — simpler, reuses already-verified code, and is if anything MORE faithful to
-/// the per-cell blob-height threshold than Python's own approximation (which reuses the FIRST cell's
-/// height, <c>cells[0][3]</c>, for every cell's blob filter — line_dewarp.py:84). Slower in the
-/// abstract, but page counts here are always 1-2 per document, so the cost is not observable.
+/// <b>Cells are measured the reference way</b>: the whole region rotated once per angle, every cell row
+/// sums cut from a shared cumulative sum (<see cref="CellTilts"/>).
 /// </para>
 /// </summary>
 public static class LineDewarp
@@ -60,8 +54,7 @@ public static class LineDewarp
         // LSD at half scale: segment angles and positions scale, and the detector is the slowest
         // step of the page.
         using var half = new Mat();
-        Cv2.Resize(gray, half, new Size(Math.Max(1, gray.Cols / 2), Math.Max(1, gray.Rows / 2)),
-            0, 0, InterpolationFlags.Area);
+        Cv2.Resize(gray, half, new Size(0, 0), 0.5, 0.5, InterpolationFlags.Area);
         foreach ((double x1h, double y1h, double x2h, double y2h) in
             LineRefine.DetectSegments(half, LsdMinLenFrac * w * 0.5))
         {
@@ -81,25 +74,230 @@ public static class LineDewarp
             return [.. rows];
         }
         double cw = (x1b - x0) / 3.0, ch = (y1b - y0) / 3.0;
+        var cellOrigins = new List<(double Xb, double Yb)>();
         foreach (double yb in LineRefine.Linspace(y0, y1b - ch, Grid))
         {
             foreach (double xb in LineRefine.Linspace(x0, x1b - cw, Grid))
             {
-                int left = (int)xb, top = (int)yb, right = (int)(xb + cw), bottom = (int)(yb + ch);
-                if (right <= left || bottom <= top)
-                {
-                    continue;
-                }
-                using Mat cell = new(gray, new Rect(left, top, right - left, bottom - top));
-                (double tilt, double ratio) = LineRefine.ProfileTilt(cell);
-                if (ratio >= ProfileMinPeak)
-                {
-                    double weight = ProfileWeight * Math.Min(1.0, ratio - 1.0);
-                    rows.Add(new CellRow(xb + 0.5 * cw, yb + 0.5 * ch, tilt, weight, 1));
-                }
+                cellOrigins.Add((xb, yb));
+            }
+        }
+        int ix0 = (int)x0, iy0 = (int)y0, ix1 = (int)x1b, iy1 = (int)y1b;
+        using Mat region = new(gray, new Rect(ix0, iy0, ix1 - ix0, iy1 - iy0));
+        (double Tilt, double Ratio)[] tilts = CellTilts(region,
+            [.. cellOrigins.Select(o => (o.Xb - x0, o.Yb - y0, cw, ch))]);
+        for (int k = 0; k < cellOrigins.Count; k++)
+        {
+            (double tilt, double ratio) = tilts[k];
+            if (ratio >= ProfileMinPeak)
+            {
+                double weight = ProfileWeight * Math.Min(1.0, ratio - 1.0);
+                rows.Add(new CellRow(cellOrigins[k].Xb + 0.5 * cw, cellOrigins[k].Yb + 0.5 * ch, tilt, weight, 1));
             }
         }
         return [.. rows];
+    }
+
+    private const double ProfileScale = 0.5;
+    private const double BlobMaxFrac = 0.2;
+    private static readonly double[] ProfileCoarse = [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6];
+    private static readonly double[] FineOffsets = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0];
+    private const double ProfileFineStep = 0.25;
+
+    /// <summary>
+    /// Tilt and peak ratio of the row profile in every cell (x, y, w, h of <paramref name="region"/>).
+    /// Port of <c>_cell_tilts</c> (line_dewarp.py:71-146): like <see cref="LineRefine.ProfileTilt"/> but
+    /// the WHOLE region is rotated once per angle and every cell's row sums are cut out of a cumulative
+    /// sum along x. Rotation about the region centre instead of the cell centre only shifts a cell's
+    /// content by a few pixels at these angles, which the profile does not mind - but it IS a different
+    /// picture from rotating each cell on its own, and the number of cells with a peak decides whether
+    /// the page is dewarped at all (MIN_CELLS), so the shortcut of the first port is not taken. The blob
+    /// filter keeps the reference's use of the FIRST cell's height for every cell.
+    ///
+    /// <para>Data is float32 as in the reference (the ink image, the cumulative sums, the profile); the
+    /// variance is accumulated in double, which differs from NumPy's float32 pairwise sum in the last
+    /// bits only.</para>
+    /// </summary>
+    private static (double Tilt, double Ratio)[] CellTilts(Mat region,
+        (double X, double Y, double W, double H)[] cells)
+    {
+        using var small = new Mat();
+        Cv2.Resize(region, small, new Size(0, 0), ProfileScale, ProfileScale, InterpolationFlags.Area);
+        using var binary = new Mat();
+        Cv2.Threshold(small, binary, 0, 255, ThresholdTypes.BinaryInv | ThresholdTypes.Otsu);
+        int h = binary.Rows, w = binary.Cols;
+
+        using var labels = new Mat();
+        using var stats = new Mat();
+        using var centroids = new Mat();
+        int n = Cv2.ConnectedComponentsWithStats(binary, labels, stats, centroids, PixelConnectivity.Connectivity8);
+        binary.GetArray(out byte[] bytes);
+        if (n > 1)
+        {
+            double limit = BlobMaxFrac * (cells[0].H * ProfileScale);
+            var big = new bool[n];
+            bool any = false;
+            for (int i = 1; i < n; i++)
+            {
+                big[i] = stats.At<int>(i, 3) > limit;   // CC_STAT_HEIGHT
+                any |= big[i];
+            }
+            if (any)
+            {
+                labels.GetArray(out int[] lab);
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    if (big[lab[i]])
+                    {
+                        bytes[i] = 0;
+                    }
+                }
+            }
+        }
+        var ink = new float[bytes.Length];
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            ink[i] = bytes[i] / 255.0f;
+        }
+        var ones = new float[bytes.Length];
+        Array.Fill(ones, 1.0f);
+
+        Point2f centre = new(w / 2.0f, h / 2.0f);
+        (int X, int Y, int W, int H)[] boxes = [.. cells.Select(c =>
+            ((int)(c.X * ProfileScale), (int)(c.Y * ProfileScale),
+             Math.Max(2, (int)(c.W * ProfileScale)), Math.Max(2, (int)(c.H * ProfileScale))))];
+
+        using var inkMat = Mat.FromPixelData(h, w, MatType.CV_32FC1, ink);
+        using var validMat = Mat.FromPixelData(h, w, MatType.CV_32FC1, ones);
+
+        double[][] Score(double[] angles)
+        {
+            var output = new double[angles.Length][];
+            for (int a = 0; a < angles.Length; a++)
+            {
+                output[a] = new double[boxes.Length];
+                using Mat m = Cv2.GetRotationMatrix2D(centre, angles[a], 1.0);
+                using var rot = new Mat();
+                using var cnt = new Mat();
+                Cv2.WarpAffine(inkMat, rot, m, new Size(w, h), InterpolationFlags.Nearest,
+                    BorderTypes.Constant, Scalar.All(0));
+                Cv2.WarpAffine(validMat, cnt, m, new Size(w, h), InterpolationFlags.Nearest,
+                    BorderTypes.Constant, Scalar.All(0));
+                rot.GetArray(out float[] r);
+                cnt.GetArray(out float[] c);
+                // cumulative sums along x, float32 (np.cumsum(..., dtype=np.float32))
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 1; x < w; x++)
+                    {
+                        r[y * w + x] += r[y * w + x - 1];
+                        c[y * w + x] += c[y * w + x - 1];
+                    }
+                }
+                for (int j = 0; j < boxes.Length; j++)
+                {
+                    (int bx, int by, int bw, int bh) = boxes[j];
+                    int x2 = Math.Min(bx + bw, w) - 1;
+                    int yEnd = Math.Min(by + bh, h);
+                    int rows = yEnd - by;
+                    if (rows <= 0)
+                    {
+                        continue;
+                    }
+                    var inkRow = new float[rows];
+                    var cntRow = new float[rows];
+                    float cmax = float.NegativeInfinity;
+                    for (int y = by; y < yEnd; y++)
+                    {
+                        inkRow[y - by] = r[y * w + x2] - (bx > 0 ? r[y * w + bx - 1] : 0f);
+                        cntRow[y - by] = c[y * w + x2] - (bx > 0 ? c[y * w + bx - 1] : 0f);
+                        cmax = Math.Max(cmax, cntRow[y - by]);
+                    }
+                    if (cmax <= 0)
+                    {
+                        continue;
+                    }
+                    float threshold = 0.6f * cmax;
+                    var prof = new List<float>();
+                    for (int y = 0; y < rows; y++)
+                    {
+                        if (cntRow[y] >= threshold)
+                        {
+                            prof.Add(inkRow[y] / Math.Max(cntRow[y], 1.0f));
+                        }
+                    }
+                    if (prof.Count > 2)
+                    {
+                        double mean = 0;
+                        foreach (float v in prof)
+                        {
+                            mean += v;
+                        }
+                        mean /= prof.Count;
+                        double variance = 0;
+                        foreach (float v in prof)
+                        {
+                            variance += (v - mean) * (v - mean);
+                        }
+                        output[a][j] = (float)(variance / prof.Count);
+                    }
+                }
+            }
+            return output;
+        }
+
+        double[][] coarse = Score(ProfileCoarse);
+        var peaks = new int?[boxes.Length];
+        for (int j = 0; j < boxes.Length; j++)
+        {
+            int ib = 0;
+            for (int a = 1; a < coarse.Length; a++)
+            {
+                if (coarse[a][j] > coarse[ib][j])
+                {
+                    ib = a;
+                }
+            }
+            peaks[j] = ib == 0 || ib == ProfileCoarse.Length - 1 || coarse[ib][j] <= 0 ? null : ib;
+        }
+        // one fine pass per distinct coarse peak (usually one or two per page)
+        var fineCache = new Dictionary<int, double[][]>();
+        foreach (int ib in peaks.Where(p => p is not null).Select(p => p!.Value).Distinct())
+        {
+            fineCache[ib] = Score([.. FineOffsets.Select(o => ProfileCoarse[ib] + o)]);
+        }
+
+        var results = new (double, double)[boxes.Length];
+        for (int j = 0; j < boxes.Length; j++)
+        {
+            if (peaks[j] is not int pk)
+            {
+                results[j] = (0.0, 0.0);
+                continue;
+            }
+            double[][] fine = fineCache[pk];
+            int jb = 0;
+            for (int a = 1; a < fine.Length; a++)
+            {
+                if (fine[a][j] > fine[jb][j])
+                {
+                    jb = a;
+                }
+            }
+            double best = ProfileCoarse[pk] + FineOffsets[jb];
+            if (jb > 0 && jb < fine.Length - 1)
+            {
+                double y0 = fine[jb - 1][j], y1 = fine[jb][j], y2 = fine[jb + 1][j];
+                double den = y0 - 2 * y1 + y2;
+                if (den < 0)
+                {
+                    best += ProfileFineStep * 0.5 * (y0 - y2) / den;
+                }
+            }
+            double med = LineRefine.Median([.. coarse.Select(row => row[j])]);
+            results[j] = (best, med > 0 ? fine[jb][j] / med : 0.0);
+        }
+        return results;
     }
 
     private static double[] Basis5(double xn, double yn) => [1, xn, yn, xn * xn, xn * yn];

@@ -14,7 +14,8 @@ import (
 // methods, which is why they are snake_case with a leading underscore — a Go-idiomatic
 // renaming here would be a breaking change, not a tidy-up (CONVENTIONS §1).
 const (
-	StageDocTypeAngle      = "_doctype_angle"
+	StageDocumentDetector  = "_document_detector"
+	StageDocTypeAngle     = "_doctype_angle"
 	StageQualityAndBorders = "_quality_and_borders"
 	StageGlare             = "_glare"
 	StageBlur              = "_blur"

@@ -136,13 +136,24 @@ public object Ocr {
         cyrillic: OcrEngine,
         latin: OcrEngine,
         mrzZone: MrzZone? = null,
+        /** The form year, the label suffix (`Pipeline._doc_year`); empty when the label has none. */
+        docYear: String = "",
     ): List<FieldText> {
         val output = ArrayList<FieldText>(fields.size)
 
         for (fw in fields) {
-            val words = mutableListOf<String>()
+            var words = mutableListOf<String>()
             for (i in fw.patches.indices) {
                 val patch = fw.patches[i]
+
+                // An engine that follows the form's edition (`engine_by_year`): the make is printed in Latin on
+                // the new vehicle certificate and in Cyrillic on the old one. Asked BEFORE every other rule, as
+                // the reference does; a line the table does not name keeps the routing below.
+                val byYear = options.engineByYear[fw.label]?.get(docYear)
+                if (byYear == "lat") {
+                    words += latin.fixErrors(fw.label, latin.predict(patch))
+                    continue
+                }
 
                 // **SNILS routes by word-index PARITY, not by field semantics.** Its dates read like
                 // "26 СЕНТЯБРЯ 1997 ГОДА", so odd-indexed words go to the CYRILLIC engine even inside a date
@@ -151,7 +162,7 @@ public object Ocr {
                 //
                 // The order of these branches is the reference's, and it matters — the parity rule is checked
                 // BEFORE the date rule, or SNILS months would be routed as dates.
-                if ((docType == "SNILS" && i % 2 == 1) || fw.label in options.ruFields) {
+                if (byYear == "cyr" || (docType == "SNILS" && i % 2 == 1) || fw.label in options.ruFields) {
                     words += cyrillic.fixErrors(fw.label, cyrillic.predict(patch))
                 } else if (fw.label.contains("date", ignoreCase = true)) {
                     words += latin.fixErrors(fw.label, latin.predict(patch))
@@ -165,6 +176,7 @@ public object Ocr {
                 // No else: a field that is neither Russian, a date, nor English contributes no words. The
                 // reference has the same gap, and a fallback here would invent text.
             }
+            words = glueTorn(fw.label, words, fw.lineWordCounts, options)
             output += FieldText(fw.label, words)
         }
 
@@ -175,6 +187,32 @@ public object Ocr {
             field.value = joinField(joined, field.label, docType, field.words)
         }
         return output
+    }
+
+    /**
+     * Glues the words a line break tore apart ([StsMarks.glueTornWords]), for the fields the options name.
+     * `Pipeline._glue_torn`. The words come flat; the line lengths recorded by the splitter cut them back into
+     * lines. When those lengths do not add up to the words, the words are left alone.
+     */
+    internal fun glueTorn(
+        label: String,
+        words: MutableList<String>,
+        lineWordCounts: List<Int>,
+        options: OcrOptions,
+    ): MutableList<String> {
+        if (label !in options.glueTorn) {
+            return words
+        }
+        if (lineWordCounts.isEmpty() || lineWordCounts.sum() != words.size) {
+            return words
+        }
+        val lines = ArrayList<List<String>>()
+        var start = 0
+        for (n in lineWordCounts) {
+            lines += words.subList(start, start + n).toList()
+            start += n
+        }
+        return StsMarks.glueTornWords(lines).toMutableList()
     }
 
     /**

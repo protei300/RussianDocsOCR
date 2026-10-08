@@ -167,8 +167,17 @@ func MinAreaRectPoints(pts []Point) []Point {
 // quad has been through ExpandQuad and clipping, so its corners are fractional, and
 // rounding them would move the crop edge by up to a pixel on every document.
 func WarpPerspectiveQuad(src Image, quad []Point, width, height int) (Image, error) {
+	out, _, err := WarpPerspectiveQuadMatrix(src, quad, width, height)
+	return out, err
+}
+
+// WarpPerspectiveQuadMatrix is WarpPerspectiveQuad that also hands back the matrix it warped
+// with (input -> output): the way back to the input is made of it (four_point_matrix in the
+// reference).
+func WarpPerspectiveQuadMatrix(src Image, quad []Point, width, height int) (Image, [3][3]float64, error) {
+	var M [3][3]float64
 	if len(quad) != 4 {
-		return Image{}, fmt.Errorf("imaging: perspective transform needs 4 points, got %d", len(quad))
+		return Image{}, M, fmt.Errorf("imaging: perspective transform needs 4 points, got %d", len(quad))
 	}
 	from := toPoint2fVector(quad)
 	defer from.Close()
@@ -182,13 +191,18 @@ func WarpPerspectiveQuad(src Image, quad []Point, width, height int) (Image, err
 
 	m := gocv.GetPerspectiveTransform2f(from, to)
 	defer m.Close()
+	for r := 0; r < 3; r++ {
+		for c := 0; c < 3; c++ {
+			M[r][c] = m.GetDoubleAt(r, c)
+		}
+	}
 
 	dst := gocv.NewMat()
 	if err := gocv.WarpPerspective(src.mat, &dst, m, image.Pt(width, height)); err != nil {
 		dst.Close()
-		return Image{}, fmt.Errorf("imaging: warpPerspective: %w", err)
+		return Image{}, M, fmt.Errorf("imaging: warpPerspective: %w", err)
 	}
-	return Image{mat: dst}, nil
+	return Image{mat: dst}, M, nil
 }
 
 // RotationMatrix2D builds OpenCV's 2x3 affine rotation matrix by hand.

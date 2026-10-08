@@ -294,11 +294,20 @@ Three sessions, one per language, brought the ports from 4.4.1 to the 4.5.0 refe
 passport feeding, template page registration, per-class thresholds, canonical dates, MRZ ladder).
 What was learned, in the order it cost time:
 
-- **Check what the OpenCV wrapper binds before planning the port.** `cv2.createLineSegmentDetector`
-  is bound in the JVM build and in neither gocv 0.43 nor OpenCvSharp4. Kotlin therefore converges
-  bitwise; Go and .NET substitute Canny+HoughLinesP and carry a declared residual (D-03: 1–10 px on
-  field boxes, one flipped glyph per case). SIFT and `USAC_MAGSAC` are available everywhere — pass
-  the raw flag value 38 where the enum is missing, and verify with one real call.
+- **Check what the OpenCV wrapper binds before planning the port — by its class, not only by `Cv2`.**
+  `cv2.createLineSegmentDetector` is bound in the JVM build and in OpenCvSharp4 as the class
+  `LineSegmentDetector` (not a `Cv2.` function, which is why the 4.5.0 port missed it); gocv 0.43
+  does not bind it, Go calls it through a small C++ shim (`imaging/lsd_shim.cpp`). Until 2026-10-08
+  Go and .NET substituted Canny+HoughLinesP; the switch to the real LSD made both old-form STS cases
+  clean. SIFT and `USAC_MAGSAC` are available everywhere — pass the raw flag value 38 where the enum
+  is missing, and verify with one real call.
+- **SIFT with an `nfeatures` budget is platform-dependent, in the reference too.** OpenCV cuts the
+  keypoints with `std::nth_element`, whose order depends on the C++ library OpenCV was built with
+  (MSVC on the Windows wheel, libstdc++ in the ports' containers); MAGSAC then samples by index. The
+  reference Python on Linux gives the ports' numbers to the last digit; on STS_2019 the two orders
+  land on either side of the card-skew threshold (D-07). Go can reproduce MSVC's order
+  (`imaging/stlselect.go`, `SiftOrderLikeMsvc`, off by default) — use it to prove a divergence is
+  this and not the port, not to fit the goldens.
 - **Load the template exactly the way the reference does.** Kotlin decoded the template PNG with
   `IMREAD_GRAYSCALE`; the reference reads colour and converts with `cvtColor`. The two paths round
   differently, SIFT's contrast threshold then keeps a different keypoint set (521 vs 519 on the same
@@ -315,8 +324,9 @@ What was learned, in the order it cost time:
   wrong passes unit tests and fails MRZ on the goldens.
 - **`least_squares` in `line_refine.py` is 4 parameters with a numeric Jacobian** inside IRLS with
   Cauchy weights. A hand-written Levenberg–Marquardt (forward differences, ×10/÷10 damping, stop
-  on step norm or 100 evaluations) converges to the same minimum on all three ports; the residual
-  Go/.NET carry comes from the line evidence (Hough vs LSD), not from the solver.
+  on step norm or 100 evaluations) converges to the same minimum on most pages; with the real LSD
+  in place Go and .NET still keep a residual on the internal passports (D-03), so on those pages the
+  solver or the quad-fit RANSAC's samples do matter — not yet pinned.
 - **Pages are consumed twice.** Stitching the canvas and detecting fields per page both need the
   page images; Go freed them on stitch and crashed with `free(): invalid next size` on every
   internal passport. Clone before stitching or reference-count.

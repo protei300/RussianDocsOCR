@@ -153,7 +153,8 @@ sequenceDiagram
     R->>R: take an instance from the pool
     R->>P: Run(path)
 
-    P->>P: prepare (decode, RGB, fit longest side)
+    P->>P: documents (DocDetect on the frame fitted to img_size)
+    P->>P: prepare (decode, RGB, crop of the largest document at full resolution, fit longest side)
     P->>P: doctype + angle, rotate upright
     par quality group
         P->>P: Glare
@@ -170,6 +171,7 @@ sequenceDiagram
     P->>P: text fields
     P->>P: split words (group, one session)
     P->>P: OCR per word, join per field
+    P->>P: re-read date lines whole where the word reading is no date
     P-->>R: Results (+ canvas)
 
     R->>R: build the view model INSIDE the lease
@@ -193,6 +195,67 @@ and the SPA renders it as a legitimate state. Nothing raises.
 whether border detection runs. With `low_quality` false the reference runs them sequentially
 so it can skip the heavy border detector early. This port implements the concurrent path only,
 because the service always takes it.
+
+**Documents come first (decision #142).** `pipeline/documents.go` + `modules.DocumentDetector`
+(the `DocDetect` artifact, classes `document` and `page`) run on the frame fitted to `img_size`;
+the boxes are scaled back to the INPUT image and the largest document is cut there at full
+resolution plus 3 % of its longer side (`DocumentCropMargin`), then fitted to `img_size` again —
+that is the `prepare` stage now. Nothing found, or a weight set of models-v8 or older that has no
+`DocDetect` (the Recognizer then starts anyway and prints one line to stderr, as the reference
+does): the whole frame, as before. The `documents` stage is emitted only when a detector exists,
+and `_document_detector` joins the timings key set under the same condition. `Results.Documents`
+lists every document found, `Results.DocumentIndex` is the one read (0, or -1 for the whole frame).
+
+**A date that lost a word is re-read whole.** `SplitWords` keeps a clone of the field crop of every
+date field that was read word by word (`FieldWords.DateLines`; never for SNILS, never for a line the
+gap guard already reads whole). After the OCR, `rereadDatesWhole` re-reads those lines with the
+field's own engine when the word reading does not convert with `CanonicalDate` and the whole one
+does. It rewrites the final `Ocr` dict only: the `ocr.<Field>.words` and `join` stages keep the
+word reading, as in the reference. A day read with a quote letter next to it («И 10 ЯНВАРЯ 2013»)
+now converts too (`dropQuoteLetters`, issue #23).
+
+**A vehicle registration certificate (STS) is straightened by its printed blank.** For the four
+`STS*` labels `Run` replaces the Borders canvas by `registerCard` (`pipeline/registercard.go`,
+`Pipeline._register_card`): a `modules.PageRegistrar` per type (built on first use, behind
+`Recognizer.cardMu`) matches the photo against the cleaned blank in
+`document_processing/pipeline_modules/page_registration/templates/sts*`; with at least
+`CardMinInliers` (40) matches, and only when the Borders canvas is skewed by `CardSkewKeep`
+(1 %) or more (`cardSkew`: a similarity fitted by least median of squares), the page is warped
+by the template homography, the colour outside the photo is the card's own median paper colour
+(`WarpMatrix` with a fill), and it is straightened by its lines. The deskew is then skipped, as
+in the reference. The float32 details are the point and are commented where they are:
+`quadInImage` and `NativeScale` are float32 values, `PageMatrix` multiplies as NumPy does,
+`OutSize` rounds half to even.
+
+**Reading rules of the STS** (`pipeline/stsoptions.go`, all in `OcrOptions`): `EngineByYear`
+(the 2019 form prints the upper make line in Latin), `ReadMargin` (`readMargins` re-cuts the
+special marks with a margin that stops halfway to the next line; the box does not change),
+`GlueTorn` (`GlueTornWords`, vocabulary glue of a word torn by a line break; `FieldWords.Lines`
+carries the words per line). `SplitWords` also drops the weaker of a `<name>_ru` and a
+`<name>_en` box on the same line (`pairedDuplicateIndices`, IoU > 0.8). `pipeline/stsmarks.go`
+ports `sts_marks.py`; RE2 has no Unicode `\b`, so the word boundary is checked by hand
+(`searchBounded`). `Results.Leasing` holds `{"leasing": true}` or nil, and an STS back emits the
+`leasing` conformance stage (null when there is none).
+
+**`RunFrame` reads every document of a frame** (`pipeline/frame.go`; `Run` is the same body for
+the largest one). `PairSides` sets `Results.PairedWith` on the two sides of an STS that read the
+same series and number, when that number is unique in the frame.
+
+**The way back to the input photo (`internal/docproc/geometry`, `pipeline/quads.go`).** Port of
+`geometry.py` (PR #19): `Scale`, `Offset`, `QuarterTurns`, `Homography` (OpenCV's half-pixel
+convention), `VerticalRemap` (the bend map of the page registration is itself the way back),
+`Unknown`, `Chain` (listed in the order the stages RAN, read output -> input) and `Pieces` (a
+stitched canvas; the piece is chosen by the centroid of the shape). The package is pure Go. Every
+stage that changes the image hands its map on: `readDocument` starts the chain with the crop
+`Offset` and the resize `Scale`, the quarter turn follows, then the border stage's map
+(`DocDetectorResult.Geometry`: one `Homography` per page, stitched), which the page
+registration, the card registration and the deskew REPLACE or extend exactly where the
+reference does (`registerPages`, `registerCard`, `deskewPages`, `DeskewWithGeometry`,
+`StraightenWithGeometry`). `Results.Geometry` / `Results.ToInput` give a point of the canvas on the
+input image; `Results.Quads` holds, per read field and per word patch, a quadrilateral on that
+image (`buildQuads` = `Pipeline._field_quads`; the frame of every patch is recorded when it is
+cut, and moves with a read margin). The `quads` stage is emitted right after the word split;
+"not known" (`Quads.Known() == false`) is said once for the run and renders as `null`.
 
 **`--upto` stops after a named stage.** That is what let each milestone be graded before the
 pipeline was finished, and it is why the CLI and the service share one `Run`.
@@ -410,6 +473,12 @@ float, on all seven conformance cases, on both CPU and GPU. That is not an accid
 coding; it is a handful of specific traps, each of which cost something to find. The full list
 is in `CONVENTIONS.md` §6; the ones that actually bit during this port:
 
+- **`expand_quad` runs in float32.** It works on the float32 array `order_points` returns, so the
+  centroid, offsets and scale each round to float32; done in float64 the corners differ by a few
+  float32 ULP, which moves the perspective warp's fixed-point weights: 393 canvas pixels, up to 8
+  grey levels, and through the field detector a 0.007 confidence step on BIRTHCERT_1998. Use
+  `imaging.ExpandQuadF32` (explicit `float32(...)` around every step, so no compiler may fuse
+  `x*y+z`) at all three call sites: `RectifyPages` and the two branches of `registerPages`.
 - **Python's float `//` is not `floor(x/y)`.** CPython routes it through `fmod`, and the two
   disagree in the last bit: a 2999×1777 image resizes to width **1499** in Python and 1500 with
   the naive formula — a one-pixel-different canvas, and therefore every downstream box shifted.
@@ -496,6 +565,10 @@ personal data.
 ---
 
 ## 10. What is not here
+
+- **`PageGeometry` (`Pipeline(page_geometry=True)`, template-free page geometry for every type)** and the
+  **address-line quadrilaterals** (`address_lines` of the `quads` stage): the first is off by default
+  in the reference, the second belongs to `INTPASSPORTADDR`, which this port does not read.
 
 - **`INTPASSPORTADDR`** — needs the OBB detector, the handwriting classifier, and an anonymised
   sample so the path can be graded.

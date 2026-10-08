@@ -1,3 +1,4 @@
+using RussianDocs.DocumentProcessing.Maps;
 using RussianDocs.DocumentProcessing.Tensors;
 
 namespace RussianDocs.DocumentProcessing.Imaging;
@@ -132,6 +133,44 @@ public static class Geometry
     }
 
     /// <summary>
+    /// <see cref="ExpandQuad"/> in FLOAT32 arithmetic. <c>expand_quad</c> is applied to the float32
+    /// array that <c>order_points</c> (and the page registrar's <c>page_quads</c>) returns, and NumPy
+    /// then does every step in float32: the centroid <c>mean(axis=0)</c> (rows added in order, then
+    /// divided by 4), <c>quad - centre</c>, the product with the margin scale (a Python float is weak
+    /// next to a float32 array, so it is cast to float32 first) and the final sum — each step rounds.
+    /// In double the corners land up to ~6e-5 px elsewhere, and <c>warpPerspective</c> quantises its
+    /// interpolation weights to 1/32 px, so that is enough to move a few hundred pixels of a 600x900
+    /// canvas by one grey level or more (measured on BIRTHCERT_1998 once the document crop shifted the
+    /// quad: 393 pixels, max 8 — a digest mismatch on <c>borders.canvas</c> and, through the field
+    /// detector, a 0.007 confidence step downstream).
+    /// </summary>
+    public static Point[] ExpandQuadF32(IReadOnlyList<Point> quad, double margin)
+    {
+        if (margin <= 0)
+        {
+            return [.. quad];
+        }
+
+        float cx = 0f, cy = 0f;
+        foreach (Point p in quad)
+        {
+            cx += (float)p.X;
+            cy += (float)p.Y;
+        }
+        cx /= quad.Count;
+        cy /= quad.Count;
+
+        float scale = (float)(1.0 + 2.0 * margin);
+        return [.. quad.Select(p =>
+        {
+            float x = (float)p.X, y = (float)p.Y;
+            float nx = cx + (x - cx) * scale;
+            float ny = cy + (y - cy) * scale;
+            return new Point(nx, ny);
+        })];
+    }
+
+    /// <summary>
     /// Warps a quadrilateral to an axis-aligned image.
     ///
     /// <para>
@@ -143,10 +182,18 @@ public static class Geometry
     /// </summary>
     public static (Image? Warped, bool Ok) FourPointTransform(Image image, IReadOnlyList<Point> quad)
     {
+        (Image? warped, bool ok, _) = FourPointTransformWithMatrix(image, quad);
+        return (warped, ok);
+    }
+
+    /// <summary><see cref="FourPointTransform"/>, also giving the matrix of the warp (input to output).</summary>
+    public static (Image? Warped, bool Ok, double[,]? Matrix) FourPointTransformWithMatrix(Image image,
+        IReadOnlyList<Point> quad)
+    {
         Point[]? rect = OrderPoints(quad);
         if (rect is null)
         {
-            return (null, false);
+            return (null, false, null);
         }
 
         Point tl = rect[0], tr = rect[1], br = rect[2], bl = rect[3];
@@ -154,19 +201,20 @@ public static class Geometry
         int height = PyNum.RoundHalfEvenToInt(Math.Max(Distance(tr, br), Distance(tl, bl)));
         if (width < 2 || height < 2)
         {
-            return (null, false);
+            return (null, false, null);
         }
 
         try
         {
-            return (Contours.WarpPerspectiveQuad(image, rect, width, height), true);
+            Image warped = Contours.WarpPerspectiveQuad(image, rect, width, height, out double[,] matrix);
+            return (warped, true, matrix);
         }
         catch (Exception)
         {
             // A degenerate quad makes GetPerspectiveTransform throw. The reference returns the
             // original image in that case rather than failing the document, so the caller needs a
             // false here, not an exception.
-            return (null, false);
+            return (null, false, null);
         }
     }
 
@@ -184,10 +232,10 @@ public static class Geometry
     /// six-pixel discrepancy showed up, and the cause was upstream in the hull orientation.
     /// </para>
     /// </summary>
-    public static (Image? Canvas, bool Ok) FixPerspective(Image image,
+    public static (Image? Canvas, bool Ok, IMap? Map) FixPerspective(Image image,
         IReadOnlyList<IReadOnlyList<Point>> segments, StackDirection direction, double margin)
     {
-        var pages = new List<(Point[] Quad, Image Warped)>();
+        var pages = new List<(Point[] Quad, Image Warped, double[,] Matrix)>();
         try
         {
             foreach (IReadOnlyList<Point> segment in segments)
@@ -208,7 +256,7 @@ public static class Geometry
                 {
                     continue;
                 }
-                rect = ExpandQuad(rect, margin);
+                rect = ExpandQuadF32(rect, margin);
                 for (int i = 0; i < rect.Length; i++)
                 {
                     rect[i] = new Point(
@@ -216,23 +264,25 @@ public static class Geometry
                         Math.Clamp(rect[i].Y, 0, image.Height));
                 }
 
-                (Image? warped, bool ok) = FourPointTransform(image, rect);
+                (Image? warped, bool ok, double[,]? matrix) = FourPointTransformWithMatrix(image, rect);
                 if (!ok || warped is null)
                 {
                     continue;
                 }
-                pages.Add((rect, warped));
+                pages.Add((rect, warped, matrix!));
             }
 
             if (pages.Count == 0)
             {
-                return (null, false);
+                return (null, false, null);
             }
+            IMap[] pageMaps = [.. pages.Select(pg => (IMap)new HomographyMap(pg.Matrix))];
+            (int W, int H)[] sizes = [.. pages.Select(pg => (pg.Warped.Width, pg.Warped.Height))];
             if (pages.Count == 1)
             {
                 Image only = pages[0].Warped;
                 pages.Clear(); // ownership moves to the caller
-                return (only, true);
+                return (only, true, Stitched.Geometry(sizes, [new Placement(1.0, 0.0, 0.0)], pageMaps));
             }
 
             // Direction from the FIRST TWO pages' centroids only, matching the reference. A wider
@@ -249,31 +299,22 @@ public static class Geometry
             // Ordered by the quad's MINIMUM coordinate, not its centroid: two pages of different
             // sizes can have centroids in the opposite order to their left edges.
             bool horizontal = resolved == StackDirection.Horizontal;
-            var ordered = horizontal
-                ? pages.OrderBy(pg => pg.Quad.Min(pt => pt.X)).ToList()
-                : pages.OrderBy(pg => pg.Quad.Min(pt => pt.Y)).ToList();
+            List<int> order = horizontal
+                ? [.. Enumerable.Range(0, pages.Count).OrderBy(i => pages[i].Quad.Min(pt => pt.X))]
+                : [.. Enumerable.Range(0, pages.Count).OrderBy(i => pages[i].Quad.Min(pt => pt.Y))];
 
             // **The pages are RESIZED to a common dimension before joining.** This is the step whose
             // absence produced a 727x528 canvas against the golden's 701x505: hconcat and vconcat
             // require the shared dimension to match exactly, so the reference scales every page to
             // the SMALLEST of them and scales the other axis proportionally, rounding half to even.
-            int common = horizontal
-                ? ordered.Min(pg => pg.Warped.Height)
-                : ordered.Min(pg => pg.Warped.Width);
+            (Placement[] placements, int[] newW, int[] newH) = Stitched.Place(sizes, order, horizontal);
 
-            var scaled = new List<Image>(ordered.Count);
+            var scaled = new List<Image>(order.Count);
             try
             {
-                foreach ((Point[] _, Image warped) in ordered)
+                foreach (int i in order)
                 {
-                    int other = horizontal
-                        ? Math.Max(1, PyNum.RoundHalfEvenToInt(
-                            (double)warped.Width * common / warped.Height))
-                        : Math.Max(1, PyNum.RoundHalfEvenToInt(
-                            (double)warped.Height * common / warped.Width));
-                    scaled.Add(horizontal
-                        ? Io.Resize(warped, other, common, Interpolation.Linear)
-                        : Io.Resize(warped, common, other, Interpolation.Linear));
+                    scaled.Add(Io.Resize(pages[i].Warped, newW[i], newH[i], Interpolation.Linear));
                 }
 
                 Image joined = scaled[0].Clone();
@@ -285,7 +326,7 @@ public static class Geometry
                     joined.Dispose();
                     joined = combined;
                 }
-                return (joined, true);
+                return (joined, true, Stitched.Geometry(sizes, placements, pageMaps));
             }
             finally
             {
@@ -297,11 +338,11 @@ public static class Geometry
         }
         catch (ArgumentException)
         {
-            return (null, false);
+            return (null, false, null);
         }
         finally
         {
-            foreach ((Point[] _, Image warped) in pages)
+            foreach ((Point[] _, Image warped, double[,] _) in pages)
             {
                 warped.Dispose();
             }
@@ -322,15 +363,23 @@ public static class Geometry
     /// <param name="quads">The photo quad each page came from, same order — used only to pick the
     /// stitch direction (on <see cref="StackDirection.Auto"/>) and the page order.</param>
     public static Image? StitchPages(IReadOnlyList<Image> pages, IReadOnlyList<Point[]> quads,
-        StackDirection direction)
+        StackDirection direction) =>
+        StitchPagesPlaced(pages, quads, direction).Canvas;
+
+    /// <summary>
+    /// <see cref="StitchPages"/>, also giving where each page landed (<c>stitch_pages</c>' second result):
+    /// one <see cref="Placement"/> per INPUT page, in the order of <paramref name="pages"/>.
+    /// </summary>
+    public static (Image? Canvas, Placement[] Placements) StitchPagesPlaced(IReadOnlyList<Image> pages,
+        IReadOnlyList<Point[]> quads, StackDirection direction)
     {
         if (pages.Count == 0)
         {
-            return null;
+            return (null, []);
         }
         if (pages.Count == 1)
         {
-            return pages[0].Clone();
+            return (pages[0].Clone(), [new Placement(1.0, 0.0, 0.0)]);
         }
 
         StackDirection resolved = direction;
@@ -346,22 +395,15 @@ public static class Geometry
             ? [.. Enumerable.Range(0, pages.Count).OrderBy(i => quads[i].Min(pt => pt.X))]
             : [.. Enumerable.Range(0, pages.Count).OrderBy(i => quads[i].Min(pt => pt.Y))];
 
-        int common = horizontal
-            ? ordered.Min(i => pages[i].Height)
-            : ordered.Min(i => pages[i].Width);
+        (int W, int H)[] sizes = [.. pages.Select(p => (p.Width, p.Height))];
+        (Placement[] placements, int[] newW, int[] newH) = Stitched.Place(sizes, ordered, horizontal);
 
         var scaled = new List<Image>(ordered.Count);
         try
         {
             foreach (int i in ordered)
             {
-                Image p = pages[i];
-                int other = horizontal
-                    ? Math.Max(1, PyNum.RoundHalfEvenToInt((double)p.Width * common / p.Height))
-                    : Math.Max(1, PyNum.RoundHalfEvenToInt((double)p.Height * common / p.Width));
-                scaled.Add(horizontal
-                    ? Io.Resize(p, other, common, Interpolation.Linear)
-                    : Io.Resize(p, common, other, Interpolation.Linear));
+                scaled.Add(Io.Resize(pages[i], newW[i], newH[i], Interpolation.Linear));
             }
 
             Image joined = scaled[0].Clone();
@@ -371,7 +413,7 @@ public static class Geometry
                 joined.Dispose();
                 joined = combined;
             }
-            return joined;
+            return (joined, placements);
         }
         finally
         {

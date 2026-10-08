@@ -110,8 +110,7 @@ func otsuInvDropTallBlobs(gray imaging.Image, blobMaxHeightPx float64) ([]byte, 
 // ever use). region is a grayscale crop; returns (tilt degrees, peak ratio); ratio 0
 // means "no evidence".
 func profileTilt(region imaging.Image) (float64, float64) {
-	small := imaging.ResizeArea(region, maxInt(1, int(float64(region.Width())*profileScale)),
-		maxInt(1, int(float64(region.Height())*profileScale)))
+	small := imaging.ResizeAreaBy(region, profileScale)
 	defer small.Close()
 	w, h := small.Width(), small.Height()
 	ink, w2, h2 := otsuInvDropTallBlobs(small, blobMaxFrac*float64(h))
@@ -147,7 +146,7 @@ func profileTilt(region imaging.Image) (float64, float64) {
 			}
 			var prof []float64
 			for r := range cntSum {
-				if cntSum[r] >= int64(0.6*float64(cmax)) {
+				if enoughValid(cntSum[r]/255, cmax/255) { // counts of pixels (the images hold 0 / 255)
 					denom := cntSum[r]
 					if denom < 1 {
 						denom = 1

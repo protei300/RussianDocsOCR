@@ -1,0 +1,30 @@
+{
+ "doc_type": "STS_1996",
+ "page_mm": [
+  74,
+  105
+ ],
+ "page_px": [
+  1000,
+  1419
+ ],
+ "pages": [
+  {
+   "name": "card",
+   "refs": [
+    {
+     "image": "sts_1996_old.jpg",
+     "mask": "sts_1996_old_mask.png"
+    },
+    {
+     "image": "sts_1996_old2008.jpg",
+     "mask": "sts_1996_old2008_mask.png"
+    },
+    {
+     "image": "sts_1996_old2010.jpg",
+     "mask": "sts_1996_old2010_mask.png"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+{
+ "doc_type": "STS_2019",
+ "page_mm": [
+  74,
+  105
+ ],
+ "page_px": [
+  1000,
+  1419
+ ],
+ "pages": [
+  {
+   "name": "card",
+   "refs": [
+    {
+     "image": "sts_2019_new.jpg",
+     "mask": "sts_2019_new_mask.png"
+    }
+   ]
+  }
+ ]
+}

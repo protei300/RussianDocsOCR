@@ -93,7 +93,12 @@ public static class Contours
     }
 
     /// <summary>Warps a quadrilateral onto an axis-aligned rectangle of the given size.</summary>
-    public static Image WarpPerspectiveQuad(Image src, IReadOnlyList<Point> quad, int width, int height)
+    public static Image WarpPerspectiveQuad(Image src, IReadOnlyList<Point> quad, int width, int height) =>
+        WarpPerspectiveQuad(src, quad, width, height, out _);
+
+    /// <summary>Same, also giving the matrix the warp used (input to output): the way back is built from it.</summary>
+    public static Image WarpPerspectiveQuad(Image src, IReadOnlyList<Point> quad, int width, int height,
+        out double[,] matrix)
     {
         if (quad.Count != 4)
         {
@@ -110,6 +115,14 @@ public static class Contours
         ];
 
         using Mat transform = Cv2.GetPerspectiveTransform(source, destination);
+        matrix = new double[3, 3];
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                matrix[i, j] = transform.At<double>(i, j);
+            }
+        }
         var dst = new Mat();
         Cv2.WarpPerspective(src.Mat, dst, transform, new Size(width, height));
         return Image.Wrap(dst);

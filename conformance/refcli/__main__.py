@@ -46,9 +46,10 @@ EXIT_INPUT = 3
 # what happened to `borders.segments` between its introduction and this list catching up.
 # The `<Field>` entries are patterns, expanded by runner._claims_pattern.
 STAGES_IMPLEMENTED = [
-    "prepare", "doctype.label", "rotate", "quality",
+    "documents", "prepare", "doctype.label", "rotate", "quality",
     "borders.segments", "borders.canvas", "deskew.canvas", "fields.bbox",
-    "address.lines", "words.<Field>.bbox", "ocr.<Field>.words", "join", "viewmodel",
+    "address.lines", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing",
+    "viewmodel",
 ]
 
 

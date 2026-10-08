@@ -3,13 +3,18 @@
   "stopped_early": false,
   "stages": [
     {
+      "stage": "documents",
+      "file": "documents.json",
+      "kind": "json"
+    },
+    {
       "stage": "prepare",
       "file": "prepare.digest.json",
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        960,
-        1280,
+        623,
+        806,
         3
       ]
     },
@@ -24,8 +29,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        960,
-        1280,
+        623,
+        806,
         3
       ]
     },
@@ -45,8 +50,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        472,
-        701,
+        478,
+        694,
         3
       ]
     },
@@ -56,8 +61,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        472,
-        701,
+        478,
+        694,
         3
       ]
     },
@@ -104,6 +109,11 @@
     {
       "stage": "words.Issue_date.bbox",
       "file": "words.Issue_date.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "quads",
+      "file": "quads.json",
       "kind": "json"
     },
     {

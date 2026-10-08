@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/geometry"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/imaging"
 )
 
@@ -51,14 +52,20 @@ type pageTemplate struct {
 	corners       [4]imaging.Point // {0,0},{w,0},{w,h},{0,h}
 }
 
+// quadInImage is PageTemplate.quad_in_image: the page corners mapped back into the photo.
+//
+// FLOAT32, like the reference: `corners` is an np.float32 array, and cv2.perspectiveTransform
+// hands back the dtype it was given, so the quad - and everything taken from it later (the
+// native scale, the colour mask of a card) - is a float32 array. The result is returned as
+// float64 values that are exactly float32-representable.
 func (t *pageTemplate) quadInImage(H [3][3]float64) []imaging.Point {
 	Hinv, ok := imaging.InvertH(H)
 	if !ok {
 		return nil
 	}
-	out := make([]imaging.Point, 4)
-	for i, c := range t.corners {
-		out[i] = imaging.TransformPoint(Hinv, c)
+	out := imaging.PerspectiveTransformF32(Hinv, t.corners[:])
+	if len(out) != 4 {
+		return nil
 	}
 	return out
 }
@@ -644,6 +651,12 @@ func removeInt(s []int, v int) []int {
 
 // NativeScale is PageRegistrar.native_scale: the output scale (<=1) at which no
 // registered page is upsampled, floored at 0.25. 1.0 when nothing registered.
+//
+// FLOAT32 end to end, as the reference computes it: the registered quad is a float32 array,
+// so `q[1] - q[0]`, the norm, the half-sum and the division by the page width are float32
+// operations (NumPy 2 keeps a float32 scalar float32 against a Python number), and the scale
+// that comes out is a float32 value widened to float64. In float64 the same scale differs in
+// the 8th digit, which moves a perspective warp's fixed-point weights and changes pixels.
 func (r *PageRegistrar) NativeScale(regs []PageRegistration) float64 {
 	scale := 1.0
 	for _, reg := range regs {
@@ -651,8 +664,8 @@ func (r *PageRegistrar) NativeScale(regs []PageRegistration) float64 {
 			continue
 		}
 		q := imaging.OrderPoints(reg.Quad)
-		wNative := 0.5 * (dist(q[1], q[0]) + dist(q[2], q[3]))
-		s := wNative / float64(r.pageW)
+		wNative := float32(0.5) * (norm32(q[1], q[0]) + norm32(q[2], q[3]))
+		s := float64(float32(wNative / float32(r.pageW)))
 		if s < scale {
 			scale = s
 		}
@@ -663,9 +676,21 @@ func (r *PageRegistrar) NativeScale(regs []PageRegistration) float64 {
 	return scale
 }
 
+// norm32 is np.linalg.norm(a - b) on float32 points: the difference is rounded to float32,
+// the sum of squares is float32, and so is the root. Every intermediate is wrapped in an
+// explicit float32(...) so no compiler may fuse the multiply and the add.
+func norm32(a, b imaging.Point) float32 {
+	dx := float32(float32(a.X) - float32(b.X))
+	dy := float32(float32(a.Y) - float32(b.Y))
+	sq := float32(float32(dx*dx) + float32(dy*dy))
+	return float32(math.Sqrt(float64(sq)))
+}
+
+// OutSize is PageRegistrar.out_size: (width, height) of one output page at scale.
+// int(round(...)) - Python's round is half to even.
 func (r *PageRegistrar) OutSize(scale float64) (int, int) {
-	w := int(math.Round(float64(r.outW) * scale))
-	h := int(math.Round(float64(r.outH) * scale))
+	w := int(math.RoundToEven(float64(r.outW) * scale))
+	h := int(math.RoundToEven(float64(r.outH) * scale))
 	if w < 1 {
 		w = 1
 	}
@@ -678,6 +703,14 @@ func (r *PageRegistrar) OutSize(scale float64) (int, int) {
 // WarpQuad warps a photo quad (e.g. from Borders) into the canonical page frame,
 // matching PageRegistrar.warp_quad.
 func (r *PageRegistrar) WarpQuad(img imaging.Image, quad []imaging.Point, scale float64) imaging.Image {
+	out, _ := r.WarpQuadMatrix(img, quad, scale)
+	return out
+}
+
+// WarpQuadMatrix is WarpQuad that also returns the matrix it warped with (photo -> page): the
+// way back from the page is made of it. The identity when the quad is degenerate and the photo
+// is returned as it is.
+func (r *PageRegistrar) WarpQuadMatrix(img imaging.Image, quad []imaging.Point, scale float64) (imaging.Image, [3][3]float64) {
 	m := float64(r.margin)
 	src := imaging.OrderPoints(quad)
 	dstPts := [4]imaging.Point{
@@ -692,10 +725,10 @@ func (r *PageRegistrar) WarpQuad(img imaging.Image, quad []imaging.Point, scale 
 	}
 	M, ok := imaging.SolvePerspective4([4]imaging.Point{src[0], src[1], src[2], src[3]}, dstPts)
 	if !ok {
-		return img.Clone()
+		return img.Clone(), imaging.Identity3()
 	}
 	w, h := r.OutSize(scale)
-	return imaging.WarpByHomography(img, M, w, h, true)
+	return imaging.WarpByHomography(img, M, w, h, true), M
 }
 
 // WarpPage warps the photo to the canonical page frame at scale via reg.H, matching
@@ -741,6 +774,15 @@ func QuadIoU(a, b []imaging.Point) float64 {
 // replaces it, returns it as-is otherwise) - the caller must not touch page again,
 // only the returned Image.
 func (r *PageRegistrar) Straighten(page imaging.Image, scale float64) (imaging.Image, StraightenInfo) {
+	out, info, _ := r.StraightenWithGeometry(page, scale)
+	return out, info
+}
+
+// StraightenWithGeometry is straighten_with_geometry: the same, plus the map from the returned
+// page back to the page that was passed in - the straightening homography and the bend map in
+// the order applied, or nil when nothing was applied.
+func (r *PageRegistrar) StraightenWithGeometry(page imaging.Image, scale float64) (imaging.Image, StraightenInfo, geometry.Geometry) {
+	var maps []geometry.Geometry
 	inset := int(math.Round(float64(r.margin) * scale))
 	info := StraightenInfo{Reason: "disabled"}
 	cur := page
@@ -753,6 +795,7 @@ func (r *PageRegistrar) Straighten(page imaging.Image, scale float64) (imaging.I
 			next := ApplyRefinement(cur, *Hm)
 			cur.Close()
 			cur = next
+			maps = append(maps, geometry.NewHomography(*Hm))
 		}
 	}
 	if r.LineDewarp {
@@ -763,8 +806,59 @@ func (r *PageRegistrar) Straighten(page imaging.Image, scale float64) (imaging.I
 			next := ApplyDewarp(cur, v)
 			cur.Close()
 			cur = next
+			maps = append(maps, geometry.VerticalRemap{V: v, W: cur.Width(), H: cur.Height()})
 		}
 		info.Applied = info.Applied || dInfo.Applied
 	}
-	return cur, info
+	if len(maps) == 0 {
+		return cur, info, nil
+	}
+	return cur, info, geometry.Chain{Maps: maps}
+}
+
+// Margin is the cushion around the canonical page, in canonical pixels (PageRegistrar.margin).
+func (r *PageRegistrar) Margin() int { return r.margin }
+
+// QuadMatrix is PageRegistrar.quad_matrix: the perspective matrix warp_quad warps a photo
+// quad with (photo -> page). The corners and the destination are float32 arrays on the
+// reference side (cv2.getPerspectiveTransform takes float32), so the destination is built
+// as the float32 product of the canonical corners and the scale.
+func (r *PageRegistrar) QuadMatrix(quad []imaging.Point, scale float64) ([3][3]float64, bool) {
+	m := float32(r.margin)
+	s := float32(scale)
+	src := imaging.OrderPoints(quad)
+	dst := [4]imaging.Point{
+		{X: float64(float32(m * s)), Y: float64(float32(m * s))},
+		{X: float64(float32(float32(m+float32(r.pageW)) * s)), Y: float64(float32(m * s))},
+		{X: float64(float32(float32(m+float32(r.pageW)) * s)), Y: float64(float32(float32(m+float32(r.pageH)) * s))},
+		{X: float64(float32(m * s)), Y: float64(float32(float32(m+float32(r.pageH)) * s))},
+	}
+	var src32 [4]imaging.Point
+	for i := range src32 {
+		src32[i] = imaging.Point{X: float64(float32(src[i].X)), Y: float64(float32(src[i].Y))}
+	}
+	return imaging.SolvePerspective4(src32, dst)
+}
+
+// PageMatrix is PageRegistrar.page_matrix: the matrix warp_page warps the photo with
+// (photo -> page) - the template homography, the cushion offset and the scale. Multiplied in
+// the order NumPy evaluates `S @ shift @ H`, which is (S @ shift) @ H.
+func (r *PageRegistrar) PageMatrix(reg PageRegistration, scale float64) [3][3]float64 {
+	m := float64(r.margin)
+	shift := [3][3]float64{{1, 0, m}, {0, 1, m}, {0, 0, 1}}
+	s := [3][3]float64{{scale, 0, 0}, {0, scale, 0}, {0, 0, 1}}
+	return imaging.MulH(imaging.MulH(s, shift), *reg.H)
+}
+
+// WarpMatrix is PageRegistrar.warp_matrix: the warp both warp_quad and warp_page apply,
+// given its matrix. fill == nil repeats the edge pixels (the passport path); a colour paints
+// it where the page runs past the photo - a card cut off by the frame and warped by its
+// template otherwise grows streaks of smeared edge into the canvas, where the field detector
+// reads them as print.
+func (r *PageRegistrar) WarpMatrix(img imaging.Image, M [3][3]float64, scale float64, fill *[3]uint8) imaging.Image {
+	w, h := r.OutSize(scale)
+	if fill == nil {
+		return imaging.WarpByHomography(img, M, w, h, true)
+	}
+	return imaging.WarpByHomographyFill(img, M, w, h, *fill)
 }

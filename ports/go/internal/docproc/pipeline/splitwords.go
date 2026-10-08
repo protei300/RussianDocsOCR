@@ -3,6 +3,7 @@ package pipeline
 import (
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/imaging"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/modules"
@@ -61,6 +62,15 @@ type FieldWords struct {
 	Label     string
 	Patches   []imaging.Image
 	WordBoxes [][]postprocess.Box
+	// DateLines are the whole lines (the field crops) of a date field that was read WORD BY
+	// WORD, kept for the whole-line re-read (Pipeline._date_lines / _reread_dates_whole).
+	// Cloned and owned like Patches. Empty for every other field, for SNILS, and for a
+	// line the gap guard already reads whole - it has nothing to add.
+	DateLines []imaging.Image
+	// Lines is the number of words per DETECTION of the field, in reading order
+	// (Pipeline._field_lines): the join flattens the lines, and a word torn by a line break
+	// is found at their boundary (GlueTornWords).
+	Lines []int
 }
 
 // SplitWords turns detected fields into per-field word patches.
@@ -78,10 +88,13 @@ type FieldWords struct {
 // docType is the BARE type ('SNILS', not 'SNILS_1996'): the gap guard compares it with
 // == 'SNILS', exactly as the OCR routing does.
 func SplitWords(fields []modules.Field, opts OcrOptions,
-	words *modules.WordsDetector, docType string) ([]FieldWords, SplitFlags, error) {
+	words *modules.WordsDetector, docType string) ([]FieldWords, SplitFlags, []SplitRecord, error) {
 
 	var flags SplitFlags
 	drop := duplicateFieldIndices(fields)
+	for i := range pairedDuplicateIndices(fields) {
+		drop[i] = true
+	}
 
 	// Fields that will actually contribute. Everything else is detected but never
 	// read — Face and Signature are the obvious cases. Multi-line fields are labeled
@@ -137,7 +150,7 @@ func SplitWords(fields []modules.Field, opts OcrOptions,
 					_ = results[k].patches[j].Close()
 				}
 			}
-			return nil, flags, err
+			return nil, flags, nil, err
 		}
 		for k, i := range splitIdxs {
 			byIdx[i] = results[k]
@@ -154,6 +167,7 @@ func SplitWords(fields []modules.Field, opts OcrOptions,
 	// SNILS is excluded BY CONSTRUCTION, not by hoping the threshold spares it: there
 	// the engine is chosen by word-index parity (see OcrFields), and a line read whole
 	// destroys the parity the routing depends on.
+	readWhole := map[int]bool{} // lines the guard replaced by the whole patch
 	if docType != "SNILS" {
 		// `kept` order is top-to-bottom, and a multi-line field collects its lines in
 		// that same order below - so counting per label here gives the line's ordinal
@@ -188,6 +202,7 @@ func SplitWords(fields []modules.Field, opts OcrOptions,
 				}
 				s.patches = []imaging.Image{fields[i].Patch.Clone()}
 				byIdx[i] = s
+				readWhole[i] = true
 				g := gap
 				if !math.IsInf(gap, 1) {
 					g = tensor.RoundHalfEven(gap, 3)
@@ -203,6 +218,18 @@ func SplitWords(fields []modules.Field, opts OcrOptions,
 	pos := map[string]int{}
 	for _, i := range kept {
 		label := fields[i].Box.Label
+
+		// Whole lines of the date fields read word by word, kept for the whole-line
+		// re-read (_reread_dates_whole): the split can drop a word without leaving a hole
+		// wide enough for the gap guard. SNILS is excluded for the same parity reason as
+		// the guard; a line the guard already reads whole has nothing to add. The date
+		// fields are recognised by NAME, the `'date' in label.lower()` convention.
+		var dateLine []imaging.Image
+		if docType != "SNILS" && !readWhole[i] && strings.Contains(strings.ToLower(label), "date") {
+			if _, split := byIdx[i]; split {
+				dateLine = []imaging.Image{fields[i].Patch.Clone()}
+			}
+		}
 
 		var patches []imaging.Image
 		var boxes []postprocess.Box
@@ -223,13 +250,39 @@ func SplitWords(fields []modules.Field, opts OcrOptions,
 		if j, seen := pos[label]; seen {
 			out[j].Patches = append(out[j].Patches, patches...)
 			out[j].WordBoxes = append(out[j].WordBoxes, boxes)
+			out[j].DateLines = append(out[j].DateLines, dateLine...)
+			out[j].Lines = append(out[j].Lines, len(patches))
 			continue
 		}
 		pos[label] = len(out)
 		out = append(out, FieldWords{Label: label, Patches: patches,
-			WordBoxes: [][]postprocess.Box{boxes}})
+			WordBoxes: [][]postprocess.Box{boxes}, DateLines: dateLine, Lines: []int{len(patches)}})
 	}
-	return out, flags, nil
+
+	// What the way back needs (Pipeline._field_quads): per kept detection, in reading order, the
+	// patch the words were found on and the word boxes the detector gave - unchanged by the gap
+	// guard, which replaces the PATCHES only.
+	records := make([]SplitRecord, 0, len(kept))
+	for _, i := range kept {
+		s, split := byIdx[i]
+		records = append(records, SplitRecord{Index: i, Label: fields[i].Box.Label,
+			PatchW: fields[i].Patch.Width(), PatchH: fields[i].Patch.Height(),
+			Split: split, WordBoxes: s.boxes})
+	}
+	return out, flags, records, nil
+}
+
+// SplitRecord is one kept detection as SplitWords saw it (the reference'"'"'s kept/word_bbox_by_idx).
+type SplitRecord struct {
+	// Index is the detection'"'"'s place in the fields passed to SplitWords.
+	Index int
+	Label string
+	// PatchW and PatchH are the size of the patch the word detector read (after the read margin
+	// and the turn of a passport series).
+	PatchW, PatchH int
+	// Split is false for a field that needs no splitting: its whole patch is the single word.
+	Split     bool
+	WordBoxes []postprocess.Box
 }
 
 // widestGap is the widest empty stretch on the line, in typical word widths.
@@ -327,6 +380,57 @@ func duplicateFieldIndices(fields []modules.Field) map[int]bool {
 	return drop
 }
 
+// PairedDuplicateIoU is Pipeline.PAIRED_DUPLICATE_IOU: the IoU above which a <name>_ru box and
+// a <name>_en box are one line read as both fields. Real pairs sit apart: ru/en lines of an
+// external passport overlap at 0.2-0.3, of a driving licence at up to 0.5 (labels,
+// 2026-09-26); the duplicates seen on a retrained detector overlap at 0.97-1.00.
+const PairedDuplicateIoU = 0.8
+
+// pairedDuplicateIndices is Pipeline._paired_duplicate_indices: the indices of the weaker box
+// wherever a <name>_ru and a <name>_en box cover the same line.
+//
+// NMS runs per class on purpose (the ru/en pairs must not suppress each other), so nothing
+// else removes a line the detector labels as BOTH languages. Seen on a retrained TextFields
+// (2026-09-26): «Г. ВОЛГОГРАД/USSR» came out as Birth_place_ru at 0.92 and Birth_place_en at
+// 0.62 on the same box, and the Latin engine read the Cyrillic line into Birth_place_en. The
+// more confident label keeps the line (ties: the Russian one).
+//
+// The reference's boxes carry integer coordinates (the detector's int() coercion), so the
+// overlap is measured on the truncated values.
+func pairedDuplicateIndices(fields []modules.Field) map[int]bool {
+	type rect struct{ x1, y1, x2, y2 int }
+	rects := make([]rect, len(fields))
+	for i, f := range fields {
+		rects[i] = rect{int(f.Box.X1), int(f.Box.Y1), int(f.Box.X2), int(f.Box.Y2)}
+	}
+	iou := func(a, b rect) float64 {
+		w := min(a.x2, b.x2) - max(a.x1, b.x1)
+		h := min(a.y2, b.y2) - max(a.y1, b.y1)
+		if w <= 0 || h <= 0 {
+			return 0.0
+		}
+		inter := w * h
+		return float64(inter) / float64((a.x2-a.x1)*(a.y2-a.y1)+(b.x2-b.x1)*(b.y2-b.y1)-inter)
+	}
+	drop := map[int]bool{}
+	for i, f := range fields {
+		if !strings.HasSuffix(f.Box.Label, "_ru") {
+			continue
+		}
+		name := strings.TrimSuffix(f.Box.Label, "_ru")
+		for j, other := range fields {
+			if other.Box.Label == name+"_en" && iou(rects[i], rects[j]) > PairedDuplicateIoU {
+				if f.Box.Conf >= other.Box.Conf {
+					drop[j] = true
+				} else {
+					drop[i] = true
+				}
+			}
+		}
+	}
+	return drop
+}
+
 // FieldWordsClose releases every word crop.
 //
 // Unconditional, because SplitWords owns all of them — the unsplit fallback is cloned
@@ -335,6 +439,9 @@ func FieldWordsClose(fw []FieldWords) {
 	for i := range fw {
 		for j := range fw[i].Patches {
 			_ = fw[i].Patches[j].Close()
+		}
+		for j := range fw[i].DateLines {
+			_ = fw[i].DateLines[j].Close()
 		}
 	}
 }

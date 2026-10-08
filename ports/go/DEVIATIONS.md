@@ -269,3 +269,51 @@ Every rule of `ports/AUTH.md` is implemented as written, and the black-box
    blocks everyone and then indexes an empty list.
 8. **Account timestamps are truncated to microseconds** at creation, so a `users.json` written
    here holds what Python's `datetime` can represent.
+
+---
+
+## G-01 — the line segment detector is reached through a C++ file of this repository
+
+*Go only. `D-nn` are shared across ports; a `G-` entry belongs to this binding alone.*
+
+The reference finds the straight segments that straighten and unbend a page with
+`cv2.createLineSegmentDetector(cv2.LSD_REFINE_STD)`. gocv v0.43.0 does not bind it (its
+`ROADMAP.md` lists `createLineSegmentDetector` unchecked, and the package has no such symbol),
+so until 2026-10-08 this port used Canny + HoughLinesP, a different detector that finds a
+different segment set - one of the causes of D-03.
+
+`internal/docproc/imaging/lsd_shim.cpp` now calls the OpenCV routine itself (a detector per
+call, default parameters) and `lsd.go` hands the segments back as float64. Measured on the
+STS cases: the raw segments equal the reference's, count and values (2137 on a page of
+STSBACK_1996). The build therefore needs a C++ compiler for this package - which cgo and gocv
+already need - and the OpenCV `imgproc` headers on the include path, which they already are.
+
+Two defects that Hough had hidden surfaced and are fixed with it, both in
+`modules/linerefine.go` / `linedewarp.go`: `cv2.resize(..., fx=0.5, fy=0.5, INTER_AREA)` was
+written as a resize to a computed size (`imaging.ResizeAreaBy` is the factor form: an exact 0.5
+takes OpenCV's integer-scale path, 997 -> 498 does not), and the per-cell profile of the dewarp
+rotated each cell about its own centre instead of the whole region once (`cellTilts` is the
+reference's `_cell_tilts`) and tested the valid-pixel count against a truncated integer limit
+(`enoughValid` is the float32 comparison). Before the fixes the dewarp found 16 cells where the
+reference finds 5 and bent a page the reference leaves flat.
+
+What stays of D-03: the 4-parameter fit still runs on this port's own Levenberg-Marquardt, not
+scipy's `least_squares` (STS_1996 canvas: 197 pixels of 3.4 M differ by one grey level, every
+stage passes), and the quad fit's RANSAC does not draw NumPy's PCG64 samples.
+
+## G-02 — the order of the SIFT keypoints that survive the budget
+
+*Go only.*
+
+`cv2.SIFT_create(nfeatures=6000)` cuts its keypoints with `std::nth_element`, and the ORDER of
+the survivors is whatever the C++ library leaves. The reference's Windows wheel (the goldens)
+is MSVC; this port's OpenCV is GCC. The order feeds the matcher and MAGSAC's random samples,
+and on a card near `CardSkewKeep` decides which canvas is read: this is D-07 and D-08.
+
+`imaging/stlselect.go` reproduces MSVC's `nth_element` / `partition` step for step (checked
+against the reference's own list: 8779 raw keypoints cut to 6000, identical element for
+element), and `SiftDetector` can use it: `SiftOrderLikeMsvc = true` makes STS_2019 run all 43
+stages clean and INTPASSPORT_1997 clean. **The constant is `false`**: the goldens are one
+platform's, a reference run on Linux reads the ports' numbers, and the declared D-07 / D-08
+say that - making this port match the Windows order would hide, in one port, a divergence the
+other two carry. Flip the constant to compare against the Windows goldens.

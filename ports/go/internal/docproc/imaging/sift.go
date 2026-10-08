@@ -11,22 +11,27 @@ import (
 	"gocv.io/x/gocv"
 )
 
-// SiftDetector owns one cv::SIFT instance (nfeatures budget fixed at construction,
-// matching cv2.SIFT_create(nfeatures=...)).
+// SiftDetector owns one cv::SIFT instance and the keypoint budget of
+// cv2.SIFT_create(nfeatures=...).
+//
+// The instance itself is built WITHOUT a budget and the budget is applied here: OpenCV's own
+// retainBest leaves the surviving keypoints in an order that depends on the C++ standard
+// library, and that order decides what the matcher and MAGSAC see - see stlselect.go. The
+// keypoints, their order and their descriptors are therefore the reference's (MSVC wheels),
+// not whatever libstdc++ would leave.
 type SiftDetector struct {
-	sift gocv.SIFT
+	sift      gocv.SIFT
+	nfeatures int
 }
 
 // NewSiftDetector builds a SIFT detector. nfeatures<=0 means "no cap" (SIFT's own
 // default).
 func NewSiftDetector(nfeatures int) *SiftDetector {
-	if nfeatures <= 0 {
-		s := gocv.NewSIFT()
-		return &SiftDetector{sift: s}
+	if !SiftOrderLikeMsvc && nfeatures > 0 { // OpenCV applies the budget itself
+		n := nfeatures
+		return &SiftDetector{sift: gocv.NewSIFTWithParams(&n, nil, nil, nil, nil), nfeatures: nfeatures}
 	}
-	n := nfeatures
-	s := gocv.NewSIFTWithParams(&n, nil, nil, nil, nil)
-	return &SiftDetector{sift: s}
+	return &SiftDetector{sift: gocv.NewSIFT(), nfeatures: nfeatures}
 }
 
 func (s *SiftDetector) Close() error { return s.sift.Close() }
@@ -34,19 +39,75 @@ func (s *SiftDetector) Close() error { return s.sift.Close() }
 // DetectAndCompute finds keypoints and their 128-float descriptors over the whole
 // image (no mask), one []float32 row per keypoint, in keypoint order.
 func (s *SiftDetector) DetectAndCompute(img Image) ([]Point, [][]float32) {
-	mask := gocv.NewMat()
-	defer mask.Close()
-	return s.detectAndCompute(img, mask)
+	return s.detectAndCompute(img, nil)
 }
 
 // DetectAndComputeMasked restricts detection to where mask (CV_8U, same size as img,
 // nonzero = search here) is nonzero.
 func (s *SiftDetector) DetectAndComputeMasked(img Image, mask Image) ([]Point, [][]float32) {
-	return s.detectAndCompute(img, mask.mat)
+	m := mask.mat
+	return s.detectAndCompute(img, &m)
 }
 
-func (s *SiftDetector) detectAndCompute(img Image, mask gocv.Mat) ([]Point, [][]float32) {
-	kp, desc := s.sift.DetectAndCompute(img.mat, mask)
+// SiftOrderLikeMsvc selects who decides the order of the keypoints that survive the
+// nfeatures cut. true: this package, reproducing the MSVC standard library the reference's
+// Windows wheels (and so the committed goldens) were made with (stlselect.go). false: the
+// OpenCV linked into this binary, i.e. libstdc++'s std::nth_element, which is what a Python
+// reference run on Linux gets as well - the two orders give different MAGSAC samples and, on
+// a card whose Borders skew sits near CardSkewKeep, a different canvas (STS_2019: 1670 vs 1760
+// coarse inliers, skew 0.0076 vs 0.0118). Measured both ways on the four STS cases.
+const SiftOrderLikeMsvc = false
+
+// detectAndCompute is cv::SIFT::detectAndCompute(image, mask) with nfeatures set, in its
+// own order of work: the keypoints of the scale space (sorted by position, duplicates
+// removed), then retainBest(nfeatures), then the mask, then the descriptors of what is left.
+func (s *SiftDetector) detectAndCompute(img Image, mask *gocv.Mat) ([]Point, [][]float32) {
+	if !SiftOrderLikeMsvc {
+		empty := gocv.NewMat()
+		defer empty.Close()
+		m := empty
+		if mask != nil {
+			m = *mask
+		}
+		kp, desc := s.sift.DetectAndCompute(img.mat, m)
+		defer desc.Close()
+		pts := make([]Point, len(kp))
+		for i, k := range kp {
+			pts[i] = Point{X: k.X, Y: k.Y}
+		}
+		return pts, descriptorRows(desc, len(kp))
+	}
+	raw := s.sift.Detect(img.mat)
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	resp := make([]float64, len(raw))
+	for i, k := range raw {
+		resp[i] = k.Response
+	}
+	kept := make([]gocv.KeyPoint, 0, len(raw))
+	var maskBytes []byte
+	var maskW, maskH int
+	if mask != nil && !mask.Empty() {
+		maskBytes, maskW, maskH = mask.ToBytes(), mask.Cols(), mask.Rows()
+	}
+	for _, i := range retainBestOrder(resp, s.nfeatures) {
+		k := raw[i]
+		if maskBytes != nil {
+			// KeyPointsFilter::runByPixelsMask: (int)(pt.y + 0.5f), (int)(pt.x + 0.5f)
+			y, x := int(float32(k.Y)+0.5), int(float32(k.X)+0.5)
+			if y < 0 || y >= maskH || x < 0 || x >= maskW || maskBytes[y*maskW+x] == 0 {
+				continue
+			}
+		}
+		kept = append(kept, k)
+	}
+	if len(kept) == 0 {
+		return nil, nil
+	}
+	none := gocv.NewMat()
+	defer none.Close()
+	kp, desc := s.sift.Compute(img.mat, none, kept)
 	defer desc.Close()
 	pts := make([]Point, len(kp))
 	for i, k := range kp {
@@ -54,7 +115,6 @@ func (s *SiftDetector) detectAndCompute(img Image, mask gocv.Mat) ([]Point, [][]
 	}
 	return pts, descriptorRows(desc, len(kp))
 }
-
 // descriptorRows reshapes a CV_32F N x 128 descriptor Mat into N row slices. Empty
 // (zero-keypoint) descriptors come back as a nil Mat from gocv, hence the explicit n.
 func descriptorRows(desc gocv.Mat, n int) [][]float32 {

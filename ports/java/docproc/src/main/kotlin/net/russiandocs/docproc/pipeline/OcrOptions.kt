@@ -13,6 +13,23 @@ public data class OcrOptions(
     val ruFields: List<String> = emptyList(),
     val needsLicenceRotation: Boolean = false,
     val hasAddress: Boolean = false,
+    /**
+     * Field -> {form year (the label suffix) -> `cyr` | `lat`}: an engine that overrides [ruFields]/[enFields]
+     * on that year only — for a line whose alphabet follows the form edition. The field must still be listed
+     * in one of the two lists: that routing is what the other years get. `engine_by_year`.
+     */
+    val engineByYear: Map<String, Map<String, String>> = emptyMap(),
+    /**
+     * Field -> vertical margin, as a share of the box height, added to the crop that is READ (the box itself
+     * is not changed). For fields labelled tight to the letters ([ReadMargins]). `read_margin`.
+     */
+    val readMargin: Map<String, Double> = emptyMap(),
+    /**
+     * Multi-line fields whose lines are printed wrapped at the edge of the print area without a hyphen, so a
+     * word can be torn across two lines; torn known words are glued back ([StsMarks.glueTornWords]).
+     * `glue_torn`.
+     */
+    val glueTorn: List<String> = emptyList(),
 ) {
     public fun isOcrField(label: String): Boolean = label in enFields || label in ruFields
 
@@ -94,6 +111,11 @@ public data class OcrOptions(
                         "Licence_number"),
                 )
             }
+            // 'dlback' contains 'dl': the licence back side (categories table) has no field model yet, so it
+            // must not fall into the front-side DL options (pipeline.py, make_options). Empty options.
+            if (t.contains("dlback")) {
+                return OcrOptions()
+            }
             if (t.contains("dl")) {
                 return OcrOptions(
                     // `Middle_name_*` is split for the same reason as the external passport's
@@ -136,17 +158,74 @@ public data class OcrOptions(
                         "Issue_date", "Licence_number",
                         "Father_first_middle_ru", "Mother_first_middle_ru",
                         "Birth_date", "Father_birth_date", "Mother_birth_date",
-                        "Issue_place_ru"),
+                        "Issue_place_ru", "Act_date"),
                     enFields = emptyList(),
                     ruFields = listOf("Last_name_ru", "First_name_ru", "Birth_place_ru",
                         "Issue_organization_ru", "Issue_date", "Licence_number",
                         "Father_last_name_ru", "Father_first_middle_ru",
                         "Mother_last_name_ru", "Mother_first_middle_ru",
                         "Birth_date", "Father_birth_date", "Mother_birth_date",
-                        "Issue_place_ru", "Act_number"),
+                        "Issue_place_ru", "Act_number", "Act_date"),
                 )
+            }
+            // 'stsback' contains 'sts': both sides of the certificate land here on purpose — one options
+            // class for both (OCROptionsSTS). make_options cannot tell the sides apart and does not need to:
+            // a field the detector does not find on a side simply produces nothing.
+            if (t.contains("sts")) {
+                return STS
             }
             return OcrOptions()
         }
+
+        /**
+         * OCR options for the vehicle registration certificate (issue #17): the vehicle side (STS_<year>) and the
+         * owner side (STSBACK_<year>). Port of `OCROptionsSTS`, current as of `a7b12e81` (no `Vehicle_model_en`:
+         * the field detector v10 has no such class).
+         *
+         * Engine routing follows the alphabet the field is printed in, with the two project precedents kept: the
+         * series/number goes to the Cyrillic engine (digits read better there, issue #12, and old blanks carry
+         * Cyrillic series letters), and mixed fields go where MOST of their values live — Chassis_number is
+         * «ОТСУТСТВУЕТ» on nearly every car (Cyrillic), while Body_number is the VIN on nearly every car (Latin).
+         * The PTS line mixes a Cyrillic series with digits («77ТС272158») — Cyrillic. House_number can carry a
+         * Cyrillic letter («38Б») — Cyrillic. Reg_number and VIN are Latin by decision (2026-09-05): plate letters
+         * are the GOST subset that shares its glyphs with Latin, and VIN never contains I, O or Q.
+         *
+         * The new form (order 267/2019, STS_2019/STSBACK_2019) adds the type-approval number (Latin-routed: its
+         * «ТС»/«ЕАЭС» prefix shares glyphs with Latin) and the building as its own address line; its issue date
+         * is digits, which the Cyrillic engine reads as well as the worded one. The original edition of the old
+         * form (order 1001/2008) also prints the engine model, number and displacement (Latin-routed); its owner
+         * side names the issuing unit in words on two lines — Issue_organization_ru, Cyrillic and split into
+         * words, since no OCR alphabet has a space.
+         */
+        private val STS = OcrOptions(
+            neededSplit = listOf("Vehicle_make_ru", "Vehicle_make_en", "Vehicle_type",
+                "Special_marks", "Living_region_ru", "Licence_number",
+                "Issue_date", "PTS_number", "Eco_class", "Vehicle_color",
+                "Issue_organization_ru"),
+            enFields = listOf("Reg_number", "VIN", "Vehicle_make_en",
+                "Type_approval", "Engine_model", "Engine_number", "Engine_volume",
+                "Last_name_en",
+                "First_name_en", "Vehicle_category", "Vehicle_year",
+                "Body_number", "Engine_power", "Max_mass", "Curb_mass",
+                "Expiration_date", "Apartment_number", "Issue_organisation_code"),
+            ruFields = listOf("Last_name_ru", "First_name_ru", "Middle_name_ru",
+                "Living_region_ru", "Vehicle_make_ru", "Vehicle_type",
+                "Vehicle_color", "Eco_class", "Chassis_number", "Special_marks",
+                "Licence_number", "Issue_date", "PTS_number", "House_number",
+                "Building_number", "Issue_organization_ru"),
+            // The make, by line: the upper line is Vehicle_make_ru, the lower one Vehicle_make_en. The new form
+            // prints the upper line in Latin («LADA GRANTA»), the old one in Cyrillic, so the engine follows the
+            // year. Measured on the STS synthetic holdout (2026-10-06): new form Latin-routed 79 of 112 exact
+            // against 22 Cyrillic-routed, the old form unchanged (23 of 32). Reading each word with BOTH
+            // engines and keeping the more confident one was tried and lost: the engines are sure of look-alike
+            // letters in either script («CYBAPY», «YA3» for СУБАРУ, УАЗ).
+            engineByYear = mapOf("Vehicle_make_ru" to mapOf("2019" to "lat")),
+            // The special-marks lines are labelled tight to their letters (their lines stand so close that a
+            // labelling margin merged neighbours), so the crop that is read gets a margin ([ReadMargins]). Same
+            // measurement: CER 0.145 -> 0.119, leasing found 23 -> 25 of 30 (no false ones); 0.2 and 0.3 gave
+            // nothing more and cost the 2010 edition 2 of 26 exact lines.
+            readMargin = mapOf("Special_marks" to 0.1),
+            glueTorn = listOf("Special_marks"),
+        )
     }
 }

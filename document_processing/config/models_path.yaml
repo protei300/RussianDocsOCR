@@ -1,4 +1,5 @@
 DocDetector: models\Borders
+DocumentDetector: models\DocDetect
 TextFieldsDetector: models\TextFields
 AddressLinesDetector: models\AddressLines
 AddressTextKindClassifier: models\AddressTextKind

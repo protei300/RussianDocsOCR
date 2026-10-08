@@ -27,6 +27,19 @@ All four ports and how they compare: [`../README.md`](../README.md).
 | M10 | Docker | **written, NOT BUILT** — no daemon on the development machine; the file names its own likely first-build fixes |
 | M10.5 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | **done** |
 
+**Caught up with the reference, 2026-10-07**: the
+`documents` stage — find the documents first, cut the largest at full resolution, read the crop
+(decision №142, `modules/DocumentDetector.kt`, `Recognizer.findDocuments`), the whole-line re-read of a
+date the word split lost (`pipeline/RereadDates.kt`) and the quote read as a letter next to a day
+(`Dates.dropQuoteLetters`).
+
+**STS and the frame, 2026-10-08** (the ports now release together with the reference): the
+vehicle registration certificate (`OcrOptions` for both sides, the card straightened by its printed blank, read
+margins, the make's engine by form year, torn words and the leasing flag, the `leasing` stage), `Recognizer.runFrame`
+with `PairSides`, and the short return for a `NONE` frame after the borders-first retry. See
+[`ARCHITECTURE.md`](ARCHITECTURE.md) §8 and [`DEVIATIONS.md`](DEVIATIONS.md) `J-19`. The way back to the photo
+(PR #19, `geometry/`) and the `quads` stage were added the same day: `Results.fieldQuads`, `wordQuads`, `toInput`.
+
 Verify it rather than trusting the table:
 
 ```bash
@@ -181,7 +194,7 @@ set RDOCS_TOOLCHAIN_BIN=C:\msys64\mingw64\bin
 `./gradlew :service:bootJar` builds `service/build/dist/rdocs-service.jar`; run it with
 `java -jar service/build/dist/rdocs-service.jar --addr 127.0.0.1:8005` and the same environment as the
 Python service (`DATA_DIR`, `AUTH_PIN`, `JWT_SECRET`, …). On Windows the J-01/J-16 variables above apply,
-and `RDOCS_OPENCV_HOMEin` must be on `PATH` so the JNI library finds the OpenCV core DLLs.
+and `RDOCS_OPENCV_HOME\bin` must be on `PATH` so the JNI library finds the OpenCV core DLLs.
 
 **Authentication** is the reference's, implemented to [`../AUTH.md`](../AUTH.md):
 

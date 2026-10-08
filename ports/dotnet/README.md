@@ -27,12 +27,15 @@ All four ports and how they compare: [`../README.md`](../README.md).
 | M9 | the service | **done — 37/37 wire checks, 7/7 recognitions, cpu and gpu** |
 | M10 | Docker | **done — both images built, run and verified** |
 
-Conformance: **PASS on 44/44 stages across all seven cases, zero skips, on both the `cpu` and
-`gpu` profiles.** Two stages pass under relaxation R-02 (`borders.canvas`, `deskew.canvas`):
-`warpPerspective` interpolation differs by at most one grey level on 0.02% of pixels between
-OpenCV minors.
+Conformance, 2026-10-08, against the goldens of commit `601bac1` (models-v10) and the four new STS cases,
+fourteen cases, `cpu` profile: the ten earlier cases as before (eight clean, the two internal passports
+differ only by the declared D-03), `STSBACK_1996` and `STS_1996` clean, `STSBACK_2019` clean but one box edge
+(1 px) and `STS_2019` not reproducible on Linux against a golden recorded on Windows - the cause (the order
+of SIFT keypoints depends on the C++ library OpenCV was built with) is measured in `DEVIATIONS.md` N-13.
+Earlier, on seven cases and the models-v6 goldens, this port passed 44/44 stages, zero skips, on both
+profiles.
 
-Tests: `dotnet test` — 11 library + 23 service = **34 passing**.
+Tests: `dotnet test` - 177 library + 80 service = **257 passing** (2026-10-08).
 
 
 ## Как библиотека, из своего приложения
@@ -65,7 +68,17 @@ var payload = Recognizer.BuildViewModel(results, includeDebug: false);
 ```
 
 `doc_type == "NONE"` — не ошибка, а нормальный короткий возврат: документ не распознан, `Results`
-заполнен, полей нет. Бросать здесь исключение сломало бы штатный сценарий.
+заполнен, полей нет (как у эталона: один раз запускается поиск границ и тип определяется заново по
+вырезке; если и тогда `NONE` — возврат). Бросать здесь исключение сломало бы штатный сценарий.
+
+Все документы кадра — `recognizer.RunFrame(path, options)`: по одному `Results` на документ, самый крупный
+первым; стороны свидетельства о регистрации ТС (СТС) с одним номером связаны через `Results.PairedWith`.
+Для СТС `Results.Leasing` — признак лизинга по особым отметкам.
+
+Где поле лежит на исходном фото, а не на холсте: `results.FieldQuads` и `results.WordQuads` (метка → четырёхугольники
+от левого верхнего угла рамки), `results.ToInput(точки)` — любые точки холста на фото. `null` — обратный путь для
+этого прогона неизвестен (какая-то стадия изменила картинку так, что точечной картой это не выразить). Та же вещь
+выдаётся стадией сверки `quads`.
 
 Нативные зависимости, которые придётся довезти вместе с приложением: `OpenCvSharp4.official.runtime.*`
 под вашу платформу (на Linux он **не** headless и требует GTK-стек — точный список в

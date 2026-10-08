@@ -4,7 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from time import time
-from typing import Optional, Union, Dict, Tuple
+from typing import Optional, Union, Dict, List, Tuple
 
 import cv2
 import numpy as np
@@ -15,7 +15,8 @@ from ..pipeline_modules.doc_detector.image_transformation import (expand_quad, D
                                                                    stitch_pages, stitched_geometry,
                                                                    placement_rect)
 from ..pipeline_modules.page_registration.geometry import PageGeometry, aspect_for
-from .dates import canonical_dates, to_ddmmyyyy
+from .dates import canonical_date, canonical_dates
+from .sts_marks import glue_torn_words, parse_leasing
 
 # A Borders quad overlapping the template-registered page by at least this
 # much is the same page, and its edges (the physical page edges) give the
@@ -95,6 +96,22 @@ class OCROptionsClass:
     """
     ru_fields = []
 
+    """dict: Field -> {form year (label suffix): 'cyr' | 'lat'}, an engine that
+    overrides ru_fields/en_fields on that year only. For a line whose alphabet
+    follows the form edition. The field must still be listed in ru_fields or
+    en_fields - that routing is what the other years get."""
+    engine_by_year = {}
+
+    """dict: Field -> vertical margin, as a share of the box height, added to the
+    crop that is READ (the box itself is not changed). For fields labelled tight
+    to the letters (Pipeline._read_margins)."""
+    read_margin = {}
+
+    """list: Multi-line fields whose lines are printed wrapped at the edge of the
+    print area without a hyphen, so a word can be torn across two lines;
+    torn known words are glued back (sts_marks.glue_torn_words)."""
+    glue_torn = []
+
     """bool: Whether this doc type needs license number rotation."""
     needs_licence_rotation = False
 
@@ -119,6 +136,10 @@ class OCROptionsClass:
             return OCROptionsINTPassport()
         elif 'extpassport' in doc_type.lower():
             return OCROptionsEXTPassport()
+        # 'dlback' contains 'dl': the licence back side (categories table) has no
+        # field model yet, so it must not fall into the front-side DL options.
+        elif 'dlback' in doc_type.lower():
+            return OCROptionsClass()
         elif 'dl' in doc_type.lower():
             return OCROptionsDL()
         elif 'snils' in doc_type.lower():
@@ -195,20 +216,27 @@ class OCROptionsBIRTHCERT(OCROptionsClass):
     the era (make_options gets the type without the year suffix), so
     Birth_date is routed to the Cyrillic engine for BOTH: it must read the
     worded 2018 form, and the Cyrillic engine reads digit-only crops fine —
-    the same precedent as the passport Licence_number (issue #12)."""
+    the same precedent as the passport Licence_number (issue #12).
+
+    Act_date is the date of the civil-registry record (2026-10: a hotel
+    registry system now asks for the record's number and date instead of the
+    certificate's series and number; also issue #22). Both forms print it in
+    words, the 1998 form in reverse order with the printed words between the
+    parts - «2010 года июня месяца 15 числа» - and the field box spans them,
+    so dates.py skips those words."""
 
     needed_split = ["First_name_ru", "Birth_place_ru", "Issue_organization_ru",
                     "Issue_date", "Licence_number",
                     "Father_first_middle_ru", "Mother_first_middle_ru",
                     "Birth_date", "Father_birth_date", "Mother_birth_date",
-                    "Issue_place_ru"]
+                    "Issue_place_ru", "Act_date"]
     en_fields = []
     ru_fields = ["Last_name_ru", "First_name_ru", "Birth_place_ru",
                  "Issue_organization_ru", "Issue_date", "Licence_number",
                  "Father_last_name_ru", "Father_first_middle_ru",
                  "Mother_last_name_ru", "Mother_first_middle_ru",
                  "Birth_date", "Father_birth_date", "Mother_birth_date",
-                 "Issue_place_ru", "Act_number"]
+                 "Issue_place_ru", "Act_number", "Act_date"]
 
 
 class OCROptionsEXTPassport(OCROptionsClass):
@@ -317,11 +345,11 @@ class OCROptionsSTS(OCROptionsClass):
     `service/ml/labels.py`; the ports follow after this type lands (decision
     #132), so until then only the Python reference produces these fields."""
 
-    needed_split = ["Vehicle_make_ru", "Vehicle_make_en", "Vehicle_model_en", "Vehicle_type",
+    needed_split = ["Vehicle_make_ru", "Vehicle_make_en", "Vehicle_type",
                     "Special_marks", "Living_region_ru", "Licence_number",
                     "Issue_date", "PTS_number", "Eco_class", "Vehicle_color",
                     "Issue_organization_ru"]
-    en_fields = ["Reg_number", "VIN", "Vehicle_make_en", "Vehicle_model_en",
+    en_fields = ["Reg_number", "VIN", "Vehicle_make_en",
                  "Type_approval", "Engine_model", "Engine_number", "Engine_volume",
                  "Last_name_en",
                  "First_name_en", "Vehicle_category", "Vehicle_year",
@@ -332,6 +360,26 @@ class OCROptionsSTS(OCROptionsClass):
                  "Vehicle_color", "Eco_class", "Chassis_number", "Special_marks",
                  "Licence_number", "Issue_date", "PTS_number", "House_number",
                  "Building_number", "Issue_organization_ru"]
+    # The make, by line: the upper line is Vehicle_make_ru, the lower one
+    # Vehicle_make_en (no model class since 2026-10-04). The new form prints the
+    # upper line in Latin («LADA GRANTA»), the old one in Cyrillic, so the engine
+    # follows the year. Measured on the STS synthetic holdout with the r32 field
+    # detector candidate (2026-10-06): new form Latin-routed 79 of 112 exact
+    # against 22 Cyrillic-routed, the old form unchanged (23 of 32). Reading each
+    # word with BOTH engines and keeping the more confident one was tried and
+    # lost: the engines are sure of look-alike letters in either script
+    # («CYBAPY», «YA3» for СУБАРУ, УАЗ; «ЕХЕЕР», «ОМОРА» for EXEED, OMODA) -
+    # 67 of 112 with the confidence over all CTC steps, 76 over the letters only,
+    # and over every year the old form fell to 15 of 32.
+    engine_by_year = {"Vehicle_make_ru": {"2019": "lat"}}
+    # The special-marks lines are labelled tight to their letters (their lines
+    # stand so close that a labelling margin merged neighbours), so the crop that
+    # is read gets a margin (Pipeline._read_margins). Same measurement: CER
+    # 0.145 -> 0.119, leasing found 23 -> 25 of 30 (no false ones), exact lines
+    # unchanged at 31 of 74; 0.2 and 0.3 gave nothing more and cost the 2010
+    # edition 2 of 26 exact lines.
+    read_margin = {"Special_marks": 0.1}
+    glue_torn = ["Special_marks"]
 
 
 class PipelineResults:
@@ -352,6 +400,9 @@ class PipelineResults:
         # stage keys that ran inside a concurrent group: kept in the report for
         # visibility, but excluded from the 'total' sum (see add_concurrent_group)
         self._concurrent_members = set()
+        # index of the other side of this document in Pipeline.process_frame's list
+        # (see pair_sides); None - no pair found, or a single-document call
+        self.paired_with = None
 
     @property
     def meta_results(self) -> dict:
@@ -410,6 +461,19 @@ class PipelineResults:
         here; a date the converter would have to guess at is simply absent.
         """
         return self._meta_results.get('OCR_normalized') or {}
+
+    @property
+    def leasing(self) -> Optional[Dict]:
+        """The leasing record read from the STS special marks, or None.
+
+        ``{'leasing': True}`` when the marks say the vehicle is leased; None
+        when they do not, or the document is not an STS. Only the flag for
+        now (Pipeline.LEASING_REPORTED says why); the lessor and the contract
+        are parsed (sts_marks.parse_leasing) but not reported until the reading
+        of the marks can carry them. A SEPARATE view, like ocr_normalized:
+        ``ocr['Special_marks']`` keeps the text as read.
+        """
+        return self._meta_results.get('Leasing')
 
     @property
     def words_fallback(self) -> list:
@@ -510,6 +574,29 @@ class PipelineResults:
             return None
 
     @property
+    def documents(self) -> list:
+        """Every document the detector found in the frame, largest first.
+
+        ``{'box': [x1, y1, x2, y2], 'conf': float, 'pages': [{'box', 'conf'}, ...]}``
+        on the image passed to process_img; ``pages`` are the pages of a passport
+        spread lying inside the document. Empty when the detector found nothing
+        (or is switched off) and the whole frame was read.
+        """
+        return deepcopy(self._meta_results.get('Documents') or [])
+
+    @property
+    def document_index(self) -> Optional[int]:
+        """Which entry of ``documents`` this result reads; None - the whole frame."""
+        return self._meta_results.get('DocumentIndex')
+
+    @property
+    def document_box(self) -> Optional[list]:
+        """[x1, y1, x2, y2] of the document read, on the input image; None - the whole frame."""
+        index = self.document_index
+        documents = self._meta_results.get('Documents') or []
+        return list(documents[index]['box']) if index is not None and index < len(documents) else None
+
+    @property
     def geometry(self) -> Union[Chain, None]:
         """Map from the canvas later stages read back to the image passed to process_img.
 
@@ -604,6 +691,44 @@ class PipelineResults:
         self._concurrent_members |= set(members)
 
 
+#: Front type -> back type of a two-sided document whose sides carry the same
+#: number. The vehicle registration certificate prints its series and number on
+#: both sides (read as Licence_number on each), so a front and a back lying in one
+#: frame - one sheet of a two-sided scan - pair up by it (issue #26). A licence back
+#: carries no number the pipeline reads, so it is not here.
+PAIRED_SIDES = {'STS': 'STSBACK'}
+
+
+def _document_number(results: 'PipelineResults') -> str:
+    """Digits of the series and number read on a side; '' when nothing was read."""
+    return re.sub(r'\D', '', (results.ocr or {}).get('Licence_number', ''))
+
+
+def pair_sides(documents: list) -> None:
+    """Set ``paired_with`` on the two sides of one document read from one frame.
+
+    A front and a back pair when their types belong together (PAIRED_SIDES), they
+    read the same number, and that number is unique among the sides of that type
+    in the frame - two certificates scanned on one sheet must not cross-pair, and
+    an ambiguous number pairs nothing rather than guessing.
+    """
+    family = lambda r: (r.doctype or 'NONE').rsplit('_', 1)[0]
+    for front, back in PAIRED_SIDES.items():
+        fronts, backs = {}, {}
+        for i, r in enumerate(documents):
+            number = _document_number(r)
+            if len(number) < 6:
+                continue
+            side = fronts if family(r) == front else backs if family(r) == back else None
+            if side is not None:
+                side.setdefault(number, []).append(i)
+        for number, f in fronts.items():
+            b = backs.get(number, [])
+            if len(f) == 1 and len(b) == 1:
+                documents[f[0]].paired_with = b[0]
+                documents[b[0]].paired_with = f[0]
+
+
 
 
 class Pipeline:
@@ -614,7 +739,8 @@ class Pipeline:
     """
 
     def __init__(self, model_format='ONNX', device=None, ocr='accurate', verbose=False,
-                 ocr_gpu_batch=False, page_registration=True, page_geometry=False):
+                 ocr_gpu_batch=False, page_registration=True, page_geometry=False,
+                 detect_documents=True, card_registration=True):
         """
         Initialize pipeline.
 
@@ -677,7 +803,24 @@ class Pipeline:
                 Opt-in because the canvas pixels change: the conformance
                 goldens and the language ports are pinned to the Borders
                 canvas until they carry the same module.
+            detect_documents (bool): default True (decision #142, 2026-10-01).
+                Find the documents in the frame first (DocumentDetector), then
+                run everything else - type, borders, fields, reading - on the
+                crop of one document, cut from the image at its full
+                resolution. process_img reads the largest document found;
+                process_frame reads every one. The whole frame misleads the
+                type classifier whenever the document is a small part of it:
+                on a client's scans a driving licence on an A4 sheet was typed
+                from the frame in 50 % of cases and from its crop in 99 %
+                (docs/progress-log.md, 2026-09-29). With no document found -
+                or False here - the whole frame is read as before.
+            card_registration (bool): default True. Straighten a vehicle
+                registration certificate (STS_*) by its printed blank instead of
+                its Borders quad, which on a card in a sleeve is the sleeve's
+                edge (see _register_card). Runs under page_registration: False
+                there switches this off too.
         """
+        self.card_registration = card_registration
         device = _resolve_device(device)
         self.device = device
         self.model_format = model_format
@@ -712,6 +855,16 @@ class Pipeline:
         else:
             artifact, runtime = model_format, None
 
+        self.document_detector = None
+        if detect_documents:
+            try:
+                self.document_detector = DocumentDetector(model_format=artifact, device=device,
+                                                          verbose=verbose, runtime=runtime)
+            except FileNotFoundError:
+                # A weight set of models-v8 or older has no DocDetect: read the whole
+                # frame as before rather than refuse to start.
+                print("[!] DocumentDetector weights not found (models/DocDetect): reading whole "
+                      "frames. Run scripts/fetch_models.py for a weight set that has them.")
         self.doctype_angles = DocTypeAngles(model_format=artifact, device=device, verbose=verbose,
                                             runtime=runtime)
         self.doc_detector = DocDetector(model_format=artifact, device=device, verbose=verbose,
@@ -839,15 +992,117 @@ class Pipeline:
             img_size: Resize image to this size for processing.
 
         Returns:
-            PipelineResults with extracted information.
+            PipelineResults with extracted information. With documents found in
+            the frame it describes the largest one (``results.documents`` lists
+            all of them, ``results.document_index`` is the one read); use
+            ``process_frame`` to read every document.
         """
+        options = dict(ocr=ocr, get_doc_borders=get_doc_borders, find_text_fields=find_text_fields,
+                       check_quality=check_quality, low_quality=low_quality, docconf=docconf)
+        self._start_document()
+        frame = self._load_image(img_path)
+        documents = self._find_documents(frame, img_size)
+        return self._read_document(frame, documents, 0 if documents else None, img_size, options)
 
+    def process_frame(
+            self,
+            img_path: Union[Path, str, np.ndarray],
+            ocr=True,
+            get_doc_borders=True,
+            find_text_fields=True,
+            check_quality=True,
+            low_quality=True,
+            docconf=0.5,
+            img_size=1500,
+    ) -> List[PipelineResults]:
+        """Read EVERY document in the frame (issue #26), not only the largest.
+
+        Same arguments as process_img. Returns one PipelineResults per document,
+        largest first; with no document found, a one-element list holding the
+        whole-frame reading, exactly what process_img returns. Two sides of one
+        document lying in the same frame are paired by the number printed on
+        both (see PAIRED_SIDES): ``results.paired_with`` is the index of the
+        other side in the returned list.
+
+        Each element is a separate PipelineResults object, so the list stays
+        valid after the call - but the pipeline is still not thread-safe (see
+        PipelineResults.meta_results).
+        """
+        options = dict(ocr=ocr, get_doc_borders=get_doc_borders, find_text_fields=find_text_fields,
+                       check_quality=check_quality, low_quality=low_quality, docconf=docconf)
+        self._start_document()
+        frame = self._load_image(img_path)
+        documents = self._find_documents(frame, img_size)
+        if not documents:
+            return [self._read_document(frame, documents, None, img_size, options)]
+        out = []
+        for index in range(len(documents)):
+            if index:
+                self._start_document(self.results._meta_results.get('image_path'))
+            out.append(self._read_document(frame, documents, index, img_size, options))
+        pair_sides(out)
+        return out
+
+    #: Share of the document box's longer side added around it when it is cut from
+    #: the frame: the border detector still needs a strip of background to find the
+    #: edges, and the box itself can sit a few pixels inside the paper (handoff of the
+    #: detector, 2026-10-01: ~3 %).
+    DOCUMENT_CROP_MARGIN = 0.03
+
+    def _start_document(self, image_path: Optional[str] = None):
+        """Fresh results for one document. The MRZ self-check state is per image too
+        (see _note_mrz_zone), reset for the same reason self.results is."""
         self.results = PipelineResults()
-        # Per-image state for the MRZ length self-check (see _note_mrz_zone). Reset here
-        # for the same reason self.results is: process_img may be called again.
         self._mrz_zone = None
+        if image_path:
+            self.results._meta_results['image_path'] = image_path
 
-        img = self._prepare_image(img_path, img_size=img_size)
+    def _find_documents(self, frame: np.ndarray, img_size: int) -> list:
+        """Documents in the frame, largest first, boxes on the input image.
+
+        The detector reads the frame at the processing size; its boxes are scaled
+        back to the input image so the crop can be cut at full resolution - a
+        licence on an A4 scan keeps its pixels instead of the ~300 left to it once
+        the whole sheet is shrunk to img_size.
+        """
+        if self.document_detector is None:
+            return []
+        h, w = frame.shape[:2]
+        ratio = max(max(h, w) / img_size, 1)
+        small = cv2.resize(frame, dsize=(int(w // ratio), int(h // ratio)), interpolation=cv2.INTER_LINEAR)
+        sx, sy = w / small.shape[1], h / small.shape[0]
+        documents = self._model_call(self._document_detector, small)
+        for doc in documents:
+            for item in [doc] + doc['pages']:
+                x1, y1, x2, y2 = item['box']
+                item['box'] = [x1 * sx, y1 * sy, x2 * sx, y2 * sy]
+        self._emit('documents', [
+            {'box': [round(v, 1) for v in d['box']], 'conf': round(d['conf'], 3),
+             'pages': [[round(v, 1) for v in p['box']] for p in d['pages']]} for d in documents])
+        return documents
+
+    def _document_detector(self, img):
+        return self.document_detector.predict(img)[self.document_detector.model_name]['documents']
+
+    def _document_crop(self, frame: np.ndarray, document: dict) -> tuple:
+        """(x0, y0, x1, y1) on the input image: the document box plus its margin."""
+        h, w = frame.shape[:2]
+        x1, y1, x2, y2 = document['box']
+        m = self.DOCUMENT_CROP_MARGIN * max(x2 - x1, y2 - y1)
+        return (int(max(0, np.floor(x1 - m))), int(max(0, np.floor(y1 - m))),
+                int(min(w, np.ceil(x2 + m))), int(min(h, np.ceil(y2 + m))))
+
+    def _read_document(self, frame, documents, index, img_size, options) -> PipelineResults:
+        """Prepare the crop of documents[index] (the whole frame when index is None) and read it."""
+        crop = self._document_crop(frame, documents[index]) if index is not None else None
+        img = self._prepare_image(frame, img_size=img_size, crop=crop)
+        self.results._meta_results['Documents'] = documents
+        self.results._meta_results['DocumentIndex'] = index
+        return self._process_document(img, **options)
+
+    def _process_document(self, img, ocr=True, get_doc_borders=True, find_text_fields=True,
+                          check_quality=True, low_quality=True, docconf=0.5) -> PipelineResults:
+        """Everything after the image is prepared: type, borders, fields, reading."""
         self._emit('prepare', img)
 
         # unified doctype + angle classification, then rotate upright
@@ -915,6 +1170,7 @@ class Pipeline:
         parts = doc_type.rsplit('_', maxsplit=1)
         doc_type, year = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], None)
         self.ocr_options = OCROptionsClass.make_options(doc_type)
+        self._doc_year = year
 
         # Quality checks (Glare/Blur/PrintSpoofing/LCDSpoofing) and border
         # detection all take the same rotated image and are mutually
@@ -1008,12 +1264,16 @@ class Pipeline:
         if text_fields:
             self._model_call(self._split_words, text_fields.copy(), doc_type)
             words_splitted = self.results.words_patches
+            # The way back to the input image (geometry.py): field, word and address-line
+            # quadrilaterals, or None per key when this run's way back is not known.
+            self._emit('quads', self.results._meta_results.get('Quads'))
 
             #OCR words
             if ocr and words_splitted:
                 self._model_call(self._ocr, words_splitted, doc_type)
                 self._reread_dates_whole()
                 self._normalize_dates()
+                self._read_leasing(doc_type)
 
         return self.results
 
@@ -1165,6 +1425,8 @@ class Pipeline:
         per-page evidence goes to meta_results['PageRegistration'].
         """
         doc_type = (self.results.doctype or '').lower()
+        if doc_type.startswith('sts'):
+            return self._register_card(img) if getattr(self, 'card_registration', True) else None
         if 'intpassport' not in doc_type or 'addr' in doc_type:
             return
         det = self.results._meta_results.get('DocDetector') or {}
@@ -1249,6 +1511,101 @@ class Pipeline:
             det['geometry'] = stitched_geometry(pages, placements, page_geometries)
             det['warped_img'] = stitched
             self.results._meta_results['DocDetector'] = det
+
+    #: Template matches a vehicle registration certificate needs before its template
+    #: geometry replaces the Borders quad. The card is printed dense (captions,
+    #: rules, guilloche), so a real match runs to a hundred or more points (median
+    #: 141 on the client's test cards, 2026-10-02); 40 is the floor the form
+    #: matching of the training-data side uses, below it the Borders canvas stays.
+    CARD_MIN_INLIERS = 40
+    #: Skew of the Borders canvas below which it is kept (see _card_skew): the card's
+    #: corners found by the template, carried into that canvas, are fitted by a
+    #: similarity; the residual as a share of the long side. The same measure the
+    #: training-data side used on the client's canvases; visible skew starts at about
+    #: 1.4 % (handoff of 2026-10-02).
+    CARD_SKEW_KEEP = 0.01
+
+    @staticmethod
+    def _card_skew(reg, borders_quad, card_quad) -> float:
+        """How far the Borders canvas bends the card out of a rectangle (share of its long side)."""
+        M = reg.quad_matrix(borders_quad)
+        found = cv2.perspectiveTransform(np.float32(card_quad).reshape(1, -1, 2), M).reshape(-1, 2)
+        m = reg.margin
+        ideal = np.float32([[m, m], [m + reg.page_w, m], [m + reg.page_w, m + reg.page_h], [m, m + reg.page_h]])
+        A, _ = cv2.estimateAffinePartial2D(ideal, found, method=cv2.LMEDS)
+        if A is None:
+            return 1.0
+        fit = ideal @ A[:, :2].T + A[:, 2]
+        return float(np.sqrt(((fit - found) ** 2).sum(1).mean())) / max(reg.page_w, reg.page_h)
+
+    def _card_registrar(self, doc_type: str):
+        """The template registrar of one STS type, built on first use; None without templates."""
+        if not hasattr(self, '_card_registrars'):
+            self._card_registrars = {}
+        if doc_type not in self._card_registrars:
+            try:
+                self._card_registrars[doc_type] = PageRegistrar(doc_type)
+            except FileNotFoundError:
+                self._card_registrars[doc_type] = None
+        return self._card_registrars[doc_type]
+
+    def _register_card(self, img):
+        """Rebuild a vehicle registration certificate's canvas from its printed blank.
+
+        The opposite policy to the passport's. There the Borders quad keeps the
+        geometry whenever it agrees with the template, because the template fit of
+        a sparsely printed page turns by degrees. Here the card often lies in a
+        plastic sleeve or lamination and the Borders quad is the SLEEVE's edge: it
+        overlaps the card well - it "agrees" - and still skews the canvas (on the
+        client's 1217 cards ~12 % came out visibly skewed, 2026-10-02). The card is
+        printed dense, so the template match is strong: when it reaches
+        CARD_MIN_INLIERS the template geometry is taken and the page straightened
+        by its own lines; otherwise the Borders canvas stays as it is.
+
+        Where the card runs past the photo, the canvas is painted the card's own
+        paper colour rather than the smeared edge (see PageRegistrar's ``fill``).
+        """
+        reg = self._card_registrar(self.results.doctype)
+        det = self.results._meta_results.get('DocDetector') or {}
+        if reg is None:
+            return
+        quads, quad_infos = reg.page_quads(det.get('segm'), img.shape)
+        r = reg.register(img, quads)[0]
+        info = {'pages': [r.as_dict()], 'sources': [None], 'policy': 'card',
+                'min_inliers': self.CARD_MIN_INLIERS,
+                'quads': [{'quad': q.round(1).tolist(), **qi} for q, qi in zip(quads, quad_infos)]}
+        self.results._meta_results['PageRegistration'] = info
+        if not r.ok or r.inliers < self.CARD_MIN_INLIERS:
+            return
+        # Where the Borders canvas is not skewed, keep it: re-cutting a canvas that
+        # was right only resamples it (measured on the client's test cards: on the
+        # 101 not skewed by Borders, 15 fields read better and 17 worse - noise; on
+        # the 26 skewed by >= 1 %, 5 better, 1 worse). Skew, not offset: a sleeve
+        # runs parallel to the card, so its edge sits 2-3 % off the card's even on a
+        # straight canvas; what matters is whether the card comes out a rectangle.
+        skews = [self._card_skew(reg, q, r.quad) for q in quads]
+        info['borders_skew'] = round(min(skews), 4) if skews else None
+        if skews and min(skews) < self.CARD_SKEW_KEEP:
+            info['kept'] = 'borders: canvas not skewed'
+            return
+        scale = reg.native_scale([r])
+        M = reg.page_matrix(r, scale)
+        mask = np.zeros(img.shape[:2], np.uint8)
+        cv2.fillPoly(mask, [np.int32(np.round(r.quad))], 1)
+        fill = tuple(float(np.median(img[..., c][mask > 0])) for c in range(3)) if mask.any() else None
+        page = reg.warp_matrix(img, M, scale, fill=fill)
+        page, sinfo, straight = reg.straighten_with_geometry(page, scale)
+        page_geometry = Chain((Homography(M),)).then(straight)
+        info.update(sources=['template'], scale=round(scale, 4), page_size=list(reg.out_size(scale)),
+                    straighten=[sinfo])
+        stitched, placements = stitch_pages([page], [r.quad], stack='vertical')
+        det['pages'] = [page]
+        det['page_quads'] = [r.quad]
+        det['page_placements'] = placements
+        det['page_geometries'] = [page_geometry]
+        det['geometry'] = stitched_geometry([page], placements, [page_geometry])
+        det['warped_img'] = stitched
+        self.results._meta_results['DocDetector'] = det
 
     def _geometry_pages(self, img):
         """Template-free page geometry for any document type (page_geometry=True).
@@ -1380,6 +1737,7 @@ class Pipeline:
             text_fields = result[self.text_fields.model_name]
             # a patch is the canvas cut at its box (see TextFieldsDetector)
             frames = [Offset(-float(box[0]), -float(box[1])) for box in text_fields['bbox']]
+            self._read_margins(text_fields, frames, img)
 
         self._note_mrz_zone(text_fields, img)
         # Where each patch lies on the canvas (geometry.py): the map from the
@@ -1432,6 +1790,45 @@ class Pipeline:
                 patches.append(patch)
                 frames.append(Chain((*unplace, Offset(-float(box[0]), -float(box[1])))))
         return {'bbox': bbox, 'warped_img': patches}, frames
+
+    def _read_margins(self, text_fields: dict, frames: list, img) -> None:
+        """Re-cut the patch of a field labelled tight to its letters with a
+        vertical margin, so the reading gets whole glyphs. In place.
+
+        The box stays as the detector gave it - only the crop that is READ grows,
+        and its frame (geometry.py) moves with it. The STS special marks are why:
+        their lines stand so close that a labelling margin merged neighbours
+        (39-41 % overlap on real canvases), so they were labelled tight, and the
+        detector learnt to cut the tops and bottoms off the letters.
+
+        The margin never reaches the next line: it stops halfway to the nearest
+        box above or below that shares part of the width, of any label.
+        Single-canvas path only; the per-page path reads passports, which have no
+        such field.
+        """
+        margins = getattr(self.ocr_options, 'read_margin', None) or {}
+        bboxes = text_fields.get('bbox') or []
+        if not margins or not bboxes:
+            return
+        height = img.shape[0]
+        for i, box in enumerate(bboxes):
+            share = margins.get(box[-1])
+            if not share:
+                continue
+            x1, y1, x2, y2 = (int(v) for v in box[:4])
+            pad = int(round((y2 - y1) * share))
+            top, bottom = max(0, y1 - pad), min(height, y2 + pad)
+            for j, other in enumerate(bboxes):
+                if j == i or min(x2, other[2]) <= max(x1, other[0]):
+                    continue                                  # no shared width
+                if other[3] <= y1:                            # a line above
+                    top = max(top, (int(other[3]) + y1 + 1) // 2)
+                elif other[1] >= y2:                          # a line below
+                    bottom = min(bottom, (y2 + int(other[1])) // 2)
+            if (top, bottom) == (y1, y2):
+                continue
+            text_fields['warped_img'][i] = img[top:bottom, x1:x2]
+            frames[i] = Offset(-float(x1), -float(top))
 
     #: An empty stretch on a line wider than this many typical words means the
     #: split dropped a word, and the line is read whole instead.
@@ -1782,9 +2179,13 @@ class Pipeline:
 
         result = {}
         word_bboxes = {}
+        # Words per line, per field, in reading order: the join flattens the
+        # lines, and a word torn by a line break is found at their boundary.
+        self._field_lines = {}
         for i in kept:
             bbox = bboxes[i]
             words = words_by_idx[i] if i in words_by_idx else [patches[i]]
+            self._field_lines.setdefault(bbox[-1], []).append(len(words))
             # None distinguishes "this field needs no splitting, so the whole patch is
             # the single word" from "the detector found exactly one word". Without it a
             # port that split a field it should not have would look like agreement.
@@ -1962,6 +2363,12 @@ class Pipeline:
         en = self.ocr_lat.predict(word)[self.ocr_lat.model_name]['ocr_output']
         return en if self._is_number_token(en) else ru
 
+    def _engine_by_year(self, field_name: str):
+        """The engine this field takes on this form year ('cyr' or 'lat'), or
+        None when the ru_fields/en_fields routing decides."""
+        rules = getattr(self.ocr_options, 'engine_by_year', None) or {}
+        return (rules.get(field_name) or {}).get(getattr(self, '_doc_year', None))
+
     @staticmethod
     def _is_number_token(en_text: str) -> bool:
         """True if the eng+nums OCR output is digit-dominated (a number word
@@ -2096,7 +2503,13 @@ class Pipeline:
                 # words interleaved with digits, so odd-indexed words (the
                 # month name) must go to the Cyrillic engine even though the
                 # field itself is en_fields/date-routed below.
-                if doc_type == 'SNILS' and i % 2 == 1 or \
+                by_year = self._engine_by_year(field_name)
+                if by_year == 'lat':
+                    result = self.ocr_lat.predict(word)[self.ocr_lat.model_name]['ocr_output']
+                    result = self.ocr_lat.fix_errors(field_type=field_name, text=result)
+                    words['ocr'].append(result)
+                    ocred_words.append(result)
+                elif by_year == 'cyr' or doc_type == 'SNILS' and i % 2 == 1 or \
                         field_name in self.ocr_options.ru_fields:
                     result = self.ocr_cyr.predict(word)[self.ocr_cyr.model_name]['ocr_output']
                     # text normalization: Sex_ru -> М/Ж, strip stray leading dots
@@ -2118,6 +2531,7 @@ class Pipeline:
                     words['ocr'].append(result)
                     ocred_words.append(result)
 
+            ocred_words = self._glue_torn(field_name, ocred_words)
             self._join_field(ocr_dict, field_name, doc_type, ocred_words)
             # Per-field rather than per-word: the word list is already built, so
             # this is one call site instead of three (one per routing branch)
@@ -2148,7 +2562,11 @@ class Pipeline:
                 # written out as Russian words ("26 СЕНТЯБРЯ 1997 ГОДА"), so
                 # odd-indexed words need the Cyrillic engine even though the
                 # field itself is en_fields/date-routed.
-                if doc_type == 'SNILS' and i % 2 == 1 or field_name in self.ocr_options.ru_fields:
+                by_year = self._engine_by_year(field_name)
+                if by_year == 'lat':
+                    plan.append('lat')
+                elif by_year == 'cyr' or doc_type == 'SNILS' and i % 2 == 1 \
+                        or field_name in self.ocr_options.ru_fields:
                     plan.append('cyr')
                 elif 'date' in field_name.lower():
                     plan.append('lat_date')
@@ -2189,6 +2607,7 @@ class Pipeline:
                 words['ocr'].append(result)
                 ocred_words.append(result)
 
+            ocred_words = self._glue_torn(field_name, ocred_words)
             self._join_field(ocr_dict, field_name, doc_type, ocred_words)
             # Same stage names as the serial path, so a dump is comparable
             # regardless of which path produced it. (The batched path is not
@@ -2233,6 +2652,46 @@ class Pipeline:
                 ocr_dict[field_name] = ' '.join(ocred_words)
         ocr_dict[field_name] = ocr_dict[field_name].replace('  ', ' ').strip()
 
+    def _glue_torn(self, field_name: str, ocred_words: list) -> list:
+        """Glue the words a line break tore apart (sts_marks.glue_torn_words),
+        for the fields the options name. The words come flat; the line lengths
+        recorded by _split_words cut them back into lines."""
+        if field_name not in (getattr(self.ocr_options, 'glue_torn', None) or []):
+            return ocred_words
+        counts = (getattr(self, '_field_lines', None) or {}).get(field_name)
+        if not counts or sum(counts) != len(ocred_words):
+            return ocred_words
+        lines, start = [], 0
+        for n in counts:
+            lines.append(ocred_words[start:start + n])
+            start += n
+        return glue_torn_words(lines)
+
+    #: The parts of sts_marks.parse_leasing that reach results.leasing. Only the
+    #: flag, by measurement (STS word-break synthetic, 240 shots, detector v10,
+    #: 2026-10-07): found 54/64, false 0/176 - while the lessor was right in
+    #: 7/58, the contract number in 3/56, its date in 2/46. The parser finds
+    #: them where the reading is clean; the reading of the small special-marks
+    #: print is not, and a wrong value is worse than none for an integrator.
+    #: Widen this when the reading improves - the parser needs no change.
+    LEASING_REPORTED = ('leasing',)
+
+    def _read_leasing(self, doc_type: str):
+        """The leasing flag from the STS special marks, alongside the reading
+        (results.leasing); the special marks themselves stay as read."""
+        if not doc_type.upper().startswith('STS'):
+            return
+        ocr = self.results._meta_results.get('OCR') or {}
+        leasing = parse_leasing(ocr.get('Special_marks'))
+        if leasing:
+            self.results._meta_results['Leasing'] = {
+                k: v for k, v in leasing.items() if k in self.LEASING_REPORTED}
+        # Every STS back - the side with the special marks - emits the stage, null
+        # when there is no leasing: a port that misses a leasing record must differ
+        # from the reference, not be skipped. The front has no marks to read.
+        if doc_type.upper().startswith('STSBACK'):
+            self._emit('leasing', self.results._meta_results.get('Leasing'))
+
     def _reread_dates_whole(self):
         """Re-read a date field line by line WHOLE when the word-by-word reading
         is not a date and the whole reading is.
@@ -2259,7 +2718,7 @@ class Pipeline:
         done = []
         for field_name, lines in lines_by_field.items():
             split_reading = ocr.get(field_name, '')
-            if to_ddmmyyyy(split_reading) is not None:
+            if canonical_date(field_name, split_reading) is not None:
                 continue
             if field_name in self.ocr_options.ru_fields:
                 engine = self.ocr_cyr
@@ -2269,7 +2728,7 @@ class Pipeline:
                                        text=engine.predict(line)[engine.model_name]['ocr_output'])
                      for line in lines]
             whole = ' '.join(r for r in reads if r).strip()
-            if to_ddmmyyyy(whole) is None:
+            if canonical_date(field_name, whole) is None:
                 continue
             ocr[field_name] = whole
             done.append({'field': field_name, 'split': split_reading, 'whole': whole})
@@ -2326,18 +2785,8 @@ class Pipeline:
         self.results.timings = {func.__name__: round(time() - time_start, 4)}
         return result
 
-    def _prepare_image(self, img_path: Union[Path, str, np.ndarray], img_size: int = 1500):
-        """
-        Load image from path, validate it and resize.
-
-        Args:
-            img_path: Path to input image.
-            img_size: Resize image to this size.
-
-        Returns:
-            np.ndarray: Loaded and resized image.
-        """
-
+    def _load_image(self, img_path: Union[Path, str, np.ndarray]) -> np.ndarray:
+        """Decode the input (a path, or an RGB array passed as is) at its full size."""
         if isinstance(img_path, (Path, str)):
             p = Path(img_path)
             img = cv2.imdecode(np.frombuffer(p.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -2345,10 +2794,31 @@ class Pipeline:
                 raise ValueError(f"Could not decode image: {p}")
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             self.results._meta_results['image_path'] = p.as_posix()
-        elif isinstance(img_path, np.ndarray):
-            img = img_path
-        else:
-            raise Exception("Unsupported image type")
+            return img
+        if isinstance(img_path, np.ndarray):
+            return img_path
+        raise Exception("Unsupported image type")
+
+    def _prepare_image(self, img_path: Union[Path, str, np.ndarray], img_size: int = 1500,
+                       crop: Optional[tuple] = None):
+        """
+        Load image, cut the document out of it (crop), and resize.
+
+        Args:
+            img_path: Path to input image, or the image already loaded.
+            img_size: Resize image to this size.
+            crop: (x0, y0, x1, y1) on the input image - the document to read; None
+                reads the whole image.
+
+        Returns:
+            np.ndarray: Loaded and resized image.
+        """
+        img = self._load_image(img_path)
+        maps = ()
+        if crop is not None:
+            x0, y0, x1, y1 = crop
+            img = img[y0:y1, x0:x1]
+            maps = (Offset(-x0, -y0),)
 
         # check size of image, and resize if above 1500
         h, w = img.shape[:2]
@@ -2357,8 +2827,9 @@ class Pipeline:
         img = cv2.resize(img, dsize=(new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
         self.results._meta_results['original_img'] = img
-        # The first map of the canvas every later stage reads (geometry.py)
-        self.results._meta_results['Geometry'] = Chain((Scale(new_w / w, new_h / h),))
+        # The first maps of the canvas every later stage reads (geometry.py): the
+        # crop of the document, then the resize
+        self.results._meta_results['Geometry'] = Chain(maps + (Scale(new_w / w, new_h / h),))
 
         return img
 

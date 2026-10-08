@@ -1,13 +1,14 @@
 {
-  "models_version": "v8",
-  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v8/",
+  "models_version": "v10",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v10/",
   "release_url": "https://github.com/protei300/RussianDocsOCR/releases/download/{release}/",
   "networks": {
     "AddressLines": "v4",
     "AddressTextKind": "v4",
     "Blur": "v4",
     "Borders": "v7",
-    "DocTypeAngles": "v7",
+    "DocDetect": "v10",
+    "DocTypeAngles": "v10",
     "Glare": "v4",
     "LCDSpoofing": "v4",
     "OCR/cyrillic_accurate": "v4",
@@ -15,7 +16,7 @@
     "OCR/latin_accurate": "v4",
     "OCR/latin_fast": "v4",
     "PrintSpoofing": "v4",
-    "TextFields": "v8",
+    "TextFields": "v10",
     "Words": "v6"
   },
   "files": [
@@ -76,6 +77,20 @@
       "release": "models-v7"
     },
     {
+      "path": "DocDetect/ONNX/model.json",
+      "asset": "DocDetect__ONNX__model.4670d23e4d14.json",
+      "size": 939,
+      "sha256": "4670d23e4d14def477e35d74f7d4492150b10e918d88c3524f3ef07d389cc680",
+      "release": "models-v10"
+    },
+    {
+      "path": "DocDetect/ONNX/model.onnx",
+      "asset": "DocDetect__ONNX__model.7150f074b8c5.onnx",
+      "size": 37778015,
+      "sha256": "7150f074b8c5b4c60e7d926c649bae475c2d982ccd91fe6d47000f0018bb3a07",
+      "release": "models-v10"
+    },
+    {
       "path": "DocTypeAngles/ONNX/model.json",
       "asset": "DocTypeAngles__ONNX__model.json",
       "size": 1142,
@@ -84,17 +99,17 @@
     },
     {
       "path": "DocTypeAngles/ONNX/model.onnx",
-      "asset": "DocTypeAngles__ONNX__model.onnx",
+      "asset": "DocTypeAngles__ONNX__model.125993b3d0c3.onnx",
       "size": 9967217,
-      "sha256": "ac2260ce7ba1a445eed130c975d8566051f321eaaa432e8d540852311f88abc2",
-      "release": "models-v7"
+      "sha256": "125993b3d0c33479a998da69e0855cd0cc06067d23a4d321915678c95b730985",
+      "release": "models-v10"
     },
     {
       "path": "DocTypeAngles/ONNX/resources/centers.npz",
-      "asset": "DocTypeAngles__ONNX__resources__centers.npz",
-      "size": 67968,
-      "sha256": "9b1633c93111bea16773d4b6d2468e5844ed6789f8dff44cd6afcd62972031ee",
-      "release": "models-v7"
+      "asset": "DocTypeAngles__ONNX__resources__centers.c653d4511aaa.npz",
+      "size": 72448,
+      "sha256": "c653d4511aaac0f8780a5e324cc050a66a6b9cfd53840aa9c4c1af3e33be78bc",
+      "release": "models-v10"
     },
     {
       "path": "Glare/ONNX/model.json",
@@ -196,17 +211,17 @@
     },
     {
       "path": "TextFields/ONNX/model.json",
-      "asset": "TextFields__ONNX__model.json",
-      "size": 2914,
-      "sha256": "dd445c48bcadd0a87b70eb28d1a06da2b51672a9e8c2609de2794fe08b15f5c2",
-      "release": "models-v7"
+      "asset": "TextFields__ONNX__model.410f3c0e4f31.json",
+      "size": 2906,
+      "sha256": "410f3c0e4f318db4214538ccfa78c87e74c34ee400d4ef2a44c9ec27b94519ad",
+      "release": "models-v10"
     },
     {
       "path": "TextFields/ONNX/model.onnx",
-      "asset": "TextFields__ONNX__model.onnx",
-      "size": 37860071,
-      "sha256": "9b419dbf7b3bbe72521bd88619038133ed78b60ef3761489ff4a4691c74d59c5",
-      "release": "models-v8"
+      "asset": "TextFields__ONNX__model.6751d001c629.onnx",
+      "size": 41400942,
+      "sha256": "6751d001c6296911a3f9804bbfacf810f570a46766cd11c6a476a1df59a8b149",
+      "release": "models-v10"
     },
     {
       "path": "Words/ONNX/model.json",

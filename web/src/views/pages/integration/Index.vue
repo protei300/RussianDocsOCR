@@ -236,7 +236,11 @@ const totalMs = computed(() => {
                     {{ f.display }}
                   </td>
                   <td class="f-val" :class="{ 'u-mono': isCode(f.value) }"
-                      :lang="f.script === 'ru' ? 'ru' : 'en'">{{ f.value }}</td>
+                      :lang="f.script === 'ru' ? 'ru' : 'en'">
+                    {{ f.value }}
+                    <div v-if="f.normalized" class="u-mono" style="font-size:12px;opacity:.65"
+                         title="Date as dd.mm.yyyy (fields[].normalized)">{{ f.normalized }}</div>
+                  </td>
                 </tr>
               </tbody>
             </table>

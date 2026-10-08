@@ -84,6 +84,7 @@ public class OcrEngine private constructor(
         return when (fieldType) {
             "Sex_en" -> OcrCorrections.checkEnSex(text)
             "Driver_class" -> OcrCorrections.checkDriverClass(text)
+            "VIN" -> OcrCorrections.checkVin(text)
             else -> text
         }
     }
@@ -107,6 +108,7 @@ public class OcrEngine private constructor(
          */
         private val CYR_DATE_FIELDS = listOf(
             "Issue_date", "Birth_date", "Expiration_date", "Father_birth_date", "Mother_birth_date",
+            "Act_date",
         )
 
         public fun cyrillic(

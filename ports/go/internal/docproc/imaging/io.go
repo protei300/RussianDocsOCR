@@ -214,3 +214,14 @@ func writeEncoded(path string, rgb Image, ext string, params []int) error {
 	}
 	return nil
 }
+
+// ResizeAreaBy is cv2.resize(src, None, fx=f, fy=f, interpolation=INTER_AREA): the size comes
+// from the factor (each side rounded half to even, cvRound), and so does the sampling - with
+// an exact factor such as 0.5 OpenCV takes its fast integer-scale path. Handing it the same
+// target size as a dsize (ResizeArea) makes the scale 997/498 rather than 2, which is NOT an
+// integer scale, so the general path runs and the pixels differ.
+func ResizeAreaBy(src Image, f float64) Image {
+	dst := gocv.NewMat()
+	gocv.Resize(src.mat, &dst, image.Point{}, f, f, gocv.InterpolationFlags(InterArea))
+	return Image{mat: dst}
+}

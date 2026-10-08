@@ -82,10 +82,19 @@ public class PageTemplate(
         pts = Array(kpArray.size) { Pt(kpArray[it].pt.x, kpArray[it].pt.y) }
     }
 
-    /** Page corners mapped back into the photo. `quad_in_image`. */
+    /**
+     * Page corners mapped back into the photo. `quad_in_image`.
+     *
+     * Rounded to FLOAT32, as `cv2.perspectiveTransform` returns them for the float32 corners: the quad then
+     * feeds [PageRegistrar.nativeScale], whose result is a float32-exact number in the reference and drives the
+     * warp matrix of every registered page.
+     */
     public fun quadInImage(hImgToPage: Array<DoubleArray>): Array<Pt> {
         val inv = Homography.invert(hImgToPage)
-        return Array(4) { Homography.apply(inv, corners[it]) }
+        return Array(4) {
+            val p = Homography.apply(inv, corners[it])
+            Pt(p.x.toFloat().toDouble(), p.y.toFloat().toDouble())
+        }
     }
 
     override fun close() {
@@ -170,6 +179,13 @@ public class PageRegistrar(
     public val lineQuads: Boolean = true,
     public val lineRefine: Boolean = true,
     public val lineDewarp: Boolean = true,
+    /**
+     * What the warp puts where the page runs past the photo — RGB, one value per channel. Null (the default,
+     * the passport path) repeats the edge pixels; a colour paints it. A card cut off by the frame and warped by
+     * its template otherwise grows streaks of smeared edge into the canvas, where the field detector reads
+     * them as print (`PageRegistrar.fill`).
+     */
+    public val fill: DoubleArray? = null,
 ) : AutoCloseable {
 
     public companion object {
@@ -303,18 +319,26 @@ public class PageRegistrar(
     private fun featuresInQuad(
         kp: Array<org.opencv.core.KeyPoint>, desc: Mat, quad: Array<Pt>, h: Int, w: Int,
     ): Pair<Array<org.opencv.core.KeyPoint>, Mat?> {
-        val cx = quad.sumOf { it.x } / 4; val cy = quad.sumOf { it.y } / 4
-        val grown = quad.map { CvPoint(cx + (it.x - cx) * (1 + 2 * QUAD_DILATE_FRAC),
-            cy + (it.y - cy) * (1 + 2 * QUAD_DILATE_FRAC)) }
-        val poly = org.opencv.core.MatOfPoint(*grown.map {
-            CvPoint(Math.round(it.x).toDouble(), Math.round(it.y).toDouble()) }.toTypedArray())
+        // FLOAT32 throughout, rounded HALF TO EVEN: the quad is a float32 array in the reference, `c + (quad - c)
+        // * 1.2` stays float32, and `np.round` is banker's rounding. A truncating `toInt()` of the keypoints
+        // (the first version here) moved the features at the quad's edge in or out of the set, and on a dense
+        // card that changes the coarse match and the refined homography (STS_2019, 1153 inliers against 1038).
+        var cx = 0f; var cy = 0f
+        for (p in quad) { cx += p.x.toFloat(); cy += p.y.toFloat() }
+        cx /= 4f; cy /= 4f
+        val grow = (1 + 2 * QUAD_DILATE_FRAC).toFloat()
+        val poly = org.opencv.core.MatOfPoint(*quad.map {
+            val gx = cx + (it.x.toFloat() - cx) * grow
+            val gy = cy + (it.y.toFloat() - cy) * grow
+            CvPoint(Math.rint(gx.toDouble()), Math.rint(gy.toDouble()))
+        }.toTypedArray())
         val m = Mat.zeros(h, w, CvType.CV_8U)
         try {
             Imgproc.fillConvexPoly(m, poly, org.opencv.core.Scalar(1.0))
             val idx = ArrayList<Int>()
             for (i in kp.indices) {
-                val px = kp[i].pt.x.toInt().coerceIn(0, w - 1)
-                val py = kp[i].pt.y.toInt().coerceIn(0, h - 1)
+                val px = Math.rint(kp[i].pt.x).toInt().coerceIn(0, w - 1)
+                val py = Math.rint(kp[i].pt.y).toInt().coerceIn(0, h - 1)
                 if (m.get(py, px)[0] != 0.0) idx += i
             }
             val outKp = Array(idx.size) { kp[idx[it]] }
@@ -504,14 +528,26 @@ public class PageRegistrar(
 
     private class Cand(val inl: Int, val h: Array<DoubleArray>, val method: String, val refArea: Double?, val tpl: PageTemplate)
 
-    /** Output scale (<=1) at which no registered page is upsampled. `native_scale`. */
+    /**
+     * Output scale (<=1) at which no registered page is upsampled. `native_scale`.
+     *
+     * The arithmetic is FLOAT32 on purpose: the quad is a float32 array in the reference, `np.linalg.norm` of a
+     * float32 vector is a float32, and the whole expression stays float32 — so the scale that comes out is a
+     * float32-exact number, and the warp matrix built from it is then identical to the last bit. In double it
+     * is off by ~1e-7, which moves the interpolation weights of a few hundred pixels by one grey level.
+     */
     public fun nativeScale(regs: List<PageRegistration>): Double {
         var scale = 1.0
         for (r in regs) {
             if (!r.ok) continue
             val q = orderPoints(r.quad!!)
-            val wNative = 0.5 * (dist(q[1], q[0]) + dist(q[2], q[3]))
-            scale = min(scale, wNative / pageW)
+            fun norm(a: Pt, b: Pt): Float {
+                val dx = a.x.toFloat() - b.x.toFloat()
+                val dy = a.y.toFloat() - b.y.toFloat()
+                return kotlin.math.sqrt(dx * dx + dy * dy)
+            }
+            val wNative: Float = 0.5f * (norm(q[1], q[0]) + norm(q[2], q[3]))
+            scale = min(scale, (wNative / pageW.toFloat()).toDouble())
         }
         return max(scale, 0.25)
     }
@@ -519,44 +555,78 @@ public class PageRegistrar(
     public fun outSize(scale: Double): Pair<Int, Int> =
         max(1, Math.round(outW * scale).toInt()) to max(1, Math.round(outH * scale).toInt())
 
-    /** Warp a photo quad (e.g. from Borders) into the canonical page frame. `warp_quad`. */
-    public fun warpQuad(imgRgb: Image, quad: Array<Pt>, scale: Double): Image {
+    /**
+     * The perspective matrix [warpQuad] warps a photo quad with (photo -> page). `quad_matrix`.
+     *
+     * The destination corners are `float32([...]) * float32([scale, scale])` in the reference — a float32
+     * product, not a double one rounded afterwards — and are reproduced as such.
+     */
+    public fun quadMatrix(quad: Array<Pt>, scale: Double = 1.0): Array<DoubleArray> {
         val m = margin
         val src = orderPoints(quad)
+        val s32 = scale.toFloat()
+        fun d(v: Int): Double = (v.toFloat() * s32).toDouble()
         val dst = arrayOf(
-            Pt(m * scale, m * scale), Pt((m + pageW) * scale, m * scale),
-            Pt((m + pageW) * scale, (m + pageH) * scale), Pt(m * scale, (m + pageH) * scale))
+            Pt(d(m), d(m)), Pt(d(m + pageW), d(m)),
+            Pt(d(m + pageW), d(m + pageH)), Pt(d(m), d(m + pageH)))
         val srcMat = MatOfPoint2f(*src.map { CvPoint(it.x, it.y) }.toTypedArray())
         val dstMat = MatOfPoint2f(*dst.map { CvPoint(it.x, it.y) }.toTypedArray())
         val mMat = Imgproc.getPerspectiveTransform(srcMat, dstMat)
-        val (w, h) = outSize(scale)
-        val out = Mat()
         try {
-            Imgproc.warpPerspective(imgRgb.mat, out, mMat, Size(w.toDouble(), h.toDouble()),
-                Imgproc.INTER_LINEAR, Core.BORDER_REPLICATE)
-            return Image.wrap(out)
+            return Homography.fromMat(mMat)
         } finally {
             srcMat.release(); dstMat.release(); mMat.release()
         }
     }
 
-    /** Warp the photo to the canonical page with the margin cushion, at `scale`. `warp_page`. */
-    public fun warpPage(imgRgb: Image, reg: PageRegistration, scale: Double): Image {
+    /**
+     * The matrix [warpPage] warps the photo with (photo -> page): the template homography, the cushion offset
+     * and the scale. `page_matrix` — `S @ shift @ H`, multiplied left to right as NumPy does.
+     */
+    public fun pageMatrix(reg: PageRegistration, scale: Double = 1.0): Array<DoubleArray> {
         val m = margin.toDouble()
         val shift = arrayOf(doubleArrayOf(1.0, 0.0, m), doubleArrayOf(0.0, 1.0, m), doubleArrayOf(0.0, 0.0, 1.0))
         val s = arrayOf(doubleArrayOf(scale, 0.0, 0.0), doubleArrayOf(0.0, scale, 0.0), doubleArrayOf(0.0, 0.0, 1.0))
-        val hFull = Homography.mul(s, Homography.mul(shift, reg.H!!))
+        return Homography.mul(Homography.mul(s, shift), reg.H!!)
+    }
+
+    /**
+     * The warp both [warpQuad] and [warpPage] apply, given its matrix. `warp_matrix`.
+     *
+     * [fillOverride] replaces the registrar's own [fill] for this call; with neither, the edge pixels are
+     * repeated, with one the colour is painted (truncated to whole levels, `int(v)`).
+     */
+    public fun warpMatrix(imgRgb: Image, matrix: Array<DoubleArray>, scale: Double, fillOverride: DoubleArray? = null): Image {
+        val colour = fillOverride ?: fill
         val (w, h) = outSize(scale)
         val out = Mat()
-        val hMat = Homography.toMat(hFull)
+        val mMat = Homography.toMat(matrix)
         try {
-            Imgproc.warpPerspective(imgRgb.mat, out, hMat, Size(w.toDouble(), h.toDouble()),
-                Imgproc.INTER_LINEAR, Core.BORDER_REPLICATE)
+            if (colour == null) {
+                Imgproc.warpPerspective(imgRgb.mat, out, mMat, Size(w.toDouble(), h.toDouble()),
+                    Imgproc.INTER_LINEAR, Core.BORDER_REPLICATE)
+            } else {
+                Imgproc.warpPerspective(imgRgb.mat, out, mMat, Size(w.toDouble(), h.toDouble()),
+                    Imgproc.INTER_LINEAR, Core.BORDER_CONSTANT,
+                    org.opencv.core.Scalar(colour[0].toInt().toDouble(), colour[1].toInt().toDouble(),
+                        colour[2].toInt().toDouble()))
+            }
             return Image.wrap(out)
+        } catch (e: Throwable) {
+            out.release()
+            throw e
         } finally {
-            hMat.release()
+            mMat.release()
         }
     }
+
+    /** Warp a photo quad (e.g. from Borders) into the canonical page frame. `warp_quad`. */
+    public fun warpQuad(imgRgb: Image, quad: Array<Pt>, scale: Double): Image =
+        warpMatrix(imgRgb, quadMatrix(quad, scale), scale)
+
+    /** Warp the photo to the canonical page with the margin cushion, at `scale`. `warp_page`. */
+    public fun warpPage(imgRgb: Image, reg: PageRegistration, scale: Double): Image =
+        warpMatrix(imgRgb, pageMatrix(reg, scale), scale)
 
     /**
      * Page quads (TL,TR,BR,BL) from Borders contours, plus per-quad fit info. `page_quads`.
@@ -591,6 +661,7 @@ public class PageRegistrar(
             val (hm, refineInfo) = try { LineRefine.refineByLines(gray, inset) } finally { gray.close() }
             info.refine = refineInfo
             if (hm != null) {
+                info.maps += net.russiandocs.docproc.geometry.Homography(hm)
                 val refined = LineRefine.applyRefinement(current, hm)
                 if (owns) current.close()
                 current = refined
@@ -602,6 +673,9 @@ public class PageRegistrar(
             val (v, dewarpInfo) = try { LineDewarp.dewarpByLines(gray, inset) } finally { gray.close() }
             info.dewarp = dewarpInfo
             if (v != null) {
+                val bend = FloatArray(v.rows() * v.cols())
+                v.get(0, 0, bend)
+                info.maps += net.russiandocs.docproc.geometry.VerticalRemap(bend, v.rows(), v.cols())
                 val dewarped = LineDewarp.applyDewarp(current, v)
                 v.release()
                 if (owns) current.close()
@@ -615,6 +689,13 @@ public class PageRegistrar(
     public class StraightenInfo {
         public var refine: LineRefine.Info? = null
         public var dewarp: LineDewarp.Info? = null
+
+        /** The maps of what was applied, in the order applied: the straightening homography, then the bend map. */
+        public val maps: MutableList<net.russiandocs.docproc.geometry.PointMap> = mutableListOf()
+
+        /** `straighten_with_geometry`'s third value: the chain of [maps], or null when nothing was applied. */
+        public fun chain(): net.russiandocs.docproc.geometry.Chain? =
+            if (maps.isEmpty()) null else net.russiandocs.docproc.geometry.Chain(maps.toList())
     }
 
     /** IoU of two convex photo quads. `quad_iou`, static in the reference. */

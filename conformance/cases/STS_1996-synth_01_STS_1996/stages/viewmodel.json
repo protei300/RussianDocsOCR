@@ -1,0 +1,459 @@
+{
+  "doc_type": "STS_1996",
+  "doc_type_base": "STS",
+  "doc_type_era": "1996",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 992,
+    "height": 1385,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [
+    {
+      "id": "b0",
+      "label": "Reg_number",
+      "display": "Reg_number",
+      "kind": "text",
+      "x1": 605,
+      "y1": 284,
+      "x2": 750,
+      "y2": 318,
+      "conf": 0.961,
+      "cls": 31,
+      "text": "P106CM78",
+      "ambiguous": false
+    },
+    {
+      "id": "b1",
+      "label": "VIN",
+      "display": "VIN",
+      "kind": "text",
+      "x1": 132,
+      "y1": 388,
+      "x2": 430,
+      "y2": 424,
+      "conf": 0.946,
+      "cls": 32,
+      "text": "3PWPZEZXJLLSA8216",
+      "ambiguous": false
+    },
+    {
+      "id": "b2",
+      "label": "Vehicle_make_ru",
+      "display": "Vehicle_make_ru",
+      "kind": "text",
+      "x1": 464,
+      "y1": 430,
+      "x2": 611,
+      "y2": 465,
+      "conf": 0.931,
+      "cls": 33,
+      "text": "ВАЗ 21140",
+      "ambiguous": false
+    },
+    {
+      "id": "b3",
+      "label": "Vehicle_make_en",
+      "display": "Vehicle_make_en",
+      "kind": "text",
+      "x1": 467,
+      "y1": 470,
+      "x2": 602,
+      "y2": 500,
+      "conf": 0.943,
+      "cls": 34,
+      "text": "VAZ 21140",
+      "ambiguous": false
+    },
+    {
+      "id": "b4",
+      "label": "Vehicle_type",
+      "display": "Vehicle_type",
+      "kind": "text",
+      "x1": 307,
+      "y1": 498,
+      "x2": 613,
+      "y2": 544,
+      "conf": 0.938,
+      "cls": 35,
+      "text": "ЛЕГКОВОЙ ВНЕДОРОЖНИК",
+      "ambiguous": false
+    },
+    {
+      "id": "b5",
+      "label": "Vehicle_category",
+      "display": "Vehicle_category",
+      "kind": "text",
+      "x1": 758,
+      "y1": 563,
+      "x2": 836,
+      "y2": 599,
+      "conf": 0.947,
+      "cls": 36,
+      "text": "B/M1",
+      "ambiguous": false
+    },
+    {
+      "id": "b6",
+      "label": "Vehicle_year",
+      "display": "Vehicle_year",
+      "kind": "text",
+      "x1": 455,
+      "y1": 592,
+      "x2": 528,
+      "y2": 627,
+      "conf": 0.94,
+      "cls": 37,
+      "text": "2019",
+      "ambiguous": false
+    },
+    {
+      "id": "b7",
+      "label": "Chassis_number",
+      "display": "Chassis_number",
+      "kind": "text",
+      "x1": 455,
+      "y1": 640,
+      "x2": 669,
+      "y2": 675,
+      "conf": 0.941,
+      "cls": 38,
+      "text": "ОТСУТСТВУЕТ",
+      "ambiguous": false
+    },
+    {
+      "id": "b8",
+      "label": "Body_number",
+      "display": "Body_number",
+      "kind": "text",
+      "x1": 118,
+      "y1": 732,
+      "x2": 423,
+      "y2": 769,
+      "conf": 0.92,
+      "cls": 39,
+      "text": "3PWPZEZXJLLSA8216",
+      "ambiguous": false
+    },
+    {
+      "id": "b9",
+      "label": "Vehicle_color",
+      "display": "Vehicle_color",
+      "kind": "text",
+      "x1": 229,
+      "y1": 775,
+      "x2": 390,
+      "y2": 819,
+      "conf": 0.95,
+      "cls": 40,
+      "text": "БЕЖЕВЫЙ",
+      "ambiguous": false
+    },
+    {
+      "id": "b10",
+      "label": "Engine_power",
+      "display": "Engine_power",
+      "kind": "text",
+      "x1": 742,
+      "y1": 851,
+      "x2": 854,
+      "y2": 887,
+      "conf": 0.95,
+      "cls": 41,
+      "text": "217/295",
+      "ambiguous": false
+    },
+    {
+      "id": "b11",
+      "label": "Eco_class",
+      "display": "Eco_class",
+      "kind": "text",
+      "x1": 544,
+      "y1": 895,
+      "x2": 682,
+      "y2": 939,
+      "conf": 0.945,
+      "cls": 42,
+      "text": "ШЕСТОЙ",
+      "ambiguous": false
+    },
+    {
+      "id": "b12",
+      "label": "Max_mass",
+      "display": "Max_mass",
+      "kind": "text",
+      "x1": 830,
+      "y1": 951,
+      "x2": 903,
+      "y2": 987,
+      "conf": 0.931,
+      "cls": 43,
+      "text": "3168",
+      "ambiguous": false
+    },
+    {
+      "id": "b13",
+      "label": "Curb_mass",
+      "display": "Curb_mass",
+      "kind": "text",
+      "x1": 833,
+      "y1": 995,
+      "x2": 906,
+      "y2": 1031,
+      "conf": 0.944,
+      "cls": 44,
+      "text": "2490",
+      "ambiguous": false
+    },
+    {
+      "id": "b14",
+      "label": "PTS_number",
+      "display": "PTS_number",
+      "kind": "text",
+      "x1": 114,
+      "y1": 1130,
+      "x2": 352,
+      "y2": 1167,
+      "conf": 0.937,
+      "cls": 45,
+      "text": "ПТС: 50РК403873",
+      "ambiguous": false
+    },
+    {
+      "id": "b15",
+      "label": "Licence_number",
+      "display": "Document number",
+      "kind": "text",
+      "x1": 383,
+      "y1": 1214,
+      "x2": 663,
+      "y2": 1259,
+      "conf": 0.94,
+      "cls": 5,
+      "text": "26 56 845008",
+      "ambiguous": false
+    },
+    {
+      "id": "b16",
+      "label": "Licence_number",
+      "display": "Document number",
+      "kind": "text",
+      "x1": 396,
+      "y1": 1266,
+      "x2": 626,
+      "y2": 1310,
+      "conf": 0.925,
+      "cls": 5,
+      "text": null,
+      "ambiguous": true
+    }
+  ],
+  "fields": [
+    {
+      "name": "Body_number",
+      "display": "Body_number",
+      "value": "3PWPZEZXJLLSA8216",
+      "script": "ru",
+      "conf": 0.92,
+      "box_ids": [
+        "b8"
+      ]
+    },
+    {
+      "name": "Chassis_number",
+      "display": "Chassis_number",
+      "value": "ОТСУТСТВУЕТ",
+      "script": "ru",
+      "conf": 0.941,
+      "box_ids": [
+        "b7"
+      ]
+    },
+    {
+      "name": "Curb_mass",
+      "display": "Curb_mass",
+      "value": "2490",
+      "script": "ru",
+      "conf": 0.944,
+      "box_ids": [
+        "b13"
+      ]
+    },
+    {
+      "name": "Eco_class",
+      "display": "Eco_class",
+      "value": "ШЕСТОЙ",
+      "script": "ru",
+      "conf": 0.945,
+      "box_ids": [
+        "b11"
+      ]
+    },
+    {
+      "name": "Engine_power",
+      "display": "Engine_power",
+      "value": "217/295",
+      "script": "ru",
+      "conf": 0.95,
+      "box_ids": [
+        "b10"
+      ]
+    },
+    {
+      "name": "Licence_number",
+      "display": "Document number",
+      "value": "26 56 845008",
+      "script": "num",
+      "conf": 0.94,
+      "box_ids": [
+        "b15",
+        "b16"
+      ]
+    },
+    {
+      "name": "Max_mass",
+      "display": "Max_mass",
+      "value": "3168",
+      "script": "ru",
+      "conf": 0.931,
+      "box_ids": [
+        "b12"
+      ]
+    },
+    {
+      "name": "PTS_number",
+      "display": "PTS_number",
+      "value": "ПТС: 50РК403873",
+      "script": "ru",
+      "conf": 0.937,
+      "box_ids": [
+        "b14"
+      ]
+    },
+    {
+      "name": "Reg_number",
+      "display": "Reg_number",
+      "value": "P106CM78",
+      "script": "ru",
+      "conf": 0.961,
+      "box_ids": [
+        "b0"
+      ]
+    },
+    {
+      "name": "VIN",
+      "display": "VIN",
+      "value": "3PWPZEZXJLLSA8216",
+      "script": "ru",
+      "conf": 0.946,
+      "box_ids": [
+        "b1"
+      ]
+    },
+    {
+      "name": "Vehicle_category",
+      "display": "Vehicle_category",
+      "value": "B/M1",
+      "script": "ru",
+      "conf": 0.947,
+      "box_ids": [
+        "b5"
+      ]
+    },
+    {
+      "name": "Vehicle_color",
+      "display": "Vehicle_color",
+      "value": "БЕЖЕВЫЙ",
+      "script": "ru",
+      "conf": 0.95,
+      "box_ids": [
+        "b9"
+      ]
+    },
+    {
+      "name": "Vehicle_make_en",
+      "display": "Vehicle_make_en",
+      "value": "VAZ 21140",
+      "script": "en",
+      "conf": 0.943,
+      "box_ids": [
+        "b3"
+      ]
+    },
+    {
+      "name": "Vehicle_make_ru",
+      "display": "Vehicle_make_ru",
+      "value": "ВАЗ 21140",
+      "script": "ru",
+      "conf": 0.931,
+      "box_ids": [
+        "b2"
+      ]
+    },
+    {
+      "name": "Vehicle_type",
+      "display": "Vehicle_type",
+      "value": "ЛЕГКОВОЙ ВНЕДОРОЖНИК",
+      "script": "ru",
+      "conf": 0.938,
+      "box_ids": [
+        "b4"
+      ]
+    },
+    {
+      "name": "Vehicle_year",
+      "display": "Vehicle_year",
+      "value": "2019",
+      "script": "ru",
+      "conf": 0.94,
+      "box_ids": [
+        "b6"
+      ]
+    }
+  ],
+  "ocr": {
+    "Reg_number": "P106CM78",
+    "VIN": "3PWPZEZXJLLSA8216",
+    "Vehicle_make_ru": "ВАЗ 21140",
+    "Vehicle_make_en": "VAZ 21140",
+    "Vehicle_type": "ЛЕГКОВОЙ ВНЕДОРОЖНИК",
+    "Vehicle_category": "B/M1",
+    "Vehicle_year": "2019",
+    "Chassis_number": "ОТСУТСТВУЕТ",
+    "Body_number": "3PWPZEZXJLLSA8216",
+    "Vehicle_color": "БЕЖЕВЫЙ",
+    "Engine_power": "217/295",
+    "Eco_class": "ШЕСТОЙ",
+    "Max_mass": "3168",
+    "Curb_mass": "2490",
+    "PTS_number": "ПТС: 50РК403873",
+    "Licence_number": "26 56 845008"
+  },
+  "quality": {
+    "DocConf": 1.0,
+    "Glare": "good",
+    "Blur": "good",
+    "PrintSpoofing": "REAL",
+    "LCDSpoofing": "REAL"
+  },
+  "timings": {
+    "_document_detector": 0.1026,
+    "_doctype_angle": 0.0071,
+    "_quality_and_borders": 0.3383,
+    "_glare": 0.026,
+    "_blur": 0.09,
+    "_print_spoofing": 0.0575,
+    "_lcd_spoofing": 0.008,
+    "_doc_detector": 0.2477,
+    "_register_pages": 2.3098,
+    "_deskew": 0.0,
+    "_fields_detector": 0.1125,
+    "_split_words": 0.2341,
+    "_ocr": 0.381,
+    "total": 3.4854
+  },
+  "address": null
+}

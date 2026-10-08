@@ -83,4 +83,17 @@ public object PyNum {
      * behavioural one — present so a reader of the ported line can see which Python builtin it is.
      */
     public fun toInt(value: Double): Int = value.toInt()
+
+    /**
+     * Python's builtin `round(x, digits)` on a float: the EXACT binary value rounded half to even at a
+     * DECIMAL place.
+     *
+     * Not [roundHalfEven] with a digit count (`np.round`), which scales by a power of ten, rounds and scales
+     * back: the two disagree on values such as 2.675 (the float is 2.67499999..., Python gives 2.67, a
+     * scaled `rint` gives 2.68). `BigDecimal(double)` is the exact binary value, so rounding it is what
+     * CPython's correctly-rounded `round` does. Used for the `documents` stage payload, which the reference
+     * writes with the builtin and which is compared to 1e-3 — a 0.1 slip is a failure.
+     */
+    public fun roundDecimal(value: Double, digits: Int): Double =
+        java.math.BigDecimal(value).setScale(digits, java.math.RoundingMode.HALF_EVEN).toDouble()
 }

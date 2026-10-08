@@ -13,7 +13,7 @@ It deliberately does **not** duplicate the three normative documents:
 | [`DEVIATIONS.md`](DEVIATIONS.md) | *where this port legitimately differs*, numbered |
 | **this file** | *how this .NET implementation actually works* |
 
-Conformance status: **PASS on 44/44 stages across all seven cases, zero skips**, on both the
+Conformance status (2026-10-07, goldens of models-v10, ten cases, cpu): **DECLARED** (README); before that, **PASS on 44/44 stages across all seven cases, zero skips**, on both the
 `cpu` and `gpu` profiles. Two stages pass under relaxation R-02 (`borders.canvas` and
 `deskew.canvas`) — `warpPerspective` interpolation differs by at most one grey level on 0.02% of
 pixels between OpenCV minors, which is documented, measured, and not a defect.
@@ -163,6 +163,7 @@ Unrolling is cheaper than explaining virtual dispatch three more times.
 sequenceDiagram
     participant C as caller
     participant R as Recognizer
+    participant F as DocumentDetector
     participant D as DocTypeAngles
     participant Q as quality group
     participant B as DocDetector
@@ -172,7 +173,10 @@ sequenceDiagram
     participant O as OcrEngine
 
     C->>R: Run(path, options)
-    R->>R: decode → RGB, shrink to img_size    [stage: prepare]
+    R->>R: decode → RGB
+    R->>F: find the documents (frame shrunk to img_size)
+    F-->>R: boxes, scaled back to the input     [stage: documents]
+    R->>R: cut the largest at FULL resolution (+3 %), shrink to img_size    [stage: prepare]
     R->>D: classify
     D-->>R: doc_type, DocConf, angle
     alt doc_type == "NONE" or DocConf < docconf
@@ -203,7 +207,30 @@ sequenceDiagram
 Branch points a reader should know about:
 
 - **`doc_type == "NONE"` is a normal short return, not an error.** Throwing here would break the
-  "document not recognised" path the SPA renders as a legitimate state.
+  "document not recognised" path the SPA renders as a legitimate state. Before giving up, the run does
+  what the reference does (the borders-first fallback): the border detector runs once, the cut-out is
+  classified again, and only a type that is still `NONE` ends the run - with `documents`, `prepare`,
+  `doctype.label`, `rotate` and the view model, whose canvas is that cut-out.
+- **A vehicle registration certificate (STS) has its own geometry step.** `_register_pages` in the
+  reference sends an `sts*` type to `_register_card`: the card is matched to the printed blank of its
+  type (`PageRegistrar` built on first use, one per type), and the template geometry replaces the
+  Borders quad when the match has 40 inliers or more AND the Borders canvas is skewed by 1 % or more;
+  the part of the card outside the photo is painted its paper colour. The result is not deskewed again.
+  Its special-marks lines are read from a vertically widened crop, torn words are glued, and a leasing
+  flag is read from the finished text (stage `leasing`, STS back only).
+- **`RunFrame` reads every document of a frame**, the two sides of an STS paired by their number.
+- **Every stage that changes the image keeps its map back** (`Maps/`, N-14): the chain of the canvas the field
+  detector read is `Results.Geometry`, and the quadrilaterals of the fields and words on the input photo are built
+  from it right after the word split (stage `quads`). The chain is read from the output to the input.
+- **Documents first (decision #142).** Everything after `documents` reads the CROP of one document,
+  cut from the input at full resolution — a licence on an A4 scan keeps its pixels. The largest
+  document is read; `Results.Documents` lists all of them. No document, or a weight set without
+  `DocDetect`, reads the whole frame.
+- **The word split has a guard, and a date a second chance.** A hole wider than three typical words
+  on a line re-reads the line whole (`SplitFlags`), unless the line carries no strokes; a date field
+  whose split reading is not a date and whose whole-line reading is gets the latter
+  (`Results.DatesReadWhole`). An MRZ line of the wrong length is re-read from a wider crop
+  (`MrzZone`). All three change `ocr.*`/`join`, none changes a box stage.
 - **The quality group is conditionally concurrent.** With `low_quality = false` — the default —
   it runs sequentially, because the verdict must be known before deciding whether to run border
   detection at all.

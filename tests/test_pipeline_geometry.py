@@ -27,6 +27,7 @@ from document_processing.pipeline_modules import (
     DocDeskewer,
     DocDetector,
     DocTypeAngles,
+    DocumentDetector,
     TextFieldsDetector,
     WordsDetector,
 )
@@ -64,6 +65,12 @@ def pages_of(image):
     contours, _ = cv2.findContours(paper, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = [c for c in contours if cv2.contourArea(c) > 0.02 * paper.size]
     return [cv2.boundingRect(c) for c in contours], [None] * len(contours), contours
+
+
+def documents_of(image):
+    """"Document detector": one document, the box around all the paper in the frame."""
+    ys, xs = np.nonzero(image.min(axis=2) > 150)
+    return [[int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1, 0.9, 0, 'document']]
 
 
 def box_of(image, color, label):
@@ -115,9 +122,12 @@ def doctype(kind, angle, *, fallback=False):
     return predict
 
 
-def pipeline(kind, angle, *, fallback=False):
+def pipeline(kind, angle, *, fallback=False, documents=False):
     stub = object.__new__(Pipeline)
     stub.probe, stub.ocr_device, stub.ocr_options = None, 'cpu', None
+    # documents=True: the document detector runs first and the rest reads the crop of
+    # the paper, cut from the photo at its full size - one more map on the way back
+    stub.document_detector = module(DocumentDetector, 'DocumentDetector', documents_of) if documents else None
     # no template registration and no template-free page geometry here: the
     # colour detectors draw flat pages, and those two paths are exercised on the
     # real samples below
@@ -185,12 +195,16 @@ def spread_photo():
     return cv2.rotate(upright, cv2.ROTATE_90_CLOCKWISE), name, word, far_end
 
 
-@pytest.mark.parametrize('fallback', [False, True], ids=['type at once', 'type after borders'])
-def test_a_spread_field_and_the_number_word_land_on_the_photo(fallback):
+@pytest.mark.parametrize('fallback, documents', [(False, False), (True, False), (False, True)],
+                         ids=['type at once', 'type after borders', 'documents first'])
+def test_a_spread_field_and_the_number_word_land_on_the_photo(fallback, documents):
     """The photo is sideways: the type model asks for a quarter turn and the text stands up."""
     image, name, word, far_end = spread_photo()
 
-    results = pipeline('INTPASSPORT_2011', 90, fallback=fallback).process_img(image, ocr=False, check_quality=False)
+    results = pipeline('INTPASSPORT_2011', 90, fallback=fallback, documents=documents).process_img(
+        image, ocr=False, check_quality=False)
+    if documents:
+        assert results.document_index == 0 and results.document_box is not None
 
     (found,) = results.field_quads['Last_name_ru']
     assert_corners(found, clockwise(name, 3400))

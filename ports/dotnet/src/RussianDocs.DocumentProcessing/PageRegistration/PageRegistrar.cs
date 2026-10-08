@@ -1,3 +1,4 @@
+using RussianDocs.DocumentProcessing.Maps;
 using System.Text.Json.Serialization;
 using OpenCvSharp;
 using OpenCvSharp.Features2D;
@@ -614,6 +615,10 @@ public sealed class PageRegistrar : IDisposable
     /// </summary>
     public double NativeScale(IReadOnlyList<PageRegistrationResult> regs)
     {
+        // The reference runs this on float32 quads: every norm, the sum, the product and the quotient
+        // round to float32, and the scale then multiplies the page matrix. A double value differs by up
+        // to ~6e-8 relative, i.e. ~6e-5 px over a 1000 px page, and warpPerspective (which quantises its
+        // interpolation weights to 1/32 px) moves hundreds of pixels for that. So the chain is float.
         double scale = 1.0;
         foreach (PageRegistrationResult r in regs)
         {
@@ -622,10 +627,19 @@ public sealed class PageRegistrar : IDisposable
                 continue;
             }
             Point[] q = Geometry.OrderPoints(r.Quad!) ?? r.Quad!;
-            double wNative = 0.5 * (Geometry.Distance(q[1], q[0]) + Geometry.Distance(q[2], q[3]));
-            scale = Math.Min(scale, wNative / PageW);
+            float n1 = Norm32(q[1], q[0]), n2 = Norm32(q[2], q[3]);
+            float wNative = 0.5f * (n1 + n2);
+            float ratio = wNative / (float)PageW;
+            scale = Math.Min(scale, ratio);
         }
         return Math.Max(scale, 0.25);
+    }
+
+    /// <summary><c>np.linalg.norm(a - b)</c> on float32 points.</summary>
+    private static float Norm32(Point a, Point b)
+    {
+        float dx = (float)a.X - (float)b.X, dy = (float)a.Y - (float)b.Y;
+        return MathF.Sqrt(dx * dx + dy * dy);
     }
 
     public (int W, int H) OutSize(double scale = 1.0) =>
@@ -634,7 +648,11 @@ public sealed class PageRegistrar : IDisposable
     /// <summary>Warps a photo quad (e.g. from Borders) into the canonical page frame — same output
     /// size/cushion as <see cref="WarpPage"/>, so the two stack consistently. Port of
     /// <c>PageRegistrar.warp_quad</c> (page_registration.py:461-472).</summary>
-    public Image WarpQuad(Image imgRgb, Point[] quad, double scale = 1.0)
+    public Image WarpQuad(Image imgRgb, Point[] quad, double scale = 1.0) =>
+        WarpQuadWithMatrix(imgRgb, quad, scale).Page;
+
+    /// <summary><see cref="WarpQuad"/>, also giving the matrix the warp used (photo to page).</summary>
+    public (Image Page, double[,] Matrix) WarpQuadWithMatrix(Image imgRgb, Point[] quad, double scale = 1.0)
     {
         double m = _margin;
         Point[] src = Geometry.OrderPoints(quad) ?? quad;
@@ -653,21 +671,184 @@ public sealed class PageRegistrar : IDisposable
             var fallback = new Mat();
             Cv2.WarpPerspective(imgRgb.Mat, fallback, identity, new Size(w, hgt),
                 InterpolationFlags.Linear, BorderTypes.Replicate);
-            return Image.Wrap(fallback);
+            return (Image.Wrap(fallback), Homography.Identity());
         }
-        return Homography.WarpByHomography(imgRgb, h, w, hgt, replicate: true);
+        return (Homography.WarpByHomography(imgRgb, h, w, hgt, replicate: true), h);
     }
 
     /// <summary>Warps the photo to the canonical page with the margin cushion on every side, at
     /// <paramref name="scale"/>. Port of <c>PageRegistrar.warp_page</c> (page_registration.py:518-526).</summary>
-    public Image WarpPage(Image imgRgb, PageRegistrationResult reg, double scale = 1.0)
+    public Image WarpPage(Image imgRgb, PageRegistrationResult reg, double scale = 1.0) =>
+        WarpPageWithMatrix(imgRgb, reg, scale).Page;
+
+    /// <summary><see cref="WarpPage"/>, also giving the matrix the warp used (photo to page).</summary>
+    public (Image Page, double[,] Matrix) WarpPageWithMatrix(Image imgRgb, PageRegistrationResult reg,
+        double scale = 1.0)
     {
         double m = _margin;
         double[,] shift = { { 1, 0, m }, { 0, 1, m }, { 0, 0, 1 } };
         double[,] s = { { scale, 0, 0 }, { 0, scale, 0 }, { 0, 0, 1 } };
         double[,] full = Homography.Multiply(s, Homography.Multiply(shift, reg.H!));
         (int w, int h) = OutSize(scale);
-        return Homography.WarpByHomography(imgRgb, full, w, h, replicate: true);
+        return (Homography.WarpByHomography(imgRgb, full, w, h, replicate: true), full);
+    }
+
+    /// <summary>
+    /// The matrix <c>warp_page</c> warps the photo with (photo to page): the scale, the cushion offset and
+    /// the template homography, multiplied in the reference's order, <c>(S @ shift) @ H</c>. Port of
+    /// <c>PageRegistrar.page_matrix</c>.
+    /// </summary>
+    public double[,] PageMatrix(PageRegistrationResult reg, double scale = 1.0)
+    {
+        double m = _margin;
+        double[,] shift = { { 1, 0, m }, { 0, 1, m }, { 0, 0, 1 } };
+        double[,] s = { { scale, 0, 0 }, { 0, scale, 0 }, { 0, 0, 1 } };
+        return Homography.Multiply(Homography.Multiply(s, shift), reg.H!);
+    }
+
+    /// <summary>
+    /// The perspective matrix <c>warp_quad</c> warps a photo quad with (photo to page), at scale 1: the
+    /// ordered quad onto the cushioned frame. Port of <c>PageRegistrar.quad_matrix</c>; null on a
+    /// degenerate quad.
+    /// </summary>
+    public double[,]? QuadMatrix(Point[] quad)
+    {
+        double m = _margin;
+        Point[] src = Geometry.OrderPoints(quad) ?? quad;
+        Point[] dst =
+        [
+            new(m, m), new(m + PageW, m), new(m + PageW, m + PageH), new(m, m + PageH),
+        ];
+        return Homography.Solve4(src, dst);
+    }
+
+    /// <summary>
+    /// The warp both <c>warp_quad</c> and <c>warp_page</c> apply, given its matrix. Port of
+    /// <c>PageRegistrar.warp_matrix</c>. With <paramref name="fill"/> (an RGB triple) the part of the page
+    /// that runs past the photo is painted that colour (BORDER_CONSTANT); without it the edge pixels are
+    /// repeated (BORDER_REPLICATE), which is the passport path. A card cut off by the frame and warped
+    /// by its template otherwise grows streaks of smeared edge into the canvas, where the field detector
+    /// reads them as print.
+    /// </summary>
+    public Image WarpMatrix(Image imgRgb, double[,] m, double scale = 1.0, int[]? fill = null)
+    {
+        (int w, int h) = OutSize(scale);
+        if (fill is null)
+        {
+            return Homography.WarpByHomography(imgRgb, m, w, h, replicate: true);
+        }
+        using Mat hm = Homography.ToMat(m);
+        var dst = new Mat();
+        Cv2.WarpPerspective(imgRgb.Mat, dst, hm, new Size(w, h), InterpolationFlags.Linear,
+            BorderTypes.Constant, new Scalar(fill[0], fill[1], fill[2], 0));
+        return Image.Wrap(dst);
+    }
+
+    /// <summary>
+    /// How far a Borders canvas bends the card out of a rectangle, as a share of its long side. Port of
+    /// <c>Pipeline._card_skew</c>: the card's corners found by the template, carried into the canvas the
+    /// Borders quad would give, are fitted by a similarity (LMEDS) to the card's own rectangle, and the
+    /// residual is the skew. 1.0 when no similarity can be fitted.
+    /// </summary>
+    public double CardSkew(Point[] bordersQuad, Point[] cardQuad)
+    {
+        double[,]? mq = QuadMatrix(bordersQuad);
+        if (mq is null)
+        {
+            return 1.0;
+        }
+        // float32 throughout, as the reference's arrays are: the quads are float32 and
+        // perspectiveTransform keeps the type of its input.
+        Point2f[] card = [.. cardQuad.Select(p => new Point2f((float)p.X, (float)p.Y))];
+        using Mat m = Homography.ToMat(mq);
+        Point2f[] found = Cv2.PerspectiveTransform(card, m);
+
+        float mg = _margin;
+        Point2f[] ideal =
+        [
+            new(mg, mg), new(mg + PageW, mg), new(mg + PageW, mg + PageH), new(mg, mg + PageH),
+        ];
+        using Mat? a = Cv2.EstimateAffinePartial2D(InputArray.Create(ideal), InputArray.Create(found),
+            null, RobustEstimationAlgorithms.LMEDS);
+        if (a is null || a.Empty())
+        {
+            return 1.0;
+        }
+        double sum = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            double fx = a.At<double>(0, 0) * ideal[i].X + a.At<double>(0, 1) * ideal[i].Y + a.At<double>(0, 2);
+            double fy = a.At<double>(1, 0) * ideal[i].X + a.At<double>(1, 1) * ideal[i].Y + a.At<double>(1, 2);
+            double dx = fx - found[i].X, dy = fy - found[i].Y;
+            sum += dx * dx + dy * dy;
+        }
+        return Math.Sqrt(sum / 4) / Math.Max(PageW, PageH);
+    }
+
+    /// <summary>
+    /// The colour of the card's paper: the per-channel median of the photo inside the card's quad, each
+    /// truncated to an integer (the reference's <c>int(np.median(...))</c>). Null when the quad covers no
+    /// pixel of the photo. This is what <see cref="WarpMatrix"/> paints where the card runs past the frame.
+    /// </summary>
+    public int[]? CardFill(Image imgRgb, Point[] quad)
+    {
+        using var mask = new Mat(imgRgb.Height, imgRgb.Width, MatType.CV_8UC1, Scalar.All(0));
+        OpenCvSharp.Point[] poly =
+        [.. quad.Select(p => new OpenCvSharp.Point(
+            (int)Math.Round(p.X, MidpointRounding.ToEven), (int)Math.Round(p.Y, MidpointRounding.ToEven)))];
+        Cv2.FillPoly(mask, [poly], Scalar.All(1));
+        mask.GetArray(out byte[] maskBytes);
+        if (!maskBytes.Any(b => b > 0))
+        {
+            return null;
+        }
+        Mat[] channels = Cv2.Split(imgRgb.Mat);
+        try
+        {
+            var fill = new int[3];
+            for (int c = 0; c < 3; c++)
+            {
+                channels[c].GetArray(out byte[] data);
+                var hist = new long[256];
+                long n = 0;
+                for (int i = 0; i < data.Length; i++)
+                {
+                    if (maskBytes[i] > 0)
+                    {
+                        hist[data[i]]++;
+                        n++;
+                    }
+                }
+                fill[c] = (int)MedianOfHistogram(hist, n);
+            }
+            return fill;
+        }
+        finally
+        {
+            foreach (Mat ch in channels)
+            {
+                ch.Dispose();
+            }
+        }
+    }
+
+    /// <summary><c>np.median</c> of a byte sample given as a histogram: the middle value, or the mean of the two middle ones.</summary>
+    private static double MedianOfHistogram(long[] hist, long n)
+    {
+        static int Kth(long[] h, long k)
+        {
+            long seen = 0;
+            for (int v = 0; v < h.Length; v++)
+            {
+                seen += h[v];
+                if (seen > k)
+                {
+                    return v;
+                }
+            }
+            return h.Length - 1;
+        }
+        return n % 2 == 1 ? Kth(hist, n / 2) : (Kth(hist, n / 2 - 1) + Kth(hist, n / 2)) / 2.0;
     }
 
     /// <summary>Page quads (ordered TL, TR, BR, BL) from Borders contours, plus the per-quad fit
@@ -692,7 +873,10 @@ public sealed class PageRegistrar : IDisposable
             }
             if (q is not null)
             {
-                quadsOut.Add(Geometry.OrderPoints(q) ?? q);
+                // `_order_points(q).astype(np.float32)`: the page quads are float32 in the reference, and
+                // everything computed from them (quad_matrix, expand_quad, the IoU, the card's skew)
+                // starts from those rounded values.
+                quadsOut.Add([.. (Geometry.OrderPoints(q) ?? q).Select(p => new Point((float)p.X, (float)p.Y))]);
                 infos.Add(info);
             }
         }
@@ -737,6 +921,19 @@ public sealed class PageRegistrar : IDisposable
     public (Image Page, global::RussianDocs.DocumentProcessing.PageRegistration.LineRefine.StraightenInfo Info)
         Straighten(Image page, double scale = 1.0)
     {
+        (Image straightened, var info, _) = StraightenWithMap(page, scale);
+        return (straightened, info);
+    }
+
+    /// <summary>
+    /// <see cref="Straighten"/>, plus the map from the returned page back to <paramref name="page"/>
+    /// (<c>straighten_with_geometry</c>): the straightening homography and the bend map in the order
+    /// applied, or null when nothing was applied.
+    /// </summary>
+    public (Image Page, global::RussianDocs.DocumentProcessing.PageRegistration.LineRefine.StraightenInfo Info,
+        IMap? Map) StraightenWithMap(Image page, double scale = 1.0)
+    {
+        var maps = new List<IMap>();
         int inset = PyNum.RoundHalfEvenToInt(_margin * scale);
         var info = new global::RussianDocs.DocumentProcessing.PageRegistration.LineRefine.StraightenInfo(
             false, "disabled");
@@ -754,6 +951,7 @@ public sealed class PageRegistrar : IDisposable
                     global::RussianDocs.DocumentProcessing.PageRegistration.LineRefine.ApplyRefinement(cur, hm);
                 cur.Dispose();
                 cur = next;
+                maps.Add(new HomographyMap(hm));
             }
         }
         if (LineDewarp)
@@ -764,12 +962,13 @@ public sealed class PageRegistrar : IDisposable
             if (v is not null)
             {
                 Image next = global::RussianDocs.DocumentProcessing.PageRegistration.LineDewarp.ApplyDewarp(cur, v);
+                maps.Add(new BendMap(v, cur.Width, cur.Height));
                 cur.Dispose();
                 cur = next;
             }
             info = info with { Applied = info.Applied || dInfo.Applied };
         }
-        return (cur, info);
+        return (cur, info, maps.Count > 0 ? new ChainMap(maps) : null);
     }
 
     private sealed class TemplateMeta
@@ -846,7 +1045,13 @@ public sealed class PageTemplate : IDisposable
     public Point[]? QuadInImage(double[,] hImgToPage)
     {
         double[,]? inv = Homography.Invert(hImgToPage);
-        return inv is null ? null : Homography.TransformPoints(inv, Corners);
+        if (inv is null)
+        {
+            return null;
+        }
+        // float32 out, as cv2.perspectiveTransform of the float32 corners gives: everything downstream
+        // (the sanity checks, the IoU, native_scale, the card's fill mask) sees float32 values.
+        return [.. Homography.TransformPoints(inv, Corners).Select(p => new Point((float)p.X, (float)p.Y))];
     }
 
     public void Dispose()

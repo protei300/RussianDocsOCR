@@ -1,6 +1,7 @@
 package imaging
 
 import (
+	"math"
 	"image/color"
 
 	"gocv.io/x/gocv"
@@ -11,38 +12,20 @@ type Segment struct {
 	X1, Y1, X2, Y2 float64
 }
 
-// DetectSegments finds straight line segments in a grayscale image.
+// DetectSegments is line_refine._segments: the line segments of a grayscale image that are at
+// least minLen long, from OpenCV's line segment detector (LSD_REFINE_STD).
 //
-// The reference (line_refine.py, line_dewarp.py) uses cv2.createLineSegmentDetector
-// (cv::LSD), which gocv v0.43.0 does not bind (checked: no LineSegmentDetector symbol
-// anywhere in the package - an ecosystem gap, not an oversight here). Canny + probabilistic
-// Hough (HoughLinesP) is the substitute: both gocv primitives, standard, and the same
-// KIND of evidence (straight edges/strokes) the rest of line_refine/line_dewarp treats
-// as one undifferentiated pool of (angle, weight) measurements. This is NOT a bit-exact
-// substitute for LSD - a different detector finds a different segment SET on the same
-// page - so the straightening/dewarp correction this feeds is expected to diverge from
-// the Python reference by more than the project's usual float tolerance; see the task
-// log for the measured canvas divergence and the proposed deviation.
+// The reference calls cv2.createLineSegmentDetector. gocv v0.43.0 does not bind it (no
+// LineSegmentDetector symbol anywhere in the package), so lsd.go reaches the same OpenCV
+// routine through a small C++ shim; the segments are the reference's own, not a substitute.
+// (Until 2026-10-08 this was Canny + HoughLinesP, a different detector that found a different
+// segment set - the cause of the line-refinement part of D-03.)
 func DetectSegments(gray Image, minLen float64) []Segment {
-	edges := gocv.NewMat()
-	defer edges.Close()
-	gocv.Canny(gray.mat, &edges, 40, 120)
-
-	lines := gocv.NewMat()
-	defer lines.Close()
-	gocv.HoughLinesPWithParams(edges, &lines, 1, 3.14159265358979/180.0, 30,
-		float32(minLen), 6)
-
-	n := lines.Rows()
-	out := make([]Segment, 0, n)
-	for i := 0; i < n; i++ {
-		x1 := float64(lines.GetIntAt(i, 0))
-		y1 := float64(lines.GetIntAt(i, 1))
-		x2 := float64(lines.GetIntAt(i, 2))
-		y2 := float64(lines.GetIntAt(i, 3))
-		dx, dy := x2-x1, y2-y1
-		if dx*dx+dy*dy >= minLen*minLen {
-			out = append(out, Segment{x1, y1, x2, y2})
+	all := lsdSegments(gray)
+	out := make([]Segment, 0, len(all))
+	for _, s := range all {
+		if math.Hypot(s.X2-s.X1, s.Y2-s.Y1) >= minLen {
+			out = append(out, s)
 		}
 	}
 	return out

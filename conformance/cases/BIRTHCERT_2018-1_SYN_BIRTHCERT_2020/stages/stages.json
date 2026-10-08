@@ -3,13 +3,18 @@
   "stopped_early": false,
   "stages": [
     {
+      "stage": "documents",
+      "file": "documents.json",
+      "kind": "json"
+    },
+    {
       "stage": "prepare",
       "file": "prepare.digest.json",
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        1499,
-        1124,
+        1500,
+        1198,
         3
       ]
     },
@@ -24,8 +29,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        1499,
-        1124,
+        1500,
+        1198,
         3
       ]
     },
@@ -45,8 +50,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        1231,
-        1018,
+        1386,
+        1133,
         3
       ]
     },
@@ -56,8 +61,8 @@
       "kind": "digest",
       "dtype": "uint8",
       "shape": [
-        1231,
-        1018,
+        1386,
+        1133,
         3
       ]
     },
@@ -84,6 +89,11 @@
     {
       "stage": "words.Birth_place_ru.bbox",
       "file": "words.Birth_place_ru.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "words.Act_date.bbox",
+      "file": "words.Act_date.bbox.json",
       "kind": "json"
     },
     {
@@ -142,6 +152,11 @@
       "kind": "json"
     },
     {
+      "stage": "quads",
+      "file": "quads.json",
+      "kind": "json"
+    },
+    {
       "stage": "ocr.Last_name_ru.words",
       "file": "ocr.Last_name_ru.words.json",
       "kind": "json"
@@ -159,6 +174,11 @@
     {
       "stage": "ocr.Birth_place_ru.words",
       "file": "ocr.Birth_place_ru.words.json",
+      "kind": "json"
+    },
+    {
+      "stage": "ocr.Act_date.words",
+      "file": "ocr.Act_date.words.json",
       "kind": "json"
     },
     {

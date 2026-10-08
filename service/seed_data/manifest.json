@@ -55,5 +55,41 @@
   "content_type": "image/jpeg",
   "size_bytes": 964550,
   "search_text": "sample-birthcert_2018-1_syn_birthcert_2020.jpg birthcert_2018 казаков леонид вадимович 15 октября 2020 г. российская федерация, тюменская область, г. тюмень 110202778751843181007 казаков вадим антонович 20 декабря 1992 казакова ирина петровна 21 июня 1985 27787518 центральный отдел загс управления загс тюменской области 27787518 центральный отдел управления загс управления загс тюменской области 30 октября 2020 -тв 911395"
+ },
+ {
+  "slug": "STS_1996-synth_01_STS_1996",
+  "sample": "conformance/material/STS_1996/synth_01_STS_1996.jpg",
+  "filename": "sample-STS_1996-synth_01_STS_1996.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 752333,
+  "search_text": ""
+ },
+ {
+  "slug": "STSBACK_1996-synth_01_STSBACK_1996",
+  "sample": "conformance/material/STSBACK_1996/synth_01_STSBACK_1996.jpg",
+  "filename": "sample-STSBACK_1996-synth_01_STSBACK_1996.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 902845,
+  "search_text": ""
+ },
+ {
+  "slug": "STS_2019-synth_01_STS_2019",
+  "sample": "conformance/material/STS_2019/synth_01_STS_2019.jpg",
+  "filename": "sample-STS_2019-synth_01_STS_2019.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 1108342,
+  "search_text": ""
+ },
+ {
+  "slug": "STSBACK_2019-synth_01_STSBACK_2019",
+  "sample": "conformance/material/STSBACK_2019/synth_01_STSBACK_2019.jpg",
+  "filename": "sample-STSBACK_2019-synth_01_STSBACK_2019.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 674121,
+  "search_text": ""
  }
 ]

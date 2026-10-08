@@ -1,0 +1,444 @@
+{
+  "doc_type": "STS_2019",
+  "doc_type_base": "STS",
+  "doc_type_era": "2019",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 963,
+    "height": 1387,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [
+    {
+      "id": "b0",
+      "label": "Reg_number",
+      "display": "Reg_number",
+      "kind": "text",
+      "x1": 158,
+      "y1": 321,
+      "x2": 334,
+      "y2": 360,
+      "conf": 0.938,
+      "cls": 31,
+      "text": "P391MB77",
+      "ambiguous": false
+    },
+    {
+      "id": "b1",
+      "label": "VIN",
+      "display": "VIN",
+      "kind": "text",
+      "x1": 166,
+      "y1": 413,
+      "x2": 530,
+      "y2": 452,
+      "conf": 0.936,
+      "cls": 32,
+      "text": "JDKUXW3NNU4XHS9V5",
+      "ambiguous": false
+    },
+    {
+      "id": "b2",
+      "label": "Vehicle_make_ru",
+      "display": "Vehicle_make_ru",
+      "kind": "text",
+      "x1": 284,
+      "y1": 462,
+      "x2": 609,
+      "y2": 500,
+      "conf": 0.931,
+      "cls": 33,
+      "text": "HYUNDAI SOLARIS",
+      "ambiguous": false
+    },
+    {
+      "id": "b3",
+      "label": "Vehicle_make_en",
+      "display": "Vehicle_make_en",
+      "kind": "text",
+      "x1": 284,
+      "y1": 510,
+      "x2": 610,
+      "y2": 547,
+      "conf": 0.949,
+      "cls": 34,
+      "text": "HYUNDAI SOLARIS",
+      "ambiguous": false
+    },
+    {
+      "id": "b4",
+      "label": "Vehicle_type",
+      "display": "Vehicle_type",
+      "kind": "text",
+      "x1": 287,
+      "y1": 562,
+      "x2": 812,
+      "y2": 616,
+      "conf": 0.892,
+      "cls": 35,
+      "text": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)",
+      "ambiguous": false
+    },
+    {
+      "id": "b5",
+      "label": "Vehicle_category",
+      "display": "Vehicle_category",
+      "kind": "text",
+      "x1": 692,
+      "y1": 619,
+      "x2": 792,
+      "y2": 662,
+      "conf": 0.941,
+      "cls": 36,
+      "text": "B/M1",
+      "ambiguous": false
+    },
+    {
+      "id": "b6",
+      "label": "Vehicle_year",
+      "display": "Vehicle_year",
+      "kind": "text",
+      "x1": 445,
+      "y1": 675,
+      "x2": 542,
+      "y2": 711,
+      "conf": 0.934,
+      "cls": 37,
+      "text": "2022",
+      "ambiguous": false
+    },
+    {
+      "id": "b7",
+      "label": "Chassis_number",
+      "display": "Chassis_number",
+      "kind": "text",
+      "x1": 433,
+      "y1": 726,
+      "x2": 676,
+      "y2": 763,
+      "conf": 0.945,
+      "cls": 38,
+      "text": "ОТСУТСТВУЕТ",
+      "ambiguous": false
+    },
+    {
+      "id": "b8",
+      "label": "Body_number",
+      "display": "Body_number",
+      "kind": "text",
+      "x1": 161,
+      "y1": 824,
+      "x2": 527,
+      "y2": 862,
+      "conf": 0.931,
+      "cls": 39,
+      "text": "JDKUXW3NNU4XHS9V5",
+      "ambiguous": false
+    },
+    {
+      "id": "b9",
+      "label": "Vehicle_color",
+      "display": "Vehicle_color",
+      "kind": "text",
+      "x1": 193,
+      "y1": 877,
+      "x2": 355,
+      "y2": 923,
+      "conf": 0.948,
+      "cls": 40,
+      "text": "КРАСНЫЙ",
+      "ambiguous": false
+    },
+    {
+      "id": "b10",
+      "label": "Type_approval",
+      "display": "Type_approval",
+      "kind": "text",
+      "x1": 516,
+      "y1": 952,
+      "x2": 923,
+      "y2": 990,
+      "conf": 0.922,
+      "cls": 49,
+      "text": "TCRUE-RU.BY03.56748",
+      "ambiguous": false
+    },
+    {
+      "id": "b11",
+      "label": "Eco_class",
+      "display": "Eco_class",
+      "kind": "text",
+      "x1": 523,
+      "y1": 999,
+      "x2": 687,
+      "y2": 1051,
+      "conf": 0.944,
+      "cls": 42,
+      "text": "ПЯТЫЙ/5",
+      "ambiguous": false
+    },
+    {
+      "id": "b12",
+      "label": "PTS_number",
+      "display": "PTS_number",
+      "kind": "text",
+      "x1": 411,
+      "y1": 1057,
+      "x2": 761,
+      "y2": 1095,
+      "conf": 0.923,
+      "cls": 45,
+      "text": "1642 61241339481",
+      "ambiguous": false
+    },
+    {
+      "id": "b13",
+      "label": "Max_mass",
+      "display": "Max_mass",
+      "kind": "text",
+      "x1": 854,
+      "y1": 1104,
+      "x2": 949,
+      "y2": 1140,
+      "conf": 0.931,
+      "cls": 43,
+      "text": "3214",
+      "ambiguous": false
+    },
+    {
+      "id": "b14",
+      "label": "Curb_mass",
+      "display": "Curb_mass",
+      "kind": "text",
+      "x1": 792,
+      "y1": 1158,
+      "x2": 888,
+      "y2": 1194,
+      "conf": 0.94,
+      "cls": 44,
+      "text": "2650",
+      "ambiguous": false
+    },
+    {
+      "id": "b15",
+      "label": "Licence_number",
+      "display": "Document number",
+      "kind": "text",
+      "x1": 296,
+      "y1": 1254,
+      "x2": 640,
+      "y2": 1305,
+      "conf": 0.942,
+      "cls": 5,
+      "text": "19 43 269684",
+      "ambiguous": false
+    }
+  ],
+  "fields": [
+    {
+      "name": "Body_number",
+      "display": "Body_number",
+      "value": "JDKUXW3NNU4XHS9V5",
+      "script": "ru",
+      "conf": 0.931,
+      "box_ids": [
+        "b8"
+      ]
+    },
+    {
+      "name": "Chassis_number",
+      "display": "Chassis_number",
+      "value": "ОТСУТСТВУЕТ",
+      "script": "ru",
+      "conf": 0.945,
+      "box_ids": [
+        "b7"
+      ]
+    },
+    {
+      "name": "Curb_mass",
+      "display": "Curb_mass",
+      "value": "2650",
+      "script": "ru",
+      "conf": 0.94,
+      "box_ids": [
+        "b14"
+      ]
+    },
+    {
+      "name": "Eco_class",
+      "display": "Eco_class",
+      "value": "ПЯТЫЙ/5",
+      "script": "ru",
+      "conf": 0.944,
+      "box_ids": [
+        "b11"
+      ]
+    },
+    {
+      "name": "Licence_number",
+      "display": "Document number",
+      "value": "19 43 269684",
+      "script": "num",
+      "conf": 0.942,
+      "box_ids": [
+        "b15"
+      ]
+    },
+    {
+      "name": "Max_mass",
+      "display": "Max_mass",
+      "value": "3214",
+      "script": "ru",
+      "conf": 0.931,
+      "box_ids": [
+        "b13"
+      ]
+    },
+    {
+      "name": "PTS_number",
+      "display": "PTS_number",
+      "value": "1642 61241339481",
+      "script": "ru",
+      "conf": 0.923,
+      "box_ids": [
+        "b12"
+      ]
+    },
+    {
+      "name": "Reg_number",
+      "display": "Reg_number",
+      "value": "P391MB77",
+      "script": "ru",
+      "conf": 0.938,
+      "box_ids": [
+        "b0"
+      ]
+    },
+    {
+      "name": "Type_approval",
+      "display": "Type_approval",
+      "value": "TCRUE-RU.BY03.56748",
+      "script": "ru",
+      "conf": 0.922,
+      "box_ids": [
+        "b10"
+      ]
+    },
+    {
+      "name": "VIN",
+      "display": "VIN",
+      "value": "JDKUXW3NNU4XHS9V5",
+      "script": "ru",
+      "conf": 0.936,
+      "box_ids": [
+        "b1"
+      ]
+    },
+    {
+      "name": "Vehicle_category",
+      "display": "Vehicle_category",
+      "value": "B/M1",
+      "script": "ru",
+      "conf": 0.941,
+      "box_ids": [
+        "b5"
+      ]
+    },
+    {
+      "name": "Vehicle_color",
+      "display": "Vehicle_color",
+      "value": "КРАСНЫЙ",
+      "script": "ru",
+      "conf": 0.948,
+      "box_ids": [
+        "b9"
+      ]
+    },
+    {
+      "name": "Vehicle_make_en",
+      "display": "Vehicle_make_en",
+      "value": "HYUNDAI SOLARIS",
+      "script": "en",
+      "conf": 0.949,
+      "box_ids": [
+        "b3"
+      ]
+    },
+    {
+      "name": "Vehicle_make_ru",
+      "display": "Vehicle_make_ru",
+      "value": "HYUNDAI SOLARIS",
+      "script": "ru",
+      "conf": 0.931,
+      "box_ids": [
+        "b2"
+      ]
+    },
+    {
+      "name": "Vehicle_type",
+      "display": "Vehicle_type",
+      "value": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)",
+      "script": "ru",
+      "conf": 0.892,
+      "box_ids": [
+        "b4"
+      ]
+    },
+    {
+      "name": "Vehicle_year",
+      "display": "Vehicle_year",
+      "value": "2022",
+      "script": "ru",
+      "conf": 0.934,
+      "box_ids": [
+        "b6"
+      ]
+    }
+  ],
+  "ocr": {
+    "Reg_number": "P391MB77",
+    "VIN": "JDKUXW3NNU4XHS9V5",
+    "Vehicle_make_ru": "HYUNDAI SOLARIS",
+    "Vehicle_make_en": "HYUNDAI SOLARIS",
+    "Vehicle_type": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)",
+    "Vehicle_category": "B/M1",
+    "Vehicle_year": "2022",
+    "Chassis_number": "ОТСУТСТВУЕТ",
+    "Body_number": "JDKUXW3NNU4XHS9V5",
+    "Vehicle_color": "КРАСНЫЙ",
+    "Type_approval": "TCRUE-RU.BY03.56748",
+    "Eco_class": "ПЯТЫЙ/5",
+    "PTS_number": "1642 61241339481",
+    "Max_mass": "3214",
+    "Curb_mass": "2650",
+    "Licence_number": "19 43 269684"
+  },
+  "quality": {
+    "DocConf": 0.99,
+    "Glare": "good",
+    "Blur": "good",
+    "PrintSpoofing": "FAKE",
+    "LCDSpoofing": "REAL"
+  },
+  "timings": {
+    "_document_detector": 0.1045,
+    "_doctype_angle": 0.007,
+    "_quality_and_borders": 0.2977,
+    "_glare": 0.0321,
+    "_blur": 0.0551,
+    "_print_spoofing": 0.006,
+    "_lcd_spoofing": 0.067,
+    "_doc_detector": 0.2576,
+    "_register_pages": 1.026,
+    "_deskew": 0.013,
+    "_fields_detector": 0.1181,
+    "_split_words": 0.2118,
+    "_ocr": 0.4055,
+    "total": 2.1836
+  },
+  "address": null
+}

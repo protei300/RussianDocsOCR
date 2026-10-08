@@ -218,14 +218,16 @@ func readMrz(zone *MrzZone, lat *modules.OcrEngine, lineIndex int, text string) 
 // Port of Pipeline._ocr_serial (pipeline.py:1830-1870).
 //
 // docType is the label with its year suffix already stripped, which matters: the routing
-// below tests `docType == "SNILS"` against the bare type. zone may be nil (no MRZ on the
-// document); with one, every MRZ line of the wrong length goes through readMrz.
-func OcrFields(fields []FieldWords, docType string, opts OcrOptions,
+// below tests `docType == "SNILS"` against the bare type; year is the suffix itself ("" when
+// the label has none), which a field may route by (OcrOptions.EngineByYear). zone may be nil
+// (no MRZ on the document); with one, every MRZ line of the wrong length goes through readMrz.
+func OcrFields(fields []FieldWords, docType, year string, opts OcrOptions,
 	cyr, lat *modules.OcrEngine, zone *MrzZone) ([]FieldText, error) {
 
 	out := make([]FieldText, 0, len(fields))
 	for _, fw := range fields {
-		var words []string
+		words := []string{}
+		byYear := opts.EngineFor(fw.Label, year)
 		for i, patch := range fw.Patches {
 			// Three branches, and the FIRST one carries a precedence subtlety worth
 			// spelling out: Python's `doc_type == 'SNILS' and i % 2 == 1 or field_name in
@@ -237,7 +239,16 @@ func OcrFields(fields []FieldWords, docType string, opts OcrOptions,
 			// names interleaved with digits, so odd-indexed words must go to the Cyrillic
 			// engine even though the field itself is date-routed below.
 			switch {
-			case (docType == "SNILS" && i%2 == 1) || contains(opts.RuFields, fw.Label):
+			// The engine a form year asks for comes FIRST (Pipeline._engine_by_year): the
+			// make of the 2019 form is printed in Latin, of the old one in Cyrillic.
+			case byYear == "lat":
+				text, err := lat.Predict(patch)
+				if err != nil {
+					return nil, err
+				}
+				words = append(words, lat.FixErrors(fw.Label, text))
+
+			case byYear == "cyr" || (docType == "SNILS" && i%2 == 1) || contains(opts.RuFields, fw.Label):
 				text, err := cyr.Predict(patch)
 				if err != nil {
 					return nil, err
@@ -274,7 +285,7 @@ func OcrFields(fields []FieldWords, docType string, opts OcrOptions,
 				// leave an even-indexed SNILS word unmatched.
 			}
 		}
-		out = append(out, FieldText{Label: fw.Label, Words: words})
+		out = append(out, FieldText{Label: fw.Label, Words: glueTorn(fw, words, opts)})
 	}
 
 	// Joining is separate from recognition so the per-word strings survive for the

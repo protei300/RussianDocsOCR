@@ -1,0 +1,364 @@
+{
+  "doc_type": "STSBACK_1996",
+  "doc_type_base": "STSBACK",
+  "doc_type_era": "1996",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 1057,
+    "height": 1475,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [
+    {
+      "id": "b0",
+      "label": "Licence_number",
+      "display": "Document number",
+      "kind": "text",
+      "x1": 110,
+      "y1": 179,
+      "x2": 485,
+      "y2": 237,
+      "conf": 0.935,
+      "cls": 5,
+      "text": "71 75 107178",
+      "ambiguous": false
+    },
+    {
+      "id": "b1",
+      "label": "Last_name_ru",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 218,
+      "y1": 339,
+      "x2": 353,
+      "y2": 379,
+      "conf": 0.927,
+      "cls": 1,
+      "text": "ВЕТРОВ",
+      "ambiguous": false
+    },
+    {
+      "id": "b2",
+      "label": "Last_name_en",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 275,
+      "y1": 380,
+      "x2": 411,
+      "y2": 420,
+      "conf": 0.935,
+      "cls": 3,
+      "text": "VETROV",
+      "ambiguous": false
+    },
+    {
+      "id": "b3",
+      "label": "First_name_ru",
+      "display": "First name",
+      "kind": "text",
+      "x1": 219,
+      "y1": 423,
+      "x2": 362,
+      "y2": 464,
+      "conf": 0.924,
+      "cls": 2,
+      "text": "МАКСИМ",
+      "ambiguous": false
+    },
+    {
+      "id": "b4",
+      "label": "First_name_en",
+      "display": "First name",
+      "kind": "text",
+      "x1": 286,
+      "y1": 465,
+      "x2": 417,
+      "y2": 504,
+      "conf": 0.932,
+      "cls": 4,
+      "text": "MAKSIM",
+      "ambiguous": false
+    },
+    {
+      "id": "b5",
+      "label": "Middle_name_ru",
+      "display": "Middle name",
+      "kind": "text",
+      "x1": 219,
+      "y1": 505,
+      "x2": 391,
+      "y2": 545,
+      "conf": 0.948,
+      "cls": 17,
+      "text": "ОЛЕГОВИЧ",
+      "ambiguous": false
+    },
+    {
+      "id": "b6",
+      "label": "Living_region_ru",
+      "display": "Place of residence",
+      "kind": "text",
+      "x1": 182,
+      "y1": 622,
+      "x2": 452,
+      "y2": 675,
+      "conf": 0.944,
+      "cls": 15,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b7",
+      "label": "Living_region_ru",
+      "display": "Place of residence",
+      "kind": "text",
+      "x1": 426,
+      "y1": 740,
+      "x2": 556,
+      "y2": 788,
+      "conf": 0.937,
+      "cls": 15,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b8",
+      "label": "Living_region_ru",
+      "display": "Place of residence",
+      "kind": "text",
+      "x1": 314,
+      "y1": 798,
+      "x2": 493,
+      "y2": 848,
+      "conf": 0.946,
+      "cls": 15,
+      "text": "ИРКУТСКАЯ ОБЛАСТЬ Г БРАТСК УЛ БЛЮХЕРА",
+      "ambiguous": false
+    },
+    {
+      "id": "b9",
+      "label": "House_number",
+      "display": "House_number",
+      "kind": "text",
+      "x1": 289,
+      "y1": 853,
+      "x2": 349,
+      "y2": 892,
+      "conf": 0.923,
+      "cls": 47,
+      "text": "191",
+      "ambiguous": false
+    },
+    {
+      "id": "b10",
+      "label": "Special_marks",
+      "display": "Special_marks",
+      "kind": "text",
+      "x1": 210,
+      "y1": 952,
+      "x2": 863,
+      "y2": 997,
+      "conf": 0.85,
+      "cls": 46,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b11",
+      "label": "Special_marks",
+      "display": "Special_marks",
+      "kind": "text",
+      "x1": 204,
+      "y1": 991,
+      "x2": 830,
+      "y2": 1035,
+      "conf": 0.857,
+      "cls": 46,
+      "text": "\"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА27797 ОТ03.02.2012",
+      "ambiguous": false
+    },
+    {
+      "id": "b12",
+      "label": "Issue_organisation_code",
+      "display": "Authority code",
+      "kind": "text",
+      "x1": 796,
+      "y1": 1158,
+      "x2": 919,
+      "y2": 1198,
+      "conf": 0.942,
+      "cls": 20,
+      "text": "1138146",
+      "ambiguous": false
+    },
+    {
+      "id": "b13",
+      "label": "Issue_date",
+      "display": "Date of issue",
+      "kind": "text",
+      "x1": 317,
+      "y1": 1270,
+      "x2": 910,
+      "y2": 1340,
+      "conf": 0.867,
+      "cls": 6,
+      "text": "2.СЕНТЯБРЯ.1",
+      "ambiguous": false
+    }
+  ],
+  "fields": [
+    {
+      "name": "First_name_en",
+      "display": "First name",
+      "value": "MAKSIM",
+      "script": "en",
+      "conf": 0.932,
+      "box_ids": [
+        "b4"
+      ]
+    },
+    {
+      "name": "First_name_ru",
+      "display": "First name",
+      "value": "МАКСИМ",
+      "script": "ru",
+      "conf": 0.924,
+      "box_ids": [
+        "b3"
+      ]
+    },
+    {
+      "name": "House_number",
+      "display": "House_number",
+      "value": "191",
+      "script": "ru",
+      "conf": 0.923,
+      "box_ids": [
+        "b9"
+      ]
+    },
+    {
+      "name": "Issue_date",
+      "display": "Date of issue",
+      "value": "2.СЕНТЯБРЯ.1",
+      "script": "num",
+      "conf": 0.867,
+      "box_ids": [
+        "b13"
+      ]
+    },
+    {
+      "name": "Issue_organisation_code",
+      "display": "Authority code",
+      "value": "1138146",
+      "script": "num",
+      "conf": 0.942,
+      "box_ids": [
+        "b12"
+      ]
+    },
+    {
+      "name": "Last_name_en",
+      "display": "Last name",
+      "value": "VETROV",
+      "script": "en",
+      "conf": 0.935,
+      "box_ids": [
+        "b2"
+      ]
+    },
+    {
+      "name": "Last_name_ru",
+      "display": "Last name",
+      "value": "ВЕТРОВ",
+      "script": "ru",
+      "conf": 0.927,
+      "box_ids": [
+        "b1"
+      ]
+    },
+    {
+      "name": "Licence_number",
+      "display": "Document number",
+      "value": "71 75 107178",
+      "script": "num",
+      "conf": 0.935,
+      "box_ids": [
+        "b0"
+      ]
+    },
+    {
+      "name": "Living_region_ru",
+      "display": "Place of residence",
+      "value": "ИРКУТСКАЯ ОБЛАСТЬ Г БРАТСК УЛ БЛЮХЕРА",
+      "script": "ru",
+      "conf": 0.946,
+      "box_ids": [
+        "b6",
+        "b7",
+        "b8"
+      ]
+    },
+    {
+      "name": "Middle_name_ru",
+      "display": "Middle name",
+      "value": "ОЛЕГОВИЧ",
+      "script": "ru",
+      "conf": 0.948,
+      "box_ids": [
+        "b5"
+      ]
+    },
+    {
+      "name": "Special_marks",
+      "display": "Special_marks",
+      "value": "\"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА27797 ОТ03.02.2012",
+      "script": "ru",
+      "conf": 0.857,
+      "box_ids": [
+        "b10",
+        "b11"
+      ]
+    }
+  ],
+  "ocr": {
+    "Licence_number": "71 75 107178",
+    "Last_name_ru": "ВЕТРОВ",
+    "Last_name_en": "VETROV",
+    "First_name_ru": "МАКСИМ",
+    "First_name_en": "MAKSIM",
+    "Middle_name_ru": "ОЛЕГОВИЧ",
+    "Living_region_ru": "ИРКУТСКАЯ ОБЛАСТЬ Г БРАТСК УЛ БЛЮХЕРА",
+    "House_number": "191",
+    "Special_marks": "\"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА27797 ОТ03.02.2012",
+    "Issue_organisation_code": "1138146",
+    "Issue_date": "2.СЕНТЯБРЯ.1"
+  },
+  "quality": {
+    "DocConf": 0.98,
+    "Glare": "good",
+    "Blur": "good",
+    "PrintSpoofing": "REAL",
+    "LCDSpoofing": "REAL"
+  },
+  "timings": {
+    "_document_detector": 0.0998,
+    "_doctype_angle": 0.0061,
+    "_quality_and_borders": 0.3078,
+    "_glare": 0.0911,
+    "_blur": 0.0356,
+    "_print_spoofing": 0.0326,
+    "_lcd_spoofing": 0.0556,
+    "_doc_detector": 0.2793,
+    "_register_pages": 2.007,
+    "_deskew": 0.0,
+    "_fields_detector": 0.1162,
+    "_split_words": 0.2166,
+    "_ocr": 0.3203,
+    "total": 3.0738
+  },
+  "address": null
+}

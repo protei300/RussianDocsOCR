@@ -124,7 +124,11 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends python3
   ```
 
   then run the runner in `rdocs-go-conform:check` as above, without the `cp` (that image has
-  numpy, the builder does not).
+  numpy, the builder does not), and pass `-e RDOCS_MODELS_ROOT=/host -e RDOCS_REPO_ROOT=/host`:
+  the image bakes `/app` in, and without them the source-built binary looks for the models and
+  page templates there. Measured 2026-10-07: without them every case fails with
+  `probe exited 3` — and until that day the verdict still printed `CLEAN` (fixed: a case that
+  was not compared now reads `NOT VERIFIED`, see `conformance/spec/tolerances.md`).
 
 - **.NET** — build and evaluate in `mcr.microsoft.com/dotnet/sdk:8.0-jammy` with
   GTK/Pango/Cairo installed (the OpenCvSharp native package is not headless). Watch one

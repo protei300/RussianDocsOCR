@@ -1,0 +1,390 @@
+{
+  "doc_type": "STSBACK_2019",
+  "doc_type_base": "STSBACK",
+  "doc_type_era": "2019",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 1060,
+    "height": 1479,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [
+    {
+      "id": "b0",
+      "label": "Licence_number",
+      "display": "Document number",
+      "kind": "text",
+      "x1": 46,
+      "y1": 230,
+      "x2": 382,
+      "y2": 280,
+      "conf": 0.942,
+      "cls": 5,
+      "text": "41 14 157259",
+      "ambiguous": false
+    },
+    {
+      "id": "b1",
+      "label": "Last_name_ru",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 170,
+      "y1": 359,
+      "x2": 376,
+      "y2": 396,
+      "conf": 0.929,
+      "cls": 1,
+      "text": "ВАСИЛЬЕВА",
+      "ambiguous": false
+    },
+    {
+      "id": "b2",
+      "label": "Last_name_en",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 239,
+      "y1": 398,
+      "x2": 445,
+      "y2": 436,
+      "conf": 0.933,
+      "cls": 3,
+      "text": "VASIL'EVA",
+      "ambiguous": false
+    },
+    {
+      "id": "b3",
+      "label": "First_name_ru",
+      "display": "First name",
+      "kind": "text",
+      "x1": 174,
+      "y1": 436,
+      "x2": 295,
+      "y2": 472,
+      "conf": 0.932,
+      "cls": 2,
+      "text": "АЛИНА",
+      "ambiguous": false
+    },
+    {
+      "id": "b4",
+      "label": "First_name_en",
+      "display": "First name",
+      "kind": "text",
+      "x1": 240,
+      "y1": 474,
+      "x2": 363,
+      "y2": 511,
+      "conf": 0.938,
+      "cls": 4,
+      "text": "ALINA",
+      "ambiguous": false
+    },
+    {
+      "id": "b5",
+      "label": "Middle_name_ru",
+      "display": "Middle name",
+      "kind": "text",
+      "x1": 170,
+      "y1": 510,
+      "x2": 424,
+      "y2": 547,
+      "conf": 0.935,
+      "cls": 17,
+      "text": "ЯРОСЛАВОВНА",
+      "ambiguous": false
+    },
+    {
+      "id": "b6",
+      "label": "Living_region_ru",
+      "display": "Place of residence",
+      "kind": "text",
+      "x1": 171,
+      "y1": 626,
+      "x2": 477,
+      "y2": 678,
+      "conf": 0.938,
+      "cls": 15,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b7",
+      "label": "Living_region_ru",
+      "display": "Place of residence",
+      "kind": "text",
+      "x1": 478,
+      "y1": 688,
+      "x2": 649,
+      "y2": 736,
+      "conf": 0.948,
+      "cls": 15,
+      "text": "ПЕРМСКИЙ КТБЙ Г ПЕРМЬ УЛ БРАТЬЕВ КАШИТИНЫХ",
+      "ambiguous": false
+    },
+    {
+      "id": "b8",
+      "label": "Living_region_ru",
+      "display": "Place of residence",
+      "kind": "text",
+      "x1": 230,
+      "y1": 735,
+      "x2": 690,
+      "y2": 786,
+      "conf": 0.915,
+      "cls": 15,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b9",
+      "label": "House_number",
+      "display": "House_number",
+      "kind": "text",
+      "x1": 229,
+      "y1": 809,
+      "x2": 310,
+      "y2": 846,
+      "conf": 0.939,
+      "cls": 47,
+      "text": "84Б",
+      "ambiguous": false
+    },
+    {
+      "id": "b10",
+      "label": "Apartment_number",
+      "display": "Apartment_number",
+      "kind": "text",
+      "x1": 322,
+      "y1": 909,
+      "x2": 401,
+      "y2": 946,
+      "conf": 0.935,
+      "cls": 48,
+      "text": "342",
+      "ambiguous": false
+    },
+    {
+      "id": "b11",
+      "label": "Special_marks",
+      "display": "Special_marks",
+      "kind": "text",
+      "x1": 171,
+      "y1": 1023,
+      "x2": 909,
+      "y2": 1058,
+      "conf": 0.861,
+      "cls": 46,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b12",
+      "label": "Special_marks",
+      "display": "Special_marks",
+      "kind": "text",
+      "x1": 168,
+      "y1": 1070,
+      "x2": 454,
+      "y2": 1095,
+      "conf": 0.877,
+      "cls": 46,
+      "text": "ЛИЗИНГОПОЛУЧАТЕЛЬ ДОГОВОР 64349-Л ОТ 12.07.2023",
+      "ambiguous": false
+    },
+    {
+      "id": "b13",
+      "label": "Issue_organisation_code",
+      "display": "Authority code",
+      "kind": "text",
+      "x1": 686,
+      "y1": 1224,
+      "x2": 855,
+      "y2": 1262,
+      "conf": 0.935,
+      "cls": 20,
+      "text": "1159110",
+      "ambiguous": false
+    },
+    {
+      "id": "b14",
+      "label": "Issue_date",
+      "display": "Date of issue",
+      "kind": "text",
+      "x1": 415,
+      "y1": 1324,
+      "x2": 648,
+      "y2": 1363,
+      "conf": 0.926,
+      "cls": 6,
+      "text": "14.05.2025",
+      "ambiguous": false
+    }
+  ],
+  "fields": [
+    {
+      "name": "Apartment_number",
+      "display": "Apartment_number",
+      "value": "342",
+      "script": "ru",
+      "conf": 0.935,
+      "box_ids": [
+        "b10"
+      ]
+    },
+    {
+      "name": "First_name_en",
+      "display": "First name",
+      "value": "ALINA",
+      "script": "en",
+      "conf": 0.938,
+      "box_ids": [
+        "b4"
+      ]
+    },
+    {
+      "name": "First_name_ru",
+      "display": "First name",
+      "value": "АЛИНА",
+      "script": "ru",
+      "conf": 0.932,
+      "box_ids": [
+        "b3"
+      ]
+    },
+    {
+      "name": "House_number",
+      "display": "House_number",
+      "value": "84Б",
+      "script": "ru",
+      "conf": 0.939,
+      "box_ids": [
+        "b9"
+      ]
+    },
+    {
+      "name": "Issue_date",
+      "display": "Date of issue",
+      "value": "14.05.2025",
+      "script": "num",
+      "conf": 0.926,
+      "box_ids": [
+        "b14"
+      ],
+      "normalized": "14.05.2025"
+    },
+    {
+      "name": "Issue_organisation_code",
+      "display": "Authority code",
+      "value": "1159110",
+      "script": "num",
+      "conf": 0.935,
+      "box_ids": [
+        "b13"
+      ]
+    },
+    {
+      "name": "Last_name_en",
+      "display": "Last name",
+      "value": "VASIL'EVA",
+      "script": "en",
+      "conf": 0.933,
+      "box_ids": [
+        "b2"
+      ]
+    },
+    {
+      "name": "Last_name_ru",
+      "display": "Last name",
+      "value": "ВАСИЛЬЕВА",
+      "script": "ru",
+      "conf": 0.929,
+      "box_ids": [
+        "b1"
+      ]
+    },
+    {
+      "name": "Licence_number",
+      "display": "Document number",
+      "value": "41 14 157259",
+      "script": "num",
+      "conf": 0.942,
+      "box_ids": [
+        "b0"
+      ]
+    },
+    {
+      "name": "Living_region_ru",
+      "display": "Place of residence",
+      "value": "ПЕРМСКИЙ КТБЙ Г ПЕРМЬ УЛ БРАТЬЕВ КАШИТИНЫХ",
+      "script": "ru",
+      "conf": 0.948,
+      "box_ids": [
+        "b6",
+        "b7",
+        "b8"
+      ]
+    },
+    {
+      "name": "Middle_name_ru",
+      "display": "Middle name",
+      "value": "ЯРОСЛАВОВНА",
+      "script": "ru",
+      "conf": 0.935,
+      "box_ids": [
+        "b5"
+      ]
+    },
+    {
+      "name": "Special_marks",
+      "display": "Special_marks",
+      "value": "ЛИЗИНГОПОЛУЧАТЕЛЬ ДОГОВОР 64349-Л ОТ 12.07.2023",
+      "script": "ru",
+      "conf": 0.877,
+      "box_ids": [
+        "b11",
+        "b12"
+      ]
+    }
+  ],
+  "ocr": {
+    "Licence_number": "41 14 157259",
+    "Last_name_ru": "ВАСИЛЬЕВА",
+    "Last_name_en": "VASIL'EVA",
+    "First_name_ru": "АЛИНА",
+    "First_name_en": "ALINA",
+    "Middle_name_ru": "ЯРОСЛАВОВНА",
+    "Living_region_ru": "ПЕРМСКИЙ КТБЙ Г ПЕРМЬ УЛ БРАТЬЕВ КАШИТИНЫХ",
+    "House_number": "84Б",
+    "Apartment_number": "342",
+    "Special_marks": "ЛИЗИНГОПОЛУЧАТЕЛЬ ДОГОВОР 64349-Л ОТ 12.07.2023",
+    "Issue_organisation_code": "1159110",
+    "Issue_date": "14.05.2025"
+  },
+  "quality": {
+    "DocConf": 1.0,
+    "Glare": "good",
+    "Blur": "good",
+    "PrintSpoofing": "FAKE",
+    "LCDSpoofing": "REAL"
+  },
+  "timings": {
+    "_document_detector": 0.1041,
+    "_doctype_angle": 0.0075,
+    "_quality_and_borders": 0.3018,
+    "_glare": 0.0866,
+    "_blur": 0.0966,
+    "_print_spoofing": 0.0215,
+    "_lcd_spoofing": 0.0175,
+    "_doc_detector": 0.2748,
+    "_register_pages": 1.3656,
+    "_deskew": 0.0,
+    "_fields_detector": 0.1105,
+    "_split_words": 0.2166,
+    "_ocr": 0.3622,
+    "total": 2.4683
+  },
+  "address": null
+}

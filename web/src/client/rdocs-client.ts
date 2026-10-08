@@ -123,7 +123,14 @@ export interface Box {
 export interface Field {
     name: string
     display: string
+    /** What is printed on the document, as read. */
     value: string
+    /**
+     * A date field's canonical dd.mm.yyyy, next to the reading: «10» января 2013 г.
+     * and 10.01.2013 both come out 10.01.2013. Absent when the reading does not
+     * convert - the converter refuses rather than guesses.
+     */
+    normalized?: string
     script: 'ru' | 'en'
     conf: number | null
     /**

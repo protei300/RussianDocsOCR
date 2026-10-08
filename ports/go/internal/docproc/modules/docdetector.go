@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/config"
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/geometry"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/imaging"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/inference"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/models"
@@ -68,6 +69,11 @@ type DocDetectorResult struct {
 	Pages       []imaging.Image
 	PageQuads   [][]imaging.Point
 	Placements  []imaging.PagePlacement
+	// Geometry is the map from Canvas back to the image the border stage received (geometry.py):
+	// an empty chain when the image is returned as it is, otherwise the stitched pages'"'"' maps.
+	// PageGeometries are the per-page maps (page -> input), in the order of PageQuads.
+	Geometry       geometry.Geometry
+	PageGeometries []geometry.Geometry
 }
 
 // PredictTransform returns the perspective-corrected canvas.
@@ -87,7 +93,7 @@ func (d *DocDetector) PredictTransform(img imaging.Image, maxPages int) (DocDete
 		return DocDetectorResult{}, err
 	}
 	if len(segments) == 0 {
-		return DocDetectorResult{Canvas: img.Clone()}, nil
+		return DocDetectorResult{Canvas: img.Clone(), Geometry: geometry.Chain{}}, nil
 	}
 
 	// First drop segments without ink (a scanner lid, a blank sheet next to the
@@ -103,7 +109,7 @@ func (d *DocDetector) PredictTransform(img imaging.Image, maxPages int) (DocDete
 
 	kept := selectPages(segments, maxPages)
 	if len(kept) == 0 {
-		return DocDetectorResult{Canvas: img.Clone()}, nil
+		return DocDetectorResult{Canvas: img.Clone(), Geometry: geometry.Chain{}}, nil
 	}
 
 	chosen := make([][]imaging.Point, 0, len(kept))
@@ -115,19 +121,26 @@ func (d *DocDetector) PredictTransform(img imaging.Image, maxPages int) (DocDete
 	// doc_detector.predict_transform), so a two-page spread can be handed to the field
 	// detector one page at a time - a 640x640 detector input gives a stitched spread
 	// only half of itself per page.
-	pages, quads := imaging.RectifyPages(img, chosen, imaging.DocMarginFrac)
+	pages, quads, matrices := imaging.RectifyPagesMatrices(img, chosen, imaging.DocMarginFrac)
 	if len(pages) == 0 {
-		return DocDetectorResult{Canvas: img.Clone(), Segments: chosen}, nil
+		return DocDetectorResult{Canvas: img.Clone(), Segments: chosen, Geometry: geometry.Chain{}}, nil
+	}
+	pageGeos := make([]geometry.Geometry, len(pages))
+	for i, m := range matrices {
+		pageGeos[i] = geometry.NewHomography(m)
 	}
 	if len(pages) < 2 {
 		// One page: StitchPages returns it AS the canvas (no copy needed - nothing
 		// downstream needs Pages for fewer than 2 pages anyway, both consumers gate
 		// on len(Pages) >= 2), so hand it the original directly.
-		canvas, _, ok := imaging.StitchPages(pages, quads, imaging.StackAuto)
+		w, h := pages[0].Width(), pages[0].Height() // before StitchPages hands the page on as the canvas
+		canvas, placements, ok := imaging.StitchPages(pages, quads, imaging.StackAuto)
 		if !ok {
-			return DocDetectorResult{Canvas: img.Clone(), Segments: chosen}, nil
+			return DocDetectorResult{Canvas: img.Clone(), Segments: chosen, Geometry: geometry.Chain{}}, nil
 		}
-		return DocDetectorResult{Canvas: canvas, Segments: chosen}, nil
+		geo := geometry.StitchedGeometry([]geometry.PlacedPage{{W: w, H: h, Scale: placements[0].Scale,
+			DX: placements[0].DX, DY: placements[0].DY, Geo: pageGeos[0]}})
+		return DocDetectorResult{Canvas: canvas, Segments: chosen, Geometry: geo, PageGeometries: pageGeos}, nil
 	}
 	// 2+ pages: StitchPages CONSUMES (Closes) every page it is handed - but the
 	// per-page field detector (pipeline._fields_from_pages) needs the pages
@@ -135,6 +148,10 @@ func (d *DocDetector) PredictTransform(img imaging.Image, maxPages int) (DocDete
 	// originals. Skipping this clone is a double-free: Pages and the canvas each
 	// point at freed memory the instant this returns (caught the hard way, see the
 	// task log - this exact bug crashed every internal-passport document).
+	sizes := make([][2]int, len(pages))
+	for i, p := range pages {
+		sizes[i] = [2]int{p.Width(), p.Height()}
+	}
 	stitchInput := make([]imaging.Image, len(pages))
 	for i, p := range pages {
 		stitchInput[i] = p.Clone()
@@ -142,11 +159,17 @@ func (d *DocDetector) PredictTransform(img imaging.Image, maxPages int) (DocDete
 	canvas, placements, ok := imaging.StitchPages(stitchInput, quads, imaging.StackAuto)
 	if !ok {
 		closeImages(pages)
-		return DocDetectorResult{Canvas: img.Clone(), Segments: chosen}, nil
+		return DocDetectorResult{Canvas: img.Clone(), Segments: chosen, Geometry: geometry.Chain{}}, nil
+	}
+	placed := make([]geometry.PlacedPage, len(pages))
+	for i := range pages {
+		placed[i] = geometry.PlacedPage{W: sizes[i][0], H: sizes[i][1], Scale: placements[i].Scale,
+			DX: placements[i].DX, DY: placements[i].DY, Geo: pageGeos[i]}
 	}
 	return DocDetectorResult{
 		Canvas: canvas, Segments: chosen,
 		Pages: pages, PageQuads: quads, Placements: placements,
+		Geometry: geometry.StitchedGeometry(placed), PageGeometries: pageGeos,
 	}, nil
 }
 

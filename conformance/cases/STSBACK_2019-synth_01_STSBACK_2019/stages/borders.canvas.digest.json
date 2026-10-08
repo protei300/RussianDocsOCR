@@ -1,0 +1,11 @@
+{
+  "stage": "borders.canvas",
+  "dtype": "uint8",
+  "shape": [
+    1479,
+    1060,
+    3
+  ],
+  "sha256": "a2bccd5e3bb076e8628072ed050c7364f39c227c514dfc0d05c503dccbbfe129",
+  "note": "pixels are not committed; regenerate with `python -m conformance.refcli regen --with-pixels` to compare magnitudes"
+}

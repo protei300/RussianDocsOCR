@@ -19,6 +19,7 @@ namespace RussianDocs.DocumentProcessing.Pipeline;
 /// </summary>
 public sealed class Timings
 {
+    public const string DocumentDetector = "_document_detector";
     public const string DocTypeAngle = "_doctype_angle";
     public const string QualityAndBorders = "_quality_and_borders";
     public const string Glare = "_glare";

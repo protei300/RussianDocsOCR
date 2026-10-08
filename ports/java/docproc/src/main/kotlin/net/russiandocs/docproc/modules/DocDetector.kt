@@ -33,6 +33,14 @@ public class BordersResult(
     public val segments: List<List<Pt>>?,
     public val pages: List<Image> = emptyList(),
     public val placements: List<Placement> = emptyList(),
+    /**
+     * Map from [canvas] back to the image the border stage received — DocDetector's `geometry` (geometry.py). An
+     * empty chain when the canvas IS the image. The registrar and the deskew REPLACE it when they rebuild the
+     * canvas, so it always describes the canvas it travels with.
+     */
+    public val geometry: net.russiandocs.docproc.geometry.PointMap = net.russiandocs.docproc.geometry.Chain(),
+    /** One map per page, back to the image the border stage received (`page_geometries`). */
+    public val pageGeometries: List<net.russiandocs.docproc.geometry.PointMap> = emptyList(),
 )
 
 /** Finds the document's borders and returns the perspective-corrected canvas. */
@@ -88,7 +96,8 @@ public class DocDetector(
             Geometry.DOC_MARGIN_FRACTION)
 
         return if (result.ok && result.canvas != null) {
-            BordersResult(result.canvas, chosen, result.pages, result.placements)
+            BordersResult(result.canvas, chosen, result.pages, result.placements, result.geometry,
+                result.pageGeometries)
         } else {
             // `fixPerspective` never hands pages off on a failed warp — `ok=false` only on its
             // zero-page and exception paths, both of which return `pages=emptyList()`.

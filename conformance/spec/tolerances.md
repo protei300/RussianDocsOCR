@@ -276,11 +276,15 @@ Consequently the verdict has three outcomes, not two:
 | `CLEAN` | nothing differed | 0 |
 | `DECLARED` | everything that differed is accounted for by name | 0 |
 | `UNDECLARED` | something differed that nobody declared — the only real red | 1 |
+| `NOT VERIFIED (k of n cases not compared)` | a case could not be graded at all; said before any classification | 1 |
+| `NOTHING VERIFIED` | the selection matched no case | 1 |
 
 Classification is per DIFFERENCE, never per run: a declared difference in a stage does
 not absorb an undeclared one sitting next to it. A case that could not be graded at
 all (crash, missing golden) stays a failure — nothing was compared, so nothing can be
-declared about it.
+declared about it. Its verdict says so too: until 2026-10-07 such a case had no
+differences to classify and the verdict read `CLEAN` (exit code 1 all along) — a Go run
+without `RDOCS_MODELS_ROOT` failed in all 10 cases and printed `VERDICT: CLEAN`.
 
 **Why this exists.** Two legitimate reds stood at once — ports lagging a deliberate
 reference change, and a view-model property about to land — each announced and

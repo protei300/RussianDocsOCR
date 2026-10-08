@@ -157,7 +157,9 @@ sequenceDiagram
     participant S as Session×12
 
     C->>R: run(path, options)
-    R->>R: prepare — decode, BGR→RGB, fitToLongestSide (PyNum.floorDiv!)
+    R->>S: DocumentDetector on the frame at img_size (no weights: whole frame)
+    R->>R: boxes back to the photo, crop of the LARGEST document +3 % at full resolution
+    R->>R: prepare — decode, BGR→RGB, fitToLongestSide of the crop (PyNum.floorDiv!)
     R->>S: DocTypeAngles → embeddings + angle
     R->>R: metric head: 1−cos, argmin, per-class radius
     alt docType == NONE
@@ -177,6 +179,7 @@ sequenceDiagram
     R->>S: OCR per word: cyrillic or latin by field, parity for SNILS
     R->>R: greedy CTC + alphabet masking (−inf, not zeroing)
     R->>R: join, dedup doubled Licence_number
+    R->>R: re-read a date line WHOLE if the split reading is no date (RereadDates)
     R-->>C: Results (caller closes; canvas via takeCanvas)
 ```
 
@@ -293,6 +296,8 @@ tolerance.
 |---|---|
 | CPython float `//` is **not** `floor(x/y)` — it goes through `fmod` | `PyNum.floorDiv`. Found by a unit test: 2999×1777 gives width **1499** in Python and 1500 from `Math.floor`, and the canvas is then a pixel different, which moves every box. |
 | `np.round` is **half to EVEN** | `Math.rint`, never `Math.round` or `roundToInt`. A different integer coordinate is a different crop is a different string. |
+| `expand_quad` runs on a **float32** array | `Geometry.expandQuadF32`: centroid, difference, product and sum each rounded to float32. In double the corners land ~6e-5 px elsewhere, and `warpPerspective` quantises its weights to 1/32 px, so a few hundred pixels of the canvas move one grey level — a `borders.canvas` digest mismatch and, through the field detector, a 0.007 confidence step. Found when the document crop moved the quad (BIRTHCERT_1998). The page-registration quads are float64 in the reference and keep `expandQuad`. |
+| Python's builtin `round(x, 1)` is **not** `np.round` | `PyNum.roundDecimal`: round the exact binary value (`BigDecimal(double)`), half to even. A scaled `rint` gives 2.68 for 2.675, Python 2.67. The `documents` stage is written with the builtin and compared to 1e-3. |
 | `np.argmax` returns the **first** maximum | strict `>` only. On a tie, `>=` flips a CTC timestep and changes a character. |
 | Stable sorts everywhere | `sortedBy`/`sortedWith` are stable (as LINQ's `OrderBy` is, and `sort.Slice` is not). Two equal-x word boxes swapping reorders two tokens in the joined field. |
 | Python slices CLAMP; `Mat.submat` THROWS | `Crop.clampedCrop` is the only sanctioned crop path, with a unit test. |
@@ -303,11 +308,77 @@ tolerance.
 
 ---
 
-## 8. What is deliberately absent
+## 8. The vehicle registration certificate (STS) and the frame
+
+Ported 2026-10-07/08 (decision №144: the ports and the reference ship together). The new pieces, each with the
+reference commit it comes from:
+
+- `OcrOptions` gains the `sts` branch (`7e421957`, current as of `a7b12e81`), `engineByYear` (the make is Latin on
+  the 2019 form), `readMargin` and `glueTorn`, and the empty `dlback` branch the dispatcher needed once the
+  classifier learnt the licence back.
+- `Recognizer.registerCard` (`4d8c2535`): the card is straightened by its printed blank, not by its Borders quad —
+  `PageRegistrar(docType)` per STS type (templates `sts*.json`, built on first use), `CARD_MIN_INLIERS` = 40,
+  `CARD_SKEW_KEEP` = 0.01 (`cardSkew`: a similarity fit of the template corners carried into the Borders canvas,
+  `estimateAffinePartial2D` with LMEDS), the paper-colour fill outside the photo (`PageRegistrar.fill`,
+  `warpMatrix`). A canvas the registrar rebuilt is not deskewed — also for the internal passport, as in the
+  reference.
+- `ReadMargins` (`a1153af1`): the special-marks crop grows by a tenth of the box height, never past halfway to the
+  next box sharing width. `Ocr.run` takes the form year for `engine_by_year`.
+- `StsMarks` (`dd37ea31`): `glueTornWords`, `parseLeasing`; `Results.leasing` carries only the flag, and the
+  `leasing` stage (STS back only, `null` without leasing) is claimed in `STAGES_IMPLEMENTED`.
+- `SplitWords.pairedDuplicateIndices`: one line labelled as both `<name>_ru` and `<name>_en` keeps the more
+  confident label. `check_vin`: no letter O in a VIN.
+- `Recognizer.runFrame` (`process_frame`) reads every document of a frame, largest first, and `PairSides` pairs the
+  two sides of an STS by the number printed on both (`PAIRED_SIDES`). Not a conformance stage; covered by
+  `StsReadingTests` (the rule) and `FrameTests` (a real two-document sheet).
+- A frame the classifier calls `NONE` returns right after `doctype.label` and `rotate`, as the reference does —
+  after the **borders-first retry** (`process_img`, 2026-08), which is ported too: one border detection, a second
+  classification of the border-cut image, and for a passport the two-page rebuild turned by the angle found.
+  The retry is verified by a blank frame (`FrameTests`: nothing found, NONE, no fields read) but **no conformance
+  case recovers a type through it**, so the recovering branch has been compiled and read against the reference,
+  not exercised on a real recovered photo.
+
+Two findings worth keeping, both measured:
+
+- `PageRegistrar.featuresInQuad` truncated the keypoints to integers and grew the quad in double; the reference
+  rounds half to even in float32. Harmless on a passport, a different feature set on a dense card.
+- `nativeScale` is float32 arithmetic in the reference, so the scale is a float32-exact number and the warp matrix
+  built from it is the same to the last bit; in double it was off by ~1e-7. `quadInImage` rounds to float32 for the
+  same reason.
+
+### The way back to the photo (PR #19, issue #18)
+
+Ported 2026-10-08 (card step 2). `geometry/PointMaps.kt` holds the maps — `Scale`, `Offset`, `QuarterTurns`,
+`Homography` (OpenCV's half-pixel convention), `VerticalRemap` (the bend map IS the way back), `Unknown`, `Chain`
+(read OUTPUT -> INPUT), `Pieces` (a stitched canvas picks its piece by the centroid of the shape). Each stage writes
+its map where the reference does: the crop and the resize (`Results.geometry` starts there), the quarter turns, the
+border warp (`Geometry.fixPerspective` keeps the matrix it warped with and `stitchedGeometry` the placements), the
+registrar's page matrix plus the straightening homography and bend map (`StraightenInfo.chain()`), the card's, and
+the deskew rotation (`DocDeskewer.deskewWithGeometry`). The registrar REPLACES the border map when it rebuilds the
+canvas; the deskew follows the border map in a chain of its own. `Field.cutMap` says where a patch was cut, with the
+margin re-cut and the per-page placement taken into account; `FieldQuads.compute` turns the kept fields into the
+`quads` stage (`Results.fieldQuads`, `wordQuads`, `toInput`). The series/number patch is turned once more before its
+words are found, so its words go back through one more `QuarterTurns`. "Not known" is said once for the whole run.
+
+Checked three ways: unit tests against OpenCV's own rotate/warp/remap (`GeometryTests`), a real sample (`FrameTests`:
+a field cut from the photo through its quadrilateral correlates 0.999 with the pipeline's own patch, and not at all
+when the quadrilateral is moved by 25 px) and the `quads` stage against the reference to 1e-3 on all 14 cases.
+
+See `J-19` for the one thing that does not converge: the template match of a dense card depends on the CPU's
+instruction set.
+
+---
+
+## 9. What is deliberately absent
 
 - **INTPASSPORTADDR.** Not a code gap: there is no ANONYMISED sample, so the path has no golden and
   cannot be evaluated. The view model's address types are declared and unused on purpose — an omitted
   type reads as an oversight the next port "helpfully" invents differently.
+- **The address-line quadrilaterals** (`address_lines` of the `quads` stage) and the `page_geometry` option's map:
+  both belong to paths this port does not have (INTPASSPORTADDR, template-free page geometry).
+- **`Pipeline.warmup`, the per-page deskew of an unregistered passport spread and the `page_geometry` option.**
+  `run` deskews the canvas as a whole; the reference deskews each page of a spread that Borders found but the
+  registrar did not, and stitches back. No conformance case reaches it.
 - **`ocrGpuBatch`.** A documented 5–14 % field divergence in the reference; it would have to be
   re-measured from scratch here.
 - **OpenVINO and CoreML runtimes.** The `Session` interface leaves them addable; there are no
@@ -318,7 +389,7 @@ tolerance.
 
 ---
 
-## 9. Consciously different from Python
+## 10. Consciously different from Python
 
 | Python | Here | Why |
 |---|---|---|
@@ -335,7 +406,7 @@ tolerance.
 
 ---
 
-## 10. Running it
+## 11. Running it
 
 Windows needs two things set, and both exist for reasons no error message explains — `J-01` for
 OpenCV, `J-16` for ONNX Runtime. Neither can occur on Linux or in Docker.

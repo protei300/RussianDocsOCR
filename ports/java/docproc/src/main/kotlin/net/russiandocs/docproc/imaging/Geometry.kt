@@ -42,6 +42,14 @@ public class PerspectiveResult(
     public val ok: Boolean,
     public val pages: List<Image> = emptyList(),
     public val placements: List<Placement> = emptyList(),
+    /**
+     * Map from [canvas] back to the image the pages were cut from (`geometry` of `fix_perspective`): a
+     * [Pieces][net.russiandocs.docproc.geometry.Pieces] of the pages' own homographies, an empty chain when no page
+     * was found.
+     */
+    public val geometry: net.russiandocs.docproc.geometry.PointMap = net.russiandocs.docproc.geometry.Chain(),
+    /** One homography per detected page, in detection order (`page_geometries`); filled for every successful run. */
+    public val pageGeometries: List<net.russiandocs.docproc.geometry.PointMap> = emptyList(),
 )
 
 /** Quadrilateral geometry: ordering corners, expanding a margin, and the perspective correction. */
@@ -131,6 +139,39 @@ public object Geometry {
     }
 
     /**
+     * [expandQuad] in FLOAT32 arithmetic, for the Borders warp. `expand_quad` applied to the float32 array
+     * `order_points` returns.
+     *
+     * NumPy does every step in float32 there — the centroid `mean(axis=0)` (rows added in order, then
+     * divided), `quad - centre`, the product with the margin scale (a Python float is weak next to a float32
+     * array, so it is cast to float32 first) and the final sum — and each step rounds. In double the corners
+     * land up to ~6e-5 px elsewhere; `warpPerspective` quantises its interpolation weights to 1/32 px, so
+     * that is enough to move a few hundred pixels of a 600x900 canvas by one grey level (measured on the
+     * BIRTHCERT_1998 case once the document crop shifted the quad: 393 pixels, max 8 — a digest mismatch on
+     * `borders.canvas` and, through the field detector, a 0.007 confidence step downstream). The
+     * page-registration path keeps [expandQuad]: its quads are float64 in the reference.
+     */
+    public fun expandQuadF32(quad: List<Pt>, margin: Double): List<Pt> {
+        if (margin <= 0) {
+            return quad.toList()
+        }
+        var cx = 0f
+        var cy = 0f
+        for (p in quad) {
+            cx += p.x.toFloat()
+            cy += p.y.toFloat()
+        }
+        cx /= quad.size
+        cy /= quad.size
+        val scale = (1.0 + 2.0 * margin).toFloat()
+        return quad.map {
+            val x = it.x.toFloat()
+            val y = it.y.toFloat()
+            Pt((cx + (x - cx) * scale).toDouble(), (cy + (y - cy) * scale).toDouble())
+        }
+    }
+
+    /**
      * Warps a quadrilateral to an axis-aligned image.
      *
      * The output size comes from the LONGER of each opposing pair of edges, rounded HALF TO EVEN. Rounding
@@ -139,20 +180,27 @@ public object Geometry {
      * differently-sized canvas.
      */
     public fun fourPointTransform(image: Image, quad: List<Pt>): Pair<Image?, Boolean> {
-        val rect = orderPoints(quad) ?: return null to false
+        val (warped, _) = fourPointTransformWithMatrix(image, quad)
+        return warped to (warped != null)
+    }
+
+    /** [fourPointTransform], and the matrix the page was warped with (`four_point_matrix`); null when it failed. */
+    public fun fourPointTransformWithMatrix(image: Image, quad: List<Pt>): Pair<Image?, Array<DoubleArray>?> {
+        val rect = orderPoints(quad) ?: return null to null
 
         val (tl, tr, br, bl) = listOf(rect[0], rect[1], rect[2], rect[3])
         val width = PyNum.roundHalfEvenToInt(max(distance(br, bl), distance(tr, tl)))
         val height = PyNum.roundHalfEvenToInt(max(distance(tr, br), distance(tl, bl)))
         if (width < 2 || height < 2) {
-            return null to false
+            return null to null
         }
         return try {
-            Contours.warpPerspectiveQuad(image, rect, width, height) to true
+            val (warped, matrix) = Contours.warpPerspectiveQuadWithMatrix(image, rect, width, height)
+            warped to matrix
         } catch (e: Exception) {
             // A degenerate quad makes getPerspectiveTransform throw. The reference returns the original
             // image in that case rather than failing the document, so the caller needs a false here.
-            null to false
+            null to null
         }
     }
 
@@ -173,6 +221,7 @@ public object Geometry {
         margin: Double,
     ): PerspectiveResult {
         val pages = mutableListOf<Pair<List<Pt>, Image>>()
+        val matrices = mutableListOf<Array<DoubleArray>>()
         // Ownership tracking: everything in `pages` is closed in the `finally` UNLESS it was handed to the
         // caller first — either as the single-page return or inside a two-page [PerspectiveResult]. `handedOff`
         // records which indices escaped, since `pages` itself is cleared only in the single-page branch.
@@ -187,18 +236,19 @@ public object Geometry {
                 // clamp lets the cushion push a corner outside the image, where the warp samples the
                 // border colour and widens the canvas.
                 val ordered = orderPoints(quad) ?: continue
-                val expanded = expandQuad(ordered, margin).map { p ->
+                val expanded = expandQuadF32(ordered, margin).map { p ->
                     Pt(
                         p.x.coerceIn(0.0, image.width.toDouble()),
                         p.y.coerceIn(0.0, image.height.toDouble()),
                     )
                 }
 
-                val (warped, ok) = fourPointTransform(image, expanded)
-                if (!ok || warped == null) {
+                val (warped, matrix) = fourPointTransformWithMatrix(image, expanded)
+                if (warped == null || matrix == null) {
                     continue
                 }
                 pages += expanded to warped
+                matrices += matrix
             }
 
             if (pages.isEmpty()) {
@@ -211,7 +261,11 @@ public object Geometry {
                 // A single detected page never takes the per-page field-detection path in the reference
                 // (`len(pages) >= 2` gates it — pipeline.py:1238), so its own `pages`/`placements` are not
                 // worth returning; the canvas IS the page.
-                return PerspectiveResult(only, true)
+                val geos = listOf<net.russiandocs.docproc.geometry.PointMap>(
+                    net.russiandocs.docproc.geometry.Homography(matrices[0]))
+                val placement = listOf(Placement(1.0, 0.0, 0.0))
+                return PerspectiveResult(only, true, emptyList(), emptyList(),
+                    stitchedGeometry(listOf(only.width to only.height), placement, geos), geos)
             }
 
             // Direction from the FIRST TWO pages' centroids only, matching the reference. A wider
@@ -300,10 +354,15 @@ public object Geometry {
                 // Ownership of the original (unresized) per-page images transfers to the returned result —
                 // `_fields_from_pages` reads them at full per-page resolution, not the joining-time scale.
                 val originalPages = pages.map { it.second }
+                val placed = placements.map { it!! }
+                val geos = matrices.map<Array<DoubleArray>, net.russiandocs.docproc.geometry.PointMap> {
+                    net.russiandocs.docproc.geometry.Homography(it)
+                }
+                val geometry = stitchedGeometry(originalPages.map { it.width to it.height }, placed, geos)
                 pages.clear()
                 handedOff = true
                 // Every index was filled: `order` is a permutation of `pages.indices`.
-                return PerspectiveResult(joined, true, originalPages, placements.map { it!! })
+                return PerspectiveResult(joined, true, originalPages, placed, geometry, geos)
             } finally {
                 scaled.forEach { it.close() }
             }
@@ -370,6 +429,47 @@ public object Geometry {
         } finally {
             scaled.forEach { it.close() }
         }
+    }
+
+    /**
+     * Where [stitchPages] put a page on the canvas: (dx, dy, width, height) and the map from that rectangle back to
+     * the page. `_placed`. The width and height are the page's size after the resize to the common side, with the
+     * rounding [stitchPages] applies — so a map built from them puts a point where the page's pixels went, not where
+     * the scale alone would put it.
+     */
+    public fun placedRect(
+        pageWidth: Int, pageHeight: Int, placement: Placement,
+    ): Pair<DoubleArray, net.russiandocs.docproc.geometry.Chain> {
+        val newW = if (placement.scale != 1.0) max(1, PyNum.roundHalfEvenToInt(pageWidth * placement.scale)) else pageWidth
+        val newH = if (placement.scale != 1.0) max(1, PyNum.roundHalfEvenToInt(pageHeight * placement.scale)) else pageHeight
+        val placed = net.russiandocs.docproc.geometry.Chain(listOf(
+            net.russiandocs.docproc.geometry.Scale(newW.toDouble() / pageWidth, newH.toDouble() / pageHeight),
+            net.russiandocs.docproc.geometry.Offset(placement.dx, placement.dy)))
+        return doubleArrayOf(placement.dx, placement.dy, newW.toDouble(), newH.toDouble()) to placed
+    }
+
+    /**
+     * Map from a canvas built by [stitchPages] back to the image the pages came from. `stitched_geometry`.
+     *
+     * [pageSizes] are the pages handed to [stitchPages] (width, height), [placements] what it returned for them, and
+     * [pageGeometries] one map per page back to the image the pages were cut from (null for a page handed on
+     * unchanged). One rectangle of the canvas per page, with the page's own resize and offset composed after the
+     * page's own map.
+     */
+    public fun stitchedGeometry(
+        pageSizes: List<Pair<Int, Int>>,
+        placements: List<Placement>,
+        pageGeometries: List<net.russiandocs.docproc.geometry.PointMap?>,
+    ): net.russiandocs.docproc.geometry.Pieces {
+        val pieces = ArrayList<net.russiandocs.docproc.geometry.Pieces.Piece>()
+        for (i in pageSizes.indices) {
+            val (rect, placed) = placedRect(pageSizes[i].first, pageSizes[i].second, placements[i])
+            val maps = listOfNotNull(pageGeometries[i]) + placed
+            pieces += net.russiandocs.docproc.geometry.Pieces.Piece(
+                rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3],
+                net.russiandocs.docproc.geometry.Chain(maps))
+        }
+        return net.russiandocs.docproc.geometry.Pieces(pieces)
     }
 
     private fun centroid(quad: List<Pt>): Pt {

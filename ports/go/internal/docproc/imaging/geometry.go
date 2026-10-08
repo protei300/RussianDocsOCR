@@ -98,6 +98,45 @@ func ExpandQuad(quad []Point, margin float64) []Point {
 	return out
 }
 
+// ExpandQuadF32 is ExpandQuad done the way the reference actually does it: in FLOAT32.
+//
+// `expand_quad` runs over the (4, 2) float32 array that order_points returns, so the centroid
+// (a sequential float32 sum divided by 4), the offsets, the scale and the final sum are all
+// float32 operations, and each rounds. In float64 the same corners come out a few ULP of
+// float32 apart - enough to move a perspective warp's fixed-point weights and change a few
+// hundred pixels of a canvas by 1-8 grey levels (measured on BIRTHCERT_1998 once the document
+// crop moved the quad: 393 pixels, max 8; through the field detector that is a 0.007
+// confidence step downstream). The input corners are converted to float32 first, as
+// np.float32 does.
+//
+// Every intermediate is wrapped in an explicit float32(...) conversion: the Go spec allows a
+// compiler to fuse `x*y + z` into one rounding on some architectures, and an explicit
+// conversion is what forbids it. The result is returned as float64 values that are exactly
+// float32-representable.
+func ExpandQuadF32(quad []Point, margin float64) []Point {
+	if margin <= 0 {
+		return quad
+	}
+	var cx, cy float32
+	for _, p := range quad {
+		cx += float32(p.X)
+		cy += float32(p.Y)
+	}
+	n := float32(len(quad))
+	cx = cx / n
+	cy = cy / n
+
+	scale := float32(1.0 + 2.0*margin)
+	out := make([]Point, len(quad))
+	for i, p := range quad {
+		x, y := float32(p.X), float32(p.Y)
+		dx := float32(float32(x-cx) * scale)
+		dy := float32(float32(y-cy) * scale)
+		out[i] = Point{X: float64(float32(cx + dx)), Y: float64(float32(cy + dy))}
+	}
+	return out
+}
+
 // FourPointTransform warps a quad to an axis-aligned rectangle.
 //
 // The output size comes from the quad's REAL side lengths, so a tilted document is
@@ -108,9 +147,17 @@ func ExpandQuad(quad []Point, margin float64) []Point {
 // Returns a zero Image and false when the target is degenerate (under 2 px), matching
 // the reference's `return None`, which its caller then skips.
 func FourPointTransform(img Image, quad []Point) (Image, bool) {
+	out, _, ok := FourPointTransformMatrix(img, quad)
+	return out, ok
+}
+
+// FourPointTransformMatrix is FourPointTransform that also returns the matrix the page was
+// warped with (four_point_matrix): input -> page.
+func FourPointTransformMatrix(img Image, quad []Point) (Image, [3][3]float64, bool) {
+	var M [3][3]float64
 	rect := OrderPoints(quad)
 	if rect == nil {
-		return Image{}, false
+		return Image{}, M, false
 	}
 	tl, tr, br, bl := rect[0], rect[1], rect[2], rect[3]
 
@@ -120,13 +167,13 @@ func FourPointTransform(img Image, quad []Point) (Image, bool) {
 	width := int(math.RoundToEven(math.Max(dist(br, bl), dist(tr, tl))))
 	height := int(math.RoundToEven(math.Max(dist(tr, br), dist(tl, bl))))
 	if width < 2 || height < 2 {
-		return Image{}, false
+		return Image{}, M, false
 	}
-	out, err := WarpPerspectiveQuad(img, rect, width, height)
+	out, M, err := WarpPerspectiveQuadMatrix(img, rect, width, height)
 	if err != nil {
-		return Image{}, false
+		return Image{}, M, false
 	}
-	return out, true
+	return out, M, true
 }
 
 func dist(a, b Point) float64 {
@@ -177,15 +224,24 @@ type PagePlacement struct {
 // _fields_from_pages). Returns one warped image and the (expanded, clipped) quad it
 // came from per page, in DETECTION order — the caller owns every returned Image.
 func RectifyPages(img Image, segments [][]Point, margin float64) ([]Image, [][]Point) {
+	pages, quads, _ := RectifyPagesMatrices(img, segments, margin)
+	return pages, quads
+}
+
+// RectifyPagesMatrices is RectifyPages that also returns, per page, the matrix it was warped
+// with (input -> page): the way back from the page to the input (rectify_pages with
+// return_geometry).
+func RectifyPagesMatrices(img Image, segments [][]Point, margin float64) ([]Image, [][]Point, [][3][3]float64) {
 	var pages []Image
 	var quads [][]Point
+	var matrices [][3][3]float64
 	for _, cnt := range segments {
 		quad := ExtractQuad(cnt)
 		if quad == nil {
 			continue
 		}
 		rect := OrderPoints(quad)
-		rect = ExpandQuad(rect, margin)
+		rect = ExpandQuadF32(rect, margin)
 		// Clip to the frame AFTER expanding, so the cushion can never reach outside
 		// the image. Note the bounds are width and height, not width-1/height-1 —
 		// matching np.clip(..., 0, img.shape[1]).
@@ -193,14 +249,15 @@ func RectifyPages(img Image, segments [][]Point, margin float64) ([]Image, [][]P
 			rect[i].X = clampF(rect[i].X, 0, float64(img.Width()))
 			rect[i].Y = clampF(rect[i].Y, 0, float64(img.Height()))
 		}
-		warped, ok := FourPointTransform(img, rect)
+		warped, M, ok := FourPointTransformMatrix(img, rect)
 		if !ok {
 			continue
 		}
 		pages = append(pages, warped)
 		quads = append(quads, rect)
+		matrices = append(matrices, M)
 	}
-	return pages, quads
+	return pages, quads, matrices
 }
 
 // StitchPages merges rectified pages into one canvas, reporting where each landed.

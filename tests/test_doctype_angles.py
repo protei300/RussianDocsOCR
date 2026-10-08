@@ -43,7 +43,12 @@ SAMPLES_DIR = Path('../samples')
 #: come from the generator the classifier was trained on - measuring the model on
 #: them would measure it against its own mirror. An anonymised independent sample
 #: closes the gap and turns this test red until the entry is struck.
-KNOWN_UNCOVERED_DOC_TYPES = frozenset({'STS_1996', 'STSBACK_1996', 'STS_2019', 'STSBACK_2019'})
+#:
+#: The licence back side (DLBACK_ALL) joins for the same reason: its training
+#: material is real documents from a client's set that may not be shown, and there
+#: is no anonymised back side to put into samples/ yet.
+KNOWN_UNCOVERED_DOC_TYPES = frozenset({'STS_1996', 'STSBACK_1996', 'STS_2019', 'STSBACK_2019',
+                                       'DLBACK_ALL'})
 
 
 def required_doc_types(module):

@@ -22,6 +22,25 @@ type OcrOptions struct {
 	NeedsLicenceRotation bool
 	// HasAddress routes through the address-line path instead of text fields.
 	HasAddress bool
+	// EngineByYear is OCROptionsClass.engine_by_year: Field -> {form year (the label
+	// suffix): "cyr" | "lat"}, an engine that overrides RuFields/EnFields on that year only.
+	// For a line whose alphabet follows the form edition. The field must still be listed in
+	// RuFields or EnFields - that routing is what the other years get.
+	EngineByYear map[string]map[string]string
+	// ReadMargin is OCROptionsClass.read_margin: Field -> vertical margin, as a share of the
+	// box height, added to the crop that is READ (the box itself is not changed). For fields
+	// labelled tight to the letters (readMargins).
+	ReadMargin map[string]float64
+	// GlueTorn is OCROptionsClass.glue_torn: multi-line fields whose lines are printed
+	// wrapped at the edge of the print area without a hyphen, so a word can be torn across
+	// two lines; torn known words are glued back (GlueTornWords).
+	GlueTorn []string
+}
+
+// EngineFor is Pipeline._engine_by_year: the engine this field takes on this form year
+// ("cyr" or "lat"), or "" when the RuFields/EnFields routing decides.
+func (o OcrOptions) EngineFor(field, year string) string {
+	return o.EngineByYear[field][year]
 }
 
 // SplitDocType splits a '<TYPE>_<YEAR>' label into its bare type and year.
@@ -104,6 +123,11 @@ func MakeOcrOptions(docType string) OcrOptions {
 				"Issue_organization_ru", "Living_region_ru", "Middle_name_ru", "Sex_ru",
 				"Licence_number"},
 		}
+	case strings.Contains(t, "dlback"):
+		// 'dlback' contains 'dl': the licence back side (categories table) has no field
+		// model yet, so it must not fall into the front-side DL options below. The empty
+		// options read nothing (pipeline.py make_options).
+		return OcrOptions{}
 	case strings.Contains(t, "dl"):
 		return OcrOptions{
 			// Middle_name_* is split for the same reason as the external passport's
@@ -142,20 +166,30 @@ func MakeOcrOptions(docType string) OcrOptions {
 		// precedent as the passport Licence_number (issue #12). Licence_number mixes a
 		// Roman-numeral series with Cyrillic and «№»; routed Cyrillic as the lesser
 		// evil, same as the reference.
+		//
+		// Act_date is the date of the civil-registry record (a hotel registry system asks
+		// for the record's number and date; issue #22). Both forms print it in words, the
+		// 1998 form in reverse order with printed words between the parts - «2010 года
+		// июня месяца 15 числа» - and the field box spans them, so dates.go skips those
+		// words. Cyrillic engine, word split, like the other worded dates.
 		return OcrOptions{
 			NeededSplit: []string{"First_name_ru", "Birth_place_ru", "Issue_organization_ru",
 				"Issue_date", "Licence_number",
 				"Father_first_middle_ru", "Mother_first_middle_ru",
 				"Birth_date", "Father_birth_date", "Mother_birth_date",
-				"Issue_place_ru"},
+				"Issue_place_ru", "Act_date"},
 			EnFields: []string{},
 			RuFields: []string{"Last_name_ru", "First_name_ru", "Birth_place_ru",
 				"Issue_organization_ru", "Issue_date", "Licence_number",
 				"Father_last_name_ru", "Father_first_middle_ru",
 				"Mother_last_name_ru", "Mother_first_middle_ru",
 				"Birth_date", "Father_birth_date", "Mother_birth_date",
-				"Issue_place_ru", "Act_number"},
+				"Issue_place_ru", "Act_number", "Act_date"},
 		}
+	// 'stsback' contains 'sts': both sides of the certificate land here on purpose (one
+	// options class for both, see optionsSTS).
+	case strings.Contains(t, "sts"):
+		return optionsSTS()
 	}
 	return OcrOptions{}
 }

@@ -21,26 +21,14 @@ namespace RussianDocs.DocumentProcessing.PageRegistration;
 /// </para>
 ///
 /// <para>
-/// <b>Two substitutions from the reference, both forced by the binding rather than chosen for
-/// convenience — matching the Go port's own documented gaps, verified independently here:</b>
-/// </para>
-/// <list type="bullet">
-/// <item>
-/// <b>Canny + probabilistic Hough (<c>HoughLinesP</c>) stands in for <c>cv2.createLineSegmentDetector</c>
-/// (LSD).</b> Checked directly: OpenCvSharp4 4.13.0.20260627 has no <c>CreateLineSegmentDetector</c> on
-/// <c>Cv2</c> at all (build error, not a missing overload) — the same ecosystem gap Go hit with gocv
-/// v0.43.0. Both are standard OpenCV primitives finding the SAME KIND of evidence (straight
-/// edges/strokes) that the rest of this module treats as an undifferentiated pool of (angle, weight)
-/// measurements, but they are not bit-exact substitutes for each other — a different detector finds a
-/// different segment SET on the same page. See the task log for the measured effect on the two
-/// INTPASSPORT conformance cases.
-/// </item>
-/// <item>
+/// <b>One substitution left.</b> The line evidence is the reference's own: <c>cv2.createLineSegmentDetector</c>
+/// (LSD) through <see cref="Lsd"/>, OpenCvSharp's <c>LineSegmentDetector</c>. (The first port believed it
+/// unbound - it is not on <c>Cv2</c>, it is a class of its own - and used Canny+HoughLinesP, which finds a
+/// different segment set; that was most of deviation D-03.)
 /// The 4-parameter fit uses <see cref="LevenbergMarquardt"/> (this port's own, finite-difference
-/// Jacobian) rather than <c>scipy.optimize.least_squares</c>'s default Trust-Region-Reflective — see
-/// that type's own docstring for why.
-/// </item>
-/// </list>
+/// Jacobian) rather than <c>scipy.optimize.least_squares</c>'s default Trust-Region-Reflective - see that
+/// type's own docstring for why.
+/// </para>
 /// </summary>
 public static class LineRefine
 {
@@ -91,23 +79,13 @@ public static class LineRefine
     internal static double SegAngle(double x1, double y1, double x2, double y2) =>
         PyMod(Math.Atan2(y2 - y1, x2 - x1) * 180.0 / Math.PI + 90.0, 180.0) - 90.0;
 
-    /// <summary>Canny + HoughLinesP — see the class docstring for why this stands in for LSD.</summary>
-    internal static (double X1, double Y1, double X2, double Y2)[] DetectSegments(Mat gray, double minLen)
-    {
-        using var edges = new Mat();
-        Cv2.Canny(gray, edges, 40, 120);
-        LineSegmentPoint[] lines = Cv2.HoughLinesP(edges, 1, Math.PI / 180.0, 30, (float)minLen, 6);
-        var outSegs = new List<(double, double, double, double)>(lines.Length);
-        foreach (LineSegmentPoint l in lines)
-        {
-            double dx = l.P2.X - l.P1.X, dy = l.P2.Y - l.P1.Y;
-            if (dx * dx + dy * dy >= minLen * minLen)
-            {
-                outSegs.Add((l.P1.X, l.P1.Y, l.P2.X, l.P2.Y));
-            }
-        }
-        return [.. outSegs];
-    }
+    /// <summary>
+    /// The LSD segments longer than <paramref name="minLen"/> (<c>line_refine._segments</c>): the
+    /// reference's own detector, through OpenCvSharp's binding of it (<see cref="Lsd"/>).
+    /// </summary>
+    internal static (double X1, double Y1, double X2, double Y2)[] DetectSegments(Mat gray, double minLen) =>
+        [.. Lsd.Detect(gray)
+            .Where(l => Math.Sqrt((l.X2 - l.X1) * (l.X2 - l.X1) + (l.Y2 - l.Y1) * (l.Y2 - l.Y1)) >= minLen)];
 
     /// <summary>
     /// Otsu-inverted binarisation with tall connected components dropped (ink components taller than
@@ -173,10 +151,12 @@ public static class LineRefine
     /// of the reference's shared-rotation optimisation, not an oversight).</summary>
     internal static (double Tilt, double Ratio) ProfileTilt(Mat region)
     {
-        int rw = Math.Max(1, (int)(region.Cols * ProfileScale));
-        int rh = Math.Max(1, (int)(region.Rows * ProfileScale));
+        // cv2.resize(region, None, fx=0.5, fy=0.5, INTER_AREA): the size is the rounded product and the
+        // scale stays exactly 0.5 - passing the rounded size instead would make OpenCV recompute the
+        // scale from it, which differs for an odd side.
         using var small = new Mat();
-        Cv2.Resize(region, small, new Size(rw, rh), 0, 0, InterpolationFlags.Area);
+        Cv2.Resize(region, small, new Size(0, 0), ProfileScale, ProfileScale, InterpolationFlags.Area);
+        int rw = small.Cols, rh = small.Rows;
 
         (byte[] ink, int w, int h) = OtsuInvDropTallBlobs(small, BlobMaxFrac * rh);
         if (w != rw || h != rh)
@@ -273,7 +253,7 @@ public static class LineRefine
         return best;
     }
 
-    private static double Median(double[] v)
+    internal static double Median(double[] v)
     {
         if (v.Length == 0)
         {

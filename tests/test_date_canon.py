@@ -16,7 +16,7 @@ Both controls are present, and that is the point:
 """
 import pytest
 
-from document_processing.pipeline.dates import to_ddmmyyyy, canonical_dates
+from document_processing.pipeline.dates import canonical_dates, record_date_to_ddmmyyyy, to_ddmmyyyy
 
 # Ровно то, что печатают документы - по одному представителю на форму.
 PRINTED = [
@@ -35,6 +35,11 @@ PRINTED = [
     ('И10 ЯНВАРЯ 2013', '10.01.2013'),            # без пробела
     ('И 10 Н ЯНВАРЯ 2013', '10.01.2013'),         # обе кавычки
     ('10 П ЯНВАРЯ 2013 Г.', '10.01.2013'),        # закрывающая
+    # Дата актовой записи: у формы 1998 обратный порядок и печатные слова между
+    # частями, рамка их захватывает; у 2018 - обычный порядок.
+    ('2010 ГОДА ИЮНЯ МЕСЯЦА 15 ЧИСЛА', '15.06.2010'),
+    ('2010 года июня месяца 15', '15.06.2010'),   # «числа» за рамкой
+    ('2 МАРТА 2025 Г.', '02.03.2025'),            # BIRTHCERT_2018
 ]
 
 # Входы, на которых преобразование обязано ОТКАЗАТЬСЯ, а не выдумать.
@@ -54,6 +59,8 @@ REFUSED = [
     'ИЗ 10 ЯНВАРЯ 2013',  # слово, не одиночная буква
     '10 ЯНВАРЯ И 2013',   # буква не у дня, а у года
     'И 10 ЯНВАРЯ',        # кавычка отброшена, но года всё равно нет
+    '2010 ГОДА ИЮНЯ МЕСЯЦА 31 ЧИСЛА',  # 31 июня не бывает
+    '2010 ГОДА ИЮНЯ МЕСЯЦА ЧИСЛА',     # нет дня
 ]
 
 
@@ -98,3 +105,38 @@ def test_non_date_fields_are_never_touched():
     """The caller passes the field list; nothing else is even looked at."""
     ocr = {'Licence_number': '62 1483828', 'Act_number': '110202778751843181007'}
     assert canonical_dates(ocr, ['Birth_date']) == {}
+
+
+# Дата актовой записи: порядок частей на бланке постоянный, поэтому её разбор
+# находит части по виду - год, день, месяц внутри букв, - и переносит склейку
+# слов и неверно прочитанные печатные «года»/«месяца».
+RECORD_READ = [
+    ('2015ГОДАИЮНЯИЕСЯЦА16', '16.06.2015'),       # склеено, «месяца» прочитано с ошибкой
+    ('2026ТОДАМАЯНСЯЦА3', '03.05.2026'),
+    ('2002ТОДАИЮНЯ,МЕСЯЦА18', '18.06.2002'),
+    ('2003 ДЕКАБРЯ МЕСЯЦА 27', '27.12.2003'),
+    ('2 МАРТА 2025 Г.', '02.03.2025'),            # обычный порядок берёт общий разбор
+]
+RECORD_REFUSED = [
+    '2010 ГОДА ЦЮЛЯ МЕСЯЦА 17',   # сам месяц прочитан неверно
+    '2020 ГОДА ИЮЛЯ МЕСЯЦА',      # нет дня
+    '2020 ЯНВАРЯ 110201114335',   # в рамку попал номер записи
+    '.110266032',
+    '2010 ИЮНЯ МАЯ 15',           # два месяца
+    '2010ГОДАИЮНЯ 15 16',         # два дня
+]
+
+
+@pytest.mark.parametrize('printed,canonical', RECORD_READ)
+def test_record_date_reads_through_glue_and_misread_words(printed, canonical):
+    assert record_date_to_ddmmyyyy(printed) == canonical
+
+
+@pytest.mark.parametrize('text', RECORD_REFUSED)
+def test_record_date_still_refuses_rather_than_guesses(text):
+    assert record_date_to_ddmmyyyy(text) is None
+
+
+def test_only_the_record_date_gets_the_lenient_reading():
+    ocr = {'Act_date': '2015ГОДАИЮНЯИЕСЯЦА16', 'Issue_date': '2015ГОДАИЮНЯИЕСЯЦА16'}
+    assert canonical_dates(ocr, ['Act_date', 'Issue_date']) == {'Act_date': '16.06.2015'}

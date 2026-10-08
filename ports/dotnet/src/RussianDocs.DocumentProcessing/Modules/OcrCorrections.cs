@@ -108,6 +108,18 @@ public static class OcrCorrections
     }
 
     /// <summary>
+    /// Replaces the letter O with the digit 0 in a VIN. Port of <c>ocr_corrections.check_vin</c>.
+    ///
+    /// <para>
+    /// ISO 3779 excludes the letters I, O and Q from a VIN, so an O here is always a misread 0 — the
+    /// Latin engine confuses the two on real STS photos (issue #17: a VIN starting 'WF0DX' came out as
+    /// 'WFODX'). Only O is mapped, by decision: I and Q have no single safe digit, and nothing else is
+    /// touched.
+    /// </para>
+    /// </summary>
+    public static string CheckVin(string vin) => vin.Replace("O", "0", StringComparison.Ordinal);
+
+    /// <summary>
     /// Strips LEADING dots only.
     ///
     /// <para>

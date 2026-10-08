@@ -203,6 +203,9 @@ function copyJson(): void {
                   <span v-if="f.value" class="fld-val" :class="{ 'u-mono': f.script === 'num' }"
                         :lang="f.script === 'ru' ? 'ru' : 'en'">{{ f.value }}</span>
                   <span v-else class="u-dash">—</span>
+                  <div v-if="f.normalized" class="fld-norm u-mono" title="Date as dd.mm.yyyy (API: fields[].normalized)">
+                    {{ f.normalized }}
+                  </div>
                 </td>
                 <td class="u-mono">{{ f.conf != null ? f.conf.toFixed(2) : '—' }}</td>
                 <td>
@@ -298,5 +301,6 @@ function copyJson(): void {
 .kv-list{display:flex;flex-direction:column;gap:8px;}
 .kv-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;}
 .kv-key{color:var(--color-text-sub);}
+.fld-norm{font-size:12px;color:var(--color-text-muted);margin-top:2px;}
 .kv-val{font-weight:600;color:var(--color-text);}
 </style>

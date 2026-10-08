@@ -1,3 +1,4 @@
+using RussianDocs.DocumentProcessing.Maps;
 using RussianDocs.DocumentProcessing.Config;
 using RussianDocs.DocumentProcessing.Imaging;
 using RussianDocs.DocumentProcessing.Inference;
@@ -59,12 +60,12 @@ public sealed class DocDetector : IDisposable
     /// borders the model cannot see.
     /// </para>
     /// </summary>
-    public (Image Canvas, List<Point[]>? Segments) PredictTransform(Image image, int maxPages)
+    public (Image Canvas, List<Point[]>? Segments, IMap Map) PredictTransform(Image image, int maxPages)
     {
         (List<Box> _, List<Point[]> segments) = _model.Predict(image);
         if (segments.Count == 0)
         {
-            return (image.Clone(), null);
+            return (image.Clone(), null, new ChainMap());
         }
 
         // First drop segments without ink (a scanner lid, a blank sheet next to the document), THEN
@@ -74,17 +75,19 @@ public sealed class DocDetector : IDisposable
         List<int> kept = SelectPages(segments, maxPages);
         if (kept.Count == 0)
         {
-            return (image.Clone(), null);
+            return (image.Clone(), null, new ChainMap());
         }
 
         var chosen = kept.Select(i => segments[i]).ToList();
-        (Image? warped, bool ok) = Geometry.FixPerspective(image,
+        (Image? warped, bool ok, IMap? map) = Geometry.FixPerspective(image,
             chosen.Cast<IReadOnlyList<Point>>().ToList(), StackDirection.Auto,
             Geometry.DocMarginFraction);
 
+        // The map of the canvas back to `image` (`geometry` in the reference's result): the pages' warps,
+        // their resize and their place on the canvas; an empty chain when `image` came back as it is.
         return ok && warped is not null
-            ? (warped, chosen)
-            : (image.Clone(), chosen);
+            ? (warped, chosen, map ?? new ChainMap())
+            : (image.Clone(), chosen, new ChainMap());
     }
 
     /// <summary>

@@ -42,7 +42,9 @@ _MONTHS = {
 }
 
 #: Words a document prints next to a date that carry no date information.
-_NOISE = {'Г', 'Г.', 'ГОД', 'ГОДА', 'ГОДУ'}
+#: «месяца» and «числа» belong to the 1998 birth certificate's record date,
+#: printed in reverse order around the values: «2010 года июня месяца 15 числа».
+_NOISE = {'Г', 'Г.', 'ГОД', 'ГОДА', 'ГОДУ', 'МЕСЯЦ', 'МЕСЯЦА', 'ЧИСЛО', 'ЧИСЛА'}
 
 _TOKEN = re.compile(r'[^\W\d_]+|\d+', re.UNICODE)
 
@@ -90,6 +92,7 @@ def to_ddmmyyyy(text: str):
     * ``'10 ДЕКАБРЯ 1999 ГОДА'``  -> ``'10.12.1999'``
     * ``'03.АВГУСТ.1989'``        -> ``'03.08.1989'``
     * ``'И 10 ЯНВАРЯ 2013'``      -> ``'10.01.2013'`` (the quote « read as a letter)
+    * ``'2010 ГОДА ИЮНЯ МЕСЯЦА 15 ЧИСЛА'`` -> ``'15.06.2010'`` (record date, 1998 form)
     * ``'5 МАЯ'``                 -> None (no year: guessing one would invent data)
     * ``'31.02.2020'``            -> None (not a calendar date)
     """
@@ -127,6 +130,54 @@ def to_ddmmyyyy(text: str):
     return _as_date(day, month, year)
 
 
+#: Fields printed as a civil-registry record date: year, month, day in a FIXED
+#: order with printed words between them - «2010 года июня месяца 15 числа» on
+#: the 1998 birth certificate. The box spans the printed words, the word split
+#: often loses the gaps («2015ГОДАИЮНЯМЕСЯЦА16») and the printed words come back
+#: misread («ИЕСЯЦА», «ТОДА»), so the general converter refuses most of them.
+RECORD_DATE_FIELDS = ('Act_date',)
+
+#: Month names in the genitive - the only case a record date prints.
+_GENITIVE = {name: n for name, n in _MONTHS.items() if name.endswith(('Я', 'А'))}
+
+
+def record_date_to_ddmmyyyy(text: str):
+    """Canonical ``dd.mm.yyyy`` of a civil-registry record date, or None.
+
+    Whatever the general converter accepts is taken as is. Otherwise the parts
+    are found by their FORM, which is what the fixed layout allows: exactly one
+    four-digit year, exactly one one- or two-digit day, and exactly one
+    genitive month name found INSIDE the letters (glued or not), whatever the
+    printed words around it were read as. Any ambiguity - two days, two months,
+    no year - refuses, as everywhere in this module:
+
+    * ``'2015ГОДАИЮНЯИЕСЯЦА16'``  -> ``'16.06.2015'``
+    * ``'2010 ГОДА ЦЮЛЯ МЕСЯЦА 17'`` -> None (the month itself is misread)
+    * ``'2020 ГОДА ИЮЛЯ МЕСЯЦА'`` -> None (no day)
+    """
+    canonical = to_ddmmyyyy(text)
+    if canonical or not text:
+        return canonical
+    runs = _TOKEN.findall(text.upper())
+    years = [r for r in runs if r.isdigit() and len(r) == 4]
+    days = [r for r in runs if r.isdigit() and len(r) <= 2]
+    stray = [r for r in runs if r.isdigit() and len(r) not in (1, 2, 4)]
+    if len(years) != 1 or len(days) != 1 or stray:
+        return None
+    letters = ''.join(r for r in runs if not r.isdigit())
+    months = {n for name, n in _GENITIVE.items() if name in letters}
+    if len(months) != 1:
+        return None
+    return _as_date(int(days[0]), months.pop(), int(years[0]))
+
+
+def canonical_date(field: str, text: str):
+    """The canonical view of one field: by its printed layout."""
+    if field in RECORD_DATE_FIELDS:
+        return record_date_to_ddmmyyyy(text)
+    return to_ddmmyyyy(text)
+
+
 def canonical_dates(ocr: dict, fields) -> dict:
     """Canonical view of every date field that yields one.
 
@@ -143,7 +194,7 @@ def canonical_dates(ocr: dict, fields) -> dict:
         value = ocr.get(name)
         if not isinstance(value, str):
             continue
-        canonical = to_ddmmyyyy(value)
+        canonical = canonical_date(name, value)
         if canonical:
             out[name] = canonical
     return out

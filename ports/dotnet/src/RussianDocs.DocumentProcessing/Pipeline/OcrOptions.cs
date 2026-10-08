@@ -17,6 +17,38 @@ public sealed record OcrOptions
     public bool NeedsLicenceRotation { get; init; }
     public bool HasAddress { get; init; }
 
+    /// <summary>
+    /// Field to {form year (label suffix): "cyr" | "lat"}, an engine that overrides
+    /// <see cref="RuFields"/>/<see cref="EnFields"/> on that year only — for a line whose alphabet
+    /// follows the form edition (<c>OCROptionsClass.engine_by_year</c>). The field must still be listed
+    /// in one of the two lists: that routing is what the other years get.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> EngineByYear { get; init; } =
+        new Dictionary<string, IReadOnlyDictionary<string, string>>();
+
+    /// <summary>
+    /// Field to vertical margin, as a share of the box height, added to the crop that is READ (the box
+    /// itself is not changed) — for fields labelled tight to the letters (<c>Pipeline._read_margins</c>).
+    /// </summary>
+    public IReadOnlyDictionary<string, double> ReadMargin { get; init; } =
+        new Dictionary<string, double>();
+
+    /// <summary>
+    /// Multi-line fields whose lines are printed wrapped at the edge of the print area without a
+    /// hyphen, so a word can be torn across two lines; torn known words are glued back
+    /// (<see cref="StsMarks.GlueTornWords"/>).
+    /// </summary>
+    public string[] GlueTorn { get; init; } = [];
+
+    /// <summary>
+    /// The engine this field takes on this form year ("cyr" or "lat"), or null when the
+    /// RuFields/EnFields routing decides. Port of <c>Pipeline._engine_by_year</c>; a label without a year
+    /// suffix has no year and so no override.
+    /// </summary>
+    public string? EngineForYear(string field, string? year) =>
+        year is not null && EngineByYear.TryGetValue(field, out var byYear)
+        && byYear.TryGetValue(year, out string? engine) ? engine : null;
+
     public bool IsOcrField(string label) =>
         Array.IndexOf(EnFields, label) >= 0 || Array.IndexOf(RuFields, label) >= 0;
 
@@ -108,6 +140,12 @@ public sealed record OcrOptions
                     "Issue_organization_ru", "Living_region_ru", "Middle_name_ru", "Sex_ru"],
             };
         }
+        // 'dlback' contains 'dl': the licence back side (categories table) has no field model yet, so
+        // it must not fall into the front-side DL options (pipeline.py make_options).
+        if (t.Contains("dlback", StringComparison.Ordinal))
+        {
+            return new OcrOptions();
+        }
         if (t.Contains("dl", StringComparison.Ordinal))
         {
             return new OcrOptions
@@ -155,14 +193,55 @@ public sealed record OcrOptions
                     "Issue_date", "Licence_number",
                     "Father_first_middle_ru", "Mother_first_middle_ru",
                     "Birth_date", "Father_birth_date", "Mother_birth_date",
-                    "Issue_place_ru"],
+                    "Issue_place_ru", "Act_date"],
                 EnFields = [],
                 RuFields = ["Last_name_ru", "First_name_ru", "Birth_place_ru",
                     "Issue_organization_ru", "Issue_date", "Licence_number",
                     "Father_last_name_ru", "Father_first_middle_ru",
                     "Mother_last_name_ru", "Mother_first_middle_ru",
                     "Birth_date", "Father_birth_date", "Mother_birth_date",
-                    "Issue_place_ru", "Act_number"],
+                    "Issue_place_ru", "Act_number", "Act_date"],
+            };
+        }
+        // 'stsback' contains 'sts': both sides of the certificate land here on purpose (one options
+        // class for both, see OCROptionsSTS in pipeline.py).
+        if (t.Contains("sts", StringComparison.Ordinal))
+        {
+            return new OcrOptions
+            {
+                NeededSplit = ["Vehicle_make_ru", "Vehicle_make_en", "Vehicle_type",
+                    "Special_marks", "Living_region_ru", "Licence_number",
+                    "Issue_date", "PTS_number", "Eco_class", "Vehicle_color",
+                    "Issue_organization_ru"],
+                // Engine routing follows the alphabet the field is printed in, with the two project
+                // precedents kept: the series/number goes to the Cyrillic engine (issue #12), and mixed
+                // fields go where MOST of their values live. Reg_number and VIN are Latin by decision
+                // (2026-09-05): plate letters are the GOST subset that shares its glyphs with Latin, and
+                // a VIN never contains I, O or Q.
+                EnFields = ["Reg_number", "VIN", "Vehicle_make_en",
+                    "Type_approval", "Engine_model", "Engine_number", "Engine_volume",
+                    "Last_name_en",
+                    "First_name_en", "Vehicle_category", "Vehicle_year",
+                    "Body_number", "Engine_power", "Max_mass", "Curb_mass",
+                    "Expiration_date", "Apartment_number", "Issue_organisation_code"],
+                RuFields = ["Last_name_ru", "First_name_ru", "Middle_name_ru",
+                    "Living_region_ru", "Vehicle_make_ru", "Vehicle_type",
+                    "Vehicle_color", "Eco_class", "Chassis_number", "Special_marks",
+                    "Licence_number", "Issue_date", "PTS_number", "House_number",
+                    "Building_number", "Issue_organization_ru"],
+                // The make, by line: the upper line is Vehicle_make_ru, the lower one Vehicle_make_en (no
+                // model class since 2026-10-04). The new form prints the upper line in Latin
+                // («LADA GRANTA»), the old one in Cyrillic, so the engine follows the year. Measured on the
+                // STS synthetic holdout with the r32 field detector candidate (2026-10-06): new form
+                // Latin-routed 79 of 112 exact against 22 Cyrillic-routed, the old form unchanged.
+                EngineByYear = new Dictionary<string, IReadOnlyDictionary<string, string>>
+                {
+                    ["Vehicle_make_ru"] = new Dictionary<string, string> { ["2019"] = "lat" },
+                },
+                // The special-marks lines are labelled tight to their letters, so the crop that is read
+                // gets a margin (Recognizer.ReadMargins): CER 0.145 -> 0.119, leasing found 23 -> 25 of 30.
+                ReadMargin = new Dictionary<string, double> { ["Special_marks"] = 0.1 },
+                GlueTorn = ["Special_marks"],
             };
         }
         return new OcrOptions();

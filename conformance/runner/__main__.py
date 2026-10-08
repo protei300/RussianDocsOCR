@@ -406,8 +406,14 @@ def cmd_run(args: argparse.Namespace) -> int:
     # and a declared difference is not one. Three things still fail regardless of the
     # register: an undeclared difference, a case that errored (a crashed port is not
     # a difference to declare), and an empty run - nothing verified is not a pass.
-    hard = any(c.error for c in run.cases) or not run.cases
-    return 1 if (run.deviations.red or hard or complaints) else 0
+    return 1 if (run.deviations.red or _hard_error(run) or complaints) else 0
+
+
+def _hard_error(run: report_mod.RunReport) -> bool:
+    """A case that could not be graded at all (crash, missing golden, port error) -
+    or no case at all: nothing was compared, so nothing can be declared about it.
+    """
+    return any(c.error for c in run.cases) or not run.cases
 
 
 def build_parser() -> argparse.ArgumentParser:

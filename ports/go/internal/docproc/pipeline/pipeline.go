@@ -2,10 +2,13 @@ package pipeline
 
 import (
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/config"
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/geometry"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/imaging"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/inference"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/modules"
@@ -31,6 +34,10 @@ import (
 type Recognizer struct {
 	opts RecognizerOptions
 
+	// docs is nil when the weight set has no DocDetect (models-v8 or older): the whole
+	// frame is then read, as before decision #142 - the reference does the same instead
+	// of refusing to start.
+	docs       *modules.DocumentDetector
 	doctype    *modules.DocTypeAngles
 	glare      *modules.Glare
 	blur       *modules.Blur
@@ -47,6 +54,11 @@ type Recognizer struct {
 	words      *modules.WordsDetector
 	cyr        *modules.OcrEngine
 	lat        *modules.OcrEngine
+
+	// cardRegs are the template registrars of the STS types, built on first use (nil value:
+	// the type has no templates). See cardRegistrar.
+	cardMu   sync.Mutex
+	cardRegs map[string]*modules.PageRegistrar
 }
 
 // RecognizerOptions are the construction-time choices — the ones baked in, which is why the
@@ -64,6 +76,9 @@ type RecognizerOptions struct {
 	// ORT's CPU reductions partition by thread, so a differing count shifts results by
 	// ~1e-6 — inside the float tolerance, but enough to flip an argmax on a near-tie.
 	Threads int
+	// NoCardRegistration switches off the straightening of an STS by its printed blank
+	// (Pipeline(card_registration=False)): the Borders canvas is kept.
+	NoCardRegistration bool
 }
 
 // RunOptions are the per-document knobs.
@@ -102,6 +117,27 @@ type Results struct {
 	// field list from. Only fields that converted appear; nil when none did
 	// (PipelineResults.ocr_normalized, pipeline.py:170-181).
 	OcrNormalized map[string]string
+	// DatesReadWhole lists the date fields whose reading was replaced by a re-read of the
+	// whole line (PipelineResults meta_results['DatesReadWhole']); nil when none was.
+	DatesReadWhole []DateReread
+	// Documents is every document the detector found in the frame, largest first, boxes on
+	// the image passed to Run; empty when it found nothing or there is no detector.
+	// DocumentIndex is the one this result reads (the largest, 0, for Run; the i-th for
+	// RunFrame); -1 means the whole frame was read.
+	Documents     []modules.Document
+	DocumentIndex int
+	// PairedWith is the index of the other side of this document in RunFrame's list (see
+	// PairSides); -1 - no pair found, or a single-document call. (Python: None.)
+	PairedWith int
+	// Leasing is the record read from the STS special marks (PipelineResults.leasing):
+	// {"leasing": true} when the marks say the vehicle is leased; nil when they do not, or
+	// the document is not an STS. Only the flag (LeasingReported says why). A SEPARATE view,
+	// like OcrNormalized: Ocr["Special_marks"] keeps the text as read.
+	Leasing map[string]any
+	// Geometry maps a point of Canvas to the image passed to Run (PipelineResults.geometry);
+	// ToInput applies it. Quads are the read fields and their word patches on that image.
+	Geometry geometry.Geometry
+	Quads    *Quads
 	// SplitFlags reports the lines the gap guard re-read whole, and the ones it declined
 	// to (PipelineResults.words_fallback / words_no_ink).
 	SplitFlags SplitFlags
@@ -189,6 +225,13 @@ func NewRecognizer(opts RecognizerOptions) (*Recognizer, error) {
 	f, dev, th := opts.ModelFormat, opts.Device, opts.Threads
 	tier := modules.OcrTier(opts.OcrTier)
 
+	// The document detector is optional: a weight set of models-v8 or older has no DocDetect.
+	if modules.DocumentDetectorAvailable(paths, f) {
+		step(func() (e error) { r.docs, e = modules.NewDocumentDetector(root, paths, f, dev, th); return })
+	} else {
+		fmt.Fprintln(os.Stderr, "[!] DocumentDetector weights not found (models/DocDetect): reading whole "+
+			"frames. Run scripts/fetch_models.py for a weight set that has them.")
+	}
 	step(func() (e error) { r.doctype, e = modules.NewDocTypeAngles(root, paths, f, dev, th); return })
 	step(func() (e error) { r.glare, e = modules.NewGlare(root, paths, f, dev, th); return })
 	step(func() (e error) { r.blur, e = modules.NewBlur(root, paths, f, dev, th); return })
@@ -211,6 +254,9 @@ func NewRecognizer(opts RecognizerOptions) (*Recognizer, error) {
 // Close releases every session. Safe on a partially-built Recognizer.
 func (r *Recognizer) Close() error {
 	closers := []func() error{}
+	if r.docs != nil {
+		closers = append(closers, r.docs.Close)
+	}
 	if r.doctype != nil {
 		closers = append(closers, r.doctype.Close)
 	}
@@ -244,6 +290,14 @@ func (r *Recognizer) Close() error {
 	if r.pageRegistrar != nil {
 		closers = append(closers, r.pageRegistrar.Close)
 	}
+	r.cardMu.Lock()
+	for _, reg := range r.cardRegs {
+		if reg != nil {
+			closers = append(closers, reg.Close)
+		}
+	}
+	r.cardRegs = nil
+	r.cardMu.Unlock()
 	var first error
 	for _, c := range closers {
 		// Every closer runs even after one fails: a session left open holds GPU memory,
@@ -259,7 +313,8 @@ func (r *Recognizer) Close() error {
 func (r *Recognizer) Device() inference.Device    { return r.opts.Device }
 func (r *Recognizer) OcrDevice() inference.Device { return r.opts.OcrDevice }
 
-// Run recognises one document.
+// Run recognises one document: the LARGEST one in the frame (process_img). With no document
+// found the whole frame is read.
 //
 // The sequence and every branch in it are the reference's. Two that look like details and
 // are not: the quality group runs CONCURRENTLY because low_quality defaults to true (so the
@@ -267,6 +322,34 @@ func (r *Recognizer) OcrDevice() inference.Device { return r.opts.OcrDevice }
 // document type because the routing compares it with == "SNILS", which the '<TYPE>_<YEAR>'
 // label never equals.
 func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
+	list, err := r.run(imagePath, opts, false)
+	if err != nil {
+		return nil, err
+	}
+	return list[0], nil
+}
+
+// RunFrame reads EVERY document in the frame (Pipeline.process_frame, issue #26), not only
+// the largest: one Results per document, largest first; with no document found, one element
+// holding the whole-frame reading, exactly what Run returns. Two sides of one document lying
+// in the same frame are paired by the number printed on both (PairSides): Results.PairedWith
+// is the index of the other side in the returned list, -1 when there is none.
+//
+// Every element owns its images, so the list stays valid after the call; the caller closes
+// each. The Recognizer holds no per-run state, so concurrent calls are safe as far as this
+// type goes (see Recognizer).
+func (r *Recognizer) RunFrame(imagePath string, opts RunOptions) ([]*Results, error) {
+	list, err := r.run(imagePath, opts, true)
+	if err != nil {
+		return nil, err
+	}
+	PairSides(list)
+	return list, nil
+}
+
+// run is the shared body of process_img and process_frame: load, find the documents once,
+// then read the first (all == false) or each of them.
+func (r *Recognizer) run(imagePath string, opts RunOptions, all bool) ([]*Results, error) {
 	sink := opts.Sink
 	if sink == nil {
 		sink = NullStageSink{}
@@ -275,7 +358,65 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 		opts.ImgSize = 1500
 	}
 	timings := NewTimings()
-	out := &Results{Quality: map[string]any{}, Ocr: map[string]string{}}
+
+	// ---- stage: documents -------------------------------------------------
+	// Documents first (decision #142): find what lies in the frame, then read the crop of
+	// the LARGEST document, cut from the frame at its full resolution. No document found,
+	// or no detector in this weight set - the whole frame, as before.
+	src, err := imaging.LoadRGB(imagePath)
+	if err != nil {
+		return nil, err
+	}
+	// The frame is only ever read to cut a document out of it: every crop is a new image.
+	defer src.Close()
+
+	documents, small, err := r.findDocuments(src, opts.ImgSize, timings, sink)
+	if err != nil {
+		return nil, err
+	}
+	defer small.Close()
+	if opts.UpTo == "documents" {
+		return []*Results{{Quality: map[string]any{}, Ocr: map[string]string{},
+			Documents: documents, DocumentIndex: -1, PairedWith: -1,
+			Timings: timings.Report()}}, nil
+	}
+
+	indexes := []int{-1}
+	if n := len(documents); n > 0 {
+		indexes = []int{0}
+		if all {
+			indexes = indexes[:0]
+			for i := 0; i < n; i++ {
+				indexes = append(indexes, i)
+			}
+		}
+	}
+	var list []*Results
+	for k, index := range indexes {
+		t := timings
+		if k > 0 {
+			t = NewTimings()
+		}
+		res, err := r.readDocument(src, documents, small, index, opts, t, sink)
+		if err != nil {
+			for _, done := range list {
+				done.Close()
+			}
+			return nil, err
+		}
+		list = append(list, res)
+	}
+	return list, nil
+}
+
+// readDocument is Pipeline._read_document + _process_document: prepare the crop of
+// documents[index] (the whole frame when index is -1) and read it. small is the frame at
+// the processing size and stays the caller's.
+func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Document, small imaging.Image,
+	index int, opts RunOptions, timings *Timings, sink StageSink) (*Results, error) {
+
+	out := &Results{Quality: map[string]any{}, Ocr: map[string]string{},
+		Documents: documents, DocumentIndex: -1, PairedWith: -1}
 
 	// Any early return past this point must release what has been allocated, so the
 	// intermediates are registered with the Results as they are created and `fail` closes
@@ -286,14 +427,33 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	}
 
 	// ---- stage: prepare ---------------------------------------------------
-	src, err := imaging.LoadRGB(imagePath)
-	if err != nil {
-		return fail(err)
+	var prepared imaging.Image
+	havePrepared := false
+	// The first maps of the canvas every later stage reads (geometry.py): the crop of the
+	// document, then the resize. cutW x cutH is the size of what was resized.
+	var geo geometry.Chain
+	cutW, cutH := src.Width(), src.Height()
+	if index >= 0 && index < len(documents) {
+		x0, y0, x1, y1 := documentCrop(src.Width(), src.Height(), documents[index])
+		if x1 > x0 && y1 > y0 {
+			out.DocumentIndex = index
+			cut, cerr := imaging.ClampedCrop(src, x0, y0, x1, y1)
+			if cerr != nil {
+				return fail(cerr)
+			}
+			cutW, cutH = cut.Width(), cut.Height()
+			geo = geo.Then(geometry.Offset{DX: float64(-x0), DY: float64(-y0)})
+			prepared = imaging.FitToLongestSide(cut, opts.ImgSize)
+			_ = cut.Close()
+			havePrepared = true
+		}
 	}
-	out.owned = append(out.owned, src)
-
-	prepared := imaging.FitToLongestSide(src, opts.ImgSize)
+	if !havePrepared {
+		prepared = small.Clone()
+	}
 	out.owned = append(out.owned, prepared)
+	geo = geo.Then(geometry.Scale{SX: float64(prepared.Width()) / float64(cutW),
+		SY: float64(prepared.Height()) / float64(cutH)})
 
 	if err := emitImage(sink, "prepare", prepared); err != nil {
 		return fail(err)
@@ -317,6 +477,7 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	out.DocConfidence = meta.DocTypeConfidence
 	out.Angle = meta.Angle
 	out.AngleConfidence = meta.AngleConfidence
+	geo = geo.Then(geometry.QuarterTurns{Width: prepared.Width(), Height: prepared.Height(), Turns: meta.Angle / 90})
 
 	if err := sink.Emit("doctype.label", meta); err != nil {
 		return fail(err)
@@ -370,6 +531,9 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	out.Segments = det.Segments
 	out.owned = append(out.owned, canvas)
 	pages, pageQuads, placements := det.Pages, det.PageQuads, det.Placements
+	// The map from the canvas the later stages read back to the image the border stage received
+	// (DocDetector.geometry): REPLACED whenever a stage rebuilds the pages or the canvas.
+	detGeo, pageGeos := det.Geometry, det.PageGeometries
 	out.owned = append(out.owned, pages...)
 
 	qualityTimes[StageDocDetector] = time.Since(detectStart)
@@ -383,6 +547,26 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	// the two internal-passport conformance cases.
 	registeredWithLineRefine := false
 	if err := timings.Time(StageRegisterPages, func() error {
+		// A vehicle registration certificate is straightened by its OWN printed blank
+		// instead (_register_card): a card in a sleeve gets the sleeve's edge from the
+		// border detector. The canvas is the straightened page; the pages' own lines were
+		// already followed (line_refine), so the deskew below is skipped, as the reference
+		// does (info['sources'] filled).
+		if isCardType(meta.DocType) && r.pageRegistrar != nil {
+			if r.opts.NoCardRegistration {
+				return nil
+			}
+			cardCanvas, cardGeo, ok, cerr := r.registerCard(upright, meta.DocType, out.Segments)
+			if cerr != nil || !ok {
+				return cerr
+			}
+			canvas = cardCanvas
+			detGeo, pageGeos = cardGeo, nil
+			pages, pageQuads, placements = nil, nil, nil
+			out.owned = append(out.owned, canvas)
+			registeredWithLineRefine = r.pageRegistrar.LineRefine
+			return nil
+		}
 		if !canRegister || r.pageRegistrar == nil {
 			return nil
 		}
@@ -391,6 +575,7 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 			return nil
 		}
 		canvas = regResult.Canvas
+		detGeo, pageGeos = regResult.Geometry, regResult.PageGeometries
 		pages, pageQuads, placements = regResult.Pages, regResult.PageQuads, regResult.Placements
 		out.owned = append(out.owned, canvas)
 		out.owned = append(out.owned, pages...)
@@ -427,23 +612,29 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 			deskewed = canvas.Clone()
 			return nil
 		}
+		var turn geometry.Geometry
 		if len(pages) >= 2 {
-			var ok bool
-			var deskPages []imaging.Image
-			deskewed, deskPages, placements, ok = r.deskewPages(pages, pageQuads)
-			if !ok {
-				deskewed, _, e = r.deskewer.Deskew(canvas)
-				return e
+			dp, ok := r.deskewPages(pages, pageQuads, pageGeos)
+			if ok {
+				deskewed, placements = dp.Canvas, dp.Placements
+				detGeo, pageGeos = dp.Geometry, dp.PageGeometries
+				pages = dp.Pages
+				out.owned = append(out.owned, dp.Pages...)
+				return nil
 			}
-			pages = deskPages
-			out.owned = append(out.owned, deskPages...)
-			return nil
 		}
-		deskewed, _, e = r.deskewer.Deskew(canvas)
+		deskewed, _, turn, e = r.deskewer.DeskewWithGeometry(canvas)
+		// the canvas so far, then the turn (nil - handed on unchanged, no map)
+		detGeo = geometry.Chain{Maps: []geometry.Geometry{detGeo}}.Then(turn)
 		return
 	}); err != nil {
 		return fail(err)
 	}
+	// Where the canvas lies on the image passed to Run: the chain so far, then the border stage'"'"'s
+	// own map (Pipeline._canvas(self._borders_geometry())).
+	geo = geo.Then(detGeo)
+	out.Geometry = geo
+
 	// The canvas the client is served, and the space every box below is in. Held on
 	// Results rather than in `owned` so the caller can keep it after Close of the rest --
 	// which is why Close handles it separately.
@@ -459,19 +650,33 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	}
 
 	// ---- stage: fields.bbox -----------------------------------------------
-	bareType, _ := SplitDocType(meta.DocType)
+	bareType, docYear := SplitDocType(meta.DocType)
 	ocrOpts := MakeOcrOptions(bareType)
 
 	var fields []modules.Field
+	// Where each patch lies on the canvas it was cut from (FieldFrames).
+	var frames []fieldFrame
 	if err := timings.Time(StageFieldsDetector, func() (e error) {
 		// _fields_from_pages: with 2+ pages, the field detector runs on EACH PAGE
 		// separately (its 640x640 input gives a stitched spread only half of itself
 		// per page) and the boxes are moved onto the canvas by that page's placement.
 		if len(pages) >= 2 && len(placements) == len(pages) {
-			fields, e = r.fieldsFromPages(pages, placements, ocrOpts.NeedsLicenceRotation)
+			fields, frames, e = r.fieldsFromPages(pages, placements, ocrOpts.NeedsLicenceRotation)
 			return
 		}
 		fields, e = r.fields.PredictTransform(deskewed, ocrOpts.NeedsLicenceRotation)
+		if e == nil {
+			frames = make([]fieldFrame, len(fields))
+			for i, f := range fields {
+				frames[i] = singleCanvasFrame(f, ocrOpts.NeedsLicenceRotation && f.Box.Label == "Licence_number")
+			}
+			// Single-canvas path only (_read_margins): a field labelled tight to its
+			// letters is read from a taller crop; the box itself is not changed.
+			if e = readMargins(fields, ocrOpts, deskewed, frames); e != nil {
+				modules.FieldsClose(fields)
+				fields = nil
+			}
+		}
 		return
 	}); err != nil {
 		return fail(err)
@@ -495,8 +700,9 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	mrzZone := NoteMrzZone(out.Boxes, deskewed)
 
 	var fieldWords []FieldWords
+	var records []SplitRecord
 	if err := timings.Time(StageSplitWords, func() (e error) {
-		fieldWords, out.SplitFlags, e = SplitWords(fields, ocrOpts, r.words, bareType)
+		fieldWords, out.SplitFlags, records, e = SplitWords(fields, ocrOpts, r.words, bareType)
 		return
 	}); err != nil {
 		return fail(err)
@@ -508,6 +714,12 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 			return fail(err)
 		}
 	}
+	// The way back to the input image (geometry.go): field and word quadrilaterals, or none when
+	// this run'"'"'s way back is not known. Right after the split, before the OCR, like the reference.
+	out.Quads = buildQuads(records, frames, out.ToInput, ocrOpts.NeedsLicenceRotation)
+	if err := sink.Emit("quads", QuadsPayload(out.Quads)); err != nil {
+		return fail(err)
+	}
 	if opts.UpTo == "words" {
 		out.Timings = timings.Report()
 		return out, nil
@@ -516,7 +728,7 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	// ---- stages: ocr.<Field>.words, join ----------------------------------
 	var texts []FieldText
 	if err := timings.Time(StageOcr, func() (e error) {
-		texts, e = OcrFields(fieldWords, bareType, ocrOpts, r.cyr, r.lat, mrzZone)
+		texts, e = OcrFields(fieldWords, bareType, docYear, ocrOpts, r.cyr, r.lat, mrzZone)
 		return
 	}); err != nil {
 		return fail(err)
@@ -545,6 +757,13 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 		return fail(err)
 	}
 
+	// A date read word by word that does not convert is re-read as whole lines, when that
+	// does (_reread_dates_whole). After the stages above are emitted - they keep the split
+	// reading - and before the canonical dates, which must see the final reading.
+	if out.DatesReadWhole, err = rereadDatesWhole(fieldWords, out.Ocr, ocrOpts, r.cyr, r.lat); err != nil {
+		return fail(err)
+	}
+
 	// Canonical dates are built once, on the FINISHED dict, after the ruler cleanup:
 	// the reference's _normalize_dates runs after _ocr, which is where the cleanup
 	// happens too, so nothing upstream sees a rewritten value (pipeline.py:1144-1159).
@@ -553,6 +772,25 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 		order = append(order, ft.Label)
 	}
 	out.OcrNormalized = NormalizeDates(out.Ocr, order)
+
+	// The leasing flag from the STS special marks, alongside the reading (_read_leasing); the
+	// special marks themselves stay as read. Every STS back - the side with the special marks
+	// - emits the stage, null when there is no leasing: a port that misses a leasing record
+	// must differ from the reference, not be skipped. The front has no marks to read.
+	if len(fieldWords) > 0 && strings.HasPrefix(strings.ToUpper(bareType), "STS") {
+		if rec := ParseLeasing(out.Ocr["Special_marks"]); rec != nil {
+			out.Leasing = reportedLeasing(rec)
+		}
+		if strings.HasPrefix(strings.ToUpper(bareType), "STSBACK") {
+			var payload any
+			if out.Leasing != nil {
+				payload = out.Leasing
+			}
+			if err := sink.Emit("leasing", payload); err != nil {
+				return fail(err)
+			}
+		}
+	}
 
 	out.Timings = timings.Report()
 	return out, nil

@@ -48,7 +48,8 @@ refcli/     the Python REFERENCE cli; the only package here that may import
 runner/     the CHECKER; imports no port and no library, drives everything by
             subprocess
 deviations.json  declared, dated, scoped differences that are NOT a red; the
-            verdict is CLEAN / DECLARED / UNDECLARED, and only the last fails.
+            verdict is CLEAN / DECLARED / UNDECLARED, and only the last fails
+            (a case that could not be compared at all reads NOT VERIFIED and fails).
             See spec/tolerances.md and deviations.py before adding an entry.
 cases/      golden data, one directory per document (~170 KB total)
 tools/      operational helpers, not part of the contract

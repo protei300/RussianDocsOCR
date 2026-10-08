@@ -10,7 +10,16 @@ import net.russiandocs.docproc.postprocess.Box
 import java.io.File
 
 /** One detected field: its box and the cropped patch. **The patch is owned by the holder.** */
-public class Field(public val box: Box, public val patch: Image) : AutoCloseable {
+public class Field(
+    public val box: Box,
+    public val patch: Image,
+    /**
+     * Where the patch lies on the canvas the box was found on — the map from the patch AS CUT (before the
+     * series/number turn) to the canvas (`FieldFrames`, geometry.py). Set by the pipeline, which knows the canvas;
+     * null for a field nobody placed.
+     */
+    public var cutMap: net.russiandocs.docproc.geometry.PointMap? = null,
+) : AutoCloseable {
     override fun close(): Unit = patch.close()
 }
 

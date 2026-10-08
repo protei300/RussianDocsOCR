@@ -13,7 +13,43 @@ namespace RussianDocs.DocumentProcessing.Modules;
 public sealed class Field(Box box, Image patch) : IDisposable
 {
     public Box Box { get; } = box;
-    public Image Patch { get; } = patch;
+    public Image Patch { get; private set; } = patch;
+
+    /// <summary>
+    /// Where the patch AS CUT lies on the canvas (<c>FieldFrames</c>, geometry.py): its top-left corner, and its
+    /// size - before the series/number turn, which changes <see cref="Patch"/> but not the frame. The map from the
+    /// patch to the canvas is a shift by this corner.
+    /// </summary>
+    public (int X, int Y) Origin { get; private set; } = ((int)box.X1, (int)box.Y1);
+
+    /// <summary>Width of the patch as cut (see <see cref="Origin"/>).</summary>
+    public int CutWidth { get; private set; } = patch.Width;
+
+    /// <summary>Height of the patch as cut (see <see cref="Origin"/>).</summary>
+    public int CutHeight { get; private set; } = patch.Height;
+
+    /// <summary>
+    /// Swaps the crop that is read for another one cut from the same canvas (a field labelled tight to
+    /// its letters is re-cut with a margin, <c>Pipeline._read_margins</c>); the box is unchanged, the frame
+    /// moves with the crop. The old crop is released.
+    /// </summary>
+    /// <summary>Sets the size of the patch as cut, when it differs from the patch (the turned series/number).</summary>
+    public Field WithCut(int width, int height)
+    {
+        CutWidth = width;
+        CutHeight = height;
+        return this;
+    }
+
+    public void ReplacePatch(Image patch, int originX, int originY)
+    {
+        Image old = Patch;
+        Patch = patch;
+        Origin = (originX, originY);
+        CutWidth = patch.Width;
+        CutHeight = patch.Height;
+        old.Dispose();
+    }
 
     public void Dispose() => Patch.Dispose();
 }
@@ -75,13 +111,14 @@ public sealed class TextFieldsDetector : IDisposable
             {
                 Image patch = Crop.ClampedCrop(canvas, (int)box.X1, (int)box.Y1,
                     (int)box.X2, (int)box.Y2);
+                int cutW = patch.Width, cutH = patch.Height;
                 if (rotateLicence && box.Label == "Licence_number")
                 {
                     Image rotated = Rotate90Ccw(patch);
                     patch.Dispose();
                     patch = rotated;
                 }
-                fields.Add(new Field(box, patch));
+                fields.Add(new Field(box, patch).WithCut(cutW, cutH));
             }
             return fields;
         }

@@ -167,11 +167,18 @@ class PageRegistrar:
             its own lines and text-line profiles (``line_refine``).
         line_dewarp: then unbend it by the local tilt of its text lines
             (``line_dewarp``; the spine bend a homography cannot express).
+        fill: what the warp puts where the page runs past the photo. None (the
+            default, the passport path) repeats the edge pixels; an RGB tuple
+            paints that colour. A card cut off by the frame and warped by its
+            template otherwise grows streaks of smeared edge into the canvas,
+            where the field detector reads them as print.
     """
 
     def __init__(self, doc_type: str = 'INTPASSPORT', templates_dir: Optional[Path] = None,
                  nfeatures: int = 6000, use_ecc: bool = False, line_quads: bool = True,
-                 line_refine: bool = True, line_dewarp: bool = True):
+                 line_refine: bool = True, line_dewarp: bool = True,
+                 fill: Optional[tuple] = None):
+        self.fill = fill
         self.line_quads = line_quads
         self.line_refine = line_refine
         self.line_dewarp = line_dewarp
@@ -469,10 +476,17 @@ class PageRegistrar:
                           [m, m + self.page_h]]) * np.float32([scale, scale])
         return cv2.getPerspectiveTransform(src.astype(np.float32), dst.astype(np.float32))
 
-    def warp_matrix(self, img_rgb: np.ndarray, M: np.ndarray, scale: float = 1.0) -> np.ndarray:
-        """The warp both ``warp_quad`` and ``warp_page`` apply, given its matrix."""
+    def warp_matrix(self, img_rgb: np.ndarray, M: np.ndarray, scale: float = 1.0,
+                    fill: Optional[tuple] = None) -> np.ndarray:
+        """The warp both ``warp_quad`` and ``warp_page`` apply, given its matrix.
+
+        ``fill`` overrides the registrar's own (see the class docstring) for this call."""
+        fill = fill if fill is not None else self.fill
+        if fill is None:
+            return cv2.warpPerspective(img_rgb, M, self.out_size(scale), flags=cv2.INTER_LINEAR,
+                                       borderMode=cv2.BORDER_REPLICATE)
         return cv2.warpPerspective(img_rgb, M, self.out_size(scale), flags=cv2.INTER_LINEAR,
-                                   borderMode=cv2.BORDER_REPLICATE)
+                                   borderMode=cv2.BORDER_CONSTANT, borderValue=tuple(int(v) for v in fill))
 
     def warp_quad(self, img_rgb: np.ndarray, quad: np.ndarray, scale: float = 1.0) -> np.ndarray:
         """Warp a photo quad (page edges, e.g. from Borders) into the canonical

@@ -70,6 +70,8 @@ export interface Field {
     name: string
     display: string
     value: string | null
+    /** A date field's canonical dd.mm.yyyy; absent when the reading did not convert. */
+    normalized?: string
     script: 'ru' | 'en' | 'num'
     conf: number | null
     box_ids: string[]

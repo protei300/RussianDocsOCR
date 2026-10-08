@@ -2,10 +2,10 @@
   "stage": "borders.canvas",
   "dtype": "uint8",
   "shape": [
-    1231,
-    1018,
+    1386,
+    1133,
     3
   ],
-  "sha256": "78b1be1db5ed1852a7423d857c22c6334daa7048f0905a6726606b5296b361ca",
+  "sha256": "6876e8d92cbdd20124d453be7306a4946dfb60ba693abc8350a9017a3c38e8db",
   "note": "pixels are not committed; regenerate with `python -m conformance.refcli regen --with-pixels` to compare magnitudes"
 }

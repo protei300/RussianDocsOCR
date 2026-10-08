@@ -32,7 +32,8 @@ other document here exists to support this one.
 
 | # | Stage | Payload | Type |
 |---|---|---|---|
-| 1 | `prepare` | decoded, RGB, resized to `img_size` | `.npy` `uint8 (H,W,3)` |
+| 0 | `documents` | documents found in the frame, largest first: `[{box, conf, pages: [[x1,y1,x2,y2], ...]}]`, boxes on the input image (rounded to 0.1 px); empty when none was found and the whole frame is read | `.json` |
+| 1 | `prepare` | decoded, RGB, the crop of the first document (box + 3 % of its longer side, cut at full resolution) or the whole frame, resized to `img_size` | `.npy` `uint8 (H,W,3)` |
 | 2 | `doctype.label` | `{doc_type, doc_type_confidence, angle, angle_confidence}` | `.json` |
 | 3 | `rotate` | image rotated upright by `angle // 90` | `.npy` `uint8` |
 | 4 | `quality` | `{Glare, Blur, PrintSpoofing, LCDSpoofing, DocConf}` | `.json` |
@@ -42,8 +43,10 @@ other document here exists to support this one.
 | 8 | `fields.bbox` | text-field detections, `[x1,y1,x2,y2,conf,cls,label]` | `.json` |
 | 9 | `address.lines` | per-line address metadata (INTPASSPORTADDR only) | `.json` |
 | 10 | `words.<Field>.bbox` | word boxes within each detection of one field | `.json` |
+| 10a | `quads` | the way back to the input image (`document_processing/geometry.py`): `{fields: {<Field>: [quad, ...]}, words: {<Field>: [quad, ...]}, address_lines: [quad, ...]}`, each quad `[[x,y] x4]` from the box's top-left corner, unrounded; `fields`/`words` are `null` when the run's way back is not known; `address_lines` only when the address path ran | `.json` |
 | 11 | `ocr.<Field>.words` | the per-word strings of one field, after `fix_errors` | `.json` |
 | 12 | `join` | the assembled OCR dict, after field joining | `.json` |
+| 12a | `leasing` | `results.leasing` of an STS: `{"leasing": true}` or `null` (STS back only - the side with the special marks) | `.json` |
 | 13 | `viewmodel` | the final client-facing JSON (== `recognize` output) | `.json` |
 
 `borders.segments` comes BEFORE `borders.canvas` because the contours are upstream of
@@ -58,6 +61,24 @@ number twice) and the pipeline concatenates their words. An entry of `null` mean
 field needs no splitting, so its whole patch is the single word — which is a different
 thing from a detector that found exactly one word, and a port that split a field it
 should not have would otherwise look like agreement.
+
+`quads` is the way back from the canvas to the input image (PR #19, issue #18): where
+every read field, every word patch and every registration-address line lies on the photo
+the caller passed in. Nothing else in the harness checks it - every other box stage is on
+the canvas - so before this stage a port without the way back ran green (decision #132
+asked for it together with the STS). It comes right after the word split, where the
+library computes it; the numbers are unrounded corners graded as coordinates (the GPU
+profile's sub-pixel allowance applies, see `compare.py`). `null` for `fields` and
+`words` means a stage of this run kept no map (`geometry.Unknown`) and is a different
+answer from any set of quadrilaterals.
+
+`documents` comes FIRST because since decision #142 (2026-10-01) everything else reads
+the crop of one document rather than the whole frame: a port that finds a different
+box cuts a different crop, and every later stage then differs for that reason alone.
+The detector reads the frame resized to `img_size` (as `prepare` used to); its boxes
+are scaled back to the input image, and the crop is cut there at full resolution, so
+`prepare` is the crop resized, not the frame. Compare the boxes like detections
+(`fields.bbox`): a box on the rounding edge moves the crop by one pixel.
 
 `viewmodel` is produced by the conformance CLI rather than by the library: the
 view-model transform lives on the library side of a port (see `DEVIATIONS.md`

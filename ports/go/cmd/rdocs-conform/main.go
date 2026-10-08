@@ -39,11 +39,11 @@ const (
 // against the golden, so this list is the honest statement of progress — keep it
 // exact, because overstating it turns a skip into a failure.
 var stagesImplemented = []string{
-	"prepare", "doctype.label", "rotate", "quality",
+	"documents", "prepare", "doctype.label", "rotate", "quality",
 	"borders.segments", "borders.canvas", "deskew.canvas",
 	// `words.<Field>.bbox` is a PATTERN, expanded by the checker: which fields exist
 	// depends on the document, so a port claims the shape rather than the names.
-	"fields.bbox", "words.<Field>.bbox", "ocr.<Field>.words", "join", "viewmodel",
+	"fields.bbox", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel",
 }
 
 // errNotImplemented signals exit code 2.

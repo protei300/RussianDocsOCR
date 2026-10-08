@@ -10,6 +10,7 @@ import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.imgproc.Imgproc
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * One field's word crops.
@@ -21,6 +22,12 @@ public class FieldWords(
     public val label: String,
     public val patches: MutableList<Image> = mutableListOf(),
     public val wordBoxes: MutableList<List<Box>?> = mutableListOf(),
+    /**
+     * How many words each DETECTION of the field contributed, in reading order — `Pipeline._field_lines`. The
+     * words of a multi-line field are joined flat, and a word torn by a line break is found at the boundary of
+     * two lines; this is what cuts the flat list back into lines ([StsMarks.glueTornWords]).
+     */
+    public val lineWordCounts: MutableList<Int> = mutableListOf(),
 ) : AutoCloseable {
     override fun close() {
         patches.forEach { it.close() }
@@ -46,12 +53,29 @@ public data class WordsFallback(val field: String, val line: Int, val gap: Doubl
  */
 public data class WordsNoInk(val field: String, val line: Int, val ink: Double)
 
-/** What word splitting produced: the per-field crops plus the two guard reports. */
+/**
+ * What word splitting produced: the per-field crops plus the two guard reports.
+ *
+ * [dateLines] are the WHOLE field crops of the date fields that were read word by word, kept for the
+ * whole-line re-read (`Pipeline._date_lines`, see [RereadDates]). They are BORROWED from the detected fields,
+ * not owned: they stay valid exactly as long as the caller keeps those fields open, and must not be closed
+ * here or by [closeAll].
+ */
 public class SplitResult(
     public val fields: List<FieldWords>,
     public val fallback: List<WordsFallback>,
     public val noInk: List<WordsNoInk>,
+    public val dateLines: Map<String, List<Image>> = emptyMap(),
+    /**
+     * The fields that contribute to the reading, top to bottom — the order `_split_words` walks them in — each with
+     * the boxes its words were found at (null: the field needed no splitting). What `_field_quads` needs to say
+     * where fields and words lie on the photo ([FieldQuads]). BORROWED, like [dateLines].
+     */
+    public val kept: List<KeptField> = emptyList(),
 )
+
+/** One detected field that is read, and the word boxes found on its patch (null — not split). */
+public class KeptField(public val field: Field, public val wordBoxes: List<Box>?)
 
 public object SplitWords {
 
@@ -98,7 +122,7 @@ public object SplitWords {
         words: WordsDetector,
         docType: String,
     ): SplitResult {
-        val drop = duplicateFieldIndices(fields)
+        val drop = duplicateFieldIndices(fields) + pairedDuplicateIndices(fields.map { it.box })
 
         var kept = fields.indices.filter { i ->
             i !in drop && options.isOcrField(fields[i].box.label)
@@ -174,7 +198,25 @@ public object SplitWords {
             }
         }
 
+        // Whole lines of the date fields that were read word by word, kept for the whole-line re-read
+        // (`_date_lines`, pipeline.py _split_words): the split can drop a word without leaving a hole wide
+        // enough for the gap guard — on a real 1998 birth certificate the day, pressed against the left edge
+        // of the field crop, was not taken for a word at all. SNILS is excluded for the same parity reason as
+        // above; a line the guard already reads whole has nothing to add. Insertion order is the order of
+        // `kept`, which is the order the re-read walks them in.
+        val dateLines = LinkedHashMap<String, MutableList<Image>>()
+        if (docType != "SNILS") {
+            val splitSet = splitIndices.toHashSet()
+            for (i in kept) {
+                val label = fields[i].box.label
+                if (i in splitSet && label.contains("date", ignoreCase = true) && i !in wholeLine) {
+                    dateLines.getOrPut(label) { mutableListOf() } += fields[i].patch
+                }
+            }
+        }
+
         val output = mutableListOf<FieldWords>()
+        val keptFields = ArrayList<KeptField>()
         val position = HashMap<String, Int>()
         try {
             for (i in kept) {
@@ -204,16 +246,19 @@ public object SplitWords {
                     boxes = null
                 }
 
+                keptFields += KeptField(fields[i], boxes)
+
                 val at = position[label]
                 if (at != null) {
                     output[at].patches.addAll(patches)
                     output[at].wordBoxes.add(boxes)
+                    output[at].lineWordCounts.add(patches.size)
                     continue
                 }
                 position[label] = output.size
-                output += FieldWords(label, patches, mutableListOf(boxes))
+                output += FieldWords(label, patches, mutableListOf(boxes), mutableListOf(patches.size))
             }
-            return SplitResult(output, fallback, noInk)
+            return SplitResult(output, fallback, noInk, dateLines, keptFields)
         } catch (e: Throwable) {
             closeAll(output)
             throw e
@@ -281,6 +326,49 @@ public object SplitWords {
                 laplacian.release()
             }
         }
+    }
+
+    /**
+     * IoU above which a `<name>_ru` box and a `<name>_en` box are one line read as both fields.
+     * `Pipeline.PAIRED_DUPLICATE_IOU`. Real pairs sit apart: ru/en lines of an external passport overlap at
+     * 0.2-0.3, of a driving licence at up to 0.5 (labels, 2026-09-26); the duplicates seen on a retrained
+     * detector overlap at 0.97-1.00.
+     */
+    public const val PAIRED_DUPLICATE_IOU: Double = 0.8
+
+    /**
+     * Indices of the weaker box wherever a `<name>_ru` and a `<name>_en` box cover the same line.
+     * `Pipeline._paired_duplicate_indices` (`7e421957`).
+     *
+     * NMS runs per class on purpose (the ru/en pairs must not suppress each other), so nothing else removes a
+     * line the detector labels as BOTH languages. Seen on a retrained TextFields (2026-09-26): «Г. ВОЛГОГРАД/USSR»
+     * came out as Birth_place_ru at 0.92 and Birth_place_en at 0.62 on the same box, and the Latin engine read
+     * the Cyrillic line into Birth_place_en. The more confident label keeps the line; on a tie the Russian one.
+     */
+    public fun pairedDuplicateIndices(boxes: List<Box>): Set<Int> {
+        fun iou(a: Box, b: Box): Double {
+            val w = min(a.x2, b.x2) - max(a.x1, b.x1)
+            val h = min(a.y2, b.y2) - max(a.y1, b.y1)
+            if (w <= 0 || h <= 0) {
+                return 0.0
+            }
+            val inter = w * h
+            return inter / ((a.x2 - a.x1) * (a.y2 - a.y1) + (b.x2 - b.x1) * (b.y2 - b.y1) - inter)
+        }
+
+        val drop = HashSet<Int>()
+        for (i in boxes.indices) {
+            if (!boxes[i].label.endsWith("_ru")) {
+                continue
+            }
+            val name = boxes[i].label.dropLast(3)
+            for (j in boxes.indices) {
+                if (boxes[j].label == name + "_en" && iou(boxes[i], boxes[j]) > PAIRED_DUPLICATE_IOU) {
+                    drop += if (boxes[i].conf >= boxes[j].conf) j else i
+                }
+            }
+        }
+        return drop
     }
 
     /**

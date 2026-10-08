@@ -242,13 +242,17 @@ def main():
     parser.add_argument('--page-geometry', action='store_true',
                         help='template-free page geometry for every document type: line-fitted '
                              'quads, line straightening, bend map (Pipeline(page_geometry=True))')
+    parser.add_argument('--no-detect-documents', action='store_false', dest='detect_documents',
+                        help='read the whole frame instead of finding the documents first '
+                             '(Pipeline(detect_documents=False)); finding them is the default since 2026-10-01')
     args = parser.parse_args()
 
     from document_processing import Pipeline
     pipeline = Pipeline(model_format=args.format, device=args.device,
                         ocr=args.ocr, verbose=False,
                         page_registration=args.page_registration,
-                        page_geometry=args.page_geometry)
+                        page_geometry=args.page_geometry,
+                        detect_documents=args.detect_documents)
 
     overall, by_doctype = eval_samples(pipeline, args.input, limit=args.limit)
     print(f'==== {args.input} ====')
