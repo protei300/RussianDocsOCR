@@ -30,7 +30,7 @@ def _enable_cuda_dlls() -> None:
 
 _enable_cuda_dlls()
 
-__version__ = '4.7.1'
+__version__ = '4.7.2'
 
 from .pipeline.pipeline import Pipeline
 

@@ -251,8 +251,15 @@ def test_a_stage_with_no_way_back_leaves_no_quadrilaterals():
     assert results.word_quads is None
 
 
+@pytest.fixture(scope='module')
+def real_pipeline():
+    # One pipeline for every sample: a fresh one per sample held three full model sets at
+    # once and pushed the CI runner (7 GB) over its memory (2026-10-08).
+    return Pipeline(model_format='ONNX', device='cpu', verbose=False)
+
+
 @pytest.mark.parametrize('sample', SAMPLES, ids=[s.name for s in SAMPLES])
-def test_a_field_of_a_real_sample_is_cut_from_the_photo_by_its_quadrilateral(sample):
+def test_a_field_of_a_real_sample_is_cut_from_the_photo_by_its_quadrilateral(sample, real_pipeline):
     """The check a synthetic mark cannot make: the same pixels, to a fraction of a pixel.
 
     The pipeline cut the field out of its canvas; cutting the same field out of the
@@ -276,7 +283,7 @@ def test_a_field_of_a_real_sample_is_cut_from_the_photo_by_its_quadrilateral(sam
     # luck with the v6 classifier and turned the public one-page sample into NONE with v7.
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    results = Pipeline(model_format='ONNX', device='cpu', verbose=False).process_img(
+    results = real_pipeline.process_img(
         image, ocr=False, check_quality=False,
     )
     bboxes = results.meta_results['TextFieldsDetector']['bbox']
