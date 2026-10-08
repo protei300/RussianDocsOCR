@@ -238,26 +238,32 @@ What the port had to get exactly, found by measurement:
   is). This holds for the passport canvas too; the port used to run the deskew on it, which was a no-op
   below the 2 degree threshold.
 
-**Conformance, 2026-10-08, cpu, models-v10 goldens, 14 cases:** ten clean (the eight earlier ones and
-`STS_1996`, `STSBACK_1996` - every stage), the two internal passports differ by the declared D-03, and two
-STS cases are not clean: `STSBACK_2019` differs in one box edge (`fields.bbox[9]` y2, 846 against 845; one
-pixel of its canvas differs by one grey level) and `STS_2019` differs from `borders.canvas` on (the canvas
-is cut from the template here and from the Borders quad in the golden). Measured cause of both:
+**Conformance, 2026-10-08 (after the platform-free SIFT cut below), cpu, models-v10 goldens, 14 cases:** twelve
+clean - the eight earlier ones and all four STS cases, every stage - and the two internal passports differ by
+the declared D-03 only. D-07 and D-08, declared for `STS_2019` and `STSBACK_2019`, matched nothing and are STALE.
 
-- **The goldens were recorded on Windows; the registration of a card is not reproducible on Linux.**
-  OpenCV's SIFT keeps at most `nfeatures` keypoints with `std::nth_element`, and the order that leaves
-  the keypoints in depends on the standard library that was built into OpenCV. The template keypoints of
-  `sts_2019_new.jpg` come out in a different ORDER (the same 4972 points) in the Windows wheel and on
-  Linux. MAGSAC samples correspondences by index, so it ends in a different homography when the
-  consensus is not overwhelming: 1670 against 1760 coarse inliers on `STS_2019`, which flips the card-skew
-  decision (0.0076 against 0.0118, the threshold is 0.01) and the canvas is cut from the template
-  instead of kept from the Borders quad. Checked by running the REFERENCE's own `PageRegistrar` on Linux
-  (opencv-python-headless 4.12.0 in the grading container): it gives this port's numbers, to the last
-  digit, on both 2019 cases - coarse 1760 inliers, `H` 1.0989005002674674 ..., and for `STSBACK_2019`
-  `H[0][0]` 0.7994596886243793 against 0.7994596889952418 recorded on Windows (that 4e-10 is the one
-  moved pixel of its canvas and the one box edge). So the port agrees with the reference on the same
-  platform; the golden of `STS_2019` cannot be reproduced on Linux by any port, Python included. It needs
-  either a golden recorded where the grading runs or a declared deviation.
+**What those two entries were, and how the port stopped depending on it (4.7.1).** OpenCV's SIFT orders its
+keypoints with `std::sort` and cuts the `nfeatures` budget with `std::nth_element`; the order of equal elements
+depends on the C++ library OpenCV was built with. MAGSAC samples correspondences by index, so the Windows
+wheel (the goldens) and Linux (the grading container) reached different homographies on the card of the 2019
+form, which flipped the card-skew decision (0.0076 against 0.0118, threshold 0.01). Measured at the time by
+running the reference's own `PageRegistrar` on Linux: it agreed with this port to the last digit. The
+reference now removes the dependency, and so does the port:
+
+- `SiftFeatures` (`PageRegistration/SiftFeatures.cs`, `detect_features`): SIFT is created with `nFeatures: 0`
+  (no budget inside OpenCV), detects the whole set, and the keypoints are ordered HERE - response descending,
+  then y, x, size, angle, octave ascending, in double, stable - and the budget (6000) is cut from that order;
+  the descriptor rows follow their keypoints. Used for the template points (with their mask), the photo's
+  points and the points of the straightened page in the refinement.
+- `Match` re-fits after MAGSAC when `PageRegistrar` is built with `refitRounds > 0`: least squares
+  (`FindHomography` method 0) on the current inliers, inliers again by the reprojection error (float32, below the
+  threshold), up to that many times, stopping on an unchanged set or fewer than 8 (the last re-fitted
+  homography is kept even then). The card's registrar uses `Recognizer.CardRefitRounds = 5`; the passport path
+  keeps 0 (the reference measured the re-fit costing 5 of 100 exact fields there).
+
+Tests (`SiftOrderTests`): the order OpenCV hands over does not matter, ties on the response break by y then x,
+the budget keeps the strongest, the descriptors follow their keypoints; they go red with the response key
+changed or the position tie-break removed.
 
 ## N-14 - The way back from the canvas to the photo (PR #19), 2026-10-08
 
@@ -281,7 +287,7 @@ turn of its canvas).
 
 What differs from the reference, with the reason: the internal passport is fed to the field detector as the
 stitched canvas, not page by page (see N-12 / D-03), so its quadrilaterals follow the field boxes of the same
-two cases and differ with them by the same 1-3 px (the stage `quads` is in the scope of D-03, D-07 and D-08).
+two cases and differ with them by the same 1-3 px (the stage `quads` is in the scope of D-03; D-07 and D-08, which it was also in, are stale).
 A spread that is not registered is deskewed as one canvas here and page by page in the reference, so its map
 differs too; the registered one (the default) is not deskewed in either.
 

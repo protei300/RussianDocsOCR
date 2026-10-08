@@ -56,6 +56,7 @@ func (r *Recognizer) cardRegistrar(label string) (*modules.PageRegistrar, error)
 		}
 		return nil, err
 	}
+	reg.RefitRounds = CardRefitRounds
 	r.cardRegs[label] = reg
 	return reg, nil
 }
@@ -155,3 +156,9 @@ func (r *Recognizer) registerCard(img imaging.Image, label string,
 		Scale: 1.0, Geo: pageGeo}})
 	return straightened, geo, true, nil
 }
+
+// CardRefitRounds is Pipeline.CARD_REFIT_ROUNDS: least-squares re-fits after MAGSAC in the card's
+// template match (PageRegistrar.RefitRounds): the skew decision (CardSkewKeep) must not move with
+// MAGSAC's samples. The passport path keeps 0 - there the template only locates the page, and the
+// re-fit cost 5 of 100 exact fields on the 1997 passports (measured by the reference, 2026-10-08).
+const CardRefitRounds = 5

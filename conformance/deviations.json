@@ -19,7 +19,7 @@
       "ports": ["go", "dotnet"],
       "cases": ["INTPASSPORT_1997-15_CR_INTPASSPORT_2001", "INTPASSPORT_2011-12_CR_INTPASSPORT_2011"],
       "stages": ["fields.bbox", "words.*.bbox", "quads", "ocr.*.words", "join", "viewmodel"],
-      "reason": "The ports carry the passport page registration (page_registration/: template locator, quad fit, line refinement, line dewarp) and reproduce the canvas of both internal-passport cases exactly (borders.canvas and deskew.canvas match). What does not converge bitwise is the line refinement. Its line evidence is the same since 2026-10-08: both ports call the reference's cv::createLineSegmentDetector (.NET through OpenCvSharp's LineSegmentDetector, which the first port had missed; Go through a small C++ shim, gocv 0.43 does not bind it), raw segments equal to the reference's; until then they used Canny+HoughLinesP. What remains is the 4-parameter IRLS fit on a hand-written Levenberg-Marquardt instead of scipy.optimize.least_squares (trf) and a RANSAC that does not draw NumPy's PCG64 samples - with LSD in place the Go port runs INTPASSPORT_1997 clean and keeps 4 differences on 2011, .NET 442 differences against 446 before. A slightly different refinement homography moves the field boxes by 1-7 px on Go (median 1, p90 3) and 1-10 px on .NET, shifts detector confidences by up to 0.03, and on each case flips one character of one field where the crop edge crosses a glyph (Birth_date '03.ABTYCT' vs '03.ABRYCT' on 1997; Birth_place_ru 'С.' vs 'С' on 2011 for .NET). Measured 2026-09-21 on the models-v6 goldens; both ports are deterministic run to run (RANSAC seeded). D-01 (MRZ re-read ladder) retired the same day: all three ports carry the ladder now and the entry matched nothing. In this tree both passport cases are withdrawn (W-01, W-04), so this entry records the ports' state and matches nothing here until a synthetic replacement returns the cases.",
+      "reason": "The ports carry the passport page registration (page_registration/: template locator, quad fit, line refinement, line dewarp) and reproduce the canvas of both internal-passport cases exactly (borders.canvas and deskew.canvas match). What does not converge bitwise is the line refinement. Its line evidence is the same since 2026-10-08: both ports call the reference's cv::createLineSegmentDetector (.NET through OpenCvSharp's LineSegmentDetector, which the first port had missed; Go through a small C++ shim, gocv 0.43 does not bind it), raw segments equal to the reference's; until then they used Canny+HoughLinesP. What remains is the 4-parameter IRLS fit on a hand-written Levenberg-Marquardt instead of scipy.optimize.least_squares (trf) and a RANSAC that does not draw NumPy's PCG64 samples - with LSD in place and the platform-free keypoint order of 4.7.1 (which moved the goldens of both passports) both cases still differ on Go and .NET by 1-3 px in the field boxes (.NET: 947 differences on the two cases). A slightly different refinement homography moves the field boxes by 1-7 px on Go (median 1, p90 3) and 1-10 px on .NET, shifts detector confidences by up to 0.03, and on each case flips one character of one field where the crop edge crosses a glyph (Birth_date '03.ABTYCT' vs '03.ABRYCT' on 1997; Birth_place_ru 'С.' vs 'С' on 2011 for .NET). Measured 2026-09-21 on the models-v6 goldens; both ports are deterministic run to run (RANSAC seeded). D-01 (MRZ re-read ladder) retired the same day: all three ports carry the ladder now and the entry matched nothing. In this tree both passport cases are withdrawn (W-01, W-04), so this entry records the ports' state and matches nothing here until a synthetic replacement returns the cases.",
       "basis": "user decision of 2026-09-19 (release 4.5.0 in one window with the ports; a residual that cannot be made pixel-exact is declared with its measured size rather than left to hold the release); measured on the ports' conformance reports of 2026-09-21",
       "declared": "2026-09-21",
       "owner": "release 4.5.0 (maintainer)",
@@ -95,30 +95,6 @@
       "declared": "2026-09-27",
       "owner": "основная сессия (выпуск 4.6.0)",
       "removed_when": "quad_fit's RANSAC in the Kotlin port draws the same samples as the reference (a PCG64 port), or the spare-page cut is otherwise shown to match - then this case runs clean and the entry goes stale and must be deleted"
-    },
-    {
-      "id": "D-07-sts-card-template-match-platform-dependent",
-      "ports": ["go", "dotnet", "java"],
-      "cases": ["STS_2019-synth_01_STS_2019"],
-      "stages": ["borders.canvas", "deskew.canvas", "fields.bbox", "words.*.bbox", "quads", "ocr.*.words", "join", "viewmodel"],
-      "reason": "Not a port defect: the REFERENCE itself decides this card differently on another platform. The card's canvas is rebuilt from its printed blank only when the Borders canvas is skewed by >= 1 % (Pipeline.CARD_SKEW_KEEP); this card measures 0.0076 on the Windows wheel the goldens were written with, so the reference keeps the Borders canvas. The skew comes from a MAGSAC homography over SIFT matches, and SIFT with nfeatures=6000 cuts its points with std::nth_element, whose order depends on the C++ library OpenCV was built with. The reference Python run on Linux (opencv-python-headless 4.12 in the .NET port's container) gives the ports' numbers to the last digit: 1760 coarse matches against 1670, skew 0.0118, the card re-cut from the template, canvas 1414x1013 against 1387x963. The same reference on the same Windows machine with cv2.setUseOptimized(False) flips too (1353 inliers against 1038, skew 0.0112). Every port then reads a different canvas and everything after borders.segments differs. With the threshold moved to match the reference's decision the Kotlin port runs all 43 stages clean, so the kept-Borders branch, the fields and the reading are exact. Measured 2026-10-08.",
-      "basis": "decision of 2026-10-07 that the ports release together with Python and are released only with conformance CLEAN or DECLARED; the 2026-09-19 rule that a residual which cannot be made exact is declared with its measured size",
-      "declared": "2026-10-08",
-      "owner": "release 4.7.0 (maintainer)",
-      "removed_when": "the card's template match gives the same decision on every platform (a platform-independent keypoint cut in the reference, e.g. nfeatures=0 plus a stable sort, with goldens regenerated), or the goldens are written on the platform the ports are checked on - then this case runs clean and the entry goes stale and must be deleted",
-      "kind": "deviation"
-    },
-    {
-      "id": "D-08-sts-card-homography-last-bits",
-      "ports": ["go", "dotnet", "java"],
-      "cases": ["STSBACK_2019-synth_01_STSBACK_2019"],
-      "stages": ["fields.bbox", "words.*.bbox", "quads", "viewmodel"],
-      "reason": "The same platform dependence as D-07, at a size that does not change any decision: the template homography of this card differs in the 10th digit (H[0][0] 0.7994596886 on Linux against 0.7994596890 in the Windows goldens; the reference Python on Linux gives the ports' value), the card corner moves by about 0.04 px, and one edge of one field box rounds the other way (fields.bbox[9] y2 846 against 845, and the same box in the view model). 284 matches on both sides; the recognised text and the leasing stage are identical. Measured 2026-10-08.",
-      "basis": "as D-07",
-      "declared": "2026-10-08",
-      "owner": "release 4.7.0 (maintainer)",
-      "removed_when": "as D-07: the template match is made platform-independent in the reference or the goldens are written where the ports are checked - then this case runs clean and the entry goes stale and must be deleted",
-      "kind": "deviation"
     }
   ]
 }

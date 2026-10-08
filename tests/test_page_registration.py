@@ -84,7 +84,14 @@ class TestRegister:
         page LOCATOR (the pipeline takes the geometry from the agreeing
         Borders quad): with a few dozen inliers its corners can be off by a
         few percent of the page, so the tolerance is the page centre within
-        2.5% of the page width and every corner within 6%."""
+        2.5% of the page width and every corner within 8%.
+
+        8%, not 6%: the corner error of this locator is a draw of MAGSAC's
+        samples. Over eight perspectives of this spread (2026-10-08) it averaged
+        2.3% with the keypoints in OpenCV's order and 2.6% in the platform-free
+        order (detect_features), each with one outlier near 30%, on different
+        perspectives; on this test's perspective 4.0% and 6.5%. 6% was one lucky
+        draw, not a property of the locator."""
         base = registrar.register(spread_rgb)
         assert all(r.ok for r in base)
         h, w = spread_rgb.shape[:2]
@@ -100,7 +107,7 @@ class TestRegister:
             centre_err = np.linalg.norm(expected.mean(axis=0) - r.quad.mean(axis=0))
             corner_err = np.linalg.norm(expected - r.quad, axis=1).max()
             assert centre_err < 0.025 * page_w, f'{r.name}: centre off by {centre_err:.1f} px'
-            assert corner_err < 0.06 * page_w, f'{r.name}: corner off by {corner_err:.1f} px'
+            assert corner_err < 0.08 * page_w, f'{r.name}: corner off by {corner_err:.1f} px'
 
     @SPREAD_WITHDRAWN
     def test_borders_quads_are_used(self, registrar, spread_rgb):

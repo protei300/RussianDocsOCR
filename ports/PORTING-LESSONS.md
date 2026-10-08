@@ -301,13 +301,16 @@ What was learned, in the order it cost time:
   Go and .NET substituted Canny+HoughLinesP; the switch to the real LSD made both old-form STS cases
   clean. SIFT and `USAC_MAGSAC` are available everywhere — pass the raw flag value 38 where the enum
   is missing, and verify with one real call.
-- **SIFT with an `nfeatures` budget is platform-dependent, in the reference too.** OpenCV cuts the
-  keypoints with `std::nth_element`, whose order depends on the C++ library OpenCV was built with
-  (MSVC on the Windows wheel, libstdc++ in the ports' containers); MAGSAC then samples by index. The
-  reference Python on Linux gives the ports' numbers to the last digit; on STS_2019 the two orders
-  land on either side of the card-skew threshold (D-07). Go can reproduce MSVC's order
-  (`imaging/stlselect.go`, `SiftOrderLikeMsvc`, off by default) — use it to prove a divergence is
-  this and not the port, not to fit the goldens.
+- **SIFT with an `nfeatures` budget is platform-dependent, in the reference too.** OpenCV orders
+  keypoints with `std::sort` and cuts the budget with `std::nth_element`; ties come out in an order
+  that depends on the C++ library OpenCV was built with (MSVC on the Windows wheel, libstdc++ in the
+  ports' containers), and MAGSAC samples by index. On an STS of the 2019 form the two orders landed on
+  either side of the card-skew threshold, and CI (Linux) failed the reference against goldens written
+  on Windows. Fixed in 4.7.1 everywhere at once: SIFT without a budget, keypoints sorted by the
+  implementation itself (response descending, then y, x, size, angle, octave), the budget cut from
+  that order (`detect_features`); and for the STS card a least-squares re-fit after MAGSAC
+  (`refit_rounds`), so the answer stops moving with MAGSAC's samples. Never rely on the order a
+  library hands keypoints over; a test with ties must reach the tied group (a budget of 100 did not).
 - **Load the template exactly the way the reference does.** Kotlin decoded the template PNG with
   `IMREAD_GRAYSCALE`; the reference reads colour and converts with `cvtColor`. The two paths round
   differently, SIFT's contrast threshold then keeps a different keypoint set (521 vs 519 on the same

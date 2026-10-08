@@ -37,7 +37,7 @@ date the word split lost (`pipeline/RereadDates.kt`) and the quote read as a let
 vehicle registration certificate (`OcrOptions` for both sides, the card straightened by its printed blank, read
 margins, the make's engine by form year, torn words and the leasing flag, the `leasing` stage), `Recognizer.runFrame`
 with `PairSides`, and the short return for a `NONE` frame after the borders-first retry. See
-[`ARCHITECTURE.md`](ARCHITECTURE.md) §8 and [`DEVIATIONS.md`](DEVIATIONS.md) `J-19`. The way back to the photo
+[`ARCHITECTURE.md`](ARCHITECTURE.md) §8 and [`DEVIATIONS.md`](DEVIATIONS.md) `J-19` (the SIFT keypoint order, platform-free since 4.7.1). The way back to the photo
 (PR #19, `geometry/`) and the `quads` stage were added the same day: `Results.fieldQuads`, `wordQuads`, `toInput`.
 
 Verify it rather than trusting the table:

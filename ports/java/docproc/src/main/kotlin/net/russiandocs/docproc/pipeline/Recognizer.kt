@@ -1012,7 +1012,7 @@ public class Recognizer(
     private fun cardRegistrar(docType: String): PageRegistrar? = synchronized(cardRegistrars) {
         if (!cardRegistrars.containsKey(docType)) {
             cardRegistrars[docType] = try {
-                PageRegistrar(docType)
+                PageRegistrar(docType, refitRounds = CARD_REFIT_ROUNDS)
             } catch (e: java.io.FileNotFoundException) {
                 null
             }
@@ -1378,6 +1378,12 @@ public class Recognizer(
          * long side. Visible skew starts at about 1.4 % (handoff of 2026-10-02). `Pipeline.CARD_SKEW_KEEP`.
          */
         public const val CARD_SKEW_KEEP: Double = 0.01
+
+        /**
+         * Least-squares re-fits after MAGSAC in the card's template match ([PageRegistrar.refitRounds]): the skew
+         * decision above must not move with MAGSAC's samples. `Pipeline.CARD_REFIT_ROUNDS`.
+         */
+        public const val CARD_REFIT_ROUNDS: Int = 5
 
         public const val QUAD_SAME_PAGE_IOU: Double = 0.40
         public const val QUAD_CLIPPED_IOU: Double = 0.80

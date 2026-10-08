@@ -4,30 +4,30 @@
     {
       "ambiguous": false,
       "cls": 31,
-      "conf": 0.938,
+      "conf": 0.947,
       "display": "Reg_number",
       "id": "b0",
       "kind": "text",
       "label": "Reg_number",
       "text": "P391MB77",
-      "x1": 158,
-      "x2": 334,
-      "y1": 321,
-      "y2": 360
+      "x1": 183,
+      "x2": 364,
+      "y1": 343,
+      "y2": 380
     },
     {
       "ambiguous": false,
       "cls": 32,
-      "conf": 0.936,
+      "conf": 0.93,
       "display": "VIN",
       "id": "b1",
       "kind": "text",
       "label": "VIN",
       "text": "JDKUXW3NNU4XHS9V5",
-      "x1": 166,
-      "x2": 530,
-      "y1": 413,
-      "y2": 452
+      "x1": 191,
+      "x2": 559,
+      "y1": 434,
+      "y2": 472
     },
     {
       "ambiguous": false,
@@ -38,52 +38,52 @@
       "kind": "text",
       "label": "Vehicle_make_ru",
       "text": "HYUNDAI SOLARIS",
-      "x1": 284,
-      "x2": 609,
-      "y1": 462,
-      "y2": 500
+      "x1": 312,
+      "x2": 638,
+      "y1": 483,
+      "y2": 520
     },
     {
       "ambiguous": false,
       "cls": 34,
-      "conf": 0.949,
+      "conf": 0.934,
       "display": "Vehicle_make_en",
       "id": "b3",
       "kind": "text",
       "label": "Vehicle_make_en",
       "text": "HYUNDAI SOLARIS",
-      "x1": 284,
-      "x2": 610,
-      "y1": 510,
-      "y2": 547
+      "x1": 312,
+      "x2": 638,
+      "y1": 529,
+      "y2": 566
     },
     {
       "ambiguous": false,
       "cls": 35,
-      "conf": 0.892,
+      "conf": 0.888,
       "display": "Vehicle_type",
       "id": "b4",
       "kind": "text",
       "label": "Vehicle_type",
-      "text": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)",
-      "x1": 287,
-      "x2": 812,
-      "y1": 562,
-      "y2": 616
+      "text": "ЛЕГКОВОЙ КОМБИ (ХЭТЧВЕК)",
+      "x1": 316,
+      "x2": 833,
+      "y1": 581,
+      "y2": 633
     },
     {
       "ambiguous": false,
       "cls": 36,
-      "conf": 0.941,
+      "conf": 0.948,
       "display": "Vehicle_category",
       "id": "b5",
       "kind": "text",
       "label": "Vehicle_category",
       "text": "B/M1",
-      "x1": 692,
-      "x2": 792,
-      "y1": 619,
-      "y2": 662
+      "x1": 719,
+      "x2": 817,
+      "y1": 635,
+      "y2": 678
     },
     {
       "ambiguous": false,
@@ -94,142 +94,142 @@
       "kind": "text",
       "label": "Vehicle_year",
       "text": "2022",
-      "x1": 445,
-      "x2": 542,
-      "y1": 675,
-      "y2": 711
+      "x1": 473,
+      "x2": 570,
+      "y1": 692,
+      "y2": 728
     },
     {
       "ambiguous": false,
       "cls": 38,
-      "conf": 0.945,
+      "conf": 0.939,
       "display": "Chassis_number",
       "id": "b7",
       "kind": "text",
       "label": "Chassis_number",
       "text": "ОТСУТСТВУЕТ",
-      "x1": 433,
-      "x2": 676,
-      "y1": 726,
-      "y2": 763
+      "x1": 460,
+      "x2": 702,
+      "y1": 741,
+      "y2": 778
     },
     {
       "ambiguous": false,
       "cls": 39,
-      "conf": 0.931,
+      "conf": 0.928,
       "display": "Body_number",
       "id": "b8",
       "kind": "text",
       "label": "Body_number",
       "text": "JDKUXW3NNU4XHS9V5",
-      "x1": 161,
-      "x2": 527,
-      "y1": 824,
-      "y2": 862
+      "x1": 181,
+      "x2": 555,
+      "y1": 840,
+      "y2": 879
     },
     {
       "ambiguous": false,
       "cls": 40,
-      "conf": 0.948,
+      "conf": 0.946,
       "display": "Vehicle_color",
       "id": "b9",
       "kind": "text",
       "label": "Vehicle_color",
       "text": "КРАСНЫЙ",
-      "x1": 193,
-      "x2": 355,
-      "y1": 877,
-      "y2": 923
+      "x1": 214,
+      "x2": 380,
+      "y1": 894,
+      "y2": 941
     },
     {
       "ambiguous": false,
       "cls": 49,
-      "conf": 0.922,
+      "conf": 0.936,
       "display": "Type_approval",
       "id": "b10",
       "kind": "text",
       "label": "Type_approval",
       "text": "TCRUE-RU.BY03.56748",
-      "x1": 516,
-      "x2": 923,
-      "y1": 952,
-      "y2": 990
+      "x1": 543,
+      "x2": 942,
+      "y1": 958,
+      "y2": 1001
     },
     {
       "ambiguous": false,
       "cls": 42,
-      "conf": 0.944,
+      "conf": 0.947,
       "display": "Eco_class",
       "id": "b11",
       "kind": "text",
       "label": "Eco_class",
       "text": "ПЯТЫЙ/5",
-      "x1": 523,
-      "x2": 687,
-      "y1": 999,
-      "y2": 1051
+      "x1": 549,
+      "x2": 713,
+      "y1": 1008,
+      "y2": 1062
     },
     {
       "ambiguous": false,
       "cls": 45,
-      "conf": 0.923,
+      "conf": 0.933,
       "display": "PTS_number",
       "id": "b12",
       "kind": "text",
       "label": "PTS_number",
       "text": "1642 61241339481",
-      "x1": 411,
-      "x2": 761,
-      "y1": 1057,
-      "y2": 1095
+      "x1": 436,
+      "x2": 782,
+      "y1": 1063,
+      "y2": 1109
     },
     {
       "ambiguous": false,
       "cls": 43,
-      "conf": 0.931,
+      "conf": 0.945,
       "display": "Max_mass",
       "id": "b13",
       "kind": "text",
       "label": "Max_mass",
       "text": "3214",
-      "x1": 854,
-      "x2": 949,
+      "x1": 876,
+      "x2": 968,
       "y1": 1104,
       "y2": 1140
     },
     {
       "ambiguous": false,
       "cls": 44,
-      "conf": 0.94,
+      "conf": 0.942,
       "display": "Curb_mass",
       "id": "b14",
       "kind": "text",
       "label": "Curb_mass",
       "text": "2650",
-      "x1": 792,
-      "x2": 888,
-      "y1": 1158,
-      "y2": 1194
+      "x1": 815,
+      "x2": 909,
+      "y1": 1157,
+      "y2": 1196
     },
     {
       "ambiguous": false,
       "cls": 5,
-      "conf": 0.942,
+      "conf": 0.952,
       "display": "Document number",
       "id": "b15",
       "kind": "text",
       "label": "Licence_number",
       "text": "19 43 269684",
-      "x1": 296,
-      "x2": 640,
-      "y1": 1254,
-      "y2": 1305
+      "x1": 317,
+      "x2": 664,
+      "y1": 1261,
+      "y2": 1322
     }
   ],
   "canvas": {
-    "height": 1387,
+    "height": 1414,
     "is_fallback": false,
-    "width": 963
+    "width": 1013
   },
   "coord_space": "canvas",
   "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
@@ -242,7 +242,7 @@
       "box_ids": [
         "b8"
       ],
-      "conf": 0.931,
+      "conf": 0.928,
       "display": "Body_number",
       "name": "Body_number",
       "script": "ru",
@@ -252,7 +252,7 @@
       "box_ids": [
         "b7"
       ],
-      "conf": 0.945,
+      "conf": 0.939,
       "display": "Chassis_number",
       "name": "Chassis_number",
       "script": "ru",
@@ -262,7 +262,7 @@
       "box_ids": [
         "b14"
       ],
-      "conf": 0.94,
+      "conf": 0.942,
       "display": "Curb_mass",
       "name": "Curb_mass",
       "script": "ru",
@@ -272,7 +272,7 @@
       "box_ids": [
         "b11"
       ],
-      "conf": 0.944,
+      "conf": 0.947,
       "display": "Eco_class",
       "name": "Eco_class",
       "script": "ru",
@@ -282,7 +282,7 @@
       "box_ids": [
         "b15"
       ],
-      "conf": 0.942,
+      "conf": 0.952,
       "display": "Document number",
       "name": "Licence_number",
       "script": "num",
@@ -292,7 +292,7 @@
       "box_ids": [
         "b13"
       ],
-      "conf": 0.931,
+      "conf": 0.945,
       "display": "Max_mass",
       "name": "Max_mass",
       "script": "ru",
@@ -302,7 +302,7 @@
       "box_ids": [
         "b12"
       ],
-      "conf": 0.923,
+      "conf": 0.933,
       "display": "PTS_number",
       "name": "PTS_number",
       "script": "ru",
@@ -312,7 +312,7 @@
       "box_ids": [
         "b0"
       ],
-      "conf": 0.938,
+      "conf": 0.947,
       "display": "Reg_number",
       "name": "Reg_number",
       "script": "ru",
@@ -322,7 +322,7 @@
       "box_ids": [
         "b10"
       ],
-      "conf": 0.922,
+      "conf": 0.936,
       "display": "Type_approval",
       "name": "Type_approval",
       "script": "ru",
@@ -332,7 +332,7 @@
       "box_ids": [
         "b1"
       ],
-      "conf": 0.936,
+      "conf": 0.93,
       "display": "VIN",
       "name": "VIN",
       "script": "ru",
@@ -342,7 +342,7 @@
       "box_ids": [
         "b5"
       ],
-      "conf": 0.941,
+      "conf": 0.948,
       "display": "Vehicle_category",
       "name": "Vehicle_category",
       "script": "ru",
@@ -352,7 +352,7 @@
       "box_ids": [
         "b9"
       ],
-      "conf": 0.948,
+      "conf": 0.946,
       "display": "Vehicle_color",
       "name": "Vehicle_color",
       "script": "ru",
@@ -362,7 +362,7 @@
       "box_ids": [
         "b3"
       ],
-      "conf": 0.949,
+      "conf": 0.934,
       "display": "Vehicle_make_en",
       "name": "Vehicle_make_en",
       "script": "en",
@@ -382,11 +382,11 @@
       "box_ids": [
         "b4"
       ],
-      "conf": 0.892,
+      "conf": 0.888,
       "display": "Vehicle_type",
       "name": "Vehicle_type",
       "script": "ru",
-      "value": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)"
+      "value": "ЛЕГКОВОЙ КОМБИ (ХЭТЧВЕК)"
     },
     {
       "box_ids": [
@@ -414,7 +414,7 @@
     "Vehicle_color": "КРАСНЫЙ",
     "Vehicle_make_en": "HYUNDAI SOLARIS",
     "Vehicle_make_ru": "HYUNDAI SOLARIS",
-    "Vehicle_type": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)",
+    "Vehicle_type": "ЛЕГКОВОЙ КОМБИ (ХЭТЧВЕК)",
     "Vehicle_year": "2022"
   },
   "quality": {
@@ -426,19 +426,19 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.0551,
-    "_deskew": 0.013,
-    "_doc_detector": 0.2576,
-    "_doctype_angle": 0.007,
-    "_document_detector": 0.1045,
-    "_fields_detector": 0.1181,
-    "_glare": 0.0321,
-    "_lcd_spoofing": 0.067,
-    "_ocr": 0.4055,
-    "_print_spoofing": 0.006,
-    "_quality_and_borders": 0.2977,
-    "_register_pages": 1.026,
-    "_split_words": 0.2118,
-    "total": 2.1836
+    "_blur": 0.0316,
+    "_deskew": 0.0,
+    "_doc_detector": 0.179,
+    "_doctype_angle": 0.0065,
+    "_document_detector": 0.1005,
+    "_fields_detector": 0.1137,
+    "_glare": 0.0338,
+    "_lcd_spoofing": 0.0054,
+    "_ocr": 0.4078,
+    "_print_spoofing": 0.0056,
+    "_quality_and_borders": 0.2583,
+    "_register_pages": 1.7659,
+    "_split_words": 0.212,
+    "total": 2.8647
   }
 }

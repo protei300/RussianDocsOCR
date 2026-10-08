@@ -27,15 +27,14 @@ All four ports and how they compare: [`../README.md`](../README.md).
 | M9 | the service | **done — 37/37 wire checks, 7/7 recognitions, cpu and gpu** |
 | M10 | Docker | **done — both images built, run and verified** |
 
-Conformance, 2026-10-08, against the goldens of commit `601bac1` (models-v10) and the four new STS cases,
-fourteen cases, `cpu` profile: the ten earlier cases as before (eight clean, the two internal passports
-differ only by the declared D-03), `STSBACK_1996` and `STS_1996` clean, `STSBACK_2019` clean but one box edge
-(1 px) and `STS_2019` not reproducible on Linux against a golden recorded on Windows - the cause (the order
-of SIFT keypoints depends on the C++ library OpenCV was built with) is measured in `DEVIATIONS.md` N-13.
+Conformance, 2026-10-08, against the goldens of commit `601bac1` (models-v10) with the four STS cases, fourteen
+cases, `cpu` profile, every stage including `quads`: twelve cases clean, the two internal passports differ only by
+the declared D-03 (the deviations D-07 and D-08, written for the STS 2019 cards, are STALE since the SIFT keypoints
+are cut in an order that does not depend on the platform, `DEVIATIONS.md` N-13).
 Earlier, on seven cases and the models-v6 goldens, this port passed 44/44 stages, zero skips, on both
 profiles.
 
-Tests: `dotnet test` - 177 library + 80 service = **257 passing** (2026-10-08).
+Tests: `dotnet test` - 181 library + 80 service = **261 passing** (2026-10-08).
 
 
 ## Как библиотека, из своего приложения

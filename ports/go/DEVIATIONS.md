@@ -301,19 +301,24 @@ What stays of D-03: the 4-parameter fit still runs on this port's own Levenberg-
 scipy's `least_squares` (STS_1996 canvas: 197 pixels of 3.4 M differ by one grey level, every
 stage passes), and the quad fit's RANSAC does not draw NumPy's PCG64 samples.
 
-## G-02 — the order of the SIFT keypoints that survive the budget
+## G-02 — SIFT keypoints: our own order and budget (retired as a deviation, 2026-10-08)
 
-*Go only.*
+*Go only; kept as a record.*
 
-`cv2.SIFT_create(nfeatures=6000)` cuts its keypoints with `std::nth_element`, and the ORDER of
-the survivors is whatever the C++ library leaves. The reference's Windows wheel (the goldens)
-is MSVC; this port's OpenCV is GCC. The order feeds the matcher and MAGSAC's random samples,
-and on a card near `CardSkewKeep` decides which canvas is read: this is D-07 and D-08.
+`cv2.SIFT_create(nfeatures=6000)` cuts its keypoints with `std::nth_element` and orders them
+with `std::sort`; the order of ties is whatever the C++ library OpenCV was built with (MSVC for
+the reference's Windows wheel, libstdc++ here). MAGSAC samples matches by index, so the same
+keypoints in another order gave another homography, and on an STS of the 2019 form that flipped
+the choice between the Borders canvas and the template (conformance D-07 and D-08). The first fix
+reproduced MSVC's `nth_element` in this port (`SiftOrderLikeMsvc`); it matched the Windows goldens
+and nothing else, and is gone.
 
-`imaging/stlselect.go` reproduces MSVC's `nth_element` / `partition` step for step (checked
-against the reference's own list: 8779 raw keypoints cut to 6000, identical element for
-element), and `SiftDetector` can use it: `SiftOrderLikeMsvc = true` makes STS_2019 run all 43
-stages clean and INTPASSPORT_1997 clean. **The constant is `false`**: the goldens are one
-platform's, a reference run on Linux reads the ports' numbers, and the declared D-07 / D-08
-say that - making this port match the Windows order would hide, in one port, a divergence the
-other two carry. Flip the constant to compare against the Windows goldens.
+The reference no longer depends on the library (`page_registration.detect_features`), and the port
+does the same: SIFT without a budget, the mask applied, then `orderKeypoints` (`imaging/sift.go`)
+sorts by response (descending), y, x, size, angle, octave with a stable sort over float64 keys -
+np.lexsort - and cuts the budget from that order; the descriptors are computed for the survivors
+(a descriptor depends on its keypoint and the image alone). Used for the template's keypoints, the
+photo's and the straightened page's in the refinement. The card registrar also re-fits its
+homography by least squares after MAGSAC (`RefitRounds = CardRefitRounds = 5`,
+`Pipeline.CARD_REFIT_ROUNDS`), so the skew decision does not move with MAGSAC's samples; the passport
+path keeps 0. Result: the four STS cases run all stages clean and D-07 / D-08 match nothing (STALE).

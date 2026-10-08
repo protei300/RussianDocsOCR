@@ -4,86 +4,86 @@
     {
       "ambiguous": false,
       "cls": 5,
-      "conf": 0.935,
+      "conf": 0.942,
       "display": "Document number",
       "id": "b0",
       "kind": "text",
       "label": "Licence_number",
       "text": "71 75 107178",
-      "x1": 110,
+      "x1": 113,
       "x2": 485,
-      "y1": 179,
-      "y2": 237
+      "y1": 182,
+      "y2": 241
     },
     {
       "ambiguous": false,
       "cls": 1,
-      "conf": 0.927,
+      "conf": 0.929,
       "display": "Last name",
       "id": "b1",
       "kind": "text",
       "label": "Last_name_ru",
       "text": "ВЕТРОВ",
-      "x1": 218,
-      "x2": 353,
-      "y1": 339,
-      "y2": 379
+      "x1": 219,
+      "x2": 354,
+      "y1": 341,
+      "y2": 382
     },
     {
       "ambiguous": false,
       "cls": 3,
-      "conf": 0.935,
+      "conf": 0.937,
       "display": "Last name",
       "id": "b2",
       "kind": "text",
       "label": "Last_name_en",
       "text": "VETROV",
-      "x1": 275,
+      "x1": 276,
       "x2": 411,
-      "y1": 380,
-      "y2": 420
+      "y1": 382,
+      "y2": 422
     },
     {
       "ambiguous": false,
       "cls": 2,
-      "conf": 0.924,
+      "conf": 0.925,
       "display": "First name",
       "id": "b3",
       "kind": "text",
       "label": "First_name_ru",
       "text": "МАКСИМ",
-      "x1": 219,
-      "x2": 362,
-      "y1": 423,
-      "y2": 464
+      "x1": 220,
+      "x2": 363,
+      "y1": 424,
+      "y2": 465
     },
     {
       "ambiguous": false,
       "cls": 4,
-      "conf": 0.932,
+      "conf": 0.931,
       "display": "First name",
       "id": "b4",
       "kind": "text",
       "label": "First_name_en",
       "text": "MAKSIM",
-      "x1": 286,
+      "x1": 287,
       "x2": 417,
       "y1": 465,
-      "y2": 504
+      "y2": 505
     },
     {
       "ambiguous": false,
       "cls": 17,
-      "conf": 0.948,
+      "conf": 0.943,
       "display": "Middle name",
       "id": "b5",
       "kind": "text",
       "label": "Middle_name_ru",
       "text": "ОЛЕГОВИЧ",
-      "x1": 219,
+      "x1": 220,
       "x2": 391,
       "y1": 505,
-      "y2": 545
+      "y2": 547
     },
     {
       "ambiguous": true,
@@ -94,10 +94,10 @@
       "kind": "text",
       "label": "Living_region_ru",
       "text": null,
-      "x1": 182,
-      "x2": 452,
+      "x1": 183,
+      "x2": 451,
       "y1": 622,
-      "y2": 675
+      "y2": 676
     },
     {
       "ambiguous": true,
@@ -108,7 +108,7 @@
       "kind": "text",
       "label": "Living_region_ru",
       "text": null,
-      "x1": 426,
+      "x1": 425,
       "x2": 556,
       "y1": 740,
       "y2": 788
@@ -116,7 +116,7 @@
     {
       "ambiguous": false,
       "cls": 15,
-      "conf": 0.946,
+      "conf": 0.947,
       "display": "Place of residence",
       "id": "b8",
       "kind": "text",
@@ -138,70 +138,70 @@
       "text": "191",
       "x1": 289,
       "x2": 349,
-      "y1": 853,
+      "y1": 854,
       "y2": 892
-    },
-    {
-      "ambiguous": true,
-      "cls": 46,
-      "conf": 0.85,
-      "display": "Special_marks",
-      "id": "b10",
-      "kind": "text",
-      "label": "Special_marks",
-      "text": null,
-      "x1": 210,
-      "x2": 863,
-      "y1": 952,
-      "y2": 997
     },
     {
       "ambiguous": false,
       "cls": 46,
-      "conf": 0.857,
+      "conf": 0.853,
+      "display": "Special_marks",
+      "id": "b10",
+      "kind": "text",
+      "label": "Special_marks",
+      "text": "ЛИЗИНГ \"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА28797 ОТ03.02.2012",
+      "x1": 210,
+      "x2": 864,
+      "y1": 951,
+      "y2": 996
+    },
+    {
+      "ambiguous": true,
+      "cls": 46,
+      "conf": 0.849,
       "display": "Special_marks",
       "id": "b11",
       "kind": "text",
       "label": "Special_marks",
-      "text": "\"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА27797 ОТ03.02.2012",
+      "text": null,
       "x1": 204,
-      "x2": 830,
-      "y1": 991,
+      "x2": 831,
+      "y1": 990,
       "y2": 1035
     },
     {
       "ambiguous": false,
       "cls": 20,
-      "conf": 0.942,
+      "conf": 0.939,
       "display": "Authority code",
       "id": "b12",
       "kind": "text",
       "label": "Issue_organisation_code",
       "text": "1138146",
       "x1": 796,
-      "x2": 919,
+      "x2": 920,
       "y1": 1158,
       "y2": 1198
     },
     {
       "ambiguous": false,
       "cls": 6,
-      "conf": 0.867,
+      "conf": 0.868,
       "display": "Date of issue",
       "id": "b13",
       "kind": "text",
       "label": "Issue_date",
-      "text": "2.СЕНТЯБРЯ.1",
-      "x1": 317,
-      "x2": 910,
-      "y1": 1270,
-      "y2": 1340
+      "text": "2.СЕНТЯБРЯ.0",
+      "x1": 315,
+      "x2": 909,
+      "y1": 1271,
+      "y2": 1341
     }
   ],
   "canvas": {
-    "height": 1475,
+    "height": 1476,
     "is_fallback": false,
-    "width": 1057
+    "width": 1058
   },
   "coord_space": "canvas",
   "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
@@ -214,7 +214,7 @@
       "box_ids": [
         "b4"
       ],
-      "conf": 0.932,
+      "conf": 0.931,
       "display": "First name",
       "name": "First_name_en",
       "script": "en",
@@ -224,7 +224,7 @@
       "box_ids": [
         "b3"
       ],
-      "conf": 0.924,
+      "conf": 0.925,
       "display": "First name",
       "name": "First_name_ru",
       "script": "ru",
@@ -244,17 +244,17 @@
       "box_ids": [
         "b13"
       ],
-      "conf": 0.867,
+      "conf": 0.868,
       "display": "Date of issue",
       "name": "Issue_date",
       "script": "num",
-      "value": "2.СЕНТЯБРЯ.1"
+      "value": "2.СЕНТЯБРЯ.0"
     },
     {
       "box_ids": [
         "b12"
       ],
-      "conf": 0.942,
+      "conf": 0.939,
       "display": "Authority code",
       "name": "Issue_organisation_code",
       "script": "num",
@@ -264,7 +264,7 @@
       "box_ids": [
         "b2"
       ],
-      "conf": 0.935,
+      "conf": 0.937,
       "display": "Last name",
       "name": "Last_name_en",
       "script": "en",
@@ -274,7 +274,7 @@
       "box_ids": [
         "b1"
       ],
-      "conf": 0.927,
+      "conf": 0.929,
       "display": "Last name",
       "name": "Last_name_ru",
       "script": "ru",
@@ -284,7 +284,7 @@
       "box_ids": [
         "b0"
       ],
-      "conf": 0.935,
+      "conf": 0.942,
       "display": "Document number",
       "name": "Licence_number",
       "script": "num",
@@ -296,7 +296,7 @@
         "b7",
         "b8"
       ],
-      "conf": 0.946,
+      "conf": 0.947,
       "display": "Place of residence",
       "name": "Living_region_ru",
       "script": "ru",
@@ -306,7 +306,7 @@
       "box_ids": [
         "b5"
       ],
-      "conf": 0.948,
+      "conf": 0.943,
       "display": "Middle name",
       "name": "Middle_name_ru",
       "script": "ru",
@@ -317,25 +317,25 @@
         "b10",
         "b11"
       ],
-      "conf": 0.857,
+      "conf": 0.853,
       "display": "Special_marks",
       "name": "Special_marks",
       "script": "ru",
-      "value": "\"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА27797 ОТ03.02.2012"
+      "value": "ЛИЗИНГ \"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА28797 ОТ03.02.2012"
     }
   ],
   "ocr": {
     "First_name_en": "MAKSIM",
     "First_name_ru": "МАКСИМ",
     "House_number": "191",
-    "Issue_date": "2.СЕНТЯБРЯ.1",
+    "Issue_date": "2.СЕНТЯБРЯ.0",
     "Issue_organisation_code": "1138146",
     "Last_name_en": "VETROV",
     "Last_name_ru": "ВЕТРОВ",
     "Licence_number": "71 75 107178",
     "Living_region_ru": "ИРКУТСКАЯ ОБЛАСТЬ Г БРАТСК УЛ БЛЮХЕРА",
     "Middle_name_ru": "ОЛЕГОВИЧ",
-    "Special_marks": "\"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА27797 ОТ03.02.2012"
+    "Special_marks": "ЛИЗИНГ \"\"\"ЛИЗИНГОДАТЕЛЬАО\"\"\"\"ВТБЛИЗИН\"\"\"\"\"\"\" ДОГОВОРДИЗИНГА28797 ОТ03.02.2012"
   },
   "quality": {
     "Blur": "good",
@@ -346,19 +346,19 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.0356,
+    "_blur": 0.044,
     "_deskew": 0.0,
-    "_doc_detector": 0.2793,
-    "_doctype_angle": 0.0061,
-    "_document_detector": 0.0998,
-    "_fields_detector": 0.1162,
-    "_glare": 0.0911,
-    "_lcd_spoofing": 0.0556,
-    "_ocr": 0.3203,
-    "_print_spoofing": 0.0326,
-    "_quality_and_borders": 0.3078,
-    "_register_pages": 2.007,
-    "_split_words": 0.2166,
-    "total": 3.0738
+    "_doc_detector": 0.2458,
+    "_doctype_angle": 0.007,
+    "_document_detector": 0.0919,
+    "_fields_detector": 0.1091,
+    "_glare": 0.033,
+    "_lcd_spoofing": 0.0371,
+    "_ocr": 0.274,
+    "_print_spoofing": 0.006,
+    "_quality_and_borders": 0.3028,
+    "_register_pages": 2.0542,
+    "_split_words": 0.2133,
+    "total": 3.0523
   }
 }

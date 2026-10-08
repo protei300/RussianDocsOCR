@@ -243,19 +243,19 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.1111,
-    "_deskew": 0.008,
-    "_doc_detector": 0.2097,
-    "_doctype_angle": 0.006,
-    "_document_detector": 0.1009,
-    "_fields_detector": 0.1208,
-    "_glare": 0.0546,
-    "_lcd_spoofing": 0.0073,
-    "_ocr": 0.1888,
-    "_print_spoofing": 0.009,
-    "_quality_and_borders": 0.3071,
+    "_blur": 0.0223,
+    "_deskew": 0.006,
+    "_doc_detector": 0.2248,
+    "_doctype_angle": 0.0045,
+    "_document_detector": 0.1012,
+    "_fields_detector": 0.1073,
+    "_glare": 0.0185,
+    "_lcd_spoofing": 0.0637,
+    "_ocr": 0.2236,
+    "_print_spoofing": 0.005,
+    "_quality_and_borders": 0.2721,
     "_register_pages": 0.0,
-    "_split_words": 0.2776,
-    "total": 1.0092
+    "_split_words": 0.2712,
+    "total": 0.9859
   }
 }

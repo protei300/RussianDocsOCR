@@ -252,31 +252,24 @@ genuinely different:
 - **Two test hooks in `Users`** (`onAdminCounted`, `onVerified`) stand in for the reference's
   monkeypatching, so the concurrency tests force their interleavings. Null in production.
 
-## J-19 — The template match of a dense card depends on the CPU's instruction set
+## J-19 — (closed 2026-10-08) The template match of a dense card used to depend on the CPU's instruction set
+
+**No longer a deviation.** Kept as the record of how it was found and why it went away; `D-07` and `D-08` in
+`conformance/deviations.json` are STALE for this port and are to be removed.
 
 `Recognizer.registerCard` decides between the Borders canvas and the template canvas from the skew of the Borders
 quad (`CARD_SKEW_KEEP` = 0.01), and the template geometry comes from `cv2.findHomography(..., USAC_MAGSAC)` on
-~2 700 SIFT matches. That estimator is not bit-stable across builds: the reference was recorded on Windows with
-OpenCV 4.12 (MSVC), this port runs OpenCV 4.13 built with GCC, and the same input gives a different consensus.
+~2 700 SIFT matches. MAGSAC picks matches by INDEX, and the index of a keypoint depended on the order OpenCV left
+its SIFT keypoints in: `std::sort` (duplicate removal) and `std::nth_element` (the `nfeatures` budget) leave ties in
+an order that follows the C++ library OpenCV was built with. The reference ran on Windows with OpenCV 4.12 (MSVC),
+this port on 4.13 with GCC, and the same photo gave a different consensus. Measured with one jar and only
+`OPENCV_CPU_DISABLE` changed (so it was not the algorithm and not the port): `STS_2019` coarse inliers 1760 against
+1943, skew 0.0118 against 0.0107, the reference's 0.0076 on the other side of the 0.01 threshold; `STSBACK_2019`
+card corner moved by up to 6 px.
 
-Measured, not assumed — the same jar, the same photo, only `OPENCV_CPU_DISABLE` changed:
-
-| case | reference | this port, default | this port, AVX2/FMA off |
-|---|---|---|---|
-| `STS_2019`, coarse inliers | 1670 | 1760 | 1943 |
-| `STS_2019`, skew of the Borders canvas | **0.0076** (kept) | 0.0118 | 0.0107 |
-| `STSBACK_2019`, refined inliers | 284 | 284 | 270 |
-| `STSBACK_2019`, card corner 1 | (151.0, -12.4) | (151.004, -12.442) | (149.26, -18.89) |
-
-`STS_2019` sits on the threshold: the reference's skew is just under 0.01, so it keeps the Borders canvas, and this
-port's is just over, so it takes the template one — a different canvas, every stage after `borders.segments`
-differs for that one reason. With the threshold forced to the reference's decision (a scratch build, not committed)
-all 43 stages of the case are clean, so the Borders-kept branch, the fields and the reading are exact. In
-`STSBACK_2019` the match is the same size but the corner moves by 0.04 px, which moves one box edge by a pixel
-(`fields.bbox[9][3]`, 846 against 845). The other two cases (`STS_1996`, `STSBACK_1996`: 727 and 268 inliers) converge
-to the last digit.
-
-Not yet declared in `conformance/deviations.json`: the entry is proposed (`D-07-java-card-magsac-cpu-dependent`, ports `java`,
-cases `STS_2019` and `STSBACK_2019`); it retires when the reference and the port estimate the card homography with the same code — e.g. a seeded
-least-squares polish on the inlier set that both can run bit-identically — or the goldens are recorded on the
-platform the ports run on.
+The fix is the reference's (4.7.1): `SiftFeatures.detect` runs SIFT with `nfeatures = 0`, sorts the keypoints itself
+by response (descending), then y, x, size, angle and octave, cuts the 6000 budget from that order and takes the
+descriptors along (`detect_features`); and the card's registrar re-fits the homography by least squares after MAGSAC
+(`PageRegistrar.refitRounds`, `Recognizer.CARD_REFIT_ROUNDS` = 5) so the decision no longer moves with MAGSAC's
+samples. The passport keeps `refitRounds = 0`. After it, `STS_2019` and `STSBACK_2019` are clean on every stage
+including `quads`, and only `D-05` remains for this port.

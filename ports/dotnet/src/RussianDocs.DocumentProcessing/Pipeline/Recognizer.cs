@@ -1078,6 +1078,12 @@ public sealed class Recognizer : IDisposable
     /// </summary>
     public const double CardSkewKeep = 0.01;
 
+    /// <summary>
+    /// Least-squares re-fits after MAGSAC in the card's template match (<c>Pipeline.CARD_REFIT_ROUNDS</c>): the
+    /// skew decision above must not move with MAGSAC's samples.
+    /// </summary>
+    public const int CardRefitRounds = 5;
+
     /// <summary>The template registrar of one STS type, built on first use; null without templates.</summary>
     private PageRegistrar? CardRegistrar(string docType)
     {
@@ -1087,7 +1093,7 @@ public sealed class Recognizer : IDisposable
             {
                 try
                 {
-                    reg = new PageRegistrar(_root, docType);
+                    reg = new PageRegistrar(_root, docType, refitRounds: CardRefitRounds);
                 }
                 catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
                 {

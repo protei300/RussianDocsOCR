@@ -4,21 +4,21 @@
     {
       "ambiguous": false,
       "cls": 5,
-      "conf": 0.942,
+      "conf": 0.941,
       "display": "Document number",
       "id": "b0",
       "kind": "text",
       "label": "Licence_number",
       "text": "41 14 157259",
       "x1": 46,
-      "x2": 382,
-      "y1": 230,
-      "y2": 280
+      "x2": 383,
+      "y1": 231,
+      "y2": 283
     },
     {
       "ambiguous": false,
       "cls": 1,
-      "conf": 0.929,
+      "conf": 0.931,
       "display": "Last name",
       "id": "b1",
       "kind": "text",
@@ -26,41 +26,41 @@
       "text": "ВАСИЛЬЕВА",
       "x1": 170,
       "x2": 376,
-      "y1": 359,
-      "y2": 396
+      "y1": 360,
+      "y2": 397
     },
     {
       "ambiguous": false,
       "cls": 3,
-      "conf": 0.933,
+      "conf": 0.934,
       "display": "Last name",
       "id": "b2",
       "kind": "text",
       "label": "Last_name_en",
       "text": "VASIL'EVA",
       "x1": 239,
-      "x2": 445,
-      "y1": 398,
-      "y2": 436
+      "x2": 446,
+      "y1": 399,
+      "y2": 437
     },
     {
       "ambiguous": false,
       "cls": 2,
-      "conf": 0.932,
+      "conf": 0.927,
       "display": "First name",
       "id": "b3",
       "kind": "text",
       "label": "First_name_ru",
       "text": "АЛИНА",
       "x1": 174,
-      "x2": 295,
+      "x2": 296,
       "y1": 436,
-      "y2": 472
+      "y2": 473
     },
     {
       "ambiguous": false,
       "cls": 4,
-      "conf": 0.938,
+      "conf": 0.933,
       "display": "First name",
       "id": "b4",
       "kind": "text",
@@ -68,27 +68,27 @@
       "text": "ALINA",
       "x1": 240,
       "x2": 363,
-      "y1": 474,
-      "y2": 511
+      "y1": 475,
+      "y2": 512
     },
     {
       "ambiguous": false,
       "cls": 17,
-      "conf": 0.935,
+      "conf": 0.933,
       "display": "Middle name",
       "id": "b5",
       "kind": "text",
       "label": "Middle_name_ru",
       "text": "ЯРОСЛАВОВНА",
       "x1": 170,
-      "x2": 424,
-      "y1": 510,
-      "y2": 547
+      "x2": 423,
+      "y1": 511,
+      "y2": 548
     },
     {
       "ambiguous": true,
       "cls": 15,
-      "conf": 0.938,
+      "conf": 0.937,
       "display": "Place of residence",
       "id": "b6",
       "kind": "text",
@@ -102,28 +102,28 @@
     {
       "ambiguous": false,
       "cls": 15,
-      "conf": 0.948,
+      "conf": 0.947,
       "display": "Place of residence",
       "id": "b7",
       "kind": "text",
       "label": "Living_region_ru",
       "text": "ПЕРМСКИЙ КТБЙ Г ПЕРМЬ УЛ БРАТЬЕВ КАШИТИНЫХ",
       "x1": 478,
-      "x2": 649,
+      "x2": 650,
       "y1": 688,
       "y2": 736
     },
     {
       "ambiguous": true,
       "cls": 15,
-      "conf": 0.915,
+      "conf": 0.916,
       "display": "Place of residence",
       "id": "b8",
       "kind": "text",
       "label": "Living_region_ru",
       "text": null,
       "x1": 230,
-      "x2": 690,
+      "x2": 691,
       "y1": 735,
       "y2": 786
     },
@@ -137,14 +137,14 @@
       "label": "House_number",
       "text": "84Б",
       "x1": 229,
-      "x2": 310,
+      "x2": 309,
       "y1": 809,
-      "y2": 846
+      "y2": 845
     },
     {
       "ambiguous": false,
       "cls": 48,
-      "conf": 0.935,
+      "conf": 0.936,
       "display": "Apartment_number",
       "id": "b10",
       "kind": "text",
@@ -164,8 +164,8 @@
       "kind": "text",
       "label": "Special_marks",
       "text": null,
-      "x1": 171,
-      "x2": 909,
+      "x1": 170,
+      "x2": 910,
       "y1": 1023,
       "y2": 1058
     },
@@ -178,10 +178,10 @@
       "kind": "text",
       "label": "Special_marks",
       "text": "ЛИЗИНГОПОЛУЧАТЕЛЬ ДОГОВОР 64349-Л ОТ 12.07.2023",
-      "x1": 168,
+      "x1": 167,
       "x2": 454,
       "y1": 1070,
-      "y2": 1095
+      "y2": 1094
     },
     {
       "ambiguous": false,
@@ -193,20 +193,20 @@
       "label": "Issue_organisation_code",
       "text": "1159110",
       "x1": 686,
-      "x2": 855,
+      "x2": 856,
       "y1": 1224,
       "y2": 1262
     },
     {
       "ambiguous": false,
       "cls": 6,
-      "conf": 0.926,
+      "conf": 0.927,
       "display": "Date of issue",
       "id": "b14",
       "kind": "text",
       "label": "Issue_date",
       "text": "14.05.2025",
-      "x1": 415,
+      "x1": 414,
       "x2": 648,
       "y1": 1324,
       "y2": 1363
@@ -228,7 +228,7 @@
       "box_ids": [
         "b10"
       ],
-      "conf": 0.935,
+      "conf": 0.936,
       "display": "Apartment_number",
       "name": "Apartment_number",
       "script": "ru",
@@ -238,7 +238,7 @@
       "box_ids": [
         "b4"
       ],
-      "conf": 0.938,
+      "conf": 0.933,
       "display": "First name",
       "name": "First_name_en",
       "script": "en",
@@ -248,7 +248,7 @@
       "box_ids": [
         "b3"
       ],
-      "conf": 0.932,
+      "conf": 0.927,
       "display": "First name",
       "name": "First_name_ru",
       "script": "ru",
@@ -268,7 +268,7 @@
       "box_ids": [
         "b14"
       ],
-      "conf": 0.926,
+      "conf": 0.927,
       "display": "Date of issue",
       "name": "Issue_date",
       "normalized": "14.05.2025",
@@ -289,7 +289,7 @@
       "box_ids": [
         "b2"
       ],
-      "conf": 0.933,
+      "conf": 0.934,
       "display": "Last name",
       "name": "Last_name_en",
       "script": "en",
@@ -299,7 +299,7 @@
       "box_ids": [
         "b1"
       ],
-      "conf": 0.929,
+      "conf": 0.931,
       "display": "Last name",
       "name": "Last_name_ru",
       "script": "ru",
@@ -309,7 +309,7 @@
       "box_ids": [
         "b0"
       ],
-      "conf": 0.942,
+      "conf": 0.941,
       "display": "Document number",
       "name": "Licence_number",
       "script": "num",
@@ -321,7 +321,7 @@
         "b7",
         "b8"
       ],
-      "conf": 0.948,
+      "conf": 0.947,
       "display": "Place of residence",
       "name": "Living_region_ru",
       "script": "ru",
@@ -331,7 +331,7 @@
       "box_ids": [
         "b5"
       ],
-      "conf": 0.935,
+      "conf": 0.933,
       "display": "Middle name",
       "name": "Middle_name_ru",
       "script": "ru",
@@ -372,19 +372,19 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.0966,
+    "_blur": 0.0285,
     "_deskew": 0.0,
-    "_doc_detector": 0.2748,
-    "_doctype_angle": 0.0075,
-    "_document_detector": 0.1041,
-    "_fields_detector": 0.1105,
-    "_glare": 0.0866,
-    "_lcd_spoofing": 0.0175,
-    "_ocr": 0.3622,
-    "_print_spoofing": 0.0215,
-    "_quality_and_borders": 0.3018,
-    "_register_pages": 1.3656,
-    "_split_words": 0.2166,
-    "total": 2.4683
+    "_doc_detector": 0.2412,
+    "_doctype_angle": 0.0071,
+    "_document_detector": 0.0968,
+    "_fields_detector": 0.1121,
+    "_glare": 0.022,
+    "_lcd_spoofing": 0.006,
+    "_ocr": 0.4593,
+    "_print_spoofing": 0.0355,
+    "_quality_and_borders": 0.2647,
+    "_register_pages": 1.1901,
+    "_split_words": 0.2266,
+    "total": 2.3567
   }
 }

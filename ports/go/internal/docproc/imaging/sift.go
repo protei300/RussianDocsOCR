@@ -7,6 +7,7 @@ package imaging
 
 import (
 	"image"
+	"sort"
 
 	"gocv.io/x/gocv"
 )
@@ -14,30 +15,28 @@ import (
 // SiftDetector owns one cv::SIFT instance and the keypoint budget of
 // cv2.SIFT_create(nfeatures=...).
 //
-// The instance itself is built WITHOUT a budget and the budget is applied here: OpenCV's own
-// retainBest leaves the surviving keypoints in an order that depends on the C++ standard
-// library, and that order decides what the matcher and MAGSAC see - see stlselect.go. The
-// keypoints, their order and their descriptors are therefore the reference's (MSVC wheels),
-// not whatever libstdc++ would leave.
+// The instance is built WITHOUT a budget and the budget is applied here, in an order of our own
+// (page_registration.detect_features): OpenCV orders its keypoints with std::sort (duplicate
+// removal) and cuts an nfeatures budget with std::nth_element, and both leave ties in an order
+// that depends on the C++ library OpenCV was built with (MSVC for the reference's Windows wheel,
+// libstdc++ here). MAGSAC samples matches by index, so the same keypoints in another order give
+// another homography; on a card of the 2019 form that flipped the choice between the Borders
+// canvas and the template (conformance D-07/D-08, until 2026-10-08). The keypoints, their order
+// and their descriptors are therefore a function of the image alone.
 type SiftDetector struct {
 	sift      gocv.SIFT
 	nfeatures int
 }
 
-// NewSiftDetector builds a SIFT detector. nfeatures<=0 means "no cap" (SIFT's own
-// default).
+// NewSiftDetector builds a SIFT detector. nfeatures<=0 means "no cap".
 func NewSiftDetector(nfeatures int) *SiftDetector {
-	if !SiftOrderLikeMsvc && nfeatures > 0 { // OpenCV applies the budget itself
-		n := nfeatures
-		return &SiftDetector{sift: gocv.NewSIFTWithParams(&n, nil, nil, nil, nil), nfeatures: nfeatures}
-	}
 	return &SiftDetector{sift: gocv.NewSIFT(), nfeatures: nfeatures}
 }
 
 func (s *SiftDetector) Close() error { return s.sift.Close() }
 
 // DetectAndCompute finds keypoints and their 128-float descriptors over the whole
-// image (no mask), one []float32 row per keypoint, in keypoint order.
+// image (no mask), one []float32 row per keypoint, strongest first.
 func (s *SiftDetector) DetectAndCompute(img Image) ([]Point, [][]float32) {
 	return s.detectAndCompute(img, nil)
 }
@@ -49,61 +48,70 @@ func (s *SiftDetector) DetectAndComputeMasked(img Image, mask Image) ([]Point, [
 	return s.detectAndCompute(img, &m)
 }
 
-// SiftOrderLikeMsvc selects who decides the order of the keypoints that survive the
-// nfeatures cut. true: this package, reproducing the MSVC standard library the reference's
-// Windows wheels (and so the committed goldens) were made with (stlselect.go). false: the
-// OpenCV linked into this binary, i.e. libstdc++'s std::nth_element, which is what a Python
-// reference run on Linux gets as well - the two orders give different MAGSAC samples and, on
-// a card whose Borders skew sits near CardSkewKeep, a different canvas (STS_2019: 1670 vs 1760
-// coarse inliers, skew 0.0076 vs 0.0118). Measured both ways on the four STS cases.
-const SiftOrderLikeMsvc = false
-
-// detectAndCompute is cv::SIFT::detectAndCompute(image, mask) with nfeatures set, in its
-// own order of work: the keypoints of the scale space (sorted by position, duplicates
-// removed), then retainBest(nfeatures), then the mask, then the descriptors of what is left.
-func (s *SiftDetector) detectAndCompute(img Image, mask *gocv.Mat) ([]Point, [][]float32) {
-	if !SiftOrderLikeMsvc {
-		empty := gocv.NewMat()
-		defer empty.Close()
-		m := empty
-		if mask != nil {
-			m = *mask
-		}
-		kp, desc := s.sift.DetectAndCompute(img.mat, m)
-		defer desc.Close()
-		pts := make([]Point, len(kp))
-		for i, k := range kp {
-			pts[i] = Point{X: k.X, Y: k.Y}
-		}
-		return pts, descriptorRows(desc, len(kp))
+// orderKeypoints is the order of detect_features: the indices of kps sorted by response
+// (descending), then y, x, size, angle and octave (ascending) - np.lexsort over float64 keys, a
+// STABLE sort - cut to the budget (budget <= 0: no cut). The comparison is the one NumPy makes:
+// every key a float64, the response negated (so -0.0 and 0.0 tie, as they do there).
+func orderKeypoints(kps []gocv.KeyPoint, budget int) []int {
+	order := make([]int, len(kps))
+	for i := range order {
+		order[i] = i
 	}
+	sort.SliceStable(order, func(a, b int) bool {
+		p, q := kps[order[a]], kps[order[b]]
+		if np, nq := -p.Response, -q.Response; np != nq {
+			return np < nq
+		}
+		if p.Y != q.Y {
+			return p.Y < q.Y
+		}
+		if p.X != q.X {
+			return p.X < q.X
+		}
+		if p.Size != q.Size {
+			return p.Size < q.Size
+		}
+		if p.Angle != q.Angle {
+			return p.Angle < q.Angle
+		}
+		return p.Octave < q.Octave
+	})
+	if budget > 0 && len(order) > budget {
+		order = order[:budget]
+	}
+	return order
+}
+
+// detectAndCompute is page_registration.detect_features: SIFT without a budget, the mask applied
+// (KeyPointsFilter::runByPixelsMask, as detectAndCompute does before it describes anything),
+// the keypoints ordered and cut by orderKeypoints, and the descriptors of what is left. A
+// descriptor depends on its keypoint and the image alone, so describing only the survivors gives
+// the rows detectAndCompute would have kept.
+func (s *SiftDetector) detectAndCompute(img Image, mask *gocv.Mat) ([]Point, [][]float32) {
 	raw := s.sift.Detect(img.mat)
 	if len(raw) == 0 {
 		return nil, nil
 	}
-	resp := make([]float64, len(raw))
-	for i, k := range raw {
-		resp[i] = k.Response
-	}
-	kept := make([]gocv.KeyPoint, 0, len(raw))
-	var maskBytes []byte
-	var maskW, maskH int
 	if mask != nil && !mask.Empty() {
-		maskBytes, maskW, maskH = mask.ToBytes(), mask.Cols(), mask.Rows()
-	}
-	for _, i := range retainBestOrder(resp, s.nfeatures) {
-		k := raw[i]
-		if maskBytes != nil {
-			// KeyPointsFilter::runByPixelsMask: (int)(pt.y + 0.5f), (int)(pt.x + 0.5f)
+		maskBytes, maskW, maskH := mask.ToBytes(), mask.Cols(), mask.Rows()
+		inside := raw[:0:0]
+		for _, k := range raw {
+			// (int)(pt.y + 0.5f), (int)(pt.x + 0.5f)
 			y, x := int(float32(k.Y)+0.5), int(float32(k.X)+0.5)
 			if y < 0 || y >= maskH || x < 0 || x >= maskW || maskBytes[y*maskW+x] == 0 {
 				continue
 			}
+			inside = append(inside, k)
 		}
-		kept = append(kept, k)
+		raw = inside
 	}
-	if len(kept) == 0 {
+	if len(raw) == 0 {
 		return nil, nil
+	}
+	order := orderKeypoints(raw, s.nfeatures)
+	kept := make([]gocv.KeyPoint, len(order))
+	for i, j := range order {
+		kept[i] = raw[j]
 	}
 	none := gocv.NewMat()
 	defer none.Close()
@@ -115,6 +123,7 @@ func (s *SiftDetector) detectAndCompute(img Image, mask *gocv.Mat) ([]Point, [][
 	}
 	return pts, descriptorRows(desc, len(kp))
 }
+
 // descriptorRows reshapes a CV_32F N x 128 descriptor Mat into N row slices. Empty
 // (zero-keypoint) descriptors come back as a nil Mat from gocv, hence the explicit n.
 func descriptorRows(desc gocv.Mat, n int) [][]float32 {
@@ -254,4 +263,29 @@ func WarpByHomography(src Image, H [3][3]float64, width, height int, replicate b
 	gocv.WarpPerspectiveWithParams(src.mat, &dst, m, image.Pt(width, height),
 		gocv.InterpolationLinear, border, blackScalar())
 	return Image{mat: dst}
+}
+
+// FindHomographyLeastSquares is cv2.findHomography(src, dst, 0): the least-squares homography of
+// ALL the given point pairs (method 0 - no RANSAC), refined by OpenCV's Levenberg-Marquardt step.
+func FindHomographyLeastSquares(src, dst []Point) (H [3][3]float64, ok bool) {
+	if len(src) != len(dst) || len(src) < 4 {
+		return H, false
+	}
+	srcMat := matFromPoints(src)
+	defer srcMat.Close()
+	dstMat := matFromPoints(dst)
+	defer dstMat.Close()
+	maskMat := gocv.NewMat()
+	defer maskMat.Close()
+	hMat := gocv.FindHomography(srcMat, dstMat, gocv.HomographyMethodAllPoints, 3, &maskMat, 2000, 0.995)
+	defer hMat.Close()
+	if hMat.Empty() || hMat.Rows() != 3 || hMat.Cols() != 3 {
+		return H, false
+	}
+	for r := 0; r < 3; r++ {
+		for c := 0; c < 3; c++ {
+			H[r][c] = hMat.GetDoubleAt(r, c)
+		}
+	}
+	return H, true
 }

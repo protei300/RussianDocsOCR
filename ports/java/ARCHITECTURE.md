@@ -364,8 +364,9 @@ Checked three ways: unit tests against OpenCV's own rotate/warp/remap (`Geometry
 a field cut from the photo through its quadrilateral correlates 0.999 with the pipeline's own patch, and not at all
 when the quadrilateral is moved by 25 px) and the `quads` stage against the reference to 1e-3 on all 14 cases.
 
-See `J-19` for the one thing that does not converge: the template match of a dense card depends on the CPU's
-instruction set.
+The keypoint order of SIFT is taken out of OpenCV's hands (`SiftFeatures`): the detector runs without a budget, the
+keypoints are sorted here and the budget is cut here, so MAGSAC sees the same indices on every platform; the card's
+registrar also re-fits its homography by least squares (`refitRounds`). See `J-19` for why.
 
 ---
 

@@ -144,6 +144,29 @@ public static class Homography
         }
     }
 
+    /// <summary>
+    /// <c>cv2.findHomography(src, dst, 0)</c>: the plain least-squares homography of all the given
+    /// correspondences. Null when none comes out.
+    /// </summary>
+    public static double[,]? FindLeastSquares(IReadOnlyList<Point> src, IReadOnlyList<Point> dst)
+    {
+        if (src.Count < 4 || src.Count != dst.Count)
+        {
+            return null;
+        }
+        Point2f[] s = [.. src.Select(p => new Point2f((float)p.X, (float)p.Y))];
+        Point2f[] d = [.. dst.Select(p => new Point2f((float)p.X, (float)p.Y))];
+        try
+        {
+            using Mat h = Cv2.FindHomography(InputArray.Create(s), InputArray.Create(d), HomographyMethods.None);
+            return h.Empty() ? null : ToArray(h);
+        }
+        catch (OpenCVException)
+        {
+            return null;
+        }
+    }
+
     private static double[,] ToArray(Mat m)
     {
         var r = new double[3, 3];

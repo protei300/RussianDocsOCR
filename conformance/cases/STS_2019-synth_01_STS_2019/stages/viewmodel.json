@@ -5,8 +5,8 @@
   "recognised": true,
   "device": "cpu",
   "canvas": {
-    "width": 963,
-    "height": 1387,
+    "width": 1013,
+    "height": 1414,
     "is_fallback": false
   },
   "coord_space": "canvas",
@@ -17,11 +17,11 @@
       "label": "Reg_number",
       "display": "Reg_number",
       "kind": "text",
-      "x1": 158,
-      "y1": 321,
-      "x2": 334,
-      "y2": 360,
-      "conf": 0.938,
+      "x1": 183,
+      "y1": 343,
+      "x2": 364,
+      "y2": 380,
+      "conf": 0.947,
       "cls": 31,
       "text": "P391MB77",
       "ambiguous": false
@@ -31,11 +31,11 @@
       "label": "VIN",
       "display": "VIN",
       "kind": "text",
-      "x1": 166,
-      "y1": 413,
-      "x2": 530,
-      "y2": 452,
-      "conf": 0.936,
+      "x1": 191,
+      "y1": 434,
+      "x2": 559,
+      "y2": 472,
+      "conf": 0.93,
       "cls": 32,
       "text": "JDKUXW3NNU4XHS9V5",
       "ambiguous": false
@@ -45,10 +45,10 @@
       "label": "Vehicle_make_ru",
       "display": "Vehicle_make_ru",
       "kind": "text",
-      "x1": 284,
-      "y1": 462,
-      "x2": 609,
-      "y2": 500,
+      "x1": 312,
+      "y1": 483,
+      "x2": 638,
+      "y2": 520,
       "conf": 0.931,
       "cls": 33,
       "text": "HYUNDAI SOLARIS",
@@ -59,11 +59,11 @@
       "label": "Vehicle_make_en",
       "display": "Vehicle_make_en",
       "kind": "text",
-      "x1": 284,
-      "y1": 510,
-      "x2": 610,
-      "y2": 547,
-      "conf": 0.949,
+      "x1": 312,
+      "y1": 529,
+      "x2": 638,
+      "y2": 566,
+      "conf": 0.934,
       "cls": 34,
       "text": "HYUNDAI SOLARIS",
       "ambiguous": false
@@ -73,13 +73,13 @@
       "label": "Vehicle_type",
       "display": "Vehicle_type",
       "kind": "text",
-      "x1": 287,
-      "y1": 562,
-      "x2": 812,
-      "y2": 616,
-      "conf": 0.892,
+      "x1": 316,
+      "y1": 581,
+      "x2": 833,
+      "y2": 633,
+      "conf": 0.888,
       "cls": 35,
-      "text": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)",
+      "text": "ЛЕГКОВОЙ КОМБИ (ХЭТЧВЕК)",
       "ambiguous": false
     },
     {
@@ -87,11 +87,11 @@
       "label": "Vehicle_category",
       "display": "Vehicle_category",
       "kind": "text",
-      "x1": 692,
-      "y1": 619,
-      "x2": 792,
-      "y2": 662,
-      "conf": 0.941,
+      "x1": 719,
+      "y1": 635,
+      "x2": 817,
+      "y2": 678,
+      "conf": 0.948,
       "cls": 36,
       "text": "B/M1",
       "ambiguous": false
@@ -101,10 +101,10 @@
       "label": "Vehicle_year",
       "display": "Vehicle_year",
       "kind": "text",
-      "x1": 445,
-      "y1": 675,
-      "x2": 542,
-      "y2": 711,
+      "x1": 473,
+      "y1": 692,
+      "x2": 570,
+      "y2": 728,
       "conf": 0.934,
       "cls": 37,
       "text": "2022",
@@ -115,11 +115,11 @@
       "label": "Chassis_number",
       "display": "Chassis_number",
       "kind": "text",
-      "x1": 433,
-      "y1": 726,
-      "x2": 676,
-      "y2": 763,
-      "conf": 0.945,
+      "x1": 460,
+      "y1": 741,
+      "x2": 702,
+      "y2": 778,
+      "conf": 0.939,
       "cls": 38,
       "text": "ОТСУТСТВУЕТ",
       "ambiguous": false
@@ -129,11 +129,11 @@
       "label": "Body_number",
       "display": "Body_number",
       "kind": "text",
-      "x1": 161,
-      "y1": 824,
-      "x2": 527,
-      "y2": 862,
-      "conf": 0.931,
+      "x1": 181,
+      "y1": 840,
+      "x2": 555,
+      "y2": 879,
+      "conf": 0.928,
       "cls": 39,
       "text": "JDKUXW3NNU4XHS9V5",
       "ambiguous": false
@@ -143,11 +143,11 @@
       "label": "Vehicle_color",
       "display": "Vehicle_color",
       "kind": "text",
-      "x1": 193,
-      "y1": 877,
-      "x2": 355,
-      "y2": 923,
-      "conf": 0.948,
+      "x1": 214,
+      "y1": 894,
+      "x2": 380,
+      "y2": 941,
+      "conf": 0.946,
       "cls": 40,
       "text": "КРАСНЫЙ",
       "ambiguous": false
@@ -157,11 +157,11 @@
       "label": "Type_approval",
       "display": "Type_approval",
       "kind": "text",
-      "x1": 516,
-      "y1": 952,
-      "x2": 923,
-      "y2": 990,
-      "conf": 0.922,
+      "x1": 543,
+      "y1": 958,
+      "x2": 942,
+      "y2": 1001,
+      "conf": 0.936,
       "cls": 49,
       "text": "TCRUE-RU.BY03.56748",
       "ambiguous": false
@@ -171,11 +171,11 @@
       "label": "Eco_class",
       "display": "Eco_class",
       "kind": "text",
-      "x1": 523,
-      "y1": 999,
-      "x2": 687,
-      "y2": 1051,
-      "conf": 0.944,
+      "x1": 549,
+      "y1": 1008,
+      "x2": 713,
+      "y2": 1062,
+      "conf": 0.947,
       "cls": 42,
       "text": "ПЯТЫЙ/5",
       "ambiguous": false
@@ -185,11 +185,11 @@
       "label": "PTS_number",
       "display": "PTS_number",
       "kind": "text",
-      "x1": 411,
-      "y1": 1057,
-      "x2": 761,
-      "y2": 1095,
-      "conf": 0.923,
+      "x1": 436,
+      "y1": 1063,
+      "x2": 782,
+      "y2": 1109,
+      "conf": 0.933,
       "cls": 45,
       "text": "1642 61241339481",
       "ambiguous": false
@@ -199,11 +199,11 @@
       "label": "Max_mass",
       "display": "Max_mass",
       "kind": "text",
-      "x1": 854,
+      "x1": 876,
       "y1": 1104,
-      "x2": 949,
+      "x2": 968,
       "y2": 1140,
-      "conf": 0.931,
+      "conf": 0.945,
       "cls": 43,
       "text": "3214",
       "ambiguous": false
@@ -213,11 +213,11 @@
       "label": "Curb_mass",
       "display": "Curb_mass",
       "kind": "text",
-      "x1": 792,
-      "y1": 1158,
-      "x2": 888,
-      "y2": 1194,
-      "conf": 0.94,
+      "x1": 815,
+      "y1": 1157,
+      "x2": 909,
+      "y2": 1196,
+      "conf": 0.942,
       "cls": 44,
       "text": "2650",
       "ambiguous": false
@@ -227,11 +227,11 @@
       "label": "Licence_number",
       "display": "Document number",
       "kind": "text",
-      "x1": 296,
-      "y1": 1254,
-      "x2": 640,
-      "y2": 1305,
-      "conf": 0.942,
+      "x1": 317,
+      "y1": 1261,
+      "x2": 664,
+      "y2": 1322,
+      "conf": 0.952,
       "cls": 5,
       "text": "19 43 269684",
       "ambiguous": false
@@ -243,7 +243,7 @@
       "display": "Body_number",
       "value": "JDKUXW3NNU4XHS9V5",
       "script": "ru",
-      "conf": 0.931,
+      "conf": 0.928,
       "box_ids": [
         "b8"
       ]
@@ -253,7 +253,7 @@
       "display": "Chassis_number",
       "value": "ОТСУТСТВУЕТ",
       "script": "ru",
-      "conf": 0.945,
+      "conf": 0.939,
       "box_ids": [
         "b7"
       ]
@@ -263,7 +263,7 @@
       "display": "Curb_mass",
       "value": "2650",
       "script": "ru",
-      "conf": 0.94,
+      "conf": 0.942,
       "box_ids": [
         "b14"
       ]
@@ -273,7 +273,7 @@
       "display": "Eco_class",
       "value": "ПЯТЫЙ/5",
       "script": "ru",
-      "conf": 0.944,
+      "conf": 0.947,
       "box_ids": [
         "b11"
       ]
@@ -283,7 +283,7 @@
       "display": "Document number",
       "value": "19 43 269684",
       "script": "num",
-      "conf": 0.942,
+      "conf": 0.952,
       "box_ids": [
         "b15"
       ]
@@ -293,7 +293,7 @@
       "display": "Max_mass",
       "value": "3214",
       "script": "ru",
-      "conf": 0.931,
+      "conf": 0.945,
       "box_ids": [
         "b13"
       ]
@@ -303,7 +303,7 @@
       "display": "PTS_number",
       "value": "1642 61241339481",
       "script": "ru",
-      "conf": 0.923,
+      "conf": 0.933,
       "box_ids": [
         "b12"
       ]
@@ -313,7 +313,7 @@
       "display": "Reg_number",
       "value": "P391MB77",
       "script": "ru",
-      "conf": 0.938,
+      "conf": 0.947,
       "box_ids": [
         "b0"
       ]
@@ -323,7 +323,7 @@
       "display": "Type_approval",
       "value": "TCRUE-RU.BY03.56748",
       "script": "ru",
-      "conf": 0.922,
+      "conf": 0.936,
       "box_ids": [
         "b10"
       ]
@@ -333,7 +333,7 @@
       "display": "VIN",
       "value": "JDKUXW3NNU4XHS9V5",
       "script": "ru",
-      "conf": 0.936,
+      "conf": 0.93,
       "box_ids": [
         "b1"
       ]
@@ -343,7 +343,7 @@
       "display": "Vehicle_category",
       "value": "B/M1",
       "script": "ru",
-      "conf": 0.941,
+      "conf": 0.948,
       "box_ids": [
         "b5"
       ]
@@ -353,7 +353,7 @@
       "display": "Vehicle_color",
       "value": "КРАСНЫЙ",
       "script": "ru",
-      "conf": 0.948,
+      "conf": 0.946,
       "box_ids": [
         "b9"
       ]
@@ -363,7 +363,7 @@
       "display": "Vehicle_make_en",
       "value": "HYUNDAI SOLARIS",
       "script": "en",
-      "conf": 0.949,
+      "conf": 0.934,
       "box_ids": [
         "b3"
       ]
@@ -381,9 +381,9 @@
     {
       "name": "Vehicle_type",
       "display": "Vehicle_type",
-      "value": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)",
+      "value": "ЛЕГКОВОЙ КОМБИ (ХЭТЧВЕК)",
       "script": "ru",
-      "conf": 0.892,
+      "conf": 0.888,
       "box_ids": [
         "b4"
       ]
@@ -404,7 +404,7 @@
     "VIN": "JDKUXW3NNU4XHS9V5",
     "Vehicle_make_ru": "HYUNDAI SOLARIS",
     "Vehicle_make_en": "HYUNDAI SOLARIS",
-    "Vehicle_type": "ЛЕГКОВОЙ КОМБИ (ХЭТЧБЕК)",
+    "Vehicle_type": "ЛЕГКОВОЙ КОМБИ (ХЭТЧВЕК)",
     "Vehicle_category": "B/M1",
     "Vehicle_year": "2022",
     "Chassis_number": "ОТСУТСТВУЕТ",
@@ -425,20 +425,20 @@
     "LCDSpoofing": "REAL"
   },
   "timings": {
-    "_document_detector": 0.1045,
-    "_doctype_angle": 0.007,
-    "_quality_and_borders": 0.2977,
-    "_glare": 0.0321,
-    "_blur": 0.0551,
-    "_print_spoofing": 0.006,
-    "_lcd_spoofing": 0.067,
-    "_doc_detector": 0.2576,
-    "_register_pages": 1.026,
-    "_deskew": 0.013,
-    "_fields_detector": 0.1181,
-    "_split_words": 0.2118,
-    "_ocr": 0.4055,
-    "total": 2.1836
+    "_document_detector": 0.1005,
+    "_doctype_angle": 0.0065,
+    "_quality_and_borders": 0.2583,
+    "_glare": 0.0338,
+    "_blur": 0.0316,
+    "_print_spoofing": 0.0056,
+    "_lcd_spoofing": 0.0054,
+    "_doc_detector": 0.179,
+    "_register_pages": 1.7659,
+    "_deskew": 0.0,
+    "_fields_detector": 0.1137,
+    "_split_words": 0.212,
+    "_ocr": 0.4078,
+    "total": 2.8647
   },
   "address": null
 }

@@ -18,10 +18,10 @@
       "display": "Document number",
       "kind": "text",
       "x1": 46,
-      "y1": 230,
-      "x2": 382,
-      "y2": 280,
-      "conf": 0.942,
+      "y1": 231,
+      "x2": 383,
+      "y2": 283,
+      "conf": 0.941,
       "cls": 5,
       "text": "41 14 157259",
       "ambiguous": false
@@ -32,10 +32,10 @@
       "display": "Last name",
       "kind": "text",
       "x1": 170,
-      "y1": 359,
+      "y1": 360,
       "x2": 376,
-      "y2": 396,
-      "conf": 0.929,
+      "y2": 397,
+      "conf": 0.931,
       "cls": 1,
       "text": "ВАСИЛЬЕВА",
       "ambiguous": false
@@ -46,10 +46,10 @@
       "display": "Last name",
       "kind": "text",
       "x1": 239,
-      "y1": 398,
-      "x2": 445,
-      "y2": 436,
-      "conf": 0.933,
+      "y1": 399,
+      "x2": 446,
+      "y2": 437,
+      "conf": 0.934,
       "cls": 3,
       "text": "VASIL'EVA",
       "ambiguous": false
@@ -61,9 +61,9 @@
       "kind": "text",
       "x1": 174,
       "y1": 436,
-      "x2": 295,
-      "y2": 472,
-      "conf": 0.932,
+      "x2": 296,
+      "y2": 473,
+      "conf": 0.927,
       "cls": 2,
       "text": "АЛИНА",
       "ambiguous": false
@@ -74,10 +74,10 @@
       "display": "First name",
       "kind": "text",
       "x1": 240,
-      "y1": 474,
+      "y1": 475,
       "x2": 363,
-      "y2": 511,
-      "conf": 0.938,
+      "y2": 512,
+      "conf": 0.933,
       "cls": 4,
       "text": "ALINA",
       "ambiguous": false
@@ -88,10 +88,10 @@
       "display": "Middle name",
       "kind": "text",
       "x1": 170,
-      "y1": 510,
-      "x2": 424,
-      "y2": 547,
-      "conf": 0.935,
+      "y1": 511,
+      "x2": 423,
+      "y2": 548,
+      "conf": 0.933,
       "cls": 17,
       "text": "ЯРОСЛАВОВНА",
       "ambiguous": false
@@ -105,7 +105,7 @@
       "y1": 626,
       "x2": 477,
       "y2": 678,
-      "conf": 0.938,
+      "conf": 0.937,
       "cls": 15,
       "text": null,
       "ambiguous": true
@@ -117,9 +117,9 @@
       "kind": "text",
       "x1": 478,
       "y1": 688,
-      "x2": 649,
+      "x2": 650,
       "y2": 736,
-      "conf": 0.948,
+      "conf": 0.947,
       "cls": 15,
       "text": "ПЕРМСКИЙ КТБЙ Г ПЕРМЬ УЛ БРАТЬЕВ КАШИТИНЫХ",
       "ambiguous": false
@@ -131,9 +131,9 @@
       "kind": "text",
       "x1": 230,
       "y1": 735,
-      "x2": 690,
+      "x2": 691,
       "y2": 786,
-      "conf": 0.915,
+      "conf": 0.916,
       "cls": 15,
       "text": null,
       "ambiguous": true
@@ -145,8 +145,8 @@
       "kind": "text",
       "x1": 229,
       "y1": 809,
-      "x2": 310,
-      "y2": 846,
+      "x2": 309,
+      "y2": 845,
       "conf": 0.939,
       "cls": 47,
       "text": "84Б",
@@ -161,7 +161,7 @@
       "y1": 909,
       "x2": 401,
       "y2": 946,
-      "conf": 0.935,
+      "conf": 0.936,
       "cls": 48,
       "text": "342",
       "ambiguous": false
@@ -171,9 +171,9 @@
       "label": "Special_marks",
       "display": "Special_marks",
       "kind": "text",
-      "x1": 171,
+      "x1": 170,
       "y1": 1023,
-      "x2": 909,
+      "x2": 910,
       "y2": 1058,
       "conf": 0.861,
       "cls": 46,
@@ -185,10 +185,10 @@
       "label": "Special_marks",
       "display": "Special_marks",
       "kind": "text",
-      "x1": 168,
+      "x1": 167,
       "y1": 1070,
       "x2": 454,
-      "y2": 1095,
+      "y2": 1094,
       "conf": 0.877,
       "cls": 46,
       "text": "ЛИЗИНГОПОЛУЧАТЕЛЬ ДОГОВОР 64349-Л ОТ 12.07.2023",
@@ -201,7 +201,7 @@
       "kind": "text",
       "x1": 686,
       "y1": 1224,
-      "x2": 855,
+      "x2": 856,
       "y2": 1262,
       "conf": 0.935,
       "cls": 20,
@@ -213,11 +213,11 @@
       "label": "Issue_date",
       "display": "Date of issue",
       "kind": "text",
-      "x1": 415,
+      "x1": 414,
       "y1": 1324,
       "x2": 648,
       "y2": 1363,
-      "conf": 0.926,
+      "conf": 0.927,
       "cls": 6,
       "text": "14.05.2025",
       "ambiguous": false
@@ -229,7 +229,7 @@
       "display": "Apartment_number",
       "value": "342",
       "script": "ru",
-      "conf": 0.935,
+      "conf": 0.936,
       "box_ids": [
         "b10"
       ]
@@ -239,7 +239,7 @@
       "display": "First name",
       "value": "ALINA",
       "script": "en",
-      "conf": 0.938,
+      "conf": 0.933,
       "box_ids": [
         "b4"
       ]
@@ -249,7 +249,7 @@
       "display": "First name",
       "value": "АЛИНА",
       "script": "ru",
-      "conf": 0.932,
+      "conf": 0.927,
       "box_ids": [
         "b3"
       ]
@@ -269,7 +269,7 @@
       "display": "Date of issue",
       "value": "14.05.2025",
       "script": "num",
-      "conf": 0.926,
+      "conf": 0.927,
       "box_ids": [
         "b14"
       ],
@@ -290,7 +290,7 @@
       "display": "Last name",
       "value": "VASIL'EVA",
       "script": "en",
-      "conf": 0.933,
+      "conf": 0.934,
       "box_ids": [
         "b2"
       ]
@@ -300,7 +300,7 @@
       "display": "Last name",
       "value": "ВАСИЛЬЕВА",
       "script": "ru",
-      "conf": 0.929,
+      "conf": 0.931,
       "box_ids": [
         "b1"
       ]
@@ -310,7 +310,7 @@
       "display": "Document number",
       "value": "41 14 157259",
       "script": "num",
-      "conf": 0.942,
+      "conf": 0.941,
       "box_ids": [
         "b0"
       ]
@@ -320,7 +320,7 @@
       "display": "Place of residence",
       "value": "ПЕРМСКИЙ КТБЙ Г ПЕРМЬ УЛ БРАТЬЕВ КАШИТИНЫХ",
       "script": "ru",
-      "conf": 0.948,
+      "conf": 0.947,
       "box_ids": [
         "b6",
         "b7",
@@ -332,7 +332,7 @@
       "display": "Middle name",
       "value": "ЯРОСЛАВОВНА",
       "script": "ru",
-      "conf": 0.935,
+      "conf": 0.933,
       "box_ids": [
         "b5"
       ]
@@ -371,20 +371,20 @@
     "LCDSpoofing": "REAL"
   },
   "timings": {
-    "_document_detector": 0.1041,
-    "_doctype_angle": 0.0075,
-    "_quality_and_borders": 0.3018,
-    "_glare": 0.0866,
-    "_blur": 0.0966,
-    "_print_spoofing": 0.0215,
-    "_lcd_spoofing": 0.0175,
-    "_doc_detector": 0.2748,
-    "_register_pages": 1.3656,
+    "_document_detector": 0.0968,
+    "_doctype_angle": 0.0071,
+    "_quality_and_borders": 0.2647,
+    "_glare": 0.022,
+    "_blur": 0.0285,
+    "_print_spoofing": 0.0355,
+    "_lcd_spoofing": 0.006,
+    "_doc_detector": 0.2412,
+    "_register_pages": 1.1901,
     "_deskew": 0.0,
-    "_fields_detector": 0.1105,
-    "_split_words": 0.2166,
-    "_ocr": 0.3622,
-    "total": 2.4683
+    "_fields_detector": 0.1121,
+    "_split_words": 0.2266,
+    "_ocr": 0.4593,
+    "total": 2.3567
   },
   "address": null
 }

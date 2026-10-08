@@ -51,6 +51,19 @@ public sealed class PageRegistrar : IDisposable
     private static readonly double[] ChainRadiusPx = [90.0, 15.0];
 
     private readonly SIFT _sift;
+
+    /// <summary>The keypoint budget (<c>nfeatures</c>), cut by <see cref="SiftFeatures"/>, not by OpenCV.</summary>
+    private readonly int _nfeatures;
+
+    /// <summary>
+    /// After MAGSAC, re-fit the homography by least squares on its inliers and re-select them by the reprojection
+    /// threshold, up to this many times (<c>refit_rounds</c>). MAGSAC's answer moves with its samples; the fixed
+    /// point of the re-fit does not. 0 (the default, the passport path): there the template only locates the
+    /// page and the Borders quad keeps the geometry, and the re-fit cost 5 of 100 exact fields on the 1997
+    /// passports (measured by the reference, 2026-10-08). The card of an STS uses
+    /// <see cref="Pipeline.Recognizer.CardRefitRounds"/>.
+    /// </summary>
+    private readonly int _refitRounds;
     private readonly BFMatcher _matcher;
     private readonly List<(string Name, List<PageTemplate> Refs)> _pages = [];
 
@@ -73,8 +86,10 @@ public sealed class PageRegistrar : IDisposable
     /// <c>PageRegistrar()</c>'s own defaults (<c>nfeatures=6000, use_ecc=False, line_quads=True,
     /// line_refine=True, line_dewarp=True</c>).
     /// </summary>
-    public PageRegistrar(string root, string docType, int nfeatures = 6000)
+    public PageRegistrar(string root, string docType, int nfeatures = 6000, int refitRounds = 0)
     {
+        _refitRounds = refitRounds;
+        _nfeatures = nfeatures;
         string dir = Path.Combine(root, "document_processing", "pipeline_modules",
             "page_registration", "templates");
         string metaPath = Path.Combine(dir, docType.ToLowerInvariant() + ".json");
@@ -86,7 +101,8 @@ public sealed class PageRegistrar : IDisposable
             throw new InvalidDataException($"page_registration: {metaPath} has no pages");
         }
 
-        _sift = SIFT.Create(nFeatures: nfeatures);
+        // No budget inside OpenCV: SiftFeatures cuts it in a platform-free order (see there).
+        _sift = SIFT.Create(nFeatures: 0);
         _matcher = new BFMatcher(NormTypes.L2, crossCheck: false);
 
         try
@@ -100,7 +116,7 @@ public sealed class PageRegistrar : IDisposable
                 foreach (TemplateRef r in refs)
                 {
                     loaded.Add(PageTemplate.Load(p.Name,
-                        Path.Combine(dir, r.Image), Path.Combine(dir, r.Mask), _sift));
+                        Path.Combine(dir, r.Image), Path.Combine(dir, r.Mask), _sift, nfeatures));
                 }
                 _pages.Add((p.Name, loaded));
             }
@@ -231,15 +247,60 @@ public sealed class PageRegistrar : IDisposable
         {
             return new MatchResult(null, 0, null, false);
         }
-        var inl = new List<Point>();
-        for (int i = 0; i < inlierMask.Length; i++)
+        // Re-fit: MAGSAC's homography moves with its samples, the fixed point of "least squares on the inliers,
+        // inliers by the threshold" does not. The last re-fitted homography is the answer even when the loop
+        // stops on a set that got too small (match._match in the reference).
+        bool[] current = inlierMask;
+        for (int round = 0; round < _refitRounds; round++)
         {
-            if (inlierMask[i])
+            if (current.Count(b => b) < 8)
+            {
+                break;
+            }
+            double[,]? refit = Homography.FindLeastSquares(
+                [.. srcPhoto.Where((_, i) => current[i])], [.. dstTpl.Where((_, i) => current[i])]);
+            if (refit is null)
+            {
+                break;
+            }
+            bool[] next = ReprojectionInliers(srcPhoto, dstTpl, refit, reproj);
+            h = refit;
+            if (next.Count(b => b) < 8 || next.SequenceEqual(current))
+            {
+                break;
+            }
+            current = next;
+        }
+        var inl = new List<Point>();
+        for (int i = 0; i < current.Length; i++)
+        {
+            if (current[i])
             {
                 inl.Add(dstTpl[i]);
             }
         }
         return new MatchResult(h, inl.Count, [.. inl], true);
+    }
+
+    /// <summary>
+    /// Matches whose reprojection error under <paramref name="h"/> is below <paramref name="reproj"/>. The error is
+    /// a float32 norm of float32 differences, as the reference computes it (<c>np.linalg.norm</c> of the difference
+    /// of <c>cv2.perspectiveTransform</c>'s float32 output and the float32 template points).
+    /// </summary>
+    private static bool[] ReprojectionInliers(IReadOnlyList<Point> src, IReadOnlyList<Point> dst, double[,] h,
+        double reproj)
+    {
+        Point2f[] from = [.. src.Select(p => new Point2f((float)p.X, (float)p.Y))];
+        using Mat hm = Homography.ToMat(h);
+        Point2f[] mapped = Cv2.PerspectiveTransform(from, hm);
+        var inliers = new bool[src.Count];
+        float limit = (float)reproj;
+        for (int i = 0; i < inliers.Length; i++)
+        {
+            float dx = mapped[i].X - (float)dst[i].X, dy = mapped[i].Y - (float)dst[i].Y;
+            inliers[i] = MathF.Sqrt(dx * dx + dy * dy) < limit;
+        }
+        return inliers;
     }
 
     private static double Median(List<double> values)
@@ -344,8 +405,8 @@ public sealed class PageRegistrar : IDisposable
             Cv2.WarpPerspective(gray, page, hm, new Size(tpl.Width, tpl.Height),
                 InterpolationFlags.Linear, BorderTypes.Replicate);
         }
-        using var desc = new Mat();
-        _sift.DetectAndCompute(page, null, out KeyPoint[] kps, desc);
+        (KeyPoint[] kps, Mat descriptors) = SiftFeatures.Detect(_sift, page, null, _nfeatures);
+        using Mat desc = descriptors;
         Point[] kp = [.. kps.Select(k => new Point(k.Pt.X, k.Pt.Y))];
 
         double[,] prior = Homography.Identity();
@@ -442,8 +503,8 @@ public sealed class PageRegistrar : IDisposable
     public List<PageRegistrationResult> Register(Image imgRgb, IReadOnlyList<Point[]>? quads = null)
     {
         using Image gray = Io.ToGray(imgRgb);
-        using var desc = new Mat();
-        _sift.DetectAndCompute(gray.Mat, null, out KeyPoint[] kps, desc);
+        (KeyPoint[] kps, Mat descriptors) = SiftFeatures.Detect(_sift, gray.Mat, null, _nfeatures);
+        using Mat desc = descriptors;
         Point[] kp = [.. kps.Select(k => new Point(k.Pt.X, k.Pt.Y))];
 
         Point[][] quadArr = [.. (quads ?? [])];
@@ -1020,7 +1081,7 @@ public sealed class PageTemplate : IDisposable
         Corners = [new Point(0, 0), new Point(Width, 0), new Point(Width, Height), new Point(0, Height)];
     }
 
-    public static PageTemplate Load(string name, string imagePath, string maskPath, SIFT sift)
+    public static PageTemplate Load(string name, string imagePath, string maskPath, SIFT sift, int budget = 6000)
     {
         using Image bgr = Io.LoadRgb(imagePath);
         Mat gray = Io.ToGray(bgr).Take();
@@ -1034,10 +1095,9 @@ public sealed class PageTemplate : IDisposable
         using var mask = new Mat();
         Cv2.Threshold(maskGray, mask, 127, 255, ThresholdTypes.Binary);
 
-        using var desc = new Mat();
-        sift.DetectAndCompute(gray, mask, out KeyPoint[] kps, desc);
+        (KeyPoint[] kps, Mat descriptors) = SiftFeatures.Detect(sift, gray, mask, budget);
         Point[] kp = [.. kps.Select(k => new Point(k.Pt.X, k.Pt.Y))];
-        return new PageTemplate(name, gray, kp, desc.Clone());
+        return new PageTemplate(name, gray, kp, descriptors);
     }
 
     /// <summary>Page corners mapped back into the photo. Port of <c>PageTemplate.quad_in_image</c>

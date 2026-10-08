@@ -101,6 +101,11 @@ type PageRegistrar struct {
 	margin       int
 	outW, outH   int
 
+	// RefitRounds is PageRegistrar.refit_rounds: after MAGSAC, re-fit the homography by least
+	// squares on its inliers and re-select them, up to this many times. 0 (the passport path)
+	// keeps MAGSAC'"'"'s answer.
+	RefitRounds int
+
 	LineQuads  bool
 	LineRefine bool
 	LineDewarp bool
@@ -299,14 +304,61 @@ func (r *PageRegistrar) match(tpl *pageTemplate, kp []imaging.Point, desc [][]fl
 	if !ok {
 		return matchResult{}
 	}
-	var inl []imaging.Point
-	cnt := 0
+	inlier := make([]bool, len(dstTpl))
+	count := 0
 	for i, keep := range mask {
 		if keep && i < len(dstTpl) {
-			cnt++
+			inlier[i] = true
+			count++
+		}
+	}
+	// Re-fit by least squares on the inliers and re-select them by the reprojection threshold, up
+	// to refitRounds times (PageRegistrar.refit_rounds): MAGSAC'"'"'s answer moves with its samples, the
+	// fixed point of the re-fit does not. A stop on an unchanged set or fewer than 8 points; the
+	// homography is the last one re-fitted.
+	for round := 0; round < r.RefitRounds; round++ {
+		if count < 8 {
+			break
+		}
+		var fs, fd []imaging.Point
+		for i, ok := range inlier {
+			if ok {
+				fs, fd = append(fs, srcPhoto[i]), append(fd, dstTpl[i])
+			}
+		}
+		Hr, ok := imaging.FindHomographyLeastSquares(fs, fd)
+		if !ok {
+			break
+		}
+		projected := imaging.PerspectiveTransformF32(Hr, srcPhoto) // float32 arrays, like the reference'"'"'s
+		next := make([]bool, len(inlier))
+		nextCount := 0
+		changed := false
+		for i, p := range projected {
+			dx := float32(float32(p.X) - float32(dstTpl[i].X))
+			dy := float32(float32(p.Y) - float32(dstTpl[i].Y))
+			err := float32(math.Sqrt(float64(float32(float32(dx*dx) + float32(dy*dy)))))
+			next[i] = err < float32(reproj)
+			if next[i] {
+				nextCount++
+			}
+			if next[i] != inlier[i] {
+				changed = true
+			}
+		}
+		H = Hr
+		if nextCount < 8 || !changed {
+			break
+		}
+		inlier, count = next, nextCount
+	}
+	var inl []imaging.Point
+	for i, ok := range inlier {
+		if ok {
 			inl = append(inl, dstTpl[i])
 		}
 	}
+	cnt := count
 	return matchResult{H: H, Inliers: cnt, Pts: inl, OK: true}
 }
 

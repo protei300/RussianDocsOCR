@@ -39,9 +39,9 @@ types `STS_1996`, `STSBACK_1996`, `STS_2019`, `STSBACK_2019` with the reference'
 straightening of the card by its printed blank, the margin of the special marks, the engine by
 form year, the torn-word glue and the leasing flag (conformance stage `leasing`), the rule for
 a line labelled as both the Russian and the English field, `RunFrame` (every document of a
-frame) and `PairSides`. Conformance on the four STS cases: STS_1996, STSBACK_1996 clean; STS_2019
-and STSBACK_2019 differ exactly as D-07 and D-08 declare (the reference decides that card
-differently on another platform). What the port needed that the Go binding does not give is in
+frame) and `PairSides`. Conformance on the four STS cases: all clean (the platform difference of
+STS_2019 and STSBACK_2019, D-07 and D-08, ended on 2026-10-08 when the reference stopped depending
+on the order OpenCV hands SIFT keypoints over). What the port needed that the Go binding does not give is in
 DEVIATIONS.md G-01 (the line segment detector, through a small C++ file of this repository -
 the build must be able to compile C++, which cgo and gocv already require) and G-02 (the order
 of the SIFT keypoints that survive the budget).
@@ -49,7 +49,7 @@ of the SIFT keypoints that survive the budget).
 Since 2026-10-08 it also carries the way back to the input photo (PR #19, decision #132): the
 conformance stage `quads` (where every read field and word patch lies on the photo, unrounded,
 graded as coordinates), `Results.Geometry`, `Results.ToInput` and `Results.Quads`. Clean on all
-cases except those under a declared deviation (D-03, D-07, D-08). Not ported: the address-line
+cases except those under a declared deviation (D-03). Not ported: the address-line
 quadrilaterals (the address path is not read) and `Pipeline(page_geometry=True)` (off by default).
 
 Verify it rather than trusting the table:

@@ -1524,6 +1524,9 @@ class Pipeline:
     #: training-data side used on the client's canvases; visible skew starts at about
     #: 1.4 % (handoff of 2026-10-02).
     CARD_SKEW_KEEP = 0.01
+    #: Least-squares re-fits after MAGSAC in the card's template match (PageRegistrar's
+    #: refit_rounds): the skew decision above must not move with MAGSAC's samples.
+    CARD_REFIT_ROUNDS = 5
 
     @staticmethod
     def _card_skew(reg, borders_quad, card_quad) -> float:
@@ -1544,7 +1547,8 @@ class Pipeline:
             self._card_registrars = {}
         if doc_type not in self._card_registrars:
             try:
-                self._card_registrars[doc_type] = PageRegistrar(doc_type)
+                self._card_registrars[doc_type] = PageRegistrar(
+                    doc_type, refit_rounds=self.CARD_REFIT_ROUNDS)
             except FileNotFoundError:
                 self._card_registrars[doc_type] = None
         return self._card_registrars[doc_type]

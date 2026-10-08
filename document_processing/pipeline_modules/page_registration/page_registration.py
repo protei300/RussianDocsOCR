@@ -104,10 +104,35 @@ def _gradient(gray: np.ndarray) -> np.ndarray:
     return m / (m.mean() + 1e-6)
 
 
+def detect_features(sift, gray: np.ndarray, mask: Optional[np.ndarray] = None,
+                    budget: Optional[int] = None):
+    """SIFT keypoints and descriptors in an order every platform agrees on.
+
+    OpenCV orders its keypoints with std::sort (duplicate removal) and cuts an
+    ``nfeatures`` budget with std::nth_element; both leave ties in an order that
+    depends on the C++ library OpenCV was built with. MAGSAC samples matches by
+    index, so the same keypoints in another order give another homography: on an
+    STS of the 2019 form the Windows wheel kept the Borders canvas (skew 0.0076)
+    and the same code on Linux re-cut it from the template (0.0118) - conformance
+    D-07/D-08 (2026-10-08). So the detector runs without a budget, the keypoints
+    are sorted here by response and then by position, size, angle and octave, and
+    the budget is cut from that order. ``sift`` must be created with nfeatures=0.
+    """
+    kp, desc = sift.detectAndCompute(gray, mask)
+    if not kp:
+        return [], None
+    keys = np.array([(k.octave, k.angle, k.size, k.pt[0], k.pt[1], -k.response) for k in kp],
+                    dtype=np.float64)
+    order = np.lexsort(keys.T)      # last key first: response (descending), then y, x, ...
+    if budget:
+        order = order[:budget]
+    return [kp[i] for i in order], desc[order]
+
+
 class PageTemplate:
     """One reference of a canonical page: erased print, static mask, features."""
 
-    def __init__(self, name: str, image_path: Path, mask_path: Path, sift):
+    def __init__(self, name: str, image_path: Path, mask_path: Path, sift, budget: Optional[int] = None):
         self.name = name
         bgr = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
         if bgr is None:
@@ -118,7 +143,7 @@ class PageTemplate:
         if mask is None:
             raise FileNotFoundError(mask_path)
         self.mask = (mask > 127).astype(np.uint8)
-        self.kp, self.desc = sift.detectAndCompute(self.gray, self.mask * 255)
+        self.kp, self.desc = detect_features(sift, self.gray, self.mask * 255, budget)
         self.pts = np.float32([k.pt for k in self.kp])
         self.grad = _gradient(self.gray)
         self.corners = np.float32([[0, 0], [self.width, 0],
@@ -172,26 +197,38 @@ class PageRegistrar:
             paints that colour. A card cut off by the frame and warped by its
             template otherwise grows streaks of smeared edge into the canvas,
             where the field detector reads them as print.
+        refit_rounds: after MAGSAC, re-fit the homography by least squares on
+            its inliers and re-select them by the reprojection threshold, up to
+            this many times. MAGSAC's answer moves with its samples (on an STS
+            card of the 2019 form the corners moved by several pixels between
+            two SIMD paths of OpenCV, within 1 px after the re-fit); the fixed
+            point of the re-fit does not. 0 (the default, the passport path):
+            there the template only locates the page and the Borders quad keeps
+            the geometry, and the re-fit cost 5 of 100 exact fields on the
+            1997 passports of samples/ (measured 2026-10-08).
     """
 
     def __init__(self, doc_type: str = 'INTPASSPORT', templates_dir: Optional[Path] = None,
                  nfeatures: int = 6000, use_ecc: bool = False, line_quads: bool = True,
                  line_refine: bool = True, line_dewarp: bool = True,
-                 fill: Optional[tuple] = None):
+                 fill: Optional[tuple] = None, refit_rounds: int = 0):
         self.fill = fill
+        self.refit_rounds = refit_rounds
         self.line_quads = line_quads
         self.line_refine = line_refine
         self.line_dewarp = line_dewarp
         self.doc_type = doc_type.upper()
         tdir = Path(templates_dir) if templates_dir else TEMPLATES_DIR
         meta = json.loads((tdir / f'{self.doc_type.lower()}.json').read_text(encoding='utf-8'))
-        self.sift = cv2.SIFT_create(nfeatures=nfeatures)
+        # No budget inside OpenCV: detect_features cuts it in a platform-free order.
+        self.sift = cv2.SIFT_create(nfeatures=0)
+        self.nfeatures = nfeatures
         # pages: list of (name, [PageTemplate, ...]) in canvas order
         self.pages = []
         for p in meta['pages']:
             refs = p.get('refs') or [{'image': p['image'], 'mask': p['mask']}]
             self.pages.append((p['name'], [
-                PageTemplate(p['name'], tdir / r['image'], tdir / r['mask'], self.sift)
+                PageTemplate(p['name'], tdir / r['image'], tdir / r['mask'], self.sift, nfeatures)
                 for r in refs]))
         first = self.pages[0][1][0]
         self.page_w, self.page_h = first.width, first.height
@@ -242,6 +279,18 @@ class PageRegistrar:
         if H is None or mask is None:
             return None, 0, None
         m = mask.ravel().astype(bool)
+        for _ in range(self.refit_rounds):
+            if m.sum() < 8:
+                break
+            Hr, _ = cv2.findHomography(src[m], dst[m], 0)
+            if Hr is None:
+                break
+            err = np.linalg.norm(cv2.perspectiveTransform(src.reshape(1, -1, 2), Hr).reshape(-1, 2) - dst, axis=1)
+            m_new = err < reproj
+            H = Hr
+            if m_new.sum() < 8 or np.array_equal(m_new, m):
+                break
+            m = m_new
         return H, int(m.sum()), dst[m]
 
     def _features_in_quad(self, kp, desc, quad, shape):
@@ -274,7 +323,7 @@ class PageRegistrar:
         0 when refinement failed."""
         page = cv2.warpPerspective(gray, H, (tpl.width, tpl.height), flags=cv2.INTER_LINEAR,
                                    borderMode=cv2.BORDER_REPLICATE)
-        kp, desc = self.sift.detectAndCompute(page, None)
+        kp, desc = detect_features(self.sift, page, None, self.nfeatures)
         prior = np.eye(3)
         inl, pts = 0, None
         for radius, reproj in zip(radii, REFINE_REPROJ_PX):
@@ -354,7 +403,7 @@ class PageRegistrar:
             page that could not be registered (caller falls back for it).
         """
         gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY) if img_rgb.ndim == 3 else img_rgb
-        kp, desc = self.sift.detectAndCompute(gray, None)
+        kp, desc = detect_features(self.sift, gray, None, self.nfeatures)
         quads = [np.asarray(q, np.float32).reshape(4, 2) for q in (quads or [])]
         quad_feats = [self._features_in_quad(kp, desc, q, gray.shape) for q in quads]
 

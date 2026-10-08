@@ -44,6 +44,7 @@ public class PageTemplate(
     imagePath: String,
     maskPath: String,
     sift: SIFT,
+    budget: Int? = null,
 ) : AutoCloseable {
     // `PageTemplate.__init__` (page_registration.py): reads COLOR then converts BGR->gray via
     // cvtColor - NOT a direct grayscale decode. The two are not bit-identical (a direct
@@ -63,8 +64,8 @@ public class PageTemplate(
     public val height: Int = gray.rows()
     public val width: Int = gray.cols()
     public val mask: Mat
-    public val keypoints: MatOfKeyPoint = MatOfKeyPoint()
-    public val descriptors: Mat = Mat()
+    public val keypoints: MatOfKeyPoint
+    public val descriptors: Mat
     public val pts: Array<Pt>
     public val corners: Array<Pt> = arrayOf(
         Pt(0.0, 0.0), Pt(width.toDouble(), 0.0),
@@ -77,8 +78,11 @@ public class PageTemplate(
         Imgproc.threshold(rawMask, mask255, 127.0, 255.0, Imgproc.THRESH_BINARY)
         rawMask.release()
         mask = mask255
-        sift.detectAndCompute(gray, mask255, keypoints, descriptors)
-        val kpArray = keypoints.toArray()
+        // `detect_features(sift, gray, mask, budget)`: sorted here, the budget cut here (see SiftFeatures)
+        val features = SiftFeatures.detect(sift, gray, mask255, budget)
+        val kpArray = features.keypoints
+        keypoints = MatOfKeyPoint(*kpArray)
+        descriptors = features.descriptors ?: Mat()
         pts = Array(kpArray.size) { Pt(kpArray[it].pt.x, kpArray[it].pt.y) }
     }
 
@@ -175,7 +179,7 @@ internal object Homography {
 public class PageRegistrar(
     docType: String = "INTPASSPORT",
     templatesDir: String? = null,
-    nfeatures: Int = 6000,
+    private val nfeatures: Int = 6000,
     public val lineQuads: Boolean = true,
     public val lineRefine: Boolean = true,
     public val lineDewarp: Boolean = true,
@@ -186,6 +190,16 @@ public class PageRegistrar(
      * them as print (`PageRegistrar.fill`).
      */
     public val fill: DoubleArray? = null,
+    /**
+     * After MAGSAC, re-fit the homography by least squares on its inliers and re-select them by the reprojection
+     * threshold, up to this many times (`refit_rounds`). MAGSAC's answer moves with its samples (on an STS card of
+     * the 2019 form the corners moved by several pixels between two SIMD paths of OpenCV, within 1 px after the
+     * re-fit); the fixed point of the re-fit does not. 0 (the default, the passport path): there the template only
+     * locates the page and the Borders quad keeps the geometry, and the re-fit cost 5 of 100 exact fields on the
+     * 1997 passports of samples/ (measured 2026-10-08). The registrar of a card is built with
+     * [Recognizer.CARD_REFIT_ROUNDS][net.russiandocs.docproc.pipeline.Recognizer].
+     */
+    public val refitRounds: Int = 0,
 ) : AutoCloseable {
 
     public companion object {
@@ -207,7 +221,8 @@ public class PageRegistrar(
     }
 
     private val doc = docType.uppercase()
-    private val sift: SIFT = SIFT.create(nfeatures)
+    // No budget inside OpenCV: SiftFeatures cuts it in a platform-free order.
+    private val sift: SIFT = SIFT.create(0)
     private val matcher: BFMatcher = BFMatcher(Core.NORM_L2)
     public val pages: List<Pair<String, List<PageTemplate>>>
     public val pageW: Int
@@ -237,7 +252,7 @@ public class PageRegistrar(
                 listOf(File(tdir, p["image"]!!.jsonPrimitive.content).path to
                     File(tdir, p["mask"]!!.jsonPrimitive.content).path)
             }
-            loaded += name to refs.map { (img, mask) -> PageTemplate(name, img, mask, sift) }
+            loaded += name to refs.map { (img, mask) -> PageTemplate(name, img, mask, sift, nfeatures) }
         }
         pages = loaded
         val first = pages[0].second[0]
@@ -301,15 +316,36 @@ public class PageRegistrar(
             }
             val maskArr = ByteArray(maskMat.rows())
             maskMat.get(0, 0, maskArr)
-            var inliers = 0
-            val inlierPts = ArrayList<Pt>()
-            for (i in maskArr.indices) if (maskArr[i].toInt() != 0) {
-                inliers++
-                inlierPts += dst[i]
-            }
-            val hArr = Homography.fromMat(hMat)
+            var hArr = Homography.fromMat(hMat)
             hMat.release()
-            return Triple(hArr, inliers, inlierPts)
+            var m = BooleanArray(maskArr.size) { maskArr[it].toInt() != 0 }
+            // The re-fit (see [refitRounds]): least squares on the current matches, then the matches again by the
+            // reprojection error — computed in float32 as `cv2.perspectiveTransform` and `np.linalg.norm` do on the
+            // float32 points. Stops when the set does not change or falls under 8; the matrix is the last re-fit.
+            for (round in 0 until refitRounds) {
+                if (m.count { it } < 8) break
+                val idx = m.indices.filter { m[it] }
+                val sM = MatOfPoint2f(*idx.map { CvPoint(src[it].x, src[it].y) }.toTypedArray())
+                val dM = MatOfPoint2f(*idx.map { CvPoint(dst[it].x, dst[it].y) }.toTypedArray())
+                val hr = Calib3d.findHomography(sM, dM, 0)
+                sM.release(); dM.release()
+                if (hr == null || hr.empty()) break
+                val hrArr = Homography.fromMat(hr)
+                hr.release()
+                val limit = reproj.toFloat()
+                val mNew = BooleanArray(m.size) { i ->
+                    val p = Homography.apply(hrArr, src[i])
+                    val dx = p.x.toFloat() - dst[i].x.toFloat()
+                    val dy = p.y.toFloat() - dst[i].y.toFloat()
+                    kotlin.math.sqrt(dx * dx + dy * dy) < limit
+                }
+                hArr = hrArr
+                if (mNew.count { it } < 8 || mNew.contentEquals(m)) break
+                m = mNew
+            }
+            val inlierPts = ArrayList<Pt>()
+            for (i in m.indices) if (m[i]) inlierPts += dst[i]
+            return Triple(hArr, inlierPts.size, inlierPts)
         } finally {
             srcMat.release(); dstMat.release(); maskMat.release()
         }
@@ -368,22 +404,21 @@ public class PageRegistrar(
         try {
             Imgproc.warpPerspective(gray, page, Homography.toMat(hIn), Size(tpl.width.toDouble(), tpl.height.toDouble()),
                 Imgproc.INTER_LINEAR, Core.BORDER_REPLICATE)
-            val kpMat = MatOfKeyPoint()
-            val descMat = Mat()
-            sift.detectAndCompute(page, Mat(), kpMat, descMat)
-            val kp = kpMat.toArray()
+            val features = SiftFeatures.detect(sift, page, null, nfeatures)
+            val kp = features.keypoints
+            val descMat = features.descriptors ?: Mat()
             var prior = Homography.identity()
             var inl = 0
             var pts: List<Pt>? = null
             for (i in radii.indices) {
                 val (hd, inlP, ptsP) = match(tpl, kp, descMat, REFINE_REPROJ_PX[i], radii[i], prior)
                 if (hd == null || inlP < minInliers) {
-                    kpMat.release(); descMat.release()
+                    features.close()
                     return Triple(hIn, 0, null)
                 }
                 prior = hd; inl = inlP; pts = ptsP
             }
-            kpMat.release(); descMat.release()
+            features.close()
             return Triple(Homography.mul(prior, hIn), inl, pts)
         } finally {
             page.release()
@@ -433,10 +468,9 @@ public class PageRegistrar(
         try {
             Imgproc.cvtColor(imgRgb.mat, gray, Imgproc.COLOR_RGB2GRAY)
             val h = gray.rows(); val w = gray.cols()
-            val kpMat = MatOfKeyPoint()
-            val descMat = Mat()
-            sift.detectAndCompute(gray, Mat(), kpMat, descMat)
-            val kp = kpMat.toArray()
+            val features = SiftFeatures.detect(sift, gray, null, nfeatures)
+            val kp = features.keypoints
+            val descMat = features.descriptors ?: Mat()
             val q = quads ?: emptyList()
             val quadFeats = q.map { featuresInQuad(kp, descMat, it, h, w) }
 
@@ -519,7 +553,7 @@ public class PageRegistrar(
                 }
                 if (pending.isEmpty()) break
             }
-            kpMat.release(); descMat.release()
+            features.close()
             return results
         } finally {
             gray.release()
