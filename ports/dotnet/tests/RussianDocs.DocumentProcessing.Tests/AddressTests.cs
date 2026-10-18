@@ -292,7 +292,7 @@ public class AddressTests
         Point[] diamond = [new(50, 0), new(100, 50), new(50, 100), new(0, 50)];
         Assert.That(Stamps.ContainingStamp(new Point(50, 50), [diamond]), Is.EqualTo(0));
         Assert.That(Stamps.ContainingStamp(new Point(95, 95), [diamond]), Is.Null);
-        Assert.That(Stamps.ContainingStamp(new Point(50, 50), [[.. diamond.Reverse()]]), Is.EqualTo(0));
+        Assert.That(Stamps.ContainingStamp(new Point(50, 50), [[.. Enumerable.Reverse(diamond)]]), Is.EqualTo(0));
     }
 
     [Test]
