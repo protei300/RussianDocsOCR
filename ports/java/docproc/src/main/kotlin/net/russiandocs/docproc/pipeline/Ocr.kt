@@ -30,8 +30,9 @@ public class MrzZone(
 ) {
     public companion object {
         /**
-         * Builds the zone from the detector's raw boxes. Port of `_note_mrz_zone` (pipeline.py:1386).
-         * Returns null when the document has no MRZ box at all — the ladder then never engages.
+         * Builds the zone from the detector's raw boxes. Port of
+         * `pipeline/mrz_reading.py::Pipeline._note_mrz_zone`. Returns null when the document has no MRZ box at
+         * all — the ladder then never engages.
          */
         public fun from(boxes: List<net.russiandocs.docproc.postprocess.Box>, canvas: Image): MrzZone? {
             val idx = boxes.indices.filter { boxes[it].label == "MRZ" }
@@ -65,7 +66,7 @@ public object Ocr {
 
     /**
      * How far the re-read crop widens per side, as a fraction of the zone span, tried in order until a
-     * candidate is exactly [MRZ_LINE_LEN] characters. `Pipeline.MRZ_RETRY_GROWTH` (pipeline.py:1377).
+     * candidate is exactly [MRZ_LINE_LEN] characters. `pipeline/mrz_reading.py::Pipeline.MRZ_RETRY_GROWTH`.
      */
     private val MRZ_RETRY_GROWTH = doubleArrayOf(0.0, 0.05, 0.10, 0.16, 0.24, 0.34)
 
@@ -88,8 +89,9 @@ public object Ocr {
     }
 
     /**
-     * Re-reads one MRZ line from a widening crop when it came out the wrong length. `_read_mrz`
-     * (pipeline.py:1429). Never invents a line — it only re-reads a box the detector already found.
+     * Re-reads one MRZ line from a widening crop when it came out the wrong length.
+     * `pipeline/mrz_reading.py::Pipeline._read_mrz`. Never invents a line — it only re-reads a box the detector
+     * already found.
      */
     private fun readMrz(lineIndex: Int, text: String, zone: MrzZone?, latin: OcrEngine): String {
         val trimmed = trimToMrzAlphabet(text)
@@ -290,7 +292,7 @@ public object Ocr {
     /**
      * Collapses the dotted ruler lines out of a joined field value.
      *
-     * Port of `Pipeline._clean_ruler_artifacts` (pipeline.py:1061). The rulers land inside the field crops
+     * Port of `pipeline/reading.py::Pipeline._clean_ruler_artifacts`. The rulers land inside the field crops
      * and OCR emits runs of those marks around the real words; they carry no information on this form.
      * Commas and quotes are in the set because that is what the engine emits here («28., ИЮЛЯ 2010»,
      * «"""СЕМ","" ПОННИЛОВИЧ»), not because they were expected. Only runs of two or more and marks standing

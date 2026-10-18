@@ -39,7 +39,7 @@ public sealed class Payload
     [JsonPropertyName("quality")] public Dictionary<string, object> Quality { get; set; } = [];
     [JsonPropertyName("timings")] public Dictionary<string, double> Timings { get; set; } = [];
 
-    /// <summary>Null for every type except INTPASSPORTADDR, which this port does not implement.</summary>
+    /// <summary>Null for every type except INTPASSPORTADDR.</summary>
     [JsonPropertyName("address")] public Address? Address { get; set; }
 
     /// <summary>
@@ -155,13 +155,9 @@ public sealed class Address
 }
 
 /// <summary>
-/// One address line. Declared but never produced by this port.
-///
-/// <para>
-/// The type exists because the contract includes it and an integrator needs the shape; INTPASSPORTADDR
-/// is blocked on an anonymised sample, not on code. An omitted type reads as an oversight that the
-/// next port would invent differently.
-/// </para>
+/// One address line of the registration page (INTPASSPORTADDR): the verdict of the printed/handwritten classifier,
+/// the text read (null for a handwritten line) and, when the geometry is aligned with the lines, the oriented box
+/// it was cut on.
 /// </summary>
 public sealed class AddressLine
 {

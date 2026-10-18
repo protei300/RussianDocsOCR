@@ -14,6 +14,16 @@ extern "C" {
 int rdocs_lsd_detect(void* mat, float** out);
 void rdocs_lsd_free(float* p);
 
+/* cv::getRectSubPix(*src, Size(w, h), Point2f(cx, cy), *dst) for the cv::Mat* behind two
+   gocv.Mats (CV_8UC3). gocv's own binding takes an INTEGER centre; the reference cuts an
+   address line about a fractional one. Returns 0, or a negative value on an OpenCV error. */
+int rdocs_get_rect_sub_pix(void* src, int w, int h, double cx, double cy, void* dst);
+
+/* Area of the intersection of two rotated rectangles, each (cx, cy, w, h, angle in DEGREES)
+   as five float32 - cv2.contourArea(cv2.rotatedRectangleIntersection(a, b)[1]). 0 when they
+   do not meet; a negative value is an OpenCV error. */
+double rdocs_rotated_intersection_area(const float* a, const float* b);
+
 #ifdef __cplusplus
 }
 #endif

@@ -441,19 +441,19 @@
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.0225,
+    "_blur": 0.0275,
     "_deskew": 0.0,
-    "_doc_detector": 0.2272,
-    "_doctype_angle": 0.0087,
-    "_document_detector": 0.1105,
-    "_fields_detector": 0.1144,
-    "_glare": 0.1281,
-    "_lcd_spoofing": 0.0275,
-    "_ocr": 0.4082,
-    "_print_spoofing": 0.007,
-    "_quality_and_borders": 0.2927,
-    "_register_pages": 2.1201,
-    "_split_words": 0.2976,
-    "total": 3.3522
+    "_doc_detector": 0.2073,
+    "_doctype_angle": 0.007,
+    "_document_detector": 0.1152,
+    "_fields_detector": 0.1098,
+    "_glare": 0.0494,
+    "_lcd_spoofing": 0.0059,
+    "_ocr": 0.3184,
+    "_print_spoofing": 0.009,
+    "_quality_and_borders": 0.2822,
+    "_register_pages": 2.4009,
+    "_split_words": 0.2898,
+    "total": 3.5233
   }
 }

@@ -9,16 +9,16 @@ import (
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/modules"
 )
 
-// Port of the internal-passport page pipeline in pipeline.py: Pipeline._register_pages
-// (template-registered canvas rebuild) and Pipeline._fields_from_pages /
-// Pipeline._deskew's per-page branch (postraničnaya podača - detect/deskew each page of
-// the spread separately, since the field detector's 640x640 input gives a stitched
-// spread only half of itself per page). This file is the ORCHESTRATION layer; the
+// Port of the internal-passport page pipeline: pipeline/pages.py::Pipeline._register_pages
+// (template-registered canvas rebuild) and pipeline/fields.py::Pipeline._fields_from_pages /
+// pipeline/pages.py::Pipeline._deskew's per-page branch (postraničnaya podača - detect/deskew
+// each page of the spread separately, since the field detector's 640x640 input gives a
+// stitched spread only half of itself per page). This file is the ORCHESTRATION layer; the
 // matching/geometry engine lives in modules.PageRegistrar.
 
-// Thresholds from pipeline.py:25-26 (module-level constants there, not on
-// PageRegistrar - they decide which geometry SOURCE to trust, which is a pipeline
-// policy, not a registration-engine one).
+// Thresholds from pipeline/pages.py::QUAD_SAME_PAGE_IOU, QUAD_CLIPPED_IOU
+// (module-level constants there, not on PageRegistrar - they decide which geometry
+// SOURCE to trust, which is a pipeline policy, not a registration-engine one).
 const (
 	quadSamePageIOU = 0.40
 	quadClippedIOU  = 0.80

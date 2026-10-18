@@ -89,7 +89,7 @@ jobs:
       - name: Tests
         run: python -m pytest tests/ -m "not service" -q
 
-  # The service suite is separate because its dependencies are: FastAPI, SQLAlchemy and python-jose
+  # The service suite is separate because its dependencies are: FastAPI, SQLAlchemy and PyJWT
   # are not needed to use the library, and installing them in the library matrix would make a job
   # that says "library tests" untrue. No model weights here — these tests use a stand-in for
   # PipelineResults and never construct a Pipeline.
@@ -185,17 +185,21 @@ jobs:
       # A stage whose golden is empty compares nothing and passes — the dominant defect class in this
       # project ("a check that could not fail"). Four real instances were found by hand; this makes the
       # fifth loud.
+      # The one sanctioned empty golden: the registration page has no text fields (the address
+      # lines replace them), so its `fields.bbox` is `[]` and that IS the assertion - a port that
+      # detects any field there fails on length ('0 vs 1'). Add to this set only with that proof.
       - name: No golden is empty
         run: |
           python -c "
           import json, pathlib, sys
+          MEANT_EMPTY = {'conformance/cases/INTPASSPORTADDR_ALL-synth_01_INTPASSPORTADDR_ALL/stages/fields.bbox.json'}
           empty = []
           for path in pathlib.Path('conformance/cases').rglob('*.json'):
               try:
                   data = json.loads(path.read_text(encoding='utf-8'))
               except Exception as error:
                   sys.exit(f'{path}: unreadable ({error})')
-              if data in (None, {}, []):
+              if data in (None, {}, []) and path.as_posix() not in MEANT_EMPTY:
                   empty.append(str(path))
           print(f'checked goldens under conformance/cases')
           sys.exit('empty goldens compare nothing:\n  ' + '\n  '.join(empty)) if empty else None

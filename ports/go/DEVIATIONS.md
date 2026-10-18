@@ -297,6 +297,11 @@ reference's `_cell_tilts`) and tested the valid-pixel count against a truncated 
 (`enoughValid` is the float32 comparison). Before the fixes the dewarp found 16 cells where the
 reference finds 5 and bent a page the reference leaves flat.
 
+The same file also carries (2026-10-16, for the registration page) `getRectSubPix` about a
+fractional centre - gocv's binding takes an integer one, which would move every address-line patch
+by up to half a pixel - and `rotatedRectangleIntersection` plus `contourArea`, the rotated IoU of
+the oriented-box suppression. Both are the reference's own OpenCV calls (`imaging/obb.go`).
+
 What stays of D-03: the 4-parameter fit still runs on this port's own Levenberg-Marquardt, not
 scipy's `least_squares` (STS_1996 canvas: 197 pixels of 3.4 M differ by one grey level, every
 stage passes), and the quad fit's RANSAC does not draw NumPy's PCG64 samples.

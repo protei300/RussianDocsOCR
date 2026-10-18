@@ -71,22 +71,6 @@ class BasePreprocessing(object):
         img = cv2.copyMakeBorder(img, pad_v//2, pad_v//2 ,pad_h//2, pad_h//2, cv2.BORDER_CONSTANT, value=self.padding_color)
         return img, (pad_h//2, pad_v//2)
 
-    def normalization(self, img: np.array, normalization: tuple):
-        """Normalizes image by mean and standard deviation.
-
-        Applies normalization using parameters in normalization.
-
-        Args:
-            img (np.array): Input image
-
-        Returns:
-            np.array: Normalized image
-        """
-        mean, stdev = normalization
-        img = img / stdev - mean
-        return img
-
-
 class ClassificationPreprocessing(BasePreprocessing):
     """Preprocessing for image classification models.
 

@@ -2,6 +2,11 @@ import string
 import numpy as np
 from pathlib import Path
 import cv2
+# Global numpy state, set on import - on purpose, not a leftover. Public results
+# carry numpy scalars (e.g. quality['DocConf'] is np.float64), and numpy 2 prints
+# them as 'np.float64(1.0)' where 1.25 printed '1.0', so removing this changes what
+# print(results.quality) shows. Drop it only after the results hold plain floats
+# (user's decision 2026-10-09: left as is).
 np.set_printoptions(legacy='1.25')
 
 class BasePostprocessing:

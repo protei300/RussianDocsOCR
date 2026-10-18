@@ -8,7 +8,7 @@ third-party integration — must not have to hardcode knowledge like
 The label list is the ``TextFields`` detector's 22 classes, from
 ``document_processing/models/TextFields/ONNX/model.json``. The per-document
 field sets come from the ``OCROptions*`` classes in
-``document_processing/pipeline/pipeline.py`` (lines ~80-135). If the library
+``document_processing/pipeline/options.py``. If the library
 adds a field, this module is the one place that needs updating — and
 ``UNKNOWN_FIELDS_ARE_TOLERATED`` below explains what happens until it is.
 """
@@ -140,7 +140,8 @@ UNKNOWN_FIELDS_ARE_TOLERATED = True
 def base_doc_type(doc_type: str | None) -> str:
     """Strip the era suffix: ``'INTPASSPORT_2011'`` -> ``'INTPASSPORT'``.
 
-    Mirrors the pipeline's own dispatch (``pipeline.py`` line ~463) but without
+    Mirrors the pipeline's own dispatch
+    (``pipeline/pipeline.py::Pipeline._process_document``) but without
     its ``ValueError`` on a label that has no underscore — here an unexpected
     label just means "no known ordering", which is survivable.
     """

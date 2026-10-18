@@ -1,6 +1,6 @@
 {
-  "models_version": "v10",
-  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v10/",
+  "models_version": "v11",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v11/",
   "release_url": "https://github.com/protei300/RussianDocsOCR/releases/download/{release}/",
   "networks": {
     "AddressLines": "v4",
@@ -8,7 +8,7 @@
     "Blur": "v4",
     "Borders": "v7",
     "DocDetect": "v10",
-    "DocTypeAngles": "v10",
+    "DocTypeAngles": "v11",
     "Glare": "v4",
     "LCDSpoofing": "v4",
     "OCR/cyrillic_accurate": "v4",
@@ -16,6 +16,7 @@
     "OCR/latin_accurate": "v4",
     "OCR/latin_fast": "v4",
     "PrintSpoofing": "v4",
+    "RegistrationStamps": "v11",
     "TextFields": "v10",
     "Words": "v6"
   },
@@ -99,17 +100,17 @@
     },
     {
       "path": "DocTypeAngles/ONNX/model.onnx",
-      "asset": "DocTypeAngles__ONNX__model.125993b3d0c3.onnx",
+      "asset": "DocTypeAngles__ONNX__model.d32e6688eff9.onnx",
       "size": 9967217,
-      "sha256": "125993b3d0c33479a998da69e0855cd0cc06067d23a4d321915678c95b730985",
-      "release": "models-v10"
+      "sha256": "d32e6688eff92bb39e23db4c02d804cce8ae45985a0c752c77a5dada877b85e8",
+      "release": "models-v11"
     },
     {
       "path": "DocTypeAngles/ONNX/resources/centers.npz",
-      "asset": "DocTypeAngles__ONNX__resources__centers.c653d4511aaa.npz",
+      "asset": "DocTypeAngles__ONNX__resources__centers.a7b4aedac1bf.npz",
       "size": 72448,
-      "sha256": "c653d4511aaac0f8780a5e324cc050a66a6b9cfd53840aa9c4c1af3e33be78bc",
-      "release": "models-v10"
+      "sha256": "a7b4aedac1bf2dbd2dd90c5b1764397749e8eaaabcb0887407d839b4a2896d5e",
+      "release": "models-v11"
     },
     {
       "path": "Glare/ONNX/model.json",
@@ -208,6 +209,20 @@
       "size": 1615583,
       "sha256": "79a1a3d8a23329fe25e1593b740d33a1bab4262f93ccd4df32a4e5b8b059deca",
       "release": "models-v4"
+    },
+    {
+      "path": "RegistrationStamps/ONNX/model.json",
+      "asset": "RegistrationStamps__ONNX__model.49111043cdf3.json",
+      "size": 958,
+      "sha256": "49111043cdf36545216da471254a2df1427ba11dd8d201970639194e16e9e86d",
+      "release": "models-v11"
+    },
+    {
+      "path": "RegistrationStamps/ONNX/model.onnx",
+      "asset": "RegistrationStamps__ONNX__model.144427daf12d.onnx",
+      "size": 10836190,
+      "sha256": "144427daf12d25dda701177508d8fff8dded308eee6ceb03553543f8881cdddd",
+      "release": "models-v11"
     },
     {
       "path": "TextFields/ONNX/model.json",

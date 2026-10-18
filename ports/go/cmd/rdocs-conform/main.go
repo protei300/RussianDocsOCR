@@ -43,7 +43,7 @@ var stagesImplemented = []string{
 	"borders.segments", "borders.canvas", "deskew.canvas",
 	// `words.<Field>.bbox` is a PATTERN, expanded by the checker: which fields exist
 	// depends on the document, so a port claims the shape rather than the names.
-	"fields.bbox", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel",
+	"fields.bbox", "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel",
 }
 
 // errNotImplemented signals exit code 2.
@@ -286,6 +286,7 @@ func run(image string, c *commonFlags, sink pipeline.StageSink, upto string) (*v
 		Timings:       res.Timings,
 		Segments:      res.Segments,
 	}
+	in.AddressObboxes, in.AddressLines = viewmodel.AddressFrom(res.Address)
 	if res.HasCanvas {
 		in.CanvasW, in.CanvasH = res.Canvas.Width(), res.Canvas.Height()
 	}

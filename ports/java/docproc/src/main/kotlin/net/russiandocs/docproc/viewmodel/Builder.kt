@@ -4,6 +4,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import net.russiandocs.docproc.imaging.Pt
 import net.russiandocs.docproc.tensors.Ops
+import net.russiandocs.docproc.tensors.PyNum
 
 /**
  * Everything the builder needs, as plain data.
@@ -25,7 +26,28 @@ public data class Input(
     val segments: List<List<Pt>>? = null,
     /** Canonical `dd.mm.yyyy` per date field that converted — `results.ocr_normalized`. */
     val normalized: Map<String, String> = emptyMap(),
+    /**
+     * Every detection of the address-line detector, `meta_results['AddressLinesDetector']['obbox']`; null when the
+     * address path did not run (every document but a registration page).
+     */
+    val addressBoxes: List<RawObb>? = null,
+    /** `meta_results['Address_lines']`, one per line that was read. */
+    val addressLines: List<RawAddressLine> = emptyList(),
 )
+
+/** An oriented detection as the pipeline produces it: the row `[cx, cy, w, h, angle_rad, conf, cls, label]`. */
+public data class RawObb(
+    val cx: Double,
+    val cy: Double,
+    val w: Double,
+    val h: Double,
+    val angle: Double,
+    val conf: Double,
+    val label: String,
+)
+
+/** One address line as the pipeline read it. */
+public data class RawAddressLine(val kind: String?, val text: String?, val pHandwritten: Double?)
 
 /** A detector box as the pipeline produces it, before the view model's own shape. */
 public data class RawBox(
@@ -72,7 +94,7 @@ public object Builder {
             ocr = input.ocr,
             quality = input.quality,
             timings = input.timings,
-            address = null,
+            address = buildAddress(input.addressBoxes, input.addressLines),
             debug = if (includeDebug) {
                 Debug(DocOutline(coordSpace = "prewarp", polygon = polygonOf(input.segments)))
             } else {
@@ -164,6 +186,46 @@ public object Builder {
             )
         }
     }
+
+    /**
+     * Oriented address-line boxes plus their printed/handwritten verdicts (`_build_address`). Null unless the
+     * address path ran.
+     *
+     * The two source lists can desynchronise — the pipeline skips an empty patch without recording a slot — and
+     * zipping them blindly would caption boxes with the wrong text, so when the lengths disagree `aligned` is false,
+     * the geometry is dropped and only the text stays.
+     */
+    private fun buildAddress(boxes: List<RawObb>?, lines: List<RawAddressLine>): Address? {
+        if (boxes == null || (boxes.isEmpty() && lines.isEmpty())) {
+            return null
+        }
+        val aligned = boxes.size == lines.size
+        return Address(
+            aligned = aligned,
+            lines = lines.mapIndexed { i, line ->
+                AddressLine(
+                    id = "o$i",
+                    kind = line.kind,
+                    text = line.text,
+                    pHandwritten = num(line.pHandwritten),
+                    obbox = if (aligned) boxes[i].let { b ->
+                        Obbox(
+                            cx = num(b.cx), cy = num(b.cy), w = num(b.w), h = num(b.h),
+                            // radians: needs the finer precision
+                            angleRad = num(b.angle, 6),
+                            conf = num(b.conf), label = b.label,
+                        )
+                    } else {
+                        null
+                    },
+                )
+            },
+        )
+    }
+
+    /** `_num`: Python's builtin `round(float(v), precision)`; NaN and infinity become null. */
+    private fun num(value: Double?, precision: Int = FLOAT_PRECISION): Double? =
+        if (value == null || value.isNaN() || value.isInfinite()) null else PyNum.roundDecimal(value, precision)
 
     private fun polygonOf(segments: List<List<Pt>>?): List<List<List<Int>>>? =
         segments?.map { contour -> contour.map { listOf(it.x.toInt(), it.y.toInt()) } }

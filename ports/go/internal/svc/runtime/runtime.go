@@ -469,6 +469,7 @@ func (r *Runtime) Recognise(imagePath string, opts RecogniseOptions) (*Result, e
 			Timings:       res.Timings,
 			Segments:      res.Segments,
 		}
+		in.AddressObboxes, in.AddressLines = viewmodel.AddressFrom(res.Address)
 		if res.HasCanvas {
 			in.CanvasW, in.CanvasH = res.Canvas.Width(), res.Canvas.Height()
 		}

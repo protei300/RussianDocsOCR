@@ -41,6 +41,7 @@ rather than a column of dashes that reads as "missing files".
 | … `OCRProbsPostprocessing` | `postprocess/ocrprobs.go` | `Postprocess/OcrProbs.cs` | `postprocess/OcrProbs.kt` |
 | … `YOLODetectorPostprocessing` **+** `PerClassYOLODetectorPostprocessing` | `postprocess/yolodetector.go` | `Postprocess/Detector.cs` | `postprocess/Detector.kt` |
 | … `YOLOSegmentorPostprocessing` | `postprocess/yolosegmentor.go` | `Postprocess/Segmentor.cs` | `postprocess/Segmentor.kt` |
+| … `YOLOOBBDetectorPostprocessing` **+** `OBBPreprocessing` **+** `YOLOOBBDetectionModel` | `postprocess/yoloobb.go`, `preprocess/obb.go`, `models/obb.go` (`LoadObb`) | `Postprocess/ObbDetector.cs`, `Preprocess/Yolo.cs` (`YoloObb`), `Models/DetectionModel.cs` (`ObbDetectionModel`) | `postprocess/Obb.kt`, `preprocess/YoloObb.kt`, `models/ObbModel.kt` |
 | `processing/models.py::ModelLoader` + the three switches | `models/loader.go` | `Models/Loader.cs` | `models/Loader.kt` |
 | … `model.json` DTOs | `models/modeljson.go` | `Models/ModelJson.cs` | `models/ModelJson.kt` |
 | … `YOLODetectionModel` | `models/detection.go` | `Models/DetectionModel.cs` | `models/Loader.kt` |
@@ -52,6 +53,7 @@ rather than a column of dashes that reads as "missing files".
 | `pipeline_modules/{lcd,print}_spoofing_detector/` | `modules/spoofing.go` | `Modules/Quality.cs` | `modules/Quality.kt` |
 | `pipeline_modules/doc_detector/doc_detector.py` | `modules/docdetector.go` | `Modules/DocDetector.cs` | `modules/DocDetector.kt` |
 | `pipeline_modules/doc_detector/image_transformation.py` | `imaging/geometry.go` | `Imaging/Geometry.cs` | `imaging/Geometry.kt` |
+| `pipeline_modules/{address_lines_detector,address_textkind_classifier,registration_stamps}/` | `modules/addresslines.go`, `addresstextkind.go`, `registrationstamps.go` (the cut and the way back of a line: `imaging/obb.go`) | `Modules/AddressLinesDetector.cs`, `AddressTextKindClassifier.cs`, `RegistrationStamps.cs` | `modules/AddressModules.kt` |
 | `pipeline_modules/deskewer/deskewer.py` | `modules/deskewer.go` | `Modules/Deskewer.cs` | `modules/Deskewer.kt` |
 | `pipeline_modules/textfields_detector/` | `modules/textfieldsdetector.go` | `Modules/TextFieldsDetector.cs` | `modules/TextFieldsDetector.kt` |
 | `pipeline_modules/words_detector/` | `modules/wordsdetector.go` | `Modules/TextFieldsDetector.cs` | `modules/TextFieldsDetector.kt` |
@@ -62,6 +64,7 @@ rather than a column of dashes that reads as "missing files".
 | … `OCROptions*` | `pipeline/ocroptions.go` | `Pipeline/OcrOptions.cs` | `pipeline/OcrOptions.kt` |
 | … `_split_words` + `_duplicate_field_indices` | `pipeline/splitwords.go` | `Pipeline/SplitWords.cs` | `pipeline/SplitWords.kt` |
 | … `_ocr_serial` + `_join_field` + `_fix_fms` (stub) | `pipeline/ocr.go` | `Pipeline/Ocr.cs` | `pipeline/Ocr.kt` |
+| … `_address_lines` + `_route_word_ocr` + `_is_number_token` (`pipeline/reading.py`), `StampsStage` (`pipeline/stamps.py`) | `pipeline/address.go` | `Pipeline/Address.cs`, `Pipeline/Stamps.cs` | `pipeline/Address.kt` |
 | … the two parallel groups | `pipeline/parallel.go` | `Pipeline/Parallel.cs` | `pipeline/Parallel.kt` |
 | … stage timings (WIRE names: `_doctype_angle`, …) | `pipeline/timings.go` | `Pipeline/Timings.cs` | `pipeline/Recognizer.kt` |
 | `pipeline/probe.py` (`StageSink`) | `pipeline/probe.go`, `payloads.go` | `Pipeline/StageSink.cs` | `pipeline/StageSink.kt` |
@@ -137,13 +140,13 @@ nobody tidies them alphabetically.
 
 1. `Classification`
 2. `YOLO`
-3. `YOLOOBB` *(→ not implemented: the address path is deferred)*
+3. `YOLOOBB` *(→ Kotlin: `YoloObb`; .NET: `YoloObb`; Go: `preprocess.NewObb`)*
 4. `OCR` *(→ not implemented: legacy 31×200, no shipped config declares it)*
 5. `OCRv2`
 6. default → error naming the tag (`D-06`)
 
 **`newPostprocessor`** — from `__load_postprocess`: `BinaryClass`, `MultiClass`, `Metric`, `OCRProbs`,
-`YOLODetector`, `YOLOOBBDetector` *(not implemented)*, `YOLOSegmentor`, default → error.
+`YOLODetector`, `YOLOOBBDetector` *(Kotlin: `YoloObbDetector`; .NET: `YoloObbDetector`; Go: `postprocess.NewYoloObb`)*, `YOLOSegmentor`, default → error.
 
 **`newModel`** — from `ModelLoader.load`: `YOLODetectionModel`, `YOLOSegmentionModel`, `UnifiedModel`
 (the default case), default → error.

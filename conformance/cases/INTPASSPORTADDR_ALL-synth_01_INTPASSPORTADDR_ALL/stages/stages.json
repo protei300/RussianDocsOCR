@@ -1,0 +1,95 @@
+{
+  "upto": null,
+  "stopped_early": false,
+  "stages": [
+    {
+      "stage": "documents",
+      "file": "documents.json",
+      "kind": "json"
+    },
+    {
+      "stage": "prepare",
+      "file": "prepare.digest.json",
+      "kind": "digest",
+      "dtype": "uint8",
+      "shape": [
+        749,
+        1066,
+        3
+      ]
+    },
+    {
+      "stage": "doctype.label",
+      "file": "doctype.label.json",
+      "kind": "json"
+    },
+    {
+      "stage": "rotate",
+      "file": "rotate.digest.json",
+      "kind": "digest",
+      "dtype": "uint8",
+      "shape": [
+        749,
+        1066,
+        3
+      ]
+    },
+    {
+      "stage": "quality",
+      "file": "quality.json",
+      "kind": "json"
+    },
+    {
+      "stage": "borders.segments",
+      "file": "borders.segments.json",
+      "kind": "json"
+    },
+    {
+      "stage": "borders.canvas",
+      "file": "borders.canvas.digest.json",
+      "kind": "digest",
+      "dtype": "uint8",
+      "shape": [
+        701,
+        1023,
+        3
+      ]
+    },
+    {
+      "stage": "deskew.canvas",
+      "file": "deskew.canvas.digest.json",
+      "kind": "digest",
+      "dtype": "uint8",
+      "shape": [
+        701,
+        1023,
+        3
+      ]
+    },
+    {
+      "stage": "fields.bbox",
+      "file": "fields.bbox.json",
+      "kind": "json"
+    },
+    {
+      "stage": "address.lines",
+      "file": "address.lines.json",
+      "kind": "json"
+    },
+    {
+      "stage": "address.stamps",
+      "file": "address.stamps.json",
+      "kind": "json"
+    },
+    {
+      "stage": "quads",
+      "file": "quads.json",
+      "kind": "json"
+    },
+    {
+      "stage": "viewmodel",
+      "file": "viewmodel.json",
+      "kind": "json"
+    }
+  ]
+}

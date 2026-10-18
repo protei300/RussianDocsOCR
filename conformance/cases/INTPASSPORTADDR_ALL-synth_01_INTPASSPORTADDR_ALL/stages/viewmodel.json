@@ -1,0 +1,156 @@
+{
+  "doc_type": "INTPASSPORTADDR_ALL",
+  "doc_type_base": "INTPASSPORTADDR",
+  "doc_type_era": "ALL",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 1023,
+    "height": 701,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [],
+  "fields": [
+    {
+      "name": "Address",
+      "display": "Registration address",
+      "value": "ОБЛ. ПСКОВСКАЯ\n54 РЗДИНОВАЯ\n[рукопись]\nГ. ПСКОВ\nУЛ. РЕЧНАЯ\n16 К 1, КВ. 76",
+      "script": "ru",
+      "conf": null,
+      "box_ids": []
+    },
+    {
+      "name": "Address_has_handwritten",
+      "display": "Contains handwriting",
+      "value": "True",
+      "script": "ru",
+      "conf": null,
+      "box_ids": []
+    }
+  ],
+  "ocr": {
+    "Address": "ОБЛ. ПСКОВСКАЯ\n54 РЗДИНОВАЯ\n[рукопись]\nГ. ПСКОВ\nУЛ. РЕЧНАЯ\n16 К 1, КВ. 76",
+    "Address_has_handwritten": "True"
+  },
+  "quality": {
+    "DocConf": 0.37,
+    "Glare": "good",
+    "Blur": "good",
+    "PrintSpoofing": "FAKE",
+    "LCDSpoofing": "FAKE"
+  },
+  "timings": {
+    "_document_detector": 0.0997,
+    "_doctype_angle": 0.006,
+    "_quality_and_borders": 0.2681,
+    "_glare": 0.041,
+    "_blur": 0.025,
+    "_print_spoofing": 0.005,
+    "_lcd_spoofing": 0.004,
+    "_doc_detector": 0.1857,
+    "_register_pages": 0.0,
+    "_deskew": 0.008,
+    "_fields_detector": 0.115,
+    "_address_lines": 0.8531,
+    "_registration_stamps": 0.0698,
+    "_split_words": 0.0,
+    "total": 1.4197
+  },
+  "address": {
+    "aligned": true,
+    "lines": [
+      {
+        "id": "o0",
+        "kind": "printed",
+        "text": "ОБЛ. ПСКОВСКАЯ",
+        "p_handwritten": 0.0,
+        "obbox": {
+          "cx": 688.6908,
+          "cy": 143.2718,
+          "w": 146.9516,
+          "h": 20.6338,
+          "angle_rad": 0.015603,
+          "conf": 0.858,
+          "label": "Living_region_ru"
+        }
+      },
+      {
+        "id": "o1",
+        "kind": "printed",
+        "text": "54 РЗДИНОВАЯ",
+        "p_handwritten": 0.0,
+        "obbox": {
+          "cx": 167.4681,
+          "cy": 148.5258,
+          "w": 160.8035,
+          "h": 28.7748,
+          "angle_rad": 0.014576,
+          "conf": 0.8638,
+          "label": "Living_region_ru"
+        }
+      },
+      {
+        "id": "o2",
+        "kind": "handwritten",
+        "text": null,
+        "p_handwritten": 1.0,
+        "obbox": {
+          "cx": 162.6521,
+          "cy": 177.61,
+          "w": 151.927,
+          "h": 26.0121,
+          "angle_rad": 0.025055,
+          "conf": 0.8416,
+          "label": "Living_region_ru"
+        }
+      },
+      {
+        "id": "o3",
+        "kind": "printed",
+        "text": "Г. ПСКОВ",
+        "p_handwritten": 0.0,
+        "obbox": {
+          "cx": 664.3137,
+          "cy": 184.5856,
+          "w": 90.0194,
+          "h": 19.769,
+          "angle_rad": 0.016004,
+          "conf": 0.6889,
+          "label": "Living_region_ru"
+        }
+      },
+      {
+        "id": "o4",
+        "kind": "printed",
+        "text": "УЛ. РЕЧНАЯ",
+        "p_handwritten": 0.0,
+        "obbox": {
+          "cx": 669.3091,
+          "cy": 206.0383,
+          "w": 105.4228,
+          "h": 17.7276,
+          "angle_rad": 0.004348,
+          "conf": 0.8135,
+          "label": "Living_region_ru"
+        }
+      },
+      {
+        "id": "o5",
+        "kind": "printed",
+        "text": "16 К 1, КВ. 76",
+        "p_handwritten": 0.0,
+        "obbox": {
+          "cx": 654.0165,
+          "cy": 225.74,
+          "w": 146.9522,
+          "h": 21.5817,
+          "angle_rad": 0.022342,
+          "conf": 0.7103,
+          "label": "Living_region_ru"
+        }
+      }
+    ]
+  }
+}

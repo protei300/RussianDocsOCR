@@ -220,9 +220,10 @@ type PagePlacement struct {
 // RectifyPages rectifies each detected segment independently, WITHOUT stitching them
 // together — split out of FixPerspective so the pipeline can hand a passport spread's
 // pages to the field detector ONE AT A TIME (the detector's input is 640x640, and a
-// stitched spread gives each page only half of it; see pipeline.py's
-// _fields_from_pages). Returns one warped image and the (expanded, clipped) quad it
-// came from per page, in DETECTION order — the caller owns every returned Image.
+// stitched spread gives each page only half of it; see
+// pipeline/fields.py::Pipeline._fields_from_pages). Returns one warped image and the
+// (expanded, clipped) quad it came from per page, in DETECTION order — the caller owns every
+// returned Image.
 func RectifyPages(img Image, segments [][]Point, margin float64) ([]Image, [][]Point) {
 	pages, quads, _ := RectifyPagesMatrices(img, segments, margin)
 	return pages, quads

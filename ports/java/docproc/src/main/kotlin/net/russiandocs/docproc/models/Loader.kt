@@ -12,15 +12,16 @@ import net.russiandocs.docproc.postprocess.ModelResult
 import net.russiandocs.docproc.postprocess.MultiClass
 import net.russiandocs.docproc.postprocess.OcrProbs
 import net.russiandocs.docproc.postprocess.NmsMode
-import net.russiandocs.docproc.postprocess.NotImplementedPostprocessor
 import net.russiandocs.docproc.postprocess.Postprocessor
 import net.russiandocs.docproc.postprocess.YoloDetector
+import net.russiandocs.docproc.postprocess.YoloObbDetector
 import net.russiandocs.docproc.postprocess.YoloSegmentor
 import net.russiandocs.docproc.preprocess.Classification
 import net.russiandocs.docproc.preprocess.NotImplementedPreprocessor
 import net.russiandocs.docproc.preprocess.Preprocessor
 import net.russiandocs.docproc.preprocess.OcrV2
 import net.russiandocs.docproc.preprocess.Yolo
+import net.russiandocs.docproc.preprocess.YoloObb
 import net.russiandocs.docproc.tensors.NdArray
 import java.io.File
 
@@ -44,7 +45,7 @@ public object Loader {
         // Recognised but not implemented yet — wired so a port cannot quietly grow a different
         // behaviour for them, and so the reader sees what exists rather than guessing.
         "YOLO" -> Yolo(input)
-        "YOLOOBB" -> NotImplementedPreprocessor("YOLOOBB")
+        "YOLOOBB" -> YoloObb(input)
         "OCRv2" -> OcrV2(input)
         // "OCR" is the removed legacy 31x200 grayscale path. No shipped model.json declares it; wired
         // anyway, because an omitted case reads as an oversight.
@@ -96,7 +97,8 @@ public object Loader {
             iouPerClass = output.iouPerClass ?: emptyMap(),
             clsPerClass = output.clsPerClass ?: emptyMap(),
         )
-        "YOLOOBBDetector" -> NotImplementedPostprocessor("YOLOOBBDetector")
+        "YOLOOBBDetector" -> YoloObbDetector(
+            output.labelsAsStrings(), output.iou ?: 0.45, output.cls ?: 0.25)
         "YOLOSegmentor" -> YoloSegmentor(output.maskFilter ?: 0.5)
         "OCRProbs" -> OcrProbs(
             output.alphabet

@@ -32,6 +32,8 @@ public sealed class Timings
     public const string FieldsDetector = "_fields_detector";
     public const string SplitWords = "_split_words";
     public const string Ocr = "_ocr";
+    public const string AddressLines = "_address_lines";
+    public const string RegistrationStamps = "_registration_stamps";
 
     private readonly Dictionary<string, double> _stages = new(StringComparer.Ordinal);
     private readonly HashSet<string> _concurrent = new(StringComparer.Ordinal);

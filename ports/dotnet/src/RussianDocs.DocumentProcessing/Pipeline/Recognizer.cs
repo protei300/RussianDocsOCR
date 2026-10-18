@@ -49,7 +49,7 @@ public sealed class Results : IDisposable
     /// <summary>
     /// Canonical <c>dd.mm.yyyy</c> view of the date fields, alongside the reading (<see cref="Dates"/>).
     /// A SEPARATE map, deliberately — see <see cref="Ocr"/> and <c>PipelineResults.ocr_normalized</c>
-    /// (pipeline.py:342-352). Only fields that converted appear here.
+    /// (<c>pipeline/results.py::PipelineResults.ocr_normalized</c>). Only fields that converted appear here.
     /// </summary>
     public Dictionary<string, string> OcrNormalized { get; internal set; } = [];
 
@@ -121,10 +121,22 @@ public sealed class Results : IDisposable
     public Dictionary<string, List<Point[]>>? WordQuads { get; internal set; } = [];
 
     /// <summary>
-    /// Registration address lines on the input image (<c>results.address_line_quads</c>). The address page is
-    /// not read by this port, so it is always empty.
+    /// Registration address lines on the input image (<c>results.address_line_quads</c>), in the order of
+    /// <see cref="Address"/>'s lines; empty off the registration page, null - the way back is not known.
     /// </summary>
     public List<Point[]>? AddressLineQuads { get; internal set; } = [];
+
+    /// <summary>
+    /// The registration page as read (<c>meta_results['Address_lines']</c>, <c>['AddressLinesDetector']</c>):
+    /// the lines with their kind and text, and the stamps. Null off the registration page (INTPASSPORTADDR).
+    /// </summary>
+    public AddressRead? Address { get; internal set; }
+
+    /// <summary>
+    /// The registration stamps, freshest first (<c>results.registration_stamps</c>). Empty off the registration
+    /// page, and when the weight set has no stamp detector.
+    /// </summary>
+    public List<RegistrationStamp> RegistrationStamps => Address?.Stamps ?? [];
 
     /// <summary>Per-field word lists, which localise a single bad word inside a good field.</summary>
     public List<FieldText> Words { get; internal set; } = [];
@@ -206,6 +218,14 @@ public sealed class Recognizer : IDisposable
     private readonly DocDeskewer _deskewer;
     private readonly TextFieldsDetector _textFields;
     private readonly WordsDetector _words;
+    private readonly AddressLinesDetector _addressLines;
+    private readonly AddressTextKindClassifier _addressTextKind;
+
+    /// <summary>
+    /// The registration-stamp detector (issue #27). Null when the weight set has none (models-v10 or older): the
+    /// address is then read as before, without stamps.
+    /// </summary>
+    private readonly RegistrationStamps? _stamps;
     private readonly OcrEngine _cyrillic;
     private readonly OcrEngine _latin;
     private readonly Device _device;
@@ -262,6 +282,21 @@ public sealed class Recognizer : IDisposable
         _textFields = new TextFieldsDetector(root, paths, device, intraOpThreads);
         _words = new WordsDetector(root, paths, device, intraOpThreads);
 
+        // The registration page (INTPASSPORTADDR): the oriented line detector and the printed/handwritten
+        // classifier are loaded with the rest, as in the reference. The stamp detector (issue #27) is optional: a
+        // weight set of models-v10 or older lacks it and the address is then read without stamps.
+        _addressLines = new AddressLinesDetector(root, paths, device, intraOpThreads);
+        _addressTextKind = new AddressTextKindClassifier(root, paths, device, intraOpThreads);
+        if (RegistrationStamps.WeightsPresent(root, paths))
+        {
+            _stamps = new RegistrationStamps(root, paths, device, intraOpThreads);
+        }
+        else
+        {
+            Console.Error.WriteLine("[!] RegistrationStamps weights not found (models/RegistrationStamps): the " +
+                "registration page is read without stamps. Run scripts/fetch_models.py for a weight set that has them.");
+        }
+
         // **OCR stays on the CPU even when the detectors are on the GPU.** Measured, not assumed:
         // per-word dynamic widths make the CUDA provider recompile the graph on every distinct width,
         // and the Go port measured the whole corpus 13.7x SLOWER on GPU than on CPU. The reference
@@ -269,8 +304,8 @@ public sealed class Recognizer : IDisposable
         _cyrillic = OcrEngine.Cyrillic(root, paths, Device.Cpu, intraOpThreads, ocrTier);
         _latin = OcrEngine.Latin(root, paths, Device.Cpu, intraOpThreads, ocrTier);
 
-        // `PageRegistrar()` in the reference (pipeline.py:652) — built unconditionally whenever
-        // page_registration=True, which is the default, regardless of what document type a given
+        // `PageRegistrar()` in the reference (pipeline/pipeline.py::Pipeline.__init__) — built unconditionally
+        // whenever page_registration=True, which is the default, regardless of what document type a given
         // run turns out to be. Every other type's `_register_pages` returns immediately without
         // touching it (see the call site below), so the cost here is model-loading only, not
         // per-document.
@@ -593,7 +628,7 @@ public sealed class Recognizer : IDisposable
                 () => _docDetector.PredictTransform(upright, maxPages));
             results.Segments = segments;
 
-            // `_register_pages` (pipeline.py) runs here unconditionally — it is TIMED for every document
+            // `_register_pages` (pipeline/pages.py) runs here unconditionally — it is TIMED for every document
             // type, but the reference's own method returns immediately unless the type is a plain
             // "intpassport" (not "...addr") or an STS, which has its own path. Rebuilds the canvas from
             // template-registered pages ONLY for those; every other type's timing entry is a genuine
@@ -644,8 +679,9 @@ public sealed class Recognizer : IDisposable
             // ---- stage: deskew.canvas -------------------------------------------------------
             // Registration straightened the page by its own lines (line_refine, blob-tolerant). The
             // projection-profile deskew is NOT run on top of it: on a small photo it took the dark
-            // cushion around a page for text and rotated the straight page (pipeline.py `_deskew`). The
-            // stage still exists, and the canvas is the registered one.
+            // cushion around a page for text and rotated the straight page
+            // (`pipeline/pages.py::Pipeline._deskew`). The stage still exists, and the canvas is the
+            // registered one.
             IMap? deskewMap = null;
             Image deskewed = timings.Time(Timings.Deskew, () =>
             {
@@ -695,9 +731,58 @@ public sealed class Recognizer : IDisposable
                 // loop (`_note_mrz_zone`). Borrows `deskewed`, which outlives the loop.
                 MrzZone? mrzZone = MrzZone.Note([.. fields.Select(f => f.Box)], deskewed);
 
+                // ---- stages: address.lines, address.stamps ------------------------------------
+                // The registration page (INTPASSPORTADDR): the oriented address-line detector runs on the
+                // corrected canvas, each line is classified printed or handwritten, the printed ones are split
+                // into words and read; then the registration stamps are found and the lines tied to them. Before
+                // the word split of the ordinary fields, as in the reference.
+                if (ocrOptions.HasAddress)
+                {
+                    AddressRead address = timings.Time(Timings.AddressLines, () => AddressReader.Read(
+                        deskewed, _addressLines, _addressTextKind, _words, _cyrillic, _latin,
+                        points => results.ToInput(points)));
+                    results.Address = address;
+                    results.AddressLineQuads = address.LineQuads;
+                    if (address.Lines.Count == 0)
+                    {
+                        // Paper-texture gate: the registration page is mostly bare paper, so the metric
+                        // classifier accepts document-free paper textures as INTPASSPORTADDR (measured by the
+                        // reference, 2026-08-02). A real registration page virtually always has detectable
+                        // address lines (49/50 on its test set); zero lines on an accepted "address page" marks
+                        // a false accept, and it is rejected the way the doctype stage rejects.
+                        Console.Error.WriteLine("[!] The document on picture has unknown type");
+                        results.DocType = "NONE";
+                        results.Quality["DocConf"] = 0.0;
+                        results.Timings = timings.Report();
+                        options.Sink.Emit("viewmodel", BuildViewModel(results, options.IncludeDebug));
+                        return results;
+                    }
+                    results.Ocr["Address"] = address.Text;
+                    results.Ocr["Address_has_handwritten"] = address.HasHandwritten ? "True" : "False";
+
+                    timings.Time(Timings.RegistrationStamps, () =>
+                    {
+                        if (_stamps is null)
+                        {
+                            return;
+                        }
+                        address.Stamps = Stamps.Find(deskewed, _stamps, address.Lines, address.LineBoxes,
+                            points => results.ToInput(points));
+                        address.StampsRan = true;
+                    });
+                    options.Sink.Emit("address.lines", AddressLinesPayload(address));
+                    if (options.UpTo == "address.lines")
+                    {
+                        return results;
+                    }
+                    options.Sink.Emit("address.stamps", StampsPayload(address)!);
+                    if (options.UpTo == "address.stamps")
+                    {
+                        return results;
+                    }
+                }
+
                 // ---- stages: words.<Field>.bbox ---------------------------------------------
-                // The address path (INTPASSPORTADDR) is out of scope for this port, so no
-                // address.lines stage is emitted and the checker skips it.
                 // The bare type, without the year suffix: the SNILS parity rule, the date join and
                 // the gap guard all test it, and "SNILS_1996" would match none of them.
                 (string bareType, string year) = OcrOptions.SplitDocType(meta.DocType);
@@ -724,50 +809,59 @@ public sealed class Recognizer : IDisposable
                     FieldQuadSet quads = FieldQuads.Build(results.Geometry, fields, split, ocrOptions);
                     results.FieldQuads = quads.Fields;
                     results.WordQuads = quads.Words;
-                    options.Sink.Emit("quads", quads.Payload());
+                    options.Sink.Emit("quads", ocrOptions.HasAddress
+                        ? quads.Payload(results.AddressLineQuads)
+                        : quads.Payload());
                     if (options.UpTo == "quads")
                     {
                         return results;
                     }
 
-                    // ---- stages: ocr.<Field>.words, join ------------------------------------
-                    List<FieldText> texts = timings.Time(Timings.Ocr,
-                        () => Ocr.Run(fieldWords, bareType, ocrOptions, _cyrillic, _latin, mrzZone,
-                            year.Length > 0 ? year : null));
-                    Ocr.FixFms(texts, bareType);
-
-                    // Ruler cleanup applies to the FINAL per-field values only: the reference emits
-                    // `join` from the raw dict and cleans meta_results['OCR'] afterwards
-                    // (pipeline.py:1058), so the conformance payload stays raw here too.
-                    bool cleanRulers = bareType.Contains("birthcert", StringComparison.OrdinalIgnoreCase);
-
-                    var joined = new Dictionary<string, string>(StringComparer.Ordinal);
-                    foreach (FieldText text in texts)
+                    // The reference reads only when the splitter produced words (`if ocr and words_splitted`): a page whose
+                    // fields are none the options read - the registration page - has no OCR stage, no `join`, no
+                    // leasing and no normalised dates.
+                    if (fieldWords.Count > 0)
                     {
-                        options.Sink.Emit($"ocr.{text.Label}.words", text.Words);
-                        joined[text.Label] = text.Value;
-                        results.Ocr[text.Label] = cleanRulers
-                            ? Ocr.CleanRulerArtifacts(text.Value)
-                            : text.Value;
+                        // ---- stages: ocr.<Field>.words, join ------------------------------------
+                        List<FieldText> texts = timings.Time(Timings.Ocr,
+                            () => Ocr.Run(fieldWords, bareType, ocrOptions, _cyrillic, _latin, mrzZone,
+                                year.Length > 0 ? year : null));
+                        Ocr.FixFms(texts, bareType);
+
+                        // Ruler cleanup applies to the FINAL per-field values only: the reference emits
+                        // `join` from the raw dict and cleans meta_results['OCR'] afterwards
+                        // (pipeline/reading.py::Pipeline._ocr), so the conformance payload stays raw here too.
+                        bool cleanRulers = bareType.Contains("birthcert", StringComparison.OrdinalIgnoreCase);
+
+                        var joined = new Dictionary<string, string>(StringComparer.Ordinal);
+                        foreach (FieldText text in texts)
+                        {
+                            options.Sink.Emit($"ocr.{text.Label}.words", text.Words);
+                            joined[text.Label] = text.Value;
+                            results.Ocr[text.Label] = cleanRulers
+                                ? Ocr.CleanRulerArtifacts(text.Value)
+                                : text.Value;
+                        }
+                        options.Sink.Emit("join", joined);
+                        results.Words = texts;
+
+                        // A date field the splitter cut badly is read again, whole line by whole line,
+                        // and the whole reading replaces the split one only where it converts and the
+                        // split one does not. After the ruler cleanup, as in the reference (`_ocr` ends
+                        // with it, then `_reread_dates_whole`): a re-read value is stored as read.
+                        results.DatesReadWhole = RereadDatesWhole(split.DateLines, results.Ocr, ocrOptions);
+
+                        // Canonical dates are built once, on the FINISHED dict, after the ruler cleanup
+                        // above: the reference's `_normalize_dates` runs right after `_ocr` returns
+                        // (pipeline/pipeline.py::Pipeline._process_document), so nothing upstream sees a
+                        // rewritten value. Not a timed stage — the reference calls it as a plain method, not
+                        // through `_model_call`.
+                        results.OcrNormalized = Dates.NormalizeDates(
+                            results.Ocr, texts.Select(t => t.Label));
+
+                        // The leasing flag of an STS, from the finished special marks. Not a timed stage.
+                        ReadLeasing(bareType, results, options.Sink);
                     }
-                    options.Sink.Emit("join", joined);
-                    results.Words = texts;
-
-                    // A date field the splitter cut badly is read again, whole line by whole line,
-                    // and the whole reading replaces the split one only where it converts and the
-                    // split one does not. After the ruler cleanup, as in the reference (`_ocr` ends
-                    // with it, then `_reread_dates_whole`): a re-read value is stored as read.
-                    results.DatesReadWhole = RereadDatesWhole(split.DateLines, results.Ocr, ocrOptions);
-
-                    // Canonical dates are built once, on the FINISHED dict, after the ruler cleanup
-                    // above: the reference's `_normalize_dates` runs right after `_ocr` returns
-                    // (pipeline.py:900), so nothing upstream sees a rewritten value. Not a timed
-                    // stage — the reference calls it as a plain method, not through `_model_call`.
-                    results.OcrNormalized = Dates.NormalizeDates(
-                        results.Ocr, texts.Select(t => t.Label));
-
-                    // The leasing flag of an STS, from the finished special marks. Not a timed stage.
-                    ReadLeasing(bareType, results, options.Sink);
 
                     results.Timings = timings.Report();
                     if (options.UpTo == "join" || options.UpTo == "leasing")
@@ -930,7 +1024,7 @@ public sealed class Recognizer : IDisposable
 
     /// <summary>
     /// Rebuilds the internal-passport canvas from template-registered pages. Port of
-    /// <c>Pipeline._register_pages</c> (pipeline.py:1026-1129), minus the diagnostic
+    /// <c>pipeline/pages.py::Pipeline._register_pages</c>, minus the diagnostic
     /// <c>meta_results['PageRegistration']</c> info dict — nothing in the graded contract reads it
     /// (only the rebuilt canvas feeds anything downstream), so building it would be dead code here.
     /// </summary>
@@ -1297,6 +1391,46 @@ public sealed class Recognizer : IDisposable
         [.. wordBoxes.Select(boxes => boxes is null ? null : (object)BoxesPayload(boxes))];
 
     /// <summary>
+    /// <c>address.lines</c>: <c>[{kind, p_handwritten, text, stamp}]</c>, one entry per line read. <c>stamp</c> is
+    /// there only when the stamp detector ran (the reference's lines carry no such key without it); it is an index
+    /// into <c>address.stamps</c>, or null for a line inside no stamp.
+    /// </summary>
+    private static object[] AddressLinesPayload(AddressRead address) =>
+        [.. address.Lines.Select(line =>
+        {
+            var entry = new Dictionary<string, object?>
+            {
+                ["kind"] = line.Kind,
+                ["p_handwritten"] = line.PHandwritten,
+                ["text"] = line.Text,
+            };
+            if (address.StampsRan)
+            {
+                entry["stamp"] = line.Stamp;
+            }
+            return entry;
+        })];
+
+    /// <summary>
+    /// <c>address.stamps</c>: <c>[{kind, confidence, quad, lines, address, cancels, current}]</c>, freshest first;
+    /// null when the weight set has no stamp detector. <c>quad</c> is four <c>[x, y]</c> on the input image, or
+    /// null when the way back to it is not known.
+    /// </summary>
+    private static object?[]? StampsPayload(AddressRead address) =>
+        address.StampsRan
+            ? [.. address.Stamps.Select(stamp => new Dictionary<string, object?>
+            {
+                ["kind"] = stamp.Kind,
+                ["confidence"] = stamp.Confidence,
+                ["quad"] = stamp.Quad?.Select(p => new[] { p.X, p.Y }).ToArray(),
+                ["lines"] = stamp.Lines,
+                ["address"] = stamp.Address,
+                ["cancels"] = stamp.Cancels,
+                ["current"] = stamp.Current,
+            })]
+            : null;
+
+    /// <summary>
     /// Contours as the harness expects them: a list of point lists, or null when nothing was found.
     ///
     /// <para>
@@ -1347,6 +1481,9 @@ public sealed class Recognizer : IDisposable
             Quality = results.Quality,
             Timings = results.Timings,
             Segments = results.Segments,
+            AddressDetections = results.Address?.Detections,
+            AddressLines = results.Address?.Lines
+                .Select(l => new ViewModel.AddressLineRow(l.Kind, l.PHandwritten, l.Text)).ToList(),
         }, includeDebug);
 
     private Dictionary<string, object> RunQuality(Image image, double docConfidence,
@@ -1408,7 +1545,8 @@ public sealed class Recognizer : IDisposable
         foreach (IDisposable? module in new IDisposable?[]
                  {
                      _documentDetector, _docTypeAngles, _glare, _blur, _printSpoofing, _lcdSpoofing, _docDetector,
-                     _textFields, _words, _cyrillic, _latin, _pageRegistrar,
+                     _textFields, _words, _addressLines, _addressTextKind, _stamps, _cyrillic, _latin,
+                     _pageRegistrar,
                  }.Concat(_cardRegistrars.Values))
         {
             if (module is null)

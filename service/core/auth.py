@@ -27,7 +27,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from jose import jwt
+import jwt
 
 from service.core import passwords
 from service.core.config import get_settings

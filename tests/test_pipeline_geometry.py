@@ -139,6 +139,7 @@ def pipeline(kind, angle, *, fallback=False, documents=False):
     stub.words_detector = module(WordsDetector, 'WordsDetector', words_of)
     stub.address_lines = module(AddressLinesDetector, 'AddressLinesDetector', lines_of)
     stub.address_textkind = SimpleNamespace(model_name='Kind', predict=lambda patch: {'Kind': ('printed', 0.1)})
+    stub.registration_stamps = None   # the stamps stage is not what these tests are about
     stub.ocr_cyr = SimpleNamespace(model_name='OCRCyrillic', predict=lambda word: {'OCRCyrillic': {'ocr_output': 'Г. МОСКВА'}})
     stub.ocr_lat = SimpleNamespace(model_name='OCRLatin', predict=lambda word: {'OCRLatin': {'ocr_output': 'G. MOSKVA'}})
     return stub

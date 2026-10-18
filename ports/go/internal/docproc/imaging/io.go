@@ -94,7 +94,7 @@ func Resize(src Image, width, height int, interp Interpolation) Image {
 }
 
 // FitToLongestSide is Pipeline._prepare_image's resize step
-// (pipeline/pipeline.py:1107-1111):
+// (pipeline/pipeline.py::Pipeline._prepare_image):
 //
 //	ratio        = max(max(h, w) / imgSize, 1)
 //	new_h, new_w = int(h // ratio), int(w // ratio)

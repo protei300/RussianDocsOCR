@@ -52,7 +52,12 @@ public data class Context(
 public sealed interface ModelResult
 
 /** A single label plus its score. Angle heads and the quality classifiers. */
-public data class ClassResult(val label: String, val confidence: Double) : ModelResult
+public data class ClassResult(
+    val label: String,
+    val confidence: Double,
+    /** The raw model score when it differs from [confidence]: P(second label) of a binary head. */
+    val score: Double = confidence,
+) : ModelResult
 
 /** Nearest-centroid outcome. [label] is `"NONE"` when nothing is close enough. */
 public data class MetricResult(
@@ -181,9 +186,9 @@ public class BinaryClass(
         }
         val score = scores[0].toDouble()
         return if (score > threshold) {
-            ClassResult(labels[1], score)
+            ClassResult(labels[1], score, score)
         } else {
-            ClassResult(labels[0], 1 - score)
+            ClassResult(labels[0], 1 - score, score)
         }
     }
 }

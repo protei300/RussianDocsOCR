@@ -190,10 +190,13 @@ view model, as the reference does - checked against the reference on three frame
 The fallback branch that RECOVERS a type (and, for an internal passport, redoes the two-page stitch) is
 ported from the code but was not seen working: none of the frames tried was recovered by the reference.
 
-**Not carried, on purpose:**
-
-- The address page (`INTPASSPORTADDR`), and with it the `address_lines` key of the stage `quads` and
-  `Results.AddressLineQuads` (always empty).
+**Carried since 2026-10-17:** the registration page (`INTPASSPORTADDR`) and the registration stamps of issue #27:
+`Pipeline/Address.cs` (`_address_lines`, `_route_word_ocr`, `_is_number_token`), `Pipeline/Stamps.cs` (`StampsStage`),
+the three modules, the oriented-box pair (`YoloObb`, `YoloObbDetector`, `ObbDetectionModel`), the stages
+`address.lines`, `address.stamps`, the key `address_lines` of `quads`, the `address` block of the view model and
+`Results.AddressLineQuads`. No batched GPU reading of the address words: this port reads every word on the CPU,
+which is the reference's default (`ocr_gpu_batch` is off). **Not carried:** the per-page work of a two-page photo
+that the page registration did not take (already stated in N-12 and N-14: such a spread is fed to the detectors as one canvas, deskewed as one canvas).
 
 **A trap found on the way (2026-10-07):** `expand_quad` runs on a float32 array in the reference
 (`order_points` and the page registrar's `page_quads` both return float32), so NumPy rounds to float32

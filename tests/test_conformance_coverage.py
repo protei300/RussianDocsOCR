@@ -21,7 +21,6 @@ CENTERS = REPO / 'document_processing' / 'models' / 'DocTypeAngles' / 'ONNX' / '
 
 KNOWN_GAPS = {
     'DLBACK_ALL': 'back of a driving licence: no material yet (the type reads no fields)',
-    'INTPASSPORTADDR_ALL': 'registration page: no anonymised sample yet (address path)',
     'SNILS_2019': 'SNILS of the 2019 form: no sample yet',
 }
 

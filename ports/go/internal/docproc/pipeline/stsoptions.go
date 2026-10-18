@@ -1,6 +1,6 @@
 package pipeline
 
-// optionsSTS is OCROptionsSTS (pipeline.py): OCR options for the vehicle registration
+// optionsSTS is pipeline/options.py::OCROptionsSTS: OCR options for the vehicle registration
 // certificate (issue #17). The vehicle side (STS_<year>) and the owner side
 // (STSBACK_<year>) share one options class, as the birth-certificate eras do - MakeOcrOptions
 // cannot tell the sides apart and does not need to: a field the detector does not find on a

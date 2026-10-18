@@ -198,7 +198,7 @@ public static class Ocr
     /// Collapses the dotted ruler lines the 1998 birth-certificate form prints under every value.
     ///
     /// <para>
-    /// Port of <c>Pipeline._clean_ruler_artifacts</c> (pipeline.py:1061). The rulers land inside the
+    /// Port of <c>pipeline/reading.py::Pipeline._clean_ruler_artifacts</c>. The rulers land inside the
     /// field crops and OCR emits runs of those marks around the real words; they carry no information
     /// on this form. Commas and quotes are in the set because that is what the engine emits on this
     /// form («28., ИЮЛЯ 2010», «"""СЕМ","" ПОННИЛОВИЧ»), not because they were expected. Only runs of

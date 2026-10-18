@@ -99,7 +99,8 @@ public sealed record OcrOptions
             return new OcrOptions
             {
                 // `Middle_name_ru`: see the DL branch below — no OCR alphabet carries a space, so a
-                // double patronymic is returned glued unless the splitter runs (pipeline.py:134-139).
+                // double patronymic is returned glued unless the splitter runs
+                // (pipeline/options.py::OCROptionsINTPassport.needed_split).
                 NeededSplit = ["Licence_number", "Birth_place_ru", "Issue_organization_ru",
                     "Middle_name_ru"],
                 // MRZ is read by the Latin engine and is NOT in NeededSplit: the zone is detected
@@ -111,7 +112,7 @@ public sealed record OcrOptions
                 // Licence_number is CYRILLIC-routed although it is digits only: the Latin engine
                 // reads the passport's red '3' as '8' at p=0.94..1.00, and the Cyrillic engine
                 // reads the same crops correctly (issue #12). Matches the reference,
-                // OCROptionsINTPassport in pipeline.py.
+                // pipeline/options.py::OCROptionsINTPassport.
                 RuFields = ["Last_name_ru", "First_name_ru", "Birth_place_ru",
                     "Issue_organization_ru", "Living_region_ru", "Middle_name_ru", "Sex_ru",
                     "Licence_number"],
@@ -127,7 +128,7 @@ public sealed record OcrOptions
                 // `Issue_organization_ru` is split for the same reason as the DL branch's
                 // `Middle_name_*` below: no OCR alphabet contains a space, so a multi-word field that
                 // skips the splitter comes back glued («МИД РОССИИ» -> «МИДРОССИИ»,
-                // pipeline.py:211-219).
+                // pipeline/options.py::OCROptionsEXTPassport.needed_split).
                 NeededSplit = ["Licence_number", "Birth_place_ru", "Birth_place_en",
                     "Issue_organization_ru"],
                 // MRZ: Latin engine, never split — see intpassport above.
@@ -141,7 +142,8 @@ public sealed record OcrOptions
             };
         }
         // 'dlback' contains 'dl': the licence back side (categories table) has no field model yet, so
-        // it must not fall into the front-side DL options (pipeline.py make_options).
+        // it must not fall into the front-side DL options
+        // (pipeline/options.py::OCROptionsClass.make_options).
         if (t.Contains("dlback", StringComparison.Ordinal))
         {
             return new OcrOptions();
@@ -153,7 +155,7 @@ public sealed record OcrOptions
                 // `Middle_name_*` is split for the same reason as the external passport's
                 // `Issue_organization_ru` above: no OCR alphabet contains a space, so a double
                 // patronymic («ОГЛЫ», «КЫЗЫ») comes back glued unless the splitter runs
-                // (pipeline.py:256-263).
+                // (pipeline/options.py::OCROptionsDL.needed_split).
                 NeededSplit = ["Licence_number", "Driver_class", "Birth_place_ru", "Birth_place_en",
                     "Living_region_ru", "Living_region_en", "Middle_name_ru", "Middle_name_en"],
                 EnFields = ["Last_name_en", "First_name_en", "Licence_number", "Issue_date",
@@ -177,7 +179,7 @@ public sealed record OcrOptions
         }
         if (t.Contains("birthcert", StringComparison.Ordinal))
         {
-            // Birth certificates (OCROptionsBIRTHCERT, pipeline.py:156). ONE branch for both blank
+            // Birth certificates (pipeline/options.py::OCROptionsBIRTHCERT). ONE branch for both blank
             // generations — BIRTHCERT_1998 and BIRTHCERT_2018 (order 167/2018: worded birth date,
             // parents' birth dates, place of issue, 21-digit act number) — because the dispatcher
             // never sees the year suffix.
@@ -204,7 +206,7 @@ public sealed record OcrOptions
             };
         }
         // 'stsback' contains 'sts': both sides of the certificate land here on purpose (one options
-        // class for both, see OCROptionsSTS in pipeline.py).
+        // class for both, see pipeline/options.py::OCROptionsSTS).
         if (t.Contains("sts", StringComparison.Ordinal))
         {
             return new OcrOptions

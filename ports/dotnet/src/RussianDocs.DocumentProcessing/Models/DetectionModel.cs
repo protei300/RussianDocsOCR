@@ -125,3 +125,36 @@ public sealed class SegmentationModel : IDisposable
 
     public void Dispose() => _session.Dispose();
 }
+
+/// <summary>
+/// An oriented-box detector (<c>YOLOOBBDetection</c>): one <c>YOLOOBB</c> input, one <c>YOLOOBBDetector</c>
+/// output. Built through the same switches as the axis-aligned one. The boxes come back in the coordinates of
+/// the image it was given, unrounded - the patch cut on them keeps the sub-pixel centre.
+/// </summary>
+public sealed class ObbDetectionModel : IDisposable
+{
+    private readonly Session _session;
+    private readonly IPreprocessor _pre;
+    private readonly YoloObbDetector _detector;
+
+    public ModelConfig Config { get; }
+
+    public ObbDetectionModel(string dir, Device device, int threads)
+    {
+        Config = ModelConfig.Load(dir);
+        _pre = Loader.NewPreprocessor(Config.Inputs[0]);
+        _detector = Loader.NewPostprocessor(Config.Outputs[0], Config.Dir) as YoloObbDetector
+            ?? throw new InvalidDataException(
+                $"models: {Config.Name} output 0 is not an oriented detector ({Config.Outputs[0].Type})");
+        _session = new Session(Config.ModelPath, device, threads);
+    }
+
+    public List<ObbBox> Predict(Image image)
+    {
+        (NdArray tensor, Meta meta) = _pre.Apply(image);
+        NdArray[] raw = _session.Run([tensor]);
+        return _detector.Decode(raw[0], DetectionModel.ContextOf(meta, resize: true));
+    }
+
+    public void Dispose() => _session.Dispose();
+}

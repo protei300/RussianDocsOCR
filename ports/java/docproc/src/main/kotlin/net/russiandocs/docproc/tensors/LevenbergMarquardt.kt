@@ -9,7 +9,7 @@ import kotlin.math.sqrt
  * Jacobian.
  *
  * Written for one call site: `page_registration/line_refine.py::_fit` (the page-straightening IRLS
- * fit — pipeline.py's `_register_pages` → `PageRegistrar.straighten`), which uses
+ * fit — `pipeline/pages.py::Pipeline._register_pages` → `PageRegistrar.straighten`), which uses
  * `scipy.optimize.least_squares` on a 4-parameter model. There is no SciPy on the JVM, and the
  * user's own instruction for this port is to replace it with a hand-written LM solver rather than
  * hand-translate SciPy's trust-region internals (`trf`, the default `least_squares` uses) — LM is

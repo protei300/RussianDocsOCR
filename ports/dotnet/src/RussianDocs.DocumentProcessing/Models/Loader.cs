@@ -30,10 +30,10 @@ public static class Loader
     public static IPreprocessor NewPreprocessor(ModelInput input) => input.Type switch
     {
         "Classification" => new Classification(input),
-        // Recognised but not implemented yet — wired so a port cannot quietly grow a different
-        // behaviour for them, and so the reader sees what exists rather than guessing.
         "YOLO" => new Yolo(input),
-        "YOLOOBB" => new NotImplementedPreprocessor("YOLOOBB"),
+        // Oriented boxes: the YOLO letterbox, handed over as float32 NCHW in [0, 1] (the address lines and the
+        // registration stamps).
+        "YOLOOBB" => new YoloObb(input),
         "OCRv2" => new OcrV2(input),
         // "OCR" is the removed legacy 31x200 grayscale path. No shipped model.json declares it;
         // wired anyway, because an omitted case reads as an oversight.
@@ -74,7 +74,9 @@ public static class Loader
         // the plain YOLODetector keeps one shared pair of thresholds.
         "PerClassYOLODetector" => new YoloDetector(output.LabelsAsStrings(), output.Iou ?? 0.45,
             output.Cls ?? 0.5, NmsMode.PerClass, output.IouPerClass, output.ClsPerClass),
-        "YOLOOBBDetector" => new NotImplementedPostprocessor("YOLOOBBDetector"),
+        // No per-class overrides and no class-aware suppression: the rotated NMS ignores the class.
+        "YOLOOBBDetector" => new YoloObbDetector(output.LabelsAsStrings(), output.Iou ?? 0.45,
+            output.Cls ?? 0.25),
         "YOLOSegmentor" => new YoloSegmentor(output.MaskFilter ?? 0.5),
         "OCRProbs" => new OcrProbs(
             output.Alphabet ?? throw new InvalidDataException(

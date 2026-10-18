@@ -3,6 +3,7 @@ DocumentDetector: models\DocDetect
 TextFieldsDetector: models\TextFields
 AddressLinesDetector: models\AddressLines
 AddressTextKindClassifier: models\AddressTextKind
+RegistrationStamps: models\RegistrationStamps
 DocTypeAngles: models\DocTypeAngles
 Blur: models\Blur
 Glare: models\Glare

@@ -5,6 +5,7 @@ from .glare_detector import Glare
 from .textfields_detector import TextFieldsDetector
 from .address_lines_detector import AddressLinesDetector
 from .address_textkind_classifier import AddressTextKindClassifier
+from .registration_stamps import RegistrationStamps
 from .blur_detector import Blur
 from .lcd_spoofing_detector import LCDSpoofing
 from .print_spoofing_detector import PrintSpoofing
@@ -18,4 +19,4 @@ from .page_registration import PageRegistrar
 __all__ = 'DocDetector', 'DocumentDetector', 'TextFieldsDetector', 'Blur', 'Glare', 'LCDSpoofing', 'PrintSpoofing', \
     'WordsDetector', 'OCRCyrillic', 'OCRLatin', \
     'DocTypeAngles', 'DocDeskewer', 'AddressLinesDetector', 'AddressTextKindClassifier', \
-    'PageRegistrar'
+    'RegistrationStamps', 'PageRegistrar'

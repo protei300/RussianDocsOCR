@@ -28,15 +28,28 @@ public class FieldQuads(
     public val fields: Map<String, List<List<Pt>>>?,
     /** label -> the quadrilateral of each word patch, in the order of the field's words. */
     public val words: Map<String, List<List<Pt>>>?,
+    /**
+     * Where each address line lies on the input image (`Quads['address_lines']`), one quadrilateral per line; null —
+     * the way back is not known. Only meaningful when [hasAddressLines]: the key exists only when the address path ran.
+     */
+    public val addressLines: List<List<Pt>>? = null,
+    public val hasAddressLines: Boolean = false,
 ) {
-    /** The `quads` conformance stage: `{"fields": {...}, "words": {...}}`, or both null. */
+    /** The same quads with the address lines of an INTPASSPORTADDR run added. */
+    public fun withAddressLines(lines: List<List<Pt>>?): FieldQuads = FieldQuads(fields, words, lines, true)
+
+    /** The `quads` conformance stage: `{"fields": {...}, "words": {...}}`, or both null; plus `address_lines` on a registration page. */
     public fun toJson(): JsonElement {
         fun quad(points: List<Pt>): JsonElement =
             JsonArray(points.map { JsonArray(listOf(JsonPrimitive(it.x), JsonPrimitive(it.y))) })
 
         fun group(map: Map<String, List<List<Pt>>>?): JsonElement =
             if (map == null) JsonNull else JsonObject(map.mapValues { (_, quads) -> JsonArray(quads.map(::quad)) })
-        return JsonObject(mapOf("fields" to group(fields), "words" to group(words)))
+        val out = linkedMapOf("fields" to group(fields), "words" to group(words))
+        if (hasAddressLines) {
+            out["address_lines"] = addressLines?.let { JsonArray(it.map(::quad)) } ?: JsonNull
+        }
+        return JsonObject(out)
     }
 
     public companion object {

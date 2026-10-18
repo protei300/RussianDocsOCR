@@ -77,8 +77,7 @@ func Load(root, dir string, device inference.Device, threads int) (*Model, error
 		return nil, fmt.Errorf("%w: %s is a segmentor; use LoadSegmentation", ErrModelLoad, cfg.Name)
 	case "YOLOOBBDetection":
 		_ = sess.Close()
-		return nil, fmt.Errorf("%w: ModelType %q (INTPASSPORTADDR) is deferred",
-			postprocess.ErrNotImplemented, cfg.ModelType)
+		return nil, fmt.Errorf("%w: %s is an oriented-box detector; use LoadObb", ErrModelLoad, cfg.Name)
 	default:
 		// A REAL default, not an error: both "UnifiedModel" and "OCRUnified" land here
 		// on purpose, exactly as ModelLoader.load_model's default case does.
@@ -144,7 +143,7 @@ func newPreprocessor(in Input) (preprocess.Preprocessor, error) {
 	case "YOLO":
 		return preprocess.NewYolo(in.Shape, in.PaddingSize, in.PaddingColor)
 	case "YOLOOBB":
-		return preprocess.NotImplemented{Tag: in.Type}, nil // INTPASSPORTADDR, deferred
+		return preprocess.NewObb(in.Shape, in.PaddingSize, in.PaddingColor)
 	case "OCR":
 		// Legacy 31x200 grayscale. No shipped model.json declares it; wired so the
 		// absence is explicit rather than looking like an omission.
@@ -190,7 +189,11 @@ func newPostprocessor(root string, cfg Config, out Output) (postprocess.Postproc
 		// one field of each pair.
 		return newDetectorPost(out, postprocess.NmsPerClass)
 	case "YOLOOBBDetector":
-		return postprocess.NotImplemented{Tag: out.Type}, nil // INTPASSPORTADDR, deferred
+		labels, err := out.LabelsAsStrings()
+		if err != nil {
+			return nil, err
+		}
+		return postprocess.NewYoloObb(labels, derefOr(out.IOU, 0.45), derefOr(out.CLS, 0.25))
 	case "YOLOSegmentor":
 		return postprocess.NewYoloSegmentor(derefOr(out.MaskFilter, 0.8))
 	case "OCR":

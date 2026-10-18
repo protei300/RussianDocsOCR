@@ -12,8 +12,8 @@ import (
 // a command would be free to drift from the one the goldens were made with.
 
 // SegmentsPayload renders the selected border contours as plain [[x, y], ...] lists.
-// Mirrors pipeline.py::_segments_payload. nil (JSON null) when nothing was detected, which
-// is what the reference emits too.
+// Mirrors pipeline/pages.py::_segments_payload. nil (JSON null) when nothing was detected,
+// which is what the reference emits too.
 func SegmentsPayload(segments [][]imaging.Point) any {
 	if len(segments) == 0 {
 		return nil

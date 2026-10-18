@@ -29,7 +29,15 @@ public sealed record Context
 public interface IResult;
 
 /// <summary>A single label plus its score. Angle heads and the quality classifiers.</summary>
-public sealed record ClassResult(string Label, double Confidence) : IResult;
+public sealed record ClassResult(string Label, double Confidence) : IResult
+{
+    /// <summary>
+    /// The head's raw score, where there is one (<c>BinaryClassification</c>: P of the second label). NaN otherwise.
+    /// <see cref="Confidence"/> is the score of the label that WON; a caller that wants the probability itself -
+    /// <c>AddressTextKindClassifier</c> reports P(handwritten) - reads it here.
+    /// </summary>
+    public double Raw { get; init; } = double.NaN;
+}
 
 /// <summary>Nearest-centroid outcome. <c>Label</c> is <c>"NONE"</c> when nothing is close enough.</summary>
 public sealed record MetricResult(string Label, double Distance, double Threshold) : IResult;
@@ -191,8 +199,8 @@ public sealed class BinaryClass(string[] labels, double threshold) : IPostproces
 
         double score = scores[0];
         return score > threshold
-            ? new ClassResult(labels[1], score)
-            : new ClassResult(labels[0], 1 - score);
+            ? new ClassResult(labels[1], score) { Raw = score }
+            : new ClassResult(labels[0], 1 - score) { Raw = score };
     }
 }
 

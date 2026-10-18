@@ -55,6 +55,13 @@ type Recognizer struct {
 	cyr        *modules.OcrEngine
 	lat        *modules.OcrEngine
 
+	// The registration page (INTPASSPORTADDR): the oriented line detector and the printed-or-
+	// handwritten classifier are as required as the rest; the stamp detector is optional - a
+	// weight set of models-v10 or older has none and the page is read without stamps, as before.
+	addrLines *modules.AddressLines
+	addrKind  *modules.AddressTextKind
+	stamps    *modules.RegistrationStamps
+
 	// cardRegs are the template registrars of the STS types, built on first use (nil value:
 	// the type has no templates). See cardRegistrar.
 	cardMu   sync.Mutex
@@ -115,7 +122,7 @@ type Results struct {
 	// reading - a separate map, deliberately: Ocr holds what is printed on the document,
 	// which is what the ground truth describes and the key set the service builds its
 	// field list from. Only fields that converted appear; nil when none did
-	// (PipelineResults.ocr_normalized, pipeline.py:170-181).
+	// (pipeline/results.py::PipelineResults.ocr_normalized).
 	OcrNormalized map[string]string
 	// DatesReadWhole lists the date fields whose reading was replaced by a re-read of the
 	// whole line (PipelineResults meta_results['DatesReadWhole']); nil when none was.
@@ -141,6 +148,9 @@ type Results struct {
 	// SplitFlags reports the lines the gap guard re-read whole, and the ones it declined
 	// to (PipelineResults.words_fallback / words_no_ink).
 	SplitFlags SplitFlags
+	// Address is what the registration-page path produced (INTPASSPORTADDR only; nil for every
+	// other type): the lines, their text, the stamps.
+	Address *AddressResult
 
 	// Canvas is the deskewed, perspective-corrected image in RGB. HasCanvas is false when
 	// the run short-circuited before producing one.
@@ -243,6 +253,15 @@ func NewRecognizer(opts RecognizerOptions) (*Recognizer, error) {
 	step(func() (e error) { r.cyr, e = modules.NewOcrCyrillic(root, paths, f, opts.OcrDevice, th, tier); return })
 	step(func() (e error) { r.lat, e = modules.NewOcrLatin(root, paths, f, opts.OcrDevice, th, tier); return })
 	step(func() (e error) { r.pageRegistrar, e = modules.NewPageRegistrar(root, "INTPASSPORT", 6000); return })
+	step(func() (e error) { r.addrLines, e = modules.NewAddressLines(root, paths, f, dev, th); return })
+	step(func() (e error) { r.addrKind, e = modules.NewAddressTextKind(root, paths, f, dev, th); return })
+	if modules.RegistrationStampsAvailable(paths, f) {
+		step(func() (e error) { r.stamps, e = modules.NewRegistrationStamps(root, paths, f, dev, th); return })
+	} else {
+		fmt.Fprintln(os.Stderr, "[!] RegistrationStamps weights not found (models/RegistrationStamps): the "+
+			"registration page is read without stamps. Run scripts/fetch_models.py for a weight set "+
+			"that has them.")
+	}
 	if buildErr != nil {
 		_ = r.Close()
 		return nil, buildErr
@@ -289,6 +308,15 @@ func (r *Recognizer) Close() error {
 	}
 	if r.pageRegistrar != nil {
 		closers = append(closers, r.pageRegistrar.Close)
+	}
+	if r.addrLines != nil {
+		closers = append(closers, r.addrLines.Close)
+	}
+	if r.addrKind != nil {
+		closers = append(closers, r.addrKind.Close)
+	}
+	if r.stamps != nil {
+		closers = append(closers, r.stamps.Close)
 	}
 	r.cardMu.Lock()
 	for _, reg := range r.cardRegs {
@@ -511,12 +539,9 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 	// raw label, matching the reference.
 	lowerType := strings.ToLower(meta.DocType)
 	isSpread := strings.Contains(lowerType, "intpassport")
-	// INTPASSPORTADDR is out of scope for this port (no anonymised sample -> no
-	// golden -> nothing to verify against - see MAPPING.md "Not ported"), but it
-	// still matches the "intpassport" substring above (is_spread, so maxPages=2,
-	// matching the reference's own _doc_detector). _register_pages additionally
-	// excludes it (pipeline.py: `'addr' in doc_type: return`), and so does the
-	// registration branch below.
+	// INTPASSPORTADDR matches the "intpassport" substring above (is_spread, so maxPages=2,
+	// matching the reference's own _doc_detector). _register_pages excludes it (pipeline/pages.py::Pipeline._register_pages: `'addr' in doc_type: return`),
+	// and so does the registration branch below.
 	canRegister := isSpread && !strings.Contains(lowerType, "addr")
 	maxPages := 1
 	if isSpread {
@@ -602,8 +627,8 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 	// Deskew stays off when the registrar already straightened these pages by their
 	// OWN lines (line_refine/line_dewarp, blur-tolerant, template-free): the
 	// whole-canvas projection-profile scan can mistake a small canvas's dark cushion
-	// for text and rotate an already-straight page (pipeline.py's _deskew docstring,
-	// measured on 12_CR_INTPASSPORT_2011). Otherwise, with 2+ pages (a spread that
+	// for text and rotate an already-straight page (pipeline/pages.py::Pipeline._deskew
+	// docstring, measured on 12_CR_INTPASSPORT_2011). Otherwise, with 2+ pages (a spread that
 	// went through the plain Borders path), each page is deskewed ON ITS OWN and the
 	// canvas re-stitched - the two pages of an open passport rarely share one angle.
 	var deskewed imaging.Image
@@ -692,9 +717,55 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 		return out, nil
 	}
 
+	// ---- stages: address.lines, address.stamps ----------------------------
+	// The registration page (INTPASSPORTADDR): the address lines are read, then the stamps they
+	// lie in are found. Between the fields and the word split, as in _process_document.
+	if ocrOpts.HasAddress {
+		if err := timings.Time(StageAddressLines, func() (e error) {
+			out.Address, e = r.readAddress(deskewed, out.ToInput)
+			return
+		}); err != nil {
+			return fail(err)
+		}
+		if len(out.Address.Lines) == 0 {
+			// Paper-texture gate: the registration page is mostly bare paper, so the metric
+			// classifier accepts document-free paper textures as INTPASSPORTADDR. A real page
+			// virtually always has detectable address lines (49/50 on the test set); none on an
+			// accepted "address page" marks a false accept, rejected the way the doctype stage
+			// rejects one. The line quads are kept (the reference leaves them in its results).
+			out.DocType = "NONE"
+			out.Quality["DocConf"] = 0.0
+			out.Timings = timings.Report()
+			return out, nil
+		}
+		if err := timings.Time(StageRegistrationStamps, func() error {
+			return r.readStamps(deskewed, out.Address, out.ToInput)
+		}); err != nil {
+			return fail(err)
+		}
+		// The text lands in the OCR dict now; the fields read later are merged into it.
+		out.Ocr["Address"] = out.Address.Text
+		out.Ocr["Address_has_handwritten"] = "False"
+		if out.Address.HasHandwritten {
+			out.Ocr["Address_has_handwritten"] = "True"
+		}
+		if err := sink.Emit("address.lines", addressLinesPayload(out.Address)); err != nil {
+			return fail(err)
+		}
+		if opts.UpTo == "address.lines" {
+			out.Timings = timings.Report()
+			return out, nil
+		}
+		if err := sink.Emit("address.stamps", addressStampsPayload(out.Address)); err != nil {
+			return fail(err)
+		}
+		if opts.UpTo == "address.stamps" {
+			out.Timings = timings.Report()
+			return out, nil
+		}
+	}
+
 	// ---- stages: words.<Field>.bbox ---------------------------------------
-	// The address path (INTPASSPORTADDR) is out of scope for this port, so no
-	// address.lines stage is emitted and the checker skips it.
 	// Remembered BEFORE the words are split, from the boxes as detected: the MRZ retry
 	// re-cuts a line from this canvas when its length comes out wrong (_note_mrz_zone).
 	mrzZone := NoteMrzZone(out.Boxes, deskewed)
@@ -717,10 +788,23 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 	// The way back to the input image (geometry.go): field and word quadrilaterals, or none when
 	// this run'"'"'s way back is not known. Right after the split, before the OCR, like the reference.
 	out.Quads = buildQuads(records, frames, out.ToInput, ocrOpts.NeedsLicenceRotation)
+	if out.Address != nil {
+		// The registration-address lines ride in the same stage ('address_lines', only when the
+		// address path ran); nil - the way back is not known.
+		out.Quads.HasAddressLines = true
+		out.Quads.AddressLines = out.Address.LineQuads
+	}
 	if err := sink.Emit("quads", QuadsPayload(out.Quads)); err != nil {
 		return fail(err)
 	}
 	if opts.UpTo == "words" {
+		out.Timings = timings.Report()
+		return out, nil
+	}
+
+	// Nothing was split: nothing is read either (`if ocr and words_splitted`), so there is no
+	// `_ocr` timing, no `join` stage and no date or leasing pass - the registration page ends here.
+	if len(fieldWords) == 0 {
 		out.Timings = timings.Report()
 		return out, nil
 	}
@@ -738,7 +822,7 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 
 	// Ruler cleanup applies to the FINAL per-field values only: the reference
 	// emits `join` from the raw dict and cleans meta_results['OCR'] afterwards
-	// (pipeline.py:1058), so the conformance payload stays raw here too.
+	// (pipeline/reading.py::Pipeline._ocr), so the conformance payload stays raw here too.
 	cleanRulers := strings.Contains(strings.ToLower(meta.DocType), "birthcert")
 
 	joined := make(map[string]any, len(texts))
@@ -766,7 +850,8 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 
 	// Canonical dates are built once, on the FINISHED dict, after the ruler cleanup:
 	// the reference's _normalize_dates runs after _ocr, which is where the cleanup
-	// happens too, so nothing upstream sees a rewritten value (pipeline.py:1144-1159).
+	// happens too, so nothing upstream sees a rewritten value
+	// (pipeline/pipeline.py::Pipeline._process_document).
 	order := make([]string, 0, len(texts))
 	for _, ft := range texts {
 		order = append(order, ft.Label)

@@ -5,25 +5,27 @@ rule that is easy to get wrong and expensive to debug. Each one was verified
 against ``document_processing`` 3.0.2, not inferred from documentation.
 
 1.  **A ``Pipeline`` instance is not re-entrant.** ``process_img`` rebinds
-    ``self.results`` (``pipeline.py:450``) and ``self.ocr_options``
-    (``pipeline.py:465``) on every call, so two concurrent calls on one instance
+    ``self.results`` (``pipeline/documents.py::Pipeline._start_document``) and
+    ``self.ocr_options`` (``pipeline/pipeline.py::Pipeline._process_document``)
+    on every call, so two concurrent calls on one instance
     silently return each other's fields. This does not crash and does not
     reproduce in single-user testing — it corrupts data under load. Hence
     ``lease_pipeline``: never call ``process_img`` outside it.
 
 2.  **The per-session CUDA lock does not help with (1).** The ``threading.Lock``
-    added in commit ``bbf2cfc`` (``processing/inference.py:73``) serialises
-    individual ONNX ``Run()`` calls on GPU — it fixes CUDA wedging, not
-    pipeline re-entrancy. Different problem, different scope.
+    added in commit ``bbf2cfc``
+    (``processing/inference.py::ModelInference._run_lock``) serialises
+    individual ONNX ``Run()`` calls on GPU — it fixes CUDA wedging, not pipeline
+    re-entrancy. Different problem, different scope.
 
 3.  **Transform the result before releasing the lease.** ``results`` *is*
     ``pipeline.results``; the next ``process_img`` replaces it. ``recognise``
     below does the whole read-and-convert inside the lease for this reason.
 
 4.  **``Pipeline.warmup()`` cannot report failure.** It swallows every exception
-    and ``print``s it (``pipeline.py:417-420``), so a failed warmup looks like a
-    successful one and the message never reaches the JSON log. We call
-    ``process_img`` directly instead.
+    and ``print``s it (``pipeline/pipeline.py::Pipeline.warmup``), so a failed
+    warmup looks like a successful one and the message never reaches the JSON
+    log. We call ``process_img`` directly instead.
 
 5.  **Warmup needs a real document.** With no argument, ``warmup`` builds a
     synthetic grey frame that classifies as ``'NONE'`` and short-circuits before
@@ -43,9 +45,10 @@ against ``document_processing`` 3.0.2, not inferred from documentation.
 
 8.  **GPU does not mean GPU OCR.** With ``ocr_gpu_batch=False`` (the correct
     default) the detectors run on CUDA while the OCR engines are forced to CPU
-    (``pipeline.py:325-330``), because dynamic-width per-word calls are far
-    slower on CUDA. ``DeviceInfo`` reports ``device`` and ``ocr_device``
-    separately so the status page can say so instead of claiming "GPU active".
+    (``ocr_device`` in ``pipeline/pipeline.py::Pipeline.__init__``), because
+    dynamic-width per-word calls are far slower on CUDA. ``DeviceInfo`` reports
+    ``device`` and ``ocr_device`` separately so the status page can say so
+    instead of claiming "GPU active".
 
 9.  **Models load eagerly and cost 215 MB.** All twelve are built in
     ``Pipeline.__init__`` (~15 s). Instances are expensive; a second one on the

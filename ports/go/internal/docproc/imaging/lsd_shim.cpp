@@ -35,3 +35,34 @@ extern "C" int rdocs_lsd_detect(void* mat, float** out) {
 }
 
 extern "C" void rdocs_lsd_free(float* p) { std::free(p); }
+
+// The two OpenCV calls of the oriented-box path that gocv does not bind the way the reference
+// calls them. Both run the same library code the Python wheel runs.
+
+extern "C" int rdocs_get_rect_sub_pix(void* src, int w, int h, double cx, double cy, void* dst) {
+    try {
+        cv::Mat* in = static_cast<cv::Mat*>(src);
+        cv::Mat* out = static_cast<cv::Mat*>(dst);
+        // The centre is a Point2f in cv2 as well: the double is narrowed to float here.
+        cv::getRectSubPix(*in, cv::Size(w, h),
+                          cv::Point2f(static_cast<float>(cx), static_cast<float>(cy)), *out);
+        return 0;
+    } catch (const cv::Exception&) {
+        return -1;
+    }
+}
+
+extern "C" double rdocs_rotated_intersection_area(const float* a, const float* b) {
+    try {
+        cv::RotatedRect ra(cv::Point2f(a[0], a[1]), cv::Size2f(a[2], a[3]), a[4]);
+        cv::RotatedRect rb(cv::Point2f(b[0], b[1]), cv::Size2f(b[2], b[3]), b[4]);
+        std::vector<cv::Point2f> region;
+        int kind = cv::rotatedRectangleIntersection(ra, rb, region);
+        if (kind == cv::INTERSECT_NONE || region.empty()) {
+            return 0.0;
+        }
+        return cv::contourArea(region);
+    } catch (const cv::Exception&) {
+        return -1.0;
+    }
+}

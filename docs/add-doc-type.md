@@ -93,7 +93,7 @@ BIRTHCERT_1998 и BIRTHCERT_2018.
 
 | реализация | файл | функция |
 |---|---|---|
-| эталон (Python) | `document_processing/pipeline/pipeline.py` | `OCROptionsClass.make_options` + класс `OCROptions<ТИП>` |
+| эталон (Python) | `document_processing/pipeline/options.py` | `OCROptionsClass.make_options` + класс `OCROptions<ТИП>` |
 | Go | `ports/go/internal/docproc/pipeline/ocroptions.go` | `MakeOcrOptions` |
 | .NET | `ports/dotnet/src/RussianDocs.DocumentProcessing/Pipeline/OcrOptions.cs` | `OcrOptions.For` |
 | Kotlin | `ports/java/docproc/src/main/kotlin/net/russiandocs/docproc/pipeline/OcrOptions.kt` | `forDocType` |
@@ -219,5 +219,5 @@ Docker-образ, в котором conformance-CLI лежит рядом с с
 | 7 | доки | CHANGELOG + журналы мейнтейнера | — |
 
 Проверка «всё ли я сделал» одной строкой: `git grep -l <ТИП>` обязан находить
-как минимум `pipeline.py`, три `OcrOptions.*`, `seed.py`, папку в `samples/` и
+как минимум `options.py`, три `OcrOptions.*`, `seed.py`, папку в `samples/` и
 кейс в `conformance/cases/`.

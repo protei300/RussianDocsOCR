@@ -371,20 +371,20 @@
     "LCDSpoofing": "REAL"
   },
   "timings": {
-    "_document_detector": 0.0968,
-    "_doctype_angle": 0.0071,
-    "_quality_and_borders": 0.2647,
-    "_glare": 0.022,
-    "_blur": 0.0285,
-    "_print_spoofing": 0.0355,
-    "_lcd_spoofing": 0.006,
-    "_doc_detector": 0.2412,
-    "_register_pages": 1.1901,
+    "_document_detector": 0.1092,
+    "_doctype_angle": 0.0065,
+    "_quality_and_borders": 0.2723,
+    "_glare": 0.0243,
+    "_blur": 0.0523,
+    "_print_spoofing": 0.035,
+    "_lcd_spoofing": 0.007,
+    "_doc_detector": 0.2,
+    "_register_pages": 1.3271,
     "_deskew": 0.0,
-    "_fields_detector": 0.1121,
-    "_split_words": 0.2266,
-    "_ocr": 0.4593,
-    "total": 2.3567
+    "_fields_detector": 0.1144,
+    "_split_words": 0.231,
+    "_ocr": 0.3574,
+    "total": 2.4179
   },
   "address": null
 }

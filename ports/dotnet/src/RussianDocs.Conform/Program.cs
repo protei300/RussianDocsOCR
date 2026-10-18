@@ -39,7 +39,7 @@ internal static class Program
     /// PASS while grading 26 stages out of 44.
     /// </para>
     /// </summary>
-    private static readonly string[] StagesImplemented = ["documents", "prepare", "doctype.label", "rotate", "quality", "borders.segments", "borders.canvas", "deskew.canvas", "fields.bbox", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel"];
+    private static readonly string[] StagesImplemented = ["documents", "prepare", "doctype.label", "rotate", "quality", "borders.segments", "borders.canvas", "deskew.canvas", "fields.bbox", "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel"];
 
     /// <summary>
     /// Pinned to 1 for every conformance run.

@@ -339,26 +339,26 @@
   },
   "quality": {
     "Blur": "good",
-    "DocConf": 0.98,
+    "DocConf": 0.96,
     "Glare": "good",
     "LCDSpoofing": "REAL",
     "PrintSpoofing": "REAL"
   },
   "recognised": true,
   "timings": {
-    "_blur": 0.044,
+    "_blur": 0.029,
     "_deskew": 0.0,
-    "_doc_detector": 0.2458,
-    "_doctype_angle": 0.007,
-    "_document_detector": 0.0919,
-    "_fields_detector": 0.1091,
-    "_glare": 0.033,
-    "_lcd_spoofing": 0.0371,
-    "_ocr": 0.274,
-    "_print_spoofing": 0.006,
-    "_quality_and_borders": 0.3028,
-    "_register_pages": 2.0542,
-    "_split_words": 0.2133,
-    "total": 3.0523
+    "_doc_detector": 0.246,
+    "_doctype_angle": 0.0081,
+    "_document_detector": 0.128,
+    "_fields_detector": 0.1157,
+    "_glare": 0.024,
+    "_lcd_spoofing": 0.008,
+    "_ocr": 0.2715,
+    "_print_spoofing": 0.031,
+    "_quality_and_borders": 0.3205,
+    "_register_pages": 2.1298,
+    "_split_words": 0.2261,
+    "total": 3.1997
   }
 }

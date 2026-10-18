@@ -81,7 +81,7 @@ public object SplitWords {
 
     /**
      * An empty stretch on a line wider than this many typical words means the split dropped a word,
-     * and the line is read whole instead. `Pipeline.WORDS_MAX_GAP` (pipeline.py:1310).
+     * and the line is read whole instead. `pipeline/fields.py::Pipeline.WORDS_MAX_GAP`.
      *
      * Measured over 157 documents, 815 fields: the widest gap on a line that really lost a long word
      * has a median of 2.74 typical word widths, against 0.06 on intact lines — a factor of forty. The
@@ -92,7 +92,7 @@ public object SplitWords {
 
     /**
      * Below this much fine-grained detail a line carries no strokes and the fallback must NOT re-read
-     * it. `Pipeline.LINE_MIN_INK` (pipeline.py:1350). Variance of the Laplacian: sharp text sits at a
+     * it. `pipeline/fields.py::Pipeline.LINE_MIN_INK`. Variance of the Laplacian: sharp text sits at a
      * median of 1590, blur wider than the stroke at 27; 100 is in that trough. Refusing wrongly loses a
      * repair; accepting wrongly MANUFACTURES a value — «ЛВН» read from an anonymised blur strip.
      */
@@ -127,9 +127,9 @@ public object SplitWords {
         var kept = fields.indices.filter { i ->
             i !in drop && options.isOcrField(fields[i].box.label)
         }
-        // Top-to-bottom by the box CENTRE (pipeline.py:1546): a multi-line field is labelled one
-        // detection per line and its words are concatenated in this order, so this is reading order.
-        // A pure y-sort is safe because classes collect only their own boxes. `sortedBy` is stable,
+        // Top-to-bottom by the box CENTRE (`pipeline/fields.py::Pipeline._split_words`): a multi-line field is
+        // labelled one detection per line and its words are concatenated in this order, so this is reading
+        // order. A pure y-sort is safe because classes collect only their own boxes. `sortedBy` is stable,
         // which keeps two boxes sharing a centre in detection order — as Python's sort does.
         kept = kept.sortedBy { (fields[it].box.y1 + fields[it].box.y2) / 2 }
         val splitIndices = kept.filter { options.needsSplit(fields[it].box.label) }
@@ -155,9 +155,9 @@ public object SplitWords {
             }
         }
 
-        // Gap guard (pipeline.py:1565). A hole on the line wider than a few typical words means the
-        // split dropped a word — measured twice: a 9 px crop where the detector returned NO words (the
-        // field vanished without a trace), and a line whose longest word («Тракторозаводский», 17
+        // Gap guard (`pipeline/fields.py::Pipeline._split_words`). A hole on the line wider than a few typical
+        // words means the split dropped a word — measured twice: a 9 px crop where the detector returned NO
+        // words (the field vanished without a trace), and a line whose longest word («Тракторозаводский», 17
         // characters) was the one missed. Reading the line whole recovers it; the price is that the
         // engine emits no spaces, so the line comes back glued, which is why this is a fallback on a
         // signal and not the default.
@@ -199,11 +199,11 @@ public object SplitWords {
         }
 
         // Whole lines of the date fields that were read word by word, kept for the whole-line re-read
-        // (`_date_lines`, pipeline.py _split_words): the split can drop a word without leaving a hole wide
-        // enough for the gap guard — on a real 1998 birth certificate the day, pressed against the left edge
-        // of the field crop, was not taken for a word at all. SNILS is excluded for the same parity reason as
-        // above; a line the guard already reads whole has nothing to add. Insertion order is the order of
-        // `kept`, which is the order the re-read walks them in.
+        // (`_date_lines`, `pipeline/fields.py::Pipeline._split_words`): the split can drop a word without
+        // leaving a hole wide enough for the gap guard — on a real 1998 birth certificate the day, pressed
+        // against the left edge of the field crop, was not taken for a word at all. SNILS is excluded for the
+        // same parity reason as above; a line the guard already reads whole has nothing to add. Insertion order
+        // is the order of `kept`, which is the order the re-read walks them in.
         val dateLines = LinkedHashMap<String, MutableList<Image>>()
         if (docType != "SNILS") {
             val splitSet = splitIndices.toHashSet()

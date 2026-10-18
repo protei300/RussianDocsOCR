@@ -25,7 +25,10 @@ import net.russiandocs.docproc.modules.Blur
 import net.russiandocs.docproc.modules.DocTypeResult
 import net.russiandocs.docproc.modules.Field
 import net.russiandocs.docproc.modules.Glare
+import net.russiandocs.docproc.modules.AddressLinesDetector
+import net.russiandocs.docproc.modules.AddressTextKindClassifier
 import net.russiandocs.docproc.modules.OcrEngine
+import net.russiandocs.docproc.modules.RegistrationStamps
 import net.russiandocs.docproc.modules.PageRegistrar
 import net.russiandocs.docproc.modules.PageRegistration
 import net.russiandocs.docproc.modules.TextFieldsDetector
@@ -54,7 +57,9 @@ import net.russiandocs.docproc.tensors.PyNum
 import net.russiandocs.docproc.viewmodel.Builder
 import net.russiandocs.docproc.viewmodel.Input
 import net.russiandocs.docproc.viewmodel.Payload
+import net.russiandocs.docproc.viewmodel.RawAddressLine
 import net.russiandocs.docproc.viewmodel.RawBox
+import net.russiandocs.docproc.viewmodel.RawObb
 import net.russiandocs.docproc.tensors.Ops
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -214,6 +219,22 @@ public class Results : AutoCloseable {
         internal set
 
     /**
+     * The registration address of an INTPASSPORTADDR page — `meta_results['Address_lines']`, the address-line
+     * detections, `Quads['address_lines']` and `RegistrationStamps`. Null for every other document.
+     */
+    public var address: AddressReading? = null
+        internal set
+
+    /**
+     * Registration stamps of the residence registration page, freshest first — `PipelineResults.registration_stamps`.
+     * Empty when the page is not a registration page or the weight set has no stamp detector.
+     */
+    public val registrationStamps: List<RegistrationStamp> get() = address?.stamps ?: emptyList()
+
+    /** Where each address line lies on the input image — `address_line_quads`; null when the way back is not known. */
+    public val addressLineQuads: List<List<Pt>>? get() = address?.lineQuads
+
+    /**
      * Points of the canvas, on the image passed to `run` — `PipelineResults.to_input`. Null when a stage of this run
      * changed the image in a way no point map expresses ([Unknown]): the canvas and what was read are fine, the way
      * back is not known.
@@ -307,6 +328,13 @@ public class Recognizer(
     private val deskewer: DocDeskewer
     private val textFields: TextFieldsDetector
     private val words: WordsDetector
+
+    /** `Pipeline.address_lines` / `address_textkind`: the registration page (INTPASSPORTADDR). */
+    private val addressLines: AddressLinesDetector
+    private val addressTextKind: AddressTextKindClassifier
+
+    /** `Pipeline.registration_stamps`: null when the weight set has no `RegistrationStamps` (models-v10 and older). */
+    private val registrationStamps: RegistrationStamps?
     private val cyrillic: OcrEngine
     private val latin: OcrEngine
 
@@ -340,6 +368,9 @@ public class Recognizer(
         deskewer = DocDeskewer.forPipeline()
         textFields = TextFieldsDetector(root, paths, device, intraOpThreads)
         words = WordsDetector(root, paths, device, intraOpThreads)
+        addressLines = AddressLinesDetector(root, paths, device, intraOpThreads)
+        addressTextKind = AddressTextKindClassifier(root, paths, device, intraOpThreads)
+        registrationStamps = RegistrationStamps.openOrNull(root, paths, device, intraOpThreads)
         pageRegistrar = PageRegistrar()
 
         // **OCR stays on the CPU even when the detectors are on the GPU.** Measured, not assumed:
@@ -560,7 +591,7 @@ public class Recognizer(
             borders.pages.forEach { results.own(it) }
             results.timings[TIMING_DOC_DETECTOR] = (System.nanoTime() - bordersStart) / 1e9
 
-            // `_register_pages` (pipeline.py:1026) runs right after border detection, whenever
+            // `pipeline/pages.py::Pipeline._register_pages` runs right after border detection, whenever
             // page_registration is on — which is the reference's DEFAULT since 2026-09-17, for every
             // document type. It early-returns for anything but a non-address internal passport, and the
             // reference's `_model_call` wrapper times the call regardless — so `timings` carries this key
@@ -623,7 +654,7 @@ public class Recognizer(
             // ---- stage: fields.bbox -----------------------------------------------------------
             val ocrOptions = OcrOptions.forDocType(meta.docType)
             val fieldsStart = System.nanoTime()
-            // `_fields_detector` (pipeline.py:1238): a genuine two-page spread (internal passport) is read
+            // `pipeline/fields.py::Pipeline._fields_detector`: a genuine two-page spread (internal passport) is read
             // PAGE BY PAGE — the detector's 640x640 input gives a stitched spread only half of itself per
             // page — using the pages `_doc_detector`/`_register_pages` rectified, with each page's own boxes
             // moved onto the (deskewed) canvas by its `Placement`. Everything else keeps the single
@@ -653,9 +684,9 @@ public class Recognizer(
                 RawBox(f.box.x1, f.box.y1, f.box.x2, f.box.y2, f.box.conf, f.box.cls, f.box.label)
             }.toMutableList()
 
-            // `_note_mrz_zone` (pipeline.py:1245): built from the RAW detector boxes, right after field
-            // detection and before splitting — nothing here rewrites `fields.bbox`, it only remembers
-            // where each MRZ line was found so a wrong-length reading can be re-cropped later.
+            // `pipeline/mrz_reading.py::Pipeline._note_mrz_zone`, called from `_fields_detector`: built from the RAW
+            // detector boxes, right after field detection and before splitting — nothing here rewrites `fields.bbox`,
+            // it only remembers where each MRZ line was found so a wrong-length reading can be re-cropped later.
             val mrzZone = MrzZone.from(fields.map { it.box }, deskewed)
 
             try {
@@ -664,9 +695,50 @@ public class Recognizer(
                     return results
                 }
 
+                // ---- stages: address.lines, address.stamps ----------------------------------
+                //
+                // The registration address (INTPASSPORTADDR): the oriented address lines are found on the corrected
+                // canvas, each is classed printed or handwritten, the printed ones are split into words and read.
+                // Then the stamps, and the lines tied to them. Both stages come right after `fields.bbox`, before the
+                // word split, as in `_process_document`.
+                var address: AddressReading? = null
+                if (ocrOptions.hasAddress) {
+                    val addressStart = System.nanoTime()
+                    val read = AddressPath.read(deskewed, addressLines, addressTextKind, words, cyrillic, latin) {
+                        results.toInput(it)
+                    }
+                    results.timings[TIMING_ADDRESS_LINES] = (System.nanoTime() - addressStart) / 1e9
+                    results.address = read
+                    if (read.lines.isEmpty()) {
+                        // Paper-texture gate: the registration page is mostly bare paper, so the metric classifier
+                        // accepts document-free paper textures as INTPASSPORTADDR. A real page virtually always has
+                        // detectable address lines; zero lines on an accepted "address page" marks a false accept,
+                        // so reject it the same way the doctype stage does.
+                        System.err.println("[!] The document on picture has unknown type")
+                        results.docType = "NONE"
+                        results.quality = results.quality + ("DocConf" to "0.0")
+                        finaliseTimings(results.timings)
+                        return results
+                    }
+                    results.ocr["Address"] = read.text
+                    results.ocr["Address_has_handwritten"] = if (read.hasHandwritten) "True" else "False"
+
+                    val stampsStart = System.nanoTime()
+                    registrationStamps?.let { Stamps.read(deskewed, it, read) { points -> results.toInput(points) } }
+                    results.timings[TIMING_REGISTRATION_STAMPS] = (System.nanoTime() - stampsStart) / 1e9
+                    address = read
+
+                    options.sink.emit("address.lines", read.linesJson())
+                    if (options.upTo == "address.lines") {
+                        return results
+                    }
+                    options.sink.emit("address.stamps", read.stampsJson())
+                    if (options.upTo == "address.stamps") {
+                        return results
+                    }
+                }
+
                 // ---- stages: words.<Field>.bbox ---------------------------------------------
-                // The address path (INTPASSPORTADDR) is out of scope for this port, so no
-                // address.lines stage is emitted and the checker skips it.
                 //
                 // The BARE type, without the year suffix: the gap guard's SNILS exclusion, the OCR
                 // parity rule and the date join all test it, and "SNILS_1996" would match none of them.
@@ -690,66 +762,72 @@ public class Recognizer(
                     //
                     // The way back to the input image (geometry.py): field and word quadrilaterals, or null per key
                     // when this run's way back is not known. Emitted right after the split, before any reading.
-                    val quads = FieldQuads.compute(split.kept, ocrOptions.needsLicenceRotation) { results.toInput(it) }
+                    var quads = FieldQuads.compute(split.kept, ocrOptions.needsLicenceRotation) { results.toInput(it) }
+                    if (address != null) {
+                        quads = quads.withAddressLines(address.lineQuads)
+                    }
                     results.quads = quads
                     options.sink.emit("quads", quads.toJson())
                     if (options.upTo == "quads") {
                         return results
                     }
 
-                    // ---- stages: ocr.<Field>.words, join ------------------------------------
-                    val ocrStart = System.nanoTime()
-                    val texts = Ocr.run(fieldWords, bareType, ocrOptions, cyrillic, latin, mrzZone, docYear)
-                    results.timings[TIMING_OCR] = (System.nanoTime() - ocrStart) / 1e9
-                    Ocr.fixFms(texts, bareType)
-
-                    // Ruler cleanup applies to the FINAL per-field values only: the reference emits
-                    // `join` from the raw dict and cleans meta_results['OCR'] afterwards
-                    // (pipeline.py:1058), so the conformance payload stays raw here too.
-                    val cleanRulers = bareType.lowercase().contains("birthcert")
-
-                    val joined = LinkedHashMap<String, String>()
-                    for (text in texts) {
-                        options.sink.emit(
-                            "ocr.${text.label}.words",
-                            JsonArray(text.words.map { JsonPrimitive(it) }),
-                        )
-                        joined[text.label] = text.value
-                        results.ocr[text.label] =
-                            if (cleanRulers) Ocr.cleanRulerArtifacts(text.value) else text.value
-                    }
-                    options.sink.emit(
-                        "join",
-                        JsonObject(joined.mapValues { JsonPrimitive(it.value) }),
-                    )
-                    results.words = texts
-
-                    // `_reread_dates_whole` (pipeline.py:1271): AFTER `join` was emitted and the ruler cleanup
-                    // above — in the reference both happen inside `_ocr` — and BEFORE `_normalize_dates`, so
-                    // the canonical view below is built from the re-read value. The date crops it needs are
-                    // the detected fields' own patches, still open here: `fields` is closed by the outer
-                    // `finally`, after this method's last use of them.
-                    results.datesReadWhole = RereadDates.run(
-                        results.ocr, split.dateLines, ocrOptions.ruFields, cyrillic, latin)
-
-                    // `_normalize_dates` (pipeline.py:1977): runs once, on the FINISHED reading, after
-                    // ruler cleanup — never touching `results.ocr` itself, since that is what the
-                    // accuracy measurement compares against. Fields are recognised BY NAME, the same
-                    // convention `_join_field` uses: any key whose name contains "date", case-insensitive.
-                    val normalized = LinkedHashMap<String, String>()
-                    for ((name, value) in results.ocr) {
-                        if (!name.lowercase().contains("date")) {
-                            continue
-                        }
-                        Dates.canonicalDate(name, value)?.let { normalized[name] = it }
-                    }
-                    results.ocrNormalized = normalized
-
-                    // `_read_leasing`: the flag from the STS special marks, alongside the reading - only for an
-                    // STS, and the stage is emitted for the BACK side alone (the side with the marks): null when
-                    // there is no leasing, so a port that misses a record differs from the reference instead of
-                    // being skipped. Reached only when something was read, as in the reference.
+                    // Nothing split into words (a registration page reads its address above, and has no text
+                    // fields) means nothing to read: `if ocr and words_splitted`, so no `ocr.<Field>.words`, no `join`,
+                    // no `_ocr` timing.
                     if (fieldWords.isNotEmpty()) {
+                        // ---- stages: ocr.<Field>.words, join ------------------------------------
+                        val ocrStart = System.nanoTime()
+                        val texts = Ocr.run(fieldWords, bareType, ocrOptions, cyrillic, latin, mrzZone, docYear)
+                        results.timings[TIMING_OCR] = (System.nanoTime() - ocrStart) / 1e9
+                        Ocr.fixFms(texts, bareType)
+
+                        // Ruler cleanup applies to the FINAL per-field values only: the reference emits
+                        // `join` from the raw dict and cleans meta_results['OCR'] afterwards
+                        // (`pipeline/reading.py::Pipeline._ocr`), so the conformance payload stays raw here too.
+                        val cleanRulers = bareType.lowercase().contains("birthcert")
+
+                        val joined = LinkedHashMap<String, String>()
+                        for (text in texts) {
+                            options.sink.emit(
+                                "ocr.${text.label}.words",
+                                JsonArray(text.words.map { JsonPrimitive(it) }),
+                            )
+                            joined[text.label] = text.value
+                            results.ocr[text.label] =
+                                if (cleanRulers) Ocr.cleanRulerArtifacts(text.value) else text.value
+                        }
+                        options.sink.emit(
+                            "join",
+                            JsonObject(joined.mapValues { JsonPrimitive(it.value) }),
+                        )
+                        results.words = texts
+
+                        // `pipeline/date_fields.py::Pipeline._reread_dates_whole`: AFTER `join` was emitted and the ruler
+                        // cleanup above — in the reference both happen inside `_ocr` — and BEFORE `_normalize_dates`, so
+                        // the canonical view below is built from the re-read value. The date crops it needs are
+                        // the detected fields' own patches, still open here: `fields` is closed by the outer
+                        // `finally`, after this method's last use of them.
+                        results.datesReadWhole = RereadDates.run(
+                            results.ocr, split.dateLines, ocrOptions.ruFields, cyrillic, latin)
+
+                        // `pipeline/date_fields.py::Pipeline._normalize_dates`: runs once, on the FINISHED reading, after
+                        // ruler cleanup — never touching `results.ocr` itself, since that is what the
+                        // accuracy measurement compares against. Fields are recognised BY NAME, the same
+                        // convention `_join_field` uses: any key whose name contains "date", case-insensitive.
+                        val normalized = LinkedHashMap<String, String>()
+                        for ((name, value) in results.ocr) {
+                            if (!name.lowercase().contains("date")) {
+                                continue
+                            }
+                            Dates.canonicalDate(name, value)?.let { normalized[name] = it }
+                        }
+                        results.ocrNormalized = normalized
+
+                        // `_read_leasing`: the flag from the STS special marks, alongside the reading - only for an
+                        // STS, and the stage is emitted for the BACK side alone (the side with the marks): null when
+                        // there is no leasing, so a port that misses a record differs from the reference instead of
+                        // being skipped. Reached only when something was read, as in the reference.
                         results.leasing = StsMarks.readLeasing(results.ocr, bareType, options.sink)
                     }
 
@@ -879,7 +957,7 @@ public class Recognizer(
 
     /**
      * Rebuilds the internal-passport canvas from template-registered pages, when possible. Port of
-     * `Pipeline._register_pages` (pipeline.py:1026).
+     * `pipeline/pages.py::Pipeline._register_pages`.
      *
      * [img] is the UPRIGHT photo (before border detection), matching the reference's call site exactly:
      * `_register_pages(img)` runs with `img` still the rotated frame — the local `img` in `process_img`
@@ -900,7 +978,7 @@ public class Recognizer(
         val scale = pageRegistrar.nativeScale(regs)
 
         // Which Borders quad (if any) agrees with each registered page, and whether to trust that quad's
-        // geometry over the template's — pipeline.py:1060-1084.
+        // geometry over the template's — `pipeline/pages.py::Pipeline._register_pages`.
         val used = HashSet<Int>()
         val quadStep = arrayOfNulls<Int>(regs.size) // Borders quad index to warp from, per page
         val useTemplate = BooleanArray(regs.size)   // true: warp from the registration's own homography
@@ -1158,7 +1236,7 @@ public class Recognizer(
 
     /**
      * Detects text fields PAGE BY PAGE and reports every box in CANVAS coordinates. Port of
-     * `Pipeline._fields_from_pages` (pipeline.py:1256).
+     * `pipeline/fields.py::Pipeline._fields_from_pages`.
      *
      * Run in [pages] order (the ORIGINAL segment order — not left-to-right/top-to-bottom stitch order),
      * exactly as the reference iterates `zip(pages, placements)`: that order is what `fields.bbox` records,
@@ -1177,8 +1255,8 @@ public class Recognizer(
                 val (scale, dx, dy) = placements[i]
                 val onPage = textFields.predictTransform(pages[i], rotateLicence)
                 for (field in onPage) {
-                    // `int(round(box[0]*scale+dx))` etc — pipeline.py:1273. The patch is untouched: it was
-                    // already cropped from the page at full resolution.
+                    // `int(round(box[0]*scale+dx))` etc — `pipeline/fields.py::Pipeline._fields_from_pages`. The patch
+                    // is untouched: it was already cropped from the page at full resolution.
                     val moved = field.box.copy()
                     moved.x1 = PyNum.roundHalfEvenToInt(field.box.x1 * scale + dx).toDouble()
                     moved.y1 = PyNum.roundHalfEvenToInt(field.box.y1 * scale + dy).toDouble()
@@ -1252,6 +1330,11 @@ public class Recognizer(
             timings = results.timings,
             segments = results.segments,
             normalized = results.ocrNormalized,
+            addressBoxes = results.address?.detections?.map {
+                RawObb(it.cx, it.cy, it.w, it.h, it.angle, it.conf, it.label)
+            },
+            addressLines = results.address?.lines?.map { RawAddressLine(it.kind, it.text, it.pHandwritten) }
+                ?: emptyList(),
         ),
         includeDebug,
     )
@@ -1262,7 +1345,7 @@ public class Recognizer(
         // memory in how long it takes to notice.
         val failures = mutableListOf<Throwable>()
         for (closeable in listOfNotNull(documentDetector, docTypeAngles, glare, blur, printSpoofing, lcdSpoofing, docDetector,
-            textFields, words, cyrillic, latin, pageRegistrar) + cardRegistrars.values.filterNotNull()) {
+            textFields, words, addressLines, addressTextKind, registrationStamps, cyrillic, latin, pageRegistrar) + cardRegistrars.values.filterNotNull()) {
             try {
                 closeable.close()
             } catch (e: Throwable) {
@@ -1347,7 +1430,10 @@ public class Recognizer(
     )
 
     public companion object {
-        /** `_register_pages`'s IoU gate for trusting a Borders quad over the template match. pipeline.py:25-26. */
+        /**
+         * `_register_pages`'s IoU gate for trusting a Borders quad over the template match.
+         * `pipeline/pages.py::QUAD_SAME_PAGE_IOU`, `QUAD_CLIPPED_IOU`.
+         */
         /**
          * Share of the document box.s longer side added around it when it is cut from the frame
          * (`Pipeline.DOCUMENT_CROP_MARGIN`).
@@ -1402,7 +1488,7 @@ public class Recognizer(
                 // exist depends on the document. Claiming a bare "words" matches nothing, and the symptom is
                 // silent: every per-field stage is reported SKIPPED and the run still says PASS. Caught here
                 // by the stage count not moving from 7 after the work was done.
-                "fields.bbox", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel",
+                "fields.bbox", "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel",
             )
 
         /** The quality keys, in the reference's insertion order. */
@@ -1429,6 +1515,8 @@ public class Recognizer(
         public const val TIMING_FIELDS_DETECTOR: String = "_fields_detector"
         public const val TIMING_SPLIT_WORDS: String = "_split_words"
         public const val TIMING_OCR: String = "_ocr"
+        public const val TIMING_ADDRESS_LINES: String = "_address_lines"
+        public const val TIMING_REGISTRATION_STAMPS: String = "_registration_stamps"
 
         private val json = Json { encodeDefaults = true; explicitNulls = true }
     }

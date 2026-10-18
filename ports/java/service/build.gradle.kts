@@ -14,6 +14,18 @@ dependencies {
     // nothing — see the note in libs.versions.toml, because the error message blames the repository.
     implementation(platform(libs.springBootBom))
 
+    // **Security floors above the BOM.** Boot 4.1.1 still pins Tomcat 11.0.24 and Jackson 3.1.5/2.21.5, each
+    // with open advisories (Tomcat GHSA-9xv2-5v5q-p794 and two more; Jackson GHSA-cxp5-3px4-pw24 and others).
+    // Gradle takes the highest version any platform or constraint asks for, so these only ever RAISE a
+    // version. Remove them once a Boot release pins at least these versions itself.
+    implementation(platform(libs.jacksonBom))
+    implementation(platform(libs.jackson2Bom))
+    constraints {
+        implementation(libs.tomcatEmbedCore)
+        implementation(libs.tomcatEmbedEl)
+        implementation(libs.tomcatEmbedWebsocket)
+    }
+
     implementation(project(":docproc"))
     implementation(libs.kotlinxSerializationJson)
 

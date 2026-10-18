@@ -236,3 +236,59 @@ func keysOf(m map[string]json.RawMessage) []string {
 	}
 	return out
 }
+
+// The address block is null for another document and for a page with no box and no line.
+func TestNoAddressWithoutBoxesAndLines(t *testing.T) {
+	if buildAddress(nil, nil) != nil {
+		t.Fatal("an address block without a box or a line")
+	}
+}
+
+// Lines and boxes line up, one box to a line: the boxes are rounded to four decimals, the angle
+// to six.
+func TestAnAlignedAddressCarriesTheBoxes(t *testing.T) {
+	text := "Г. ПСКОВ"
+	got := buildAddress(
+		[]postprocess.ObbBox{{Cx: 664.31371, Cy: 184.58562, W: 90.01941, H: 19.769, Angle: 0.01600412,
+			Conf: 0.68894, Label: "Living_region_ru"}},
+		[]AddressLineInput{{Kind: "printed", PHandwritten: 0.0, Text: &text}})
+	if got == nil || !got.Aligned || len(got.Lines) != 1 {
+		t.Fatalf("%+v", got)
+	}
+	l := got.Lines[0]
+	if l.ID != "o0" || l.Obbox == nil || *l.Obbox.Cx != 664.3137 || *l.Obbox.AngleRad != 0.016004 ||
+		*l.Obbox.Conf != 0.6889 || *l.Obbox.Label != "Living_region_ru" {
+		t.Errorf("%+v %+v", l, l.Obbox)
+	}
+}
+
+// When a patch was skipped the two lists differ in length: the text stays, the geometry goes,
+// so that no box is captioned with another line's text.
+func TestAMisalignedAddressDropsTheGeometry(t *testing.T) {
+	text := "Г. ПСКОВ"
+	got := buildAddress(
+		[]postprocess.ObbBox{{Cx: 1}, {Cx: 2}},
+		[]AddressLineInput{{Kind: "printed", Text: &text}})
+	if got == nil || got.Aligned || got.Lines[0].Obbox != nil || got.Lines[0].Text == nil {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// A handwritten line has a score and no text; the key is present and null.
+func TestAHandwrittenLineHasNoText(t *testing.T) {
+	got := buildAddress(
+		[]postprocess.ObbBox{{Cx: 1}},
+		[]AddressLineInput{{Kind: "handwritten", PHandwritten: 0.99997908}})
+	blob, err := json.Marshal(got.Lines[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back map[string]any
+	_ = json.Unmarshal(blob, &back)
+	if v, has := back["text"]; !has || v != nil {
+		t.Errorf("text %v (present %v)", v, has)
+	}
+	if back["p_handwritten"] != 1.0 {
+		t.Errorf("p_handwritten %v", back["p_handwritten"])
+	}
+}

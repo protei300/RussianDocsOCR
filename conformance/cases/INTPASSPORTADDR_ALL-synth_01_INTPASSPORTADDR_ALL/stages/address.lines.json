@@ -1,0 +1,38 @@
+[
+  {
+    "kind": "printed",
+    "p_handwritten": 0.0,
+    "text": "ОБЛ. ПСКОВСКАЯ",
+    "stamp": 0
+  },
+  {
+    "kind": "printed",
+    "p_handwritten": 0.0,
+    "text": "54 РЗДИНОВАЯ",
+    "stamp": 2
+  },
+  {
+    "kind": "handwritten",
+    "p_handwritten": 0.9999790787696838,
+    "text": null,
+    "stamp": 2
+  },
+  {
+    "kind": "printed",
+    "p_handwritten": 0.0,
+    "text": "Г. ПСКОВ",
+    "stamp": 0
+  },
+  {
+    "kind": "printed",
+    "p_handwritten": 0.0,
+    "text": "УЛ. РЕЧНАЯ",
+    "stamp": 0
+  },
+  {
+    "kind": "printed",
+    "p_handwritten": 0.0,
+    "text": "16 К 1, КВ. 76",
+    "stamp": 0
+  }
+]

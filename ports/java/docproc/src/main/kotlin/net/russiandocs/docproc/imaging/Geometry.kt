@@ -21,7 +21,7 @@ public enum class StackDirection {
  * Where one page landed on the stitched canvas: `(scale, dx, dy)` from `stitch_pages`.
  *
  * A box `(x, y)` found on that ORIGINAL (unresized) page maps onto the canvas as
- * `(x*scale + dx, y*scale + dy)` — `Pipeline._fields_from_pages` (pipeline.py:1256).
+ * `(x*scale + dx, y*scale + dy)` — `pipeline/fields.py::Pipeline._fields_from_pages`.
  */
 public data class Placement(public val scale: Double, public val dx: Double, public val dy: Double)
 
@@ -259,8 +259,8 @@ public object Geometry {
                 pages.clear() // ownership moves to the caller
                 handedOff = true
                 // A single detected page never takes the per-page field-detection path in the reference
-                // (`len(pages) >= 2` gates it — pipeline.py:1238), so its own `pages`/`placements` are not
-                // worth returning; the canvas IS the page.
+                // (`len(pages) >= 2` gates it — `pipeline/fields.py::Pipeline._fields_detector`), so its own
+                // `pages`/`placements` are not worth returning; the canvas IS the page.
                 val geos = listOf<net.russiandocs.docproc.geometry.PointMap>(
                     net.russiandocs.docproc.geometry.Homography(matrices[0]))
                 val placement = listOf(Placement(1.0, 0.0, 0.0))

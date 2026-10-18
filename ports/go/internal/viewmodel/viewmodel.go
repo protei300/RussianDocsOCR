@@ -135,6 +135,11 @@ type Input struct {
 
 	// Segments are the pre-warp document contours, emitted only under --include-debug.
 	Segments [][]imaging.Point
+
+	// AddressObboxes are all the boxes of the address-line detector and AddressLines the
+	// verdicts on the lines that were kept (INTPASSPORTADDR only; both empty otherwise).
+	AddressObboxes []postprocess.ObbBox
+	AddressLines   []AddressLineInput
 }
 
 // Build assembles the view model.
@@ -189,7 +194,7 @@ func Build(in Input, includeDebug bool) Payload {
 		Ocr:            ocr,
 		Quality:        quality,
 		Timings:        timings,
-		Address:        nil,
+		Address:        buildAddress(in.AddressObboxes, in.AddressLines),
 	}
 
 	if includeDebug {

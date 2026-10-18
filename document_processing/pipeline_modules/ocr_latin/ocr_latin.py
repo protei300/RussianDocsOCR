@@ -37,9 +37,6 @@ class OCRLatin(BaseModule):
         ocr_raw_output = self.model.predict_fv(img)
         return {self.model_name: {'ocr_raw_output': ocr_raw_output}}
 
-    def predict_transform(self, img: Union[str, Path, np.ndarray]) -> dict:
-        pass
-
     def predict_batch(self, patches: List[np.ndarray]) -> List[str]:
         """Decode many word patches in one padded-batch inference call.
 

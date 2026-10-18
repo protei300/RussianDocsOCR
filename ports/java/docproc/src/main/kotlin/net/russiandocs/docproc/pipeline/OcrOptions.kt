@@ -70,7 +70,8 @@ public data class OcrOptions(
             if (t.contains("intpassport")) {
                 return OcrOptions(
                     // `Middle_name_ru`: see the DL branch — no OCR alphabet carries a space, so a
-                    // double patronymic is returned glued unless the splitter runs (pipeline.py:134).
+                    // double patronymic is returned glued unless the splitter runs
+                    // (`pipeline/options.py::OCROptionsINTPassport.needed_split`).
                     neededSplit = listOf("Licence_number", "Birth_place_ru",
                         "Issue_organization_ru", "Middle_name_ru"),
                     // MRZ is read by the Latin engine and is NOT in neededSplit: the zone is
@@ -82,7 +83,7 @@ public data class OcrOptions(
                     // Licence_number is CYRILLIC-routed although it is digits only: the Latin engine
                     // reads the passport's red '3' as '8' at p=0.94..1.00, and the Cyrillic engine
                     // reads the same crops correctly (issue #12). Matches the reference,
-                    // OCROptionsINTPassport in pipeline.py.
+                    // `pipeline/options.py::OCROptionsINTPassport`.
                     ruFields = listOf("Last_name_ru", "First_name_ru", "Birth_place_ru",
                         "Issue_organization_ru", "Living_region_ru", "Middle_name_ru", "Sex_ru",
                         "Licence_number"),
@@ -94,9 +95,9 @@ public data class OcrOptions(
             if (t.contains("extpassport")) {
                 return OcrOptions(
                     // `Issue_organization_ru` is split for a reason that is easy to undo by accident
-                    // (pipeline.py:211): NEITHER OCR alphabet contains a space, so a multi-word field
-                    // that skips the splitter is returned glued — «МИД РОССИИ» came back as
-                    // «МИДРОССИИ». Measured over samples/ (2026-09-02): 12 of 99 acceptance failures
+                    // (`pipeline/options.py::OCROptionsEXTPassport.needed_split`): NEITHER OCR alphabet contains a
+                    // space, so a multi-word field that skips the splitter is returned glued — «МИД РОССИИ» came
+                    // back as «МИДРОССИИ». Measured over samples/ (2026-09-02): 12 of 99 acceptance failures
                     // were exactly this field, every one differing from the truth by spaces alone.
                     neededSplit = listOf("Licence_number", "Birth_place_ru", "Birth_place_en",
                         "Issue_organization_ru"),
@@ -112,7 +113,8 @@ public data class OcrOptions(
                 )
             }
             // 'dlback' contains 'dl': the licence back side (categories table) has no field model yet, so it
-            // must not fall into the front-side DL options (pipeline.py, make_options). Empty options.
+            // must not fall into the front-side DL options
+            // (`pipeline/options.py::OCROptionsClass.make_options`). Empty options.
             if (t.contains("dlback")) {
                 return OcrOptions()
             }
@@ -120,7 +122,8 @@ public data class OcrOptions(
                 return OcrOptions(
                     // `Middle_name_*` is split for the same reason as the external passport's
                     // `Issue_organization_ru`: no alphabet has a space, so a double patronymic («ОГЛЫ»,
-                    // «КЫЗЫ») comes back glued without the splitter (pipeline.py:256).
+                    // «КЫЗЫ») comes back glued without the splitter
+                    // (`pipeline/options.py::OCROptionsDL.needed_split`).
                     neededSplit = listOf("Licence_number", "Driver_class", "Birth_place_ru",
                         "Birth_place_en", "Living_region_ru", "Living_region_en",
                         "Middle_name_ru", "Middle_name_en"),
@@ -142,7 +145,7 @@ public data class OcrOptions(
                 )
             }
             if (t.contains("birthcert")) {
-                // Birth certificates (OCROptionsBIRTHCERT, pipeline.py:156). ONE branch for both
+                // Birth certificates (`pipeline/options.py::OCROptionsBIRTHCERT`). ONE branch for both
                 // blank generations — BIRTHCERT_1998 and BIRTHCERT_2018 (order 167/2018: worded
                 // birth date, parents' birth dates, place of issue, 21-digit act number) —
                 // because the dispatcher never sees the year suffix.

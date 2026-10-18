@@ -338,27 +338,27 @@
     "Issue_date": "2.СЕНТЯБРЯ.0"
   },
   "quality": {
-    "DocConf": 0.98,
+    "DocConf": 0.96,
     "Glare": "good",
     "Blur": "good",
     "PrintSpoofing": "REAL",
     "LCDSpoofing": "REAL"
   },
   "timings": {
-    "_document_detector": 0.0919,
-    "_doctype_angle": 0.007,
-    "_quality_and_borders": 0.3028,
-    "_glare": 0.033,
-    "_blur": 0.044,
-    "_print_spoofing": 0.006,
-    "_lcd_spoofing": 0.0371,
-    "_doc_detector": 0.2458,
-    "_register_pages": 2.0542,
+    "_document_detector": 0.128,
+    "_doctype_angle": 0.0081,
+    "_quality_and_borders": 0.3205,
+    "_glare": 0.024,
+    "_blur": 0.029,
+    "_print_spoofing": 0.031,
+    "_lcd_spoofing": 0.008,
+    "_doc_detector": 0.246,
+    "_register_pages": 2.1298,
     "_deskew": 0.0,
-    "_fields_detector": 0.1091,
-    "_split_words": 0.2133,
-    "_ocr": 0.274,
-    "total": 3.0523
+    "_fields_detector": 0.1157,
+    "_split_words": 0.2261,
+    "_ocr": 0.2715,
+    "total": 3.1997
   },
   "address": null
 }

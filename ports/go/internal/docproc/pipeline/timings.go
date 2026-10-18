@@ -27,6 +27,8 @@ const (
 	StageFieldsDetector    = "_fields_detector"
 	StageSplitWords        = "_split_words"
 	StageOcr               = "_ocr"
+	StageAddressLines       = "_address_lines"
+	StageRegistrationStamps = "_registration_stamps"
 )
 
 // Timings accumulates per-stage wall times.

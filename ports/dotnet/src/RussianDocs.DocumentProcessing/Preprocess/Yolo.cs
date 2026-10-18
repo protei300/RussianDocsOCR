@@ -82,7 +82,7 @@ public sealed class Yolo : IPreprocessor
     /// running the interpolator needlessly can perturb pixels.
     /// </para>
     /// </summary>
-    private static (Image Boxed, double Ratio, double[] PadLetter) Letterbox(
+    internal static (Image Boxed, double Ratio, double[] PadLetter) Letterbox(
         Image src, int targetH, int targetW)
     {
         int h = src.Height, w = src.Width;
@@ -109,5 +109,41 @@ public sealed class Yolo : IPreprocessor
                 Fill[0], Fill[1], Fill[2]);
             return (boxed, ratio, [dw, dh]);
         }
+    }
+}
+
+/// <summary>
+/// The oriented-box detector input (<c>YOLOOBB</c>, <c>OBBPreprocessing</c>): the same pad and letterbox as
+/// <see cref="Yolo"/>, but handed over as a float32 NCHW tensor scaled to [0, 1] - the standard ultralytics
+/// export, which unlike the older detectors has no normalisation baked in.
+///
+/// <para>
+/// The division is done on float32 values (<c>uint8 -> float32, / 255</c>), as numpy does it: the scaled value is
+/// the nearest float32 to <c>b / 255</c>, not a double rounded afterwards.
+/// </para>
+/// </summary>
+public sealed class YoloObb : IPreprocessor
+{
+    private readonly Yolo _inner;
+
+    public YoloObb(ModelInput input) => _inner = new Yolo(input);
+
+    public (NdArray Tensor, Meta Meta) Apply(Image image)
+    {
+        (NdArray nhwc, Meta meta) = _inner.Apply(image);
+        int h = nhwc.Shape[1], w = nhwc.Shape[2], c = nhwc.Shape[3];
+        ReadOnlySpan<byte> pixels = nhwc.AsUInt8();
+        var planes = new float[c * h * w];
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                for (int k = 0; k < c; k++)
+                {
+                    planes[(k * h + y) * w + x] = pixels[(y * w + x) * c + k] / 255f;
+                }
+            }
+        }
+        return (NdArray.FromFloat32(planes, 1, c, h, w), meta);
     }
 }

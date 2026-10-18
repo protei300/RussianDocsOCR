@@ -11,7 +11,7 @@ import (
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/tensor"
 )
 
-// WordsMaxGap is WORDS_MAX_GAP (pipeline.py:759-786): an empty stretch on a line wider
+// WordsMaxGap is pipeline/fields.py::Pipeline.WORDS_MAX_GAP: an empty stretch on a line wider
 // than this many typical words means the split dropped a word, and the line is read
 // whole instead. Measured over 157 documents, 815 fields: the widest gap on a line that
 // really lost a long word has a median of 2.74 typical word widths, against 0.06 on
@@ -22,7 +22,7 @@ import (
 // geometry cannot see it at all - 8 of 19 measured cases.
 const WordsMaxGap = 3.0
 
-// LineMinInk is LINE_MIN_INK (pipeline.py:788-826): below this much fine-grained detail
+// LineMinInk is pipeline/fields.py::Pipeline.LINE_MIN_INK: below this much fine-grained detail
 // (variance of the Laplacian) a line carries no strokes and the fallback above must NOT
 // re-read it. "No word boxes" has a second cause besides a lost split: there IS no text
 // (an anonymised, blurred name strip), and re-reading it whole manufactured «ЛВН». From a
@@ -46,7 +46,8 @@ type LineFlag struct {
 
 // SplitFlags is what the gap guard reports: part of the contract, not debug output. A
 // measurement that corrects for the missing spaces of a line read whole must apply that
-// correction ONLY to these lines (pipeline.py:184-211).
+// correction ONLY to these lines (pipeline/results.py::PipelineResults.words_fallback,
+// words_no_ink).
 type SplitFlags struct {
 	Fallback []LineFlag
 	NoInk    []LineFlag
@@ -74,7 +75,7 @@ type FieldWords struct {
 }
 
 // SplitWords turns detected fields into per-field word patches.
-// Port of Pipeline._split_words (pipeline.py:763-830).
+// Port of pipeline/fields.py::Pipeline._split_words.
 //
 // Returns fields in FIRST-DETECTION order. That order is the output contract, not a
 // detail: it decides the order of `join`, of the view model's `fields` array and of the
@@ -101,7 +102,7 @@ func SplitWords(fields []modules.Field, opts OcrOptions,
 	// one detection per line, and the per-label assembly below concatenates their
 	// words in list order - so the kept boxes are ordered top-to-bottom by their
 	// vertical centre (a STABLE sort on a pure y key, as the reference's list.sort;
-	// pipeline.py:1538-1541).
+	// pipeline/fields.py::Pipeline._split_words).
 	var kept []int
 	for i := range fields {
 		if drop[i] {
@@ -157,7 +158,7 @@ func SplitWords(fields []modules.Field, opts OcrOptions,
 		}
 	}
 
-	// Gap guard (pipeline.py:1565-1610). A hole on the line wider than a few typical
+	// Gap guard (pipeline/fields.py::Pipeline._split_words). A hole on the line wider than a few typical
 	// words means the split dropped a word - measured twice: a 9 px crop where the
 	// detector returned NO words (the field vanished without a trace), and a line whose
 	// longest word («Тракторозаводский», 17 characters) was the one missed. Reading the
@@ -286,7 +287,7 @@ type SplitRecord struct {
 }
 
 // widestGap is the widest empty stretch on the line, in typical word widths.
-// Port of Pipeline._widest_gap (pipeline.py:944-977).
+// Port of pipeline/fields.py::Pipeline._widest_gap.
 //
 // A dropped word leaves a hole about as wide as a word; evenly spaced printing does
 // not, however wide the spacing. That is the whole reason this is a ratio to the line's

@@ -46,7 +46,7 @@ IGNORED_PATHS = (
 COORDINATE_LEAVES = frozenset({"x1", "y1", "x2", "y2", "cx", "cy", "w", "h", "quad"})
 
 #: Leaf names that are 0..1 confidences.
-SCORE_LEAVES = frozenset({"conf", "doc_conf", "DocConf", "p_handwritten"})
+SCORE_LEAVES = frozenset({"conf", "doc_conf", "DocConf", "p_handwritten", "confidence"})
 
 #: Leaf names that are integers identifying something, not measuring it. These stay
 #: EXACT on every profile: a different class index is a different class.

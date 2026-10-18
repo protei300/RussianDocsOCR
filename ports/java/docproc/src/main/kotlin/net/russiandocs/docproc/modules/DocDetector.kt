@@ -74,8 +74,9 @@ public class DocDetector(
      * `DocDetector.predict_transform`'s `pages`/`page_placements` keys (doc_detector.py:170-186).
      *
      * [BordersResult.pages]/[BordersResult.placements] are empty unless exactly two pages were stitched:
-     * that is the only case the reference's `_fields_from_pages` (pipeline.py:1238, `len(pages) >= 2`)
-     * reads them at all, so a single-page document's pieces are not worth carrying past this call.
+     * that is the only case the reference's `_fields_from_pages` (`len(pages) >= 2` in
+     * `pipeline/fields.py::Pipeline._fields_detector`) reads them at all, so a single-page document's
+     * pieces are not worth carrying past this call.
      */
     public fun predictTransformFull(image: Image, maxPages: Int): BordersResult {
         val (_, detected) = model.predict(image)

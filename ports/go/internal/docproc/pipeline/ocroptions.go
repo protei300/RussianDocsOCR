@@ -4,7 +4,7 @@ import "strings"
 
 // OcrOptions says which fields a document type has, which of them need splitting into
 // words, and which script each is read with.
-// Port of OCROptionsClass and its subclasses (pipeline.py:57-161).
+// Port of OCROptionsClass and its subclasses (pipeline/options.py).
 //
 // Plain data with a factory rather than a class hierarchy: the reference's subclasses
 // only override class attributes, so inheritance buys nothing a struct literal does not,
@@ -48,7 +48,7 @@ func (o OcrOptions) EngineFor(field, year string) string {
 // The bare type is not cosmetic: the OCR routing compares it with `== "SNILS"`, which the
 // raw label never equals. A label with no underscore yields itself and an empty year --
 // the reference tolerates that explicitly, and the port must too, because Python's
-// rsplit-and-unpack raises ValueError on it (pipeline.py:522).
+// rsplit-and-unpack raises ValueError on it (pipeline/pipeline.py::Pipeline._process_document).
 func SplitDocType(label string) (bare, year string) {
 	if i := strings.LastIndex(label, "_"); i >= 0 {
 		return label[:i], label[i+1:]
@@ -60,7 +60,7 @@ func SplitDocType(label string) (bare, year string) {
 //
 // The case ORDER is load-bearing and must not be sorted: 'intpassportaddr' CONTAINS
 // 'intpassport', so checking the shorter one first would route every registration page
-// down the ordinary text-field path (pipeline.py:91).
+// down the ordinary text-field path (pipeline/options.py::OCROptionsClass.make_options).
 //
 // An unknown type yields EMPTY options rather than an error, matching the reference's
 // deliberate choice: the pipeline then produces no OCR fields for it instead of crashing
@@ -74,19 +74,20 @@ func MakeOcrOptions(docType string) OcrOptions {
 		return OcrOptions{
 			// Middle_name_ru: see the driving licence below - no OCR alphabet carries a
 			// space, so a double patronymic is returned glued unless the splitter runs
-			// (pipeline.py:134).
+			// (pipeline/options.py::OCROptionsINTPassport.needed_split).
 			NeededSplit: []string{"Licence_number", "Birth_place_ru", "Issue_organization_ru",
 				"Middle_name_ru"},
 			// MRZ is read by the Latin engine and is NOT in NeededSplit: the zone is
 			// detected one box per LINE, and each line must reach the engine whole -
 			// splitting it at its filler runs would destroy the fixed 44-character
-			// layout the check digits are computed over (pipeline.py:126).
+			// layout the check digits are computed over
+			// (pipeline/options.py::OCROptionsINTPassport.en_fields).
 			EnFields: []string{"Issue_date", "Expiration_date",
 				"Birth_date", "Issue_organisation_code", "MRZ"},
 			// Licence_number is CYRILLIC-routed although it is digits only: the Latin
 			// engine reads the passport's red '3' as '8' at p=0.94..1.00, and the
 			// Cyrillic engine reads the same crops correctly (issue #12). Matches the
-			// reference, OCROptionsINTPassport in pipeline.py.
+			// reference, pipeline/options.py::OCROptionsINTPassport.
 			RuFields: []string{"Last_name_ru", "First_name_ru", "Birth_place_ru",
 				"Issue_organization_ru", "Living_region_ru", "Middle_name_ru", "Sex_ru",
 				"Licence_number"},
@@ -102,7 +103,7 @@ func MakeOcrOptions(docType string) OcrOptions {
 			// РОССИИ» came back as «МИДРОССИИ». Measured over samples/ (2026-09-02): 12
 			// of the 99 acceptance failures were exactly this field on external passports
 			// of both generations, differing from the ground truth by spaces alone
-			// (pipeline.py:211-222).
+			// (pipeline/options.py::OCROptionsEXTPassport.needed_split).
 			NeededSplit: []string{"Licence_number", "Birth_place_ru", "Birth_place_en",
 				"Issue_organization_ru"},
 			// MRZ: Latin engine, never split - see intpassport above.
@@ -113,7 +114,7 @@ func MakeOcrOptions(docType string) OcrOptions {
 			// service/ml/labels.py). Dropping it in one alone would split the four, and
 			// conformance cannot report that: a field nobody produces is equally absent
 			// everywhere. If it is ever removed, remove it in all four at once
-			// (pipeline.py:224-243).
+			// (pipeline/options.py::OCROptionsEXTPassport.en_fields).
 			EnFields: []string{"Last_name_en", "First_name_en", "Issue_date",
 				"Expiration_date", "Birth_date", "Birth_place_en", "Issue_organization_en",
 				"Living_region_en", "Sex_en", "Issue_organisation_code", "Middle_name_en",
@@ -126,7 +127,7 @@ func MakeOcrOptions(docType string) OcrOptions {
 	case strings.Contains(t, "dlback"):
 		// 'dlback' contains 'dl': the licence back side (categories table) has no field
 		// model yet, so it must not fall into the front-side DL options below. The empty
-		// options read nothing (pipeline.py make_options).
+		// options read nothing (pipeline/options.py::OCROptionsClass.make_options).
 		return OcrOptions{}
 	case strings.Contains(t, "dl"):
 		return OcrOptions{
@@ -135,7 +136,7 @@ func MakeOcrOptions(docType string) OcrOptions {
 			// field that skips the splitter can never return one. A double patronymic
 			// («ОГЛЫ», «КЫЗЫ») then comes back glued - four such failures over samples/
 			// (2026-09-02), all differing from the ground truth by spaces alone
-			// (pipeline.py:256-263).
+			// (pipeline/options.py::OCROptionsDL.needed_split).
 			NeededSplit: []string{"Licence_number", "Driver_class", "Birth_place_ru",
 				"Birth_place_en", "Living_region_ru", "Living_region_en",
 				"Middle_name_ru", "Middle_name_en"},
@@ -155,7 +156,7 @@ func MakeOcrOptions(docType string) OcrOptions {
 				"Middle_name_ru", "Sex_ru"},
 		}
 	case strings.Contains(t, "birthcert"):
-		// Birth certificates (OCROptionsBIRTHCERT, pipeline.py:156). ONE branch for
+		// Birth certificates (pipeline/options.py::OCROptionsBIRTHCERT). ONE branch for
 		// both blank generations - BIRTHCERT_1998 and BIRTHCERT_2018 (order 167/2018:
 		// worded birth date, parents' birth dates, place of issue, 21-digit act
 		// number) - because the dispatcher never sees the year suffix.

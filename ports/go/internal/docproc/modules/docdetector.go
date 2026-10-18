@@ -57,7 +57,7 @@ func (d *DocDetector) Close() error { return d.model.Close() }
 // multi-page spread, the individual rectified pages, the (expanded, clipped) quad each
 // came from, and where each landed on the canvas - exactly what DocDetector.predict_transform
 // hands to the pipeline (pages/page_quads/page_placements), so the caller can run field
-// detection PER PAGE (pipeline.py's _fields_from_pages) instead of on the half-size
+// detection PER PAGE (pipeline/fields.py::Pipeline._fields_from_pages) instead of on the half-size
 // letterboxed spread. Pages is nil/empty for a single-page document; the CALLER owns
 // every Image here (Canvas and each element of Pages), and Pages Images are separate
 // Mats from Canvas even when len(Pages)==1 (StitchPages returns that one page AS the

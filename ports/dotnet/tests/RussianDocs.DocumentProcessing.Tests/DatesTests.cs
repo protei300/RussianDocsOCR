@@ -132,7 +132,7 @@ public class DatesTests
 
     /// <summary>
     /// Fields are recognised BY NAME — case-insensitive substring "date" — never by content, matching
-    /// <c>Pipeline._normalize_dates</c> (pipeline.py:1977-1992: <c>'date' in name.lower()</c>).
+    /// <c>pipeline/date_fields.py::Pipeline._normalize_dates</c> (<c>'date' in name.lower()</c>).
     /// </summary>
     [Test]
     public void NormalizeDates_OnlyConvertsFieldsWhoseNameContainsDate()

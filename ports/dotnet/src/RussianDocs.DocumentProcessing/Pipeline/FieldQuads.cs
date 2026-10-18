@@ -17,13 +17,25 @@ public sealed record FieldQuadSet(Dictionary<string, List<Point[]>>? Fields, Dic
     /// <summary>
     /// The stage payload: <c>{"fields": {label: [quad, ...]}, "words": {...}}</c>, quad = four <c>[x, y]</c>
     /// from the top-left corner of the canvas box, numbers NOT rounded; both keys null when unknown.
-    /// (<c>"address_lines"</c> exists only on the address path, which this port does not read.)
+    /// On the registration page (INTPASSPORTADDR) the payload also carries <c>"address_lines"</c>
+    /// (<see cref="Payload(IReadOnlyList{Point[]}?)"/>); the key exists nowhere else.
     /// </summary>
     public Dictionary<string, object?> Payload() => new()
     {
         ["fields"] = Wire(Fields),
         ["words"] = Wire(Words),
     };
+
+    /// <summary>
+    /// <see cref="Payload()"/> with <c>"address_lines"</c>: the quadrilateral of each address line on the input
+    /// image, in the order of the lines of <c>address.lines</c>, or null when the way back is not known.
+    /// </summary>
+    public Dictionary<string, object?> Payload(IReadOnlyList<Point[]>? addressLines)
+    {
+        Dictionary<string, object?> payload = Payload();
+        payload["address_lines"] = addressLines?.Select(q => q.Select(p => new[] { p.X, p.Y }).ToArray()).ToArray();
+        return payload;
+    }
 
     private static Dictionary<string, double[][][]>? Wire(Dictionary<string, List<Point[]>>? quads) =>
         quads?.ToDictionary(kv => kv.Key,

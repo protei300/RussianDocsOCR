@@ -49,8 +49,18 @@ of the SIFT keypoints that survive the budget).
 Since 2026-10-08 it also carries the way back to the input photo (PR #19, decision #132): the
 conformance stage `quads` (where every read field and word patch lies on the photo, unrounded,
 graded as coordinates), `Results.Geometry`, `Results.ToInput` and `Results.Quads`. Clean on all
-cases except those under a declared deviation (D-03). Not ported: the address-line
-quadrilaterals (the address path is not read) and `Pipeline(page_geometry=True)` (off by default).
+cases except those under a declared deviation (D-03). Not ported: `Pipeline(page_geometry=True)`
+(off by default).
+
+Since 2026-10-16 it also reads the residence registration page (`INTPASSPORTADDR`; decisions #144
+and #150): the oriented address-line detector (`YOLOOBB` input and `YOLOOBBDetector` output of
+`model.json`, rotated NMS), the printed-or-handwritten classifier, the reading of each line by both
+engines, the registration stamps with the tie of the lines to them (issue #27; optional - a weight set
+without `models/RegistrationStamps` reads the page without stamps), the address-line quadrilaterals of
+the `quads` stage and the `address` block of the view model. Conformance stages `address.lines` and
+`address.stamps`; `rdocs-conform` lists them in `stages_implemented`. Two OpenCV calls gocv cannot make
+the way the reference does - `getRectSubPix` about a fractional centre and
+`rotatedRectangleIntersection` - go through the same C++ shim as the line segment detector (G-01).
 
 Verify it rather than trusting the table:
 

@@ -41,7 +41,8 @@ other document here exists to support this one.
 | 6 | `borders.canvas` | perspective-corrected canvas | `.npy` `uint8` |
 | 7 | `deskew.canvas` | canvas after residual-tilt correction | `.npy` `uint8` |
 | 8 | `fields.bbox` | text-field detections, `[x1,y1,x2,y2,conf,cls,label]` | `.json` |
-| 9 | `address.lines` | per-line address metadata (INTPASSPORTADDR only) | `.json` |
+| 9 | `address.lines` | per-line address metadata (INTPASSPORTADDR only); with the stamp detector, `stamp` on each line - an index into `address.stamps`, or null | `.json` |
+| 9a | `address.stamps` | registration stamps of the registration page (INTPASSPORTADDR only, issue #27), freshest first: `[{kind, confidence, quad, lines, address, cancels, current}]` - `kind` registered / deregistered / unclear; `quad` `[[x,y] x4]` on the input image (null when the way back is not known); `lines` indices into `address.lines`; `address` the stamp's own lines joined by a newline; `cancels` the index of the registration a deregistered stamp cancels, or null; `current` true on the registration nothing cancels. Order: left page before right (a canvas wider than 1.2 heights is a spread split down the middle), top to bottom on a page; null when the weight set has no stamp detector | `.json` |
 | 10 | `words.<Field>.bbox` | word boxes within each detection of one field | `.json` |
 | 10a | `quads` | the way back to the input image (`document_processing/geometry.py`): `{fields: {<Field>: [quad, ...]}, words: {<Field>: [quad, ...]}, address_lines: [quad, ...]}`, each quad `[[x,y] x4]` from the box's top-left corner, unrounded; `fields`/`words` are `null` when the run's way back is not known; `address_lines` only when the address path ran | `.json` |
 | 11 | `ocr.<Field>.words` | the per-word strings of one field, after `fix_errors` | `.json` |

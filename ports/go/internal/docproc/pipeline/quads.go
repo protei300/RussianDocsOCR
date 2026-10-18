@@ -7,8 +7,9 @@ import (
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/modules"
 )
 
-// Port of the way back to the input image in pipeline.py: Pipeline._fields_detector's
-// FieldFrames, Pipeline._field_quads and PipelineResults.to_input / field_quads / word_quads
+// Port of the way back to the input image: pipeline/fields.py::Pipeline._fields_detector's
+// FieldFrames, pipeline/fields.py::Pipeline._field_quads and
+// pipeline/results.py::PipelineResults.to_input / field_quads / word_quads
 // (PR #19, issue #18; conformance stage `quads`).
 
 // fieldFrame says where the patch cut for one detection lies on the canvas it was cut from:
@@ -46,6 +47,11 @@ type Quads struct {
 	// Words is label -> the quadrilateral of each patch of the field's words, same order as the
 	// words.
 	Words map[string][]Quad
+	// AddressLines are the registration-address lines, in the order of Results.Address.Lines.
+	// HasAddressLines says the address path ran (the stage then carries the key); a nil list
+	// with it set is null: the way back is not known, said once for the run, like Fields.
+	AddressLines    []Quad
+	HasAddressLines bool
 }
 
 // Known reports whether the way back was known for the run.
@@ -97,28 +103,41 @@ func buildQuads(records []SplitRecord, frames []fieldFrame, toInput func([]geome
 
 // QuadsPayload renders the `quads` stage: {"fields": {<Field>: [quad, ...]}, "words": {...}},
 // each quad [[x, y] x 4] from the box's top-left corner, unrounded; both null when the way back
-// is not known. (The reference adds "address_lines" when the address path ran; that path is not
-// ported.)
+// is not known. When the address path ran (the registration page) the stage also carries
+// "address_lines": one quad per line, or null when the way back is not known.
 func QuadsPayload(q *Quads) any {
-	if !q.Known() {
-		return map[string]any{"fields": nil, "words": nil}
-	}
-	render := func(m map[string][]Quad) map[string][][4][2]float64 {
-		out := make(map[string][][4][2]float64, len(m))
-		for label, quads := range m {
-			list := make([][4][2]float64, 0, len(quads))
-			for _, qd := range quads {
-				var c [4][2]float64
-				for i, p := range qd {
-					c[i] = [2]float64{p.X, p.Y}
-				}
-				list = append(list, c)
-			}
-			out[label] = list
+	out := map[string]any{"fields": nil, "words": nil}
+	if q != nil && q.HasAddressLines {
+		out["address_lines"] = nil
+		if q.AddressLines != nil {
+			out["address_lines"] = renderQuadList(q.AddressLines)
 		}
+	}
+	if !q.Known() {
 		return out
 	}
-	return map[string]any{"fields": render(q.Fields), "words": render(q.Words)}
+	render := func(m map[string][]Quad) map[string][][4][2]float64 {
+		res := make(map[string][][4][2]float64, len(m))
+		for label, quads := range m {
+			res[label] = renderQuadList(quads)
+		}
+		return res
+	}
+	out["fields"], out["words"] = render(q.Fields), render(q.Words)
+	return out
+}
+
+// renderQuadList is a list of quadrilaterals, [[x, y] x 4] each.
+func renderQuadList(quads []Quad) [][4][2]float64 {
+	list := make([][4][2]float64, 0, len(quads))
+	for _, qd := range quads {
+		var c [4][2]float64
+		for i, p := range qd {
+			c[i] = [2]float64{p.X, p.Y}
+		}
+		list = append(list, c)
+	}
+	return list
 }
 
 // ToInput is PipelineResults.to_input: points of the canvas (Canvas) on the image passed to

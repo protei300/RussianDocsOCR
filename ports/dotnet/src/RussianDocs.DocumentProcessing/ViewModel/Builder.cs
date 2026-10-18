@@ -28,6 +28,12 @@ public sealed record Input
     public Dictionary<string, object>? Quality { get; init; }
     public Dictionary<string, double>? Timings { get; init; }
     public List<Point[]>? Segments { get; init; }
+
+    /// <summary>Every oriented detection of the address-line detector (<c>meta_results["AddressLinesDetector"]["obbox"]</c>); null off the registration page.</summary>
+    public List<ObbBox>? AddressDetections { get; init; }
+
+    /// <summary>The address lines as read (<c>meta_results["Address_lines"]</c>); null off the registration page.</summary>
+    public List<AddressLineRow>? AddressLines { get; init; }
 }
 
 /// <summary>Alias so this file does not shadow the view model's own <c>Box</c>.</summary>
@@ -76,7 +82,7 @@ public static class Builder
             Ocr = ocr,
             Quality = input.Quality ?? [],
             Timings = input.Timings ?? [],
-            Address = null,
+            Address = BuildAddress(input.AddressDetections, input.AddressLines),
         };
 
         if (includeDebug)
@@ -205,6 +211,56 @@ public static class Builder
         return fields;
     }
 
+
+    /// <summary>
+    /// Oriented address-line boxes with their printed/handwritten verdicts (<c>_build_address</c> in
+    /// <c>service/ml/transform.py</c>). Null off the registration page.
+    ///
+    /// <para>
+    /// The two source lists can fall out of step: the reader skips a line whose patch came out empty without
+    /// recording a slot, so box <c>i</c> and line <c>i</c> stop being the same line. Pairing them blindly would put a
+    /// caption on the wrong box, so when the lengths differ <c>aligned</c> is false, the geometry is dropped and only
+    /// the text is kept - a client that respects the flag suppresses the overlay instead of drawing a confident lie.
+    /// </para>
+    /// </summary>
+    private static Address? BuildAddress(List<ObbBox>? detections, List<AddressLineRow>? lines)
+    {
+        List<ObbBox> boxes = detections ?? [];
+        List<AddressLineRow> rows = lines ?? [];
+        if (boxes.Count == 0 && rows.Count == 0)
+        {
+            return null;
+        }
+
+        bool aligned = boxes.Count == rows.Count;
+        var outLines = new List<AddressLine>(rows.Count);
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var entry = new AddressLine
+            {
+                Id = $"o{i}",
+                Kind = rows[i].Kind,
+                Text = rows[i].Text,
+                PHandwritten = rows[i].PHandwritten is double p ? Round(p) : null,
+            };
+            if (aligned)
+            {
+                ObbBox box = boxes[i];
+                entry.Obbox = new Obbox
+                {
+                    Cx = Round(box.Cx), Cy = Round(box.Cy), W = Round(box.W), H = Round(box.H),
+                    // radians: needs finer precision
+                    AngleRad = double.IsNaN(box.Angle) || double.IsInfinity(box.Angle)
+                        ? null : Ops.RoundHalfEven(box.Angle, 6),
+                    Conf = Round(box.Conf),
+                    Label = box.Label,
+                };
+            }
+            outLines.Add(entry);
+        }
+        return new Address { Aligned = aligned, Lines = outLines };
+    }
+
     private static List<List<int[]>>? PolygonOf(List<Point[]>? segments) =>
         segments?.Select(contour => contour.Select(p => new[] { (int)p.X, (int)p.Y }).ToList())
                 .ToList();
@@ -224,3 +280,6 @@ public static class Builder
             ? null
             : Ops.RoundHalfEven(value, FloatPrecision);
 }
+
+/// <summary>One address line as the builder needs it: the verdict of the classifier and the text.</summary>
+public sealed record AddressLineRow(string? Kind, double? PHandwritten, string? Text);

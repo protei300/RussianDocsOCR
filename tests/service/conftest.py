@@ -13,7 +13,7 @@ import pytest
 #: in CI. The service job runs `pytest tests/service`, which exits 5 ("no tests
 #: ran") if the dependencies are missing there — so this cannot hide a broken
 #: install in the job that is supposed to catch it.
-_REQUIRED = ("sqlalchemy", "jose", "fastapi")
+_REQUIRED = ("sqlalchemy", "jwt", "fastapi")
 _MISSING = [name for name in _REQUIRED if importlib.util.find_spec(name) is None]
 if _MISSING:
     collect_ignore_glob = ["*"]
@@ -26,7 +26,7 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers",
-        "service: needs requirements-service.txt (fastapi, sqlalchemy, jose)",
+        "service: needs requirements-service.txt (fastapi, sqlalchemy, PyJWT)",
     )
 
 

@@ -102,9 +102,12 @@ oriented box `{cx, cy, w, h, angle_rad, conf, label}`.
 on an empty patch). A consumer must then not draw boxes rather than draw them
 against the wrong lines.
 
-`angle_rad` is **radians**, and the sign convention must be verified against one
-real `INTPASSPORTADDR` before this path is declared done — no anonymised sample
-exists in the repository, so it has no golden.
+`angle_rad` is **radians**. The golden is the synthetic registration spread
+`INTPASSPORTADDR_ALL-synth_01_INTPASSPORTADDR_ALL` (2026-10-16, three stamps, printed
+and handwritten lines); all three ports match it, and the .NET port was also compared
+stage by stage with the reference on real registration-page photos (not stored in the
+repository): 21 of 23 identical, the other two differing only where its whole-canvas
+deskew already differs (DEVIATIONS N-12/N-14).
 
 ## Cross-language requirements
 

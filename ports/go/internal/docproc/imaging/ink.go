@@ -109,8 +109,8 @@ func SegmentInk(rgb Image, contour []Point) float64 {
 
 // LaplacianVariance is the variance of the Laplacian of a patch: how much fine detail
 // (strokes, not darkness) the strip carries. Port of Pipeline._line_ink
-// (pipeline.py:980-991): RGB->GRAY, float32, cv2.Laplacian(..., CV_32F) with the default
-// 3x3 aperture, then `.var()` (population variance, two-pass).
+// (pipeline/fields.py::Pipeline._line_ink): RGB->GRAY, float32, cv2.Laplacian(..., CV_32F)
+// with the default 3x3 aperture, then `.var()` (population variance, two-pass).
 func LaplacianVariance(rgb Image) float64 {
 	if rgb.Empty() || rgb.Width() == 0 || rgb.Height() == 0 {
 		return 0

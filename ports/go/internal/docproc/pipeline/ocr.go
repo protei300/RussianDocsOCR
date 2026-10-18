@@ -32,7 +32,7 @@ var rulerRuns = regexp.MustCompile(`[.,_\-"]{2,}`)
 var rulerLone = map[string]bool{".": true, ",": true, "_": true, "-": true, `"`: true}
 
 // CleanRulerArtifacts collapses ruler-dot runs out of a joined field value.
-// Port of Pipeline._clean_ruler_artifacts (pipeline.py:1061-1076). The reference
+// Port of pipeline/reading.py::Pipeline._clean_ruler_artifacts. The reference
 // also drops LONE separators with a lookaround pattern Go's RE2 cannot express
 // ((?:^|(?<=\s))[._\-](?=\s|$)); splitting into whitespace tokens, dropping
 // tokens that are exactly one separator rune and re-joining is equivalent,
@@ -63,8 +63,8 @@ type FieldText struct {
 // being told, and try again. Anything shorter means the crop lost part of the line.
 const MrzLineLen = 44
 
-// mrzRetryGrowth is MRZ_RETRY_GROWTH (pipeline.py:834-853). The MRZ is printed as ONE
-// rectangle holding two lines, so both lines share the same horizontal span - but the
+// mrzRetryGrowth is pipeline/mrz_reading.py::Pipeline.MRZ_RETRY_GROWTH. The MRZ is printed as
+// ONE rectangle holding two lines, so both lines share the same horizontal span - but the
 // detector does not know that. Measured over samples/: the two boxes of a zone start
 // within 10 px of each other when the zone reads correctly and 90-182 px apart when it
 // does not, and the characters outside the narrower box never reach the engine (23 of
@@ -82,7 +82,7 @@ var mrzRetryGrowth = []float64{0.0, 0.05, 0.10, 0.16, 0.24, 0.34}
 const mrzAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
 
 // MrzZone remembers the canvas and the MRZ boxes for the length self-check.
-// Port of Pipeline._mrz_zone as filled by _note_mrz_zone (pipeline.py:862-890).
+// Port of Pipeline._mrz_zone as filled by pipeline/mrz_reading.py::Pipeline._note_mrz_zone.
 //
 // Nothing is modified when it is built: the boxes the detector produced stay exactly as
 // they are, so fields.bbox and every other field are untouched. Its only purpose is that
@@ -158,7 +158,7 @@ func trimToMrzAlphabet(text string) string {
 }
 
 // readMrz re-reads one MRZ line from a wider crop when it came out too short.
-// Port of Pipeline._read_mrz (pipeline.py:905-942).
+// Port of pipeline/mrz_reading.py::Pipeline._read_mrz.
 //
 // The reading the detector's own crop produced is kept unless it is the wrong length;
 // then the zone's full span is tried, then progressively wider crops, and the first
@@ -215,7 +215,7 @@ func readMrz(zone *MrzZone, lat *modules.OcrEngine, lineIndex int, text string) 
 }
 
 // OcrFields recognises every field's words and joins them.
-// Port of Pipeline._ocr_serial (pipeline.py:1830-1870).
+// Port of pipeline/reading.py::Pipeline._ocr_serial.
 //
 // docType is the label with its year suffix already stripped, which matters: the routing
 // below tests `docType == "SNILS"` against the bare type; year is the suffix itself ("" when

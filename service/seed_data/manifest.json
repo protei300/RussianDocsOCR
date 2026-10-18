@@ -91,5 +91,14 @@
   "content_type": "image/jpeg",
   "size_bytes": 674121,
   "search_text": ""
+ },
+ {
+  "slug": "INTPASSPORTADDR_ALL-synth_01_INTPASSPORTADDR_ALL",
+  "sample": "conformance/material/INTPASSPORTADDR_ALL/synth_01_INTPASSPORTADDR_ALL.jpg",
+  "filename": "sample-INTPASSPORTADDR_ALL-synth_01_INTPASSPORTADDR_ALL.jpg",
+  "original_ext": ".jpg",
+  "content_type": "image/jpeg",
+  "size_bytes": 253246,
+  "search_text": ""
  }
 ]

@@ -40,6 +40,13 @@ with `PairSides`, and the short return for a `NONE` frame after the borders-firs
 [`ARCHITECTURE.md`](ARCHITECTURE.md) §8 and [`DEVIATIONS.md`](DEVIATIONS.md) `J-19` (the SIFT keypoint order, platform-free since 4.7.1). The way back to the photo
 (PR #19, `geometry/`) and the `quads` stage were added the same day: `Results.fieldQuads`, `wordQuads`, `toInput`.
 
+**The registration page, 2026-10-16**: the address path of INTPASSPORTADDR — the
+oriented address-line detector (`modules/AddressModules.kt`, YOLO-OBB through `models/ObbModel.kt`,
+`preprocess/YoloObb.kt`, `postprocess/Obb.kt`), the printed/handwritten classifier, the word split and the per-word
+choice of engine (`pipeline/Address.kt`), the registration stamps and the lines tied to them, and the stages
+`address.lines`, `address.stamps`, `quads.address_lines` and the view model's `address`. Without the
+`RegistrationStamps` weights the page is read as before, without stamps.
+
 Verify it rather than trusting the table:
 
 ```bash

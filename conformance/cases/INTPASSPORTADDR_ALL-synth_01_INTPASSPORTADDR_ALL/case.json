@@ -1,0 +1,16 @@
+{
+  "slug": "INTPASSPORTADDR_ALL-synth_01_INTPASSPORTADDR_ALL",
+  "sample": "conformance/material/INTPASSPORTADDR_ALL/synth_01_INTPASSPORTADDR_ALL.jpg",
+  "doc_type": "INTPASSPORTADDR_ALL",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "INTPASSPORTADDR_ALL"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

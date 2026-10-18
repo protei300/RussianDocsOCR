@@ -260,10 +260,17 @@ cut, and moves with a read margin). The `quads` stage is emitted right after the
 **`--upto` stops after a named stage.** That is what let each milestone be graded before the
 pipeline was finished, and it is why the CLI and the service share one `Run`.
 
-**The address path (`INTPASSPORTADDR`) is not implemented.** Deferred with the OBB detector and
-the printed-versus-handwritten classifier. What actually blocks it is not code: there is no
-*anonymised* address-page sample in the repository, so the path would have no golden and could
-not be graded. `viewmodel/address.go` declares the types anyway so the shape is visible.
+**The address path (`INTPASSPORTADDR`)** runs between the field detector and the word split, as in
+the reference (`pipeline/address.go`): `readAddress` (the oriented line detector on the canvas, each
+line cut upright, printed or handwritten, the words of a printed line read by both engines and the
+Latin reading kept only for a digit-dominated word), then `readStamps` (the stamp detector, the order
+freshest first, the lines tied to the stamp their centre lies in, `cancels` and `current`). Two
+things differ from the other detectors: the OBB models are NOT "wrap-and-bake" exports - the input is
+float32, channels first, scaled by 1/255 (`preprocess/obb.go`) - and the arithmetic that maps a box
+back out of the letterbox is float32, because the patch about a box's centre is read at sub-pixel
+precision and the last digits move it. No lines at all marks a paper texture taken for a registration
+page: the type becomes `NONE` and the run ends there, like the reference. Graded by the synthetic
+case `INTPASSPORTADDR_ALL-synth_01_INTPASSPORTADDR_ALL`.
 
 ---
 
@@ -566,12 +573,11 @@ personal data.
 
 ## 10. What is not here
 
-- **`PageGeometry` (`Pipeline(page_geometry=True)`, template-free page geometry for every type)** and the
-  **address-line quadrilaterals** (`address_lines` of the `quads` stage): the first is off by default
-  in the reference, the second belongs to `INTPASSPORTADDR`, which this port does not read.
+- **`PageGeometry` (`Pipeline(page_geometry=True)`, template-free page geometry for every type)**:
+  off by default in the reference.
 
-- **`INTPASSPORTADDR`** — needs the OBB detector, the handwriting classifier, and an anonymised
-  sample so the path can be graded.
+- **The GPU batch path of the address words** (`use_batch`): like `ocrGpuBatch`, this port has no
+  batched OCR; the words of an address line are read one by one on every device.
 - **`ocrGpuBatch`** — the reference documents a 5–14 % field divergence for the batched path,
   and it would have to be re-measured from scratch here. The non-batched GPU path *is*
   supported and produces byte-identical text (M8).

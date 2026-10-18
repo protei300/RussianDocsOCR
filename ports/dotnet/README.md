@@ -36,6 +36,13 @@ profiles.
 
 Tests: `dotnet test` - 181 library + 80 service = **261 passing** (2026-10-08).
 
+Conformance, 2026-10-17, against the models-v11 goldens, fifteen cases (the fourteen above and the synthetic
+registration page `INTPASSPORTADDR_ALL`, three stamps), `cpu` profile: verdict **DECLARED** - the registration page
+passes all 13 of its stages (`address.lines`, `address.stamps`, `quads.address_lines` and the view model's `address`
+included), the other twelve cases are clean, the two internal passports differ only by the declared D-03.
+
+Tests: `dotnet test` - 214 library + 80 service = **294 passing** (2026-10-17).
+
 
 ## Как библиотека, из своего приложения
 

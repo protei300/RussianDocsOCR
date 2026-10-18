@@ -239,9 +239,9 @@ Branch points a reader should know about:
   rule is in the reference and load-bearing; the conformance suite would catch its removal.
 - **`intpassportaddr` must be tested before `intpassport`** in the options dispatch. Substring
   order is correctness here, not style.
-- **The address path is declared and not implemented.** `INTPASSPORTADDR` needs OBB-NMS and
-  Sutherland–Hodgman polygon clipping, and — the actual blocker — an *anonymised* sample, which
-  does not exist. The types are present so the shape is visible; see §8.
+- **The address path is implemented (2026-10-17).** The registration page needs the rotated NMS (OpenCV's
+  rotated-rectangle intersection stands in for the polygon clipping) and an anonymised sample, which is now the
+  synthetic case INTPASSPORTADDR_ALL of the conformance suite: `Pipeline/Address.cs`, `Pipeline/Stamps.cs`.
 
 ---
 
@@ -394,7 +394,7 @@ Three more were found by *running* the service, not by reading:
 | GC frees everything | `using` / `Dispose` on every `Mat` | See §5. |
 | `print()` to stdout | `ILogger`, two sinks | The library printing to stdout would corrupt a JSON log stream. Not applicable here; stated so nobody re-adds it. |
 | Reflection-driven config binding | A hand-written `Settings.Load` | Defaults stay next to the field they belong to, and the Go and Kotlin ports can read it line for line. |
-| `python-jose`, `python-json-logger` | Hand-rolled JWT and log writer | Forty lines of HMAC are cheaper to audit than a package. The JWT decoder pins `HS256` and reads the claims by hand, so an absent `uid` stays distinguishable from `uid: 0`. |
+| `PyJWT`, `python-json-logger` | Hand-rolled JWT and log writer | Forty lines of HMAC are cheaper to audit than a package. The JWT decoder pins `HS256` and reads the claims by hand, so an absent `uid` stays distinguishable from `uid: 0`. |
 | `argon2-cffi` | `Konscious.Security.Cryptography.Argon2` (MIT) + an own PHC encoder/parser | The one dependency the service adds: a memory-hard KDF is not something to hand-roll. Konscious does not speak PHC, so `Auth/Passwords.cs` does — standard base64 without padding, parameters read from the string and bounded before anything is allocated. Both argon2-cffi interop vectors verify in the unit tests. |
 | FastAPI `Depends(require_…)` | `Guard` objects in `Api/Identity.cs`, attached to each endpoint as metadata **and** run before the handler | The route test enumerates the endpoint data source and compares each route's guard *name* with ports/AUTH.md §5, and the name comes from the object that executes. |
 
