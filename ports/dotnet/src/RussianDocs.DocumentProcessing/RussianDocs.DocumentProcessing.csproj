@@ -39,4 +39,13 @@
     <PackageReference Include="OpenCvSharp4.official.runtime.linux-x64" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      The service's in-memory tests (ports/MEMORY.md §7.3) build a Results holding images the way a run
+      does (Own, Canvas) to prove they are zeroed - without loading 215 MB of models. A test assembly,
+      not a project reference: the library still knows nothing of the service.
+    -->
+    <InternalsVisibleTo Include="RussianDocs.Service.Tests" />
+  </ItemGroup>
+
 </Project>

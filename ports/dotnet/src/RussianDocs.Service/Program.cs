@@ -214,11 +214,14 @@ public static class Program
         AuthRuntime auth = AuthRuntime.Create(cfg, db);
         AnnounceAuthMode(auth, log);
 
+        bool storing = AnnounceProcessingMode(cfg, log);
+
         string? repoRoot = cfg.RepoRoot();
 
         // Seeded BEFORE the worker starts, so the drain loop never sees a half-inserted fixture. A
-        // negative SEED_SAMPLES disables it; 0 means all available.
-        if (cfg.SeedSamples >= 0 && repoRoot is not null)
+        // negative SEED_SAMPLES disables it; 0 means all available. NEVER in memory mode: the samples
+        // are anonymised, but a list of stored documents is exactly what that mode promises not to have.
+        if (storing && cfg.SeedSamples >= 0 && repoRoot is not null)
         {
             SeedData.IfEmpty(db, repoRoot, cfg.SeedSamples, log);
         }
@@ -228,7 +231,7 @@ public static class Program
         var worker = new RecognitionWorker(db, runtime, cfg, settings, log);
 
         using var shutdown = new CancellationTokenSource();
-        worker.Start(shutdown.Token);
+        worker.Start(shutdown.Token, drain: storing);
 
         string? webRoot = ApiServer.FindWebRoot(repoRoot);
         if (webRoot is null)
@@ -282,6 +285,29 @@ public static class Program
         runtime.Dispose();
         log.LogInformation("[MAIN] stopped");
         return 0;
+    }
+
+    /// <summary>
+    /// Says which processing mode is in force; true when documents are stored. Loud (WARNING) in memory
+    /// mode and whenever the configured value was not used. Port of <c>_announce_processing_mode</c>.
+    /// </summary>
+    private static bool AnnounceProcessingMode(Config.Settings cfg, ILogger log)
+    {
+        (string mode, string? reason) = Config.ProcessingMode.Resolve(cfg);
+        if (reason is not null)
+        {
+            log.LogWarning("[BOOT] {Reason}", reason);
+        }
+        if (mode == Config.ProcessingMode.Memory)
+        {
+            log.LogWarning("[BOOT] PROCESSING_MODE=memory — documents are NOT stored: the document " +
+                           "routes and the background worker are off, POST /api/v1/recognize " +
+                           "recognises in memory and keeps only outcome + time");
+            return false;
+        }
+        log.LogInformation("[BOOT] PROCESSING_MODE=stored — uploads are stored and recognised in the " +
+                           "background; POST /api/v1/recognize is also available");
+        return true;
     }
 
     /// <summary>

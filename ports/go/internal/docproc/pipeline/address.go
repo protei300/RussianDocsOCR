@@ -119,13 +119,18 @@ func (r *Recognizer) routeWordOCR(word imaging.Image) (string, error) {
 // readAddress is _address_lines: the oriented line detector on the canvas, each line cut out
 // upright, classified printed or handwritten; a printed line is split into words and read, a
 // handwritten one is kept as a placeholder so the order of the lines is kept.
-func (r *Recognizer) readAddress(canvas imaging.Image, toInput func([]geometry.Point) ([]geometry.Point, bool)) (*AddressResult, error) {
+// scrub zeroes the line and word crops before they are released (RunOptions.Scrub).
+func (r *Recognizer) readAddress(canvas imaging.Image, toInput func([]geometry.Point) ([]geometry.Point, bool),
+	scrub bool) (*AddressResult, error) {
 	boxes, patches, err := r.addrLines.PredictTransform(canvas)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		for i := range patches {
+			if scrub {
+				patches[i].Zero()
+			}
 			_ = patches[i].Close()
 		}
 	}()
@@ -140,6 +145,9 @@ func (r *Recognizer) readAddress(canvas imaging.Image, toInput func([]geometry.P
 	defer func() {
 		for _, s := range slots {
 			for i := range s.owned {
+				if scrub {
+					s.owned[i].Zero()
+				}
 				_ = s.owned[i].Close()
 			}
 		}

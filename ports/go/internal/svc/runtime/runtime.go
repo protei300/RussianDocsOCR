@@ -455,24 +455,7 @@ func (r *Runtime) Recognise(imagePath string, opts RecogniseOptions) (*Result, e
 		}
 		// Built INSIDE the lease — rule 3. Structural here rather than remembered,
 		// because there is no way to hold `res` past the closure.
-		// The view-model input is assembled HERE rather than by the library, so docproc
-		// never imports viewmodel: the dependency runs one way only (D-01 puts viewmodel on
-		// the library SIDE, not inside docproc).
-		in := viewmodel.Input{
-			DocType:       res.DocType,
-			Device:        string(inst.device),
-			CanvasMissing: !res.HasCanvas,
-			Boxes:         res.Boxes,
-			Ocr:           res.Ocr,
-			Normalized:    res.OcrNormalized,
-			Quality:       res.Quality,
-			Timings:       res.Timings,
-			Segments:      res.Segments,
-		}
-		in.AddressObboxes, in.AddressLines = viewmodel.AddressFrom(res.Address)
-		if res.HasCanvas {
-			in.CanvasW, in.CanvasH = res.Canvas.Width(), res.Canvas.Height()
-		}
+		vm := viewModelOf(res, string(inst.device), opts.IncludeDebug)
 		// **TakeCanvas, not a bare field read.** The canvas must outlive the run, but every
 		// other image the run allocated must not: reading res.Canvas and returning left the
 		// intermediates — the fully decoded original among them — alive forever. Measured
@@ -481,7 +464,7 @@ func (r *Runtime) Recognise(imagePath string, opts RecogniseOptions) (*Result, e
 		// Results after a single document.
 		canvas, hasCanvas := res.TakeCanvas()
 		out = &Result{
-			ViewModel: viewmodel.Build(in, opts.IncludeDebug),
+			ViewModel: vm,
 			Canvas:    canvas,
 			HasCanvas: hasCanvas,
 		}
@@ -494,6 +477,106 @@ func (r *Runtime) Recognise(imagePath string, opts RecogniseOptions) (*Result, e
 		return nil, err
 	}
 	return out, nil
+}
+
+// viewModelOf assembles the view-model input from a run.
+//
+// HERE rather than in the library, so docproc never imports viewmodel: the dependency runs one
+// way only (D-01 puts viewmodel on the library SIDE, not inside docproc). One function for the
+// stored and the in-memory path, so their JSON cannot drift apart.
+func viewModelOf(res *pipeline.Results, device string, includeDebug bool) viewmodel.Payload {
+	in := viewmodel.Input{
+		DocType:       res.DocType,
+		Device:        device,
+		CanvasMissing: !res.HasCanvas,
+		Boxes:         res.Boxes,
+		Ocr:           res.Ocr,
+		Normalized:    res.OcrNormalized,
+		Quality:       res.Quality,
+		Timings:       res.Timings,
+		Segments:      res.Segments,
+	}
+	in.AddressObboxes, in.AddressLines = viewmodel.AddressFrom(res.Address)
+	if res.HasCanvas {
+		in.CanvasW, in.CanvasH = res.Canvas.Width(), res.Canvas.Height()
+	}
+	return viewmodel.Build(in, includeDebug)
+}
+
+// ---------------------------------------------------------------------------
+// In-memory recognition (PROCESSING_MODE=memory, POST /recognize) — rule 11
+// ---------------------------------------------------------------------------
+//
+// 11. **Nothing of the document may outlive the lease.** The reference's pipeline keeps the
+//     last document in `pipeline.results` until the next one arrives, so it zeroes every array
+//     under it before releasing the lease. The Go Recognizer keeps no per-document state (rule
+//     1) — everything a run produced is in the Results it returns — so the equivalent is: run
+//     with RunOptions.Scrub (the run zeroes the crops it frees itself, and a failed run wipes
+//     its partial Results), then Results.Wipe inside the lease, on success and on failure alike.
+//     Model sessions, templates and centroids are not reachable from Results and are never
+//     touched.
+
+// documentRunner is the part of a pipeline RecogniseImage needs — an interface so a unit test
+// can put a fake behind the lease and look at what it produced after the wipe.
+type documentRunner interface {
+	RunImage(src imaging.Image, opts pipeline.RunOptions) (*pipeline.Results, error)
+}
+
+// ImageOptions are the per-request knobs of RecogniseImage.
+type ImageOptions struct {
+	Docconf float64
+	ImgSize int
+	// WithCanvas also returns the rectified canvas as PNG bytes.
+	WithCanvas   bool
+	LeaseTimeout time.Duration
+}
+
+// RecogniseImage recognises an already-decoded RGB image without touching the disk.
+//
+// Returns the view model and, with WithCanvas, the canvas as PNG — a Go buffer the CALLER
+// zeroes after sending. rgb stays the caller's. Before the lease is released every image of the
+// run is zeroed and released (rule 11), whatever happened.
+func (r *Runtime) RecogniseImage(rgb imaging.Image, opts ImageOptions) (viewmodel.Payload, []byte, error) {
+	timeout := opts.LeaseTimeout
+	if timeout <= 0 {
+		timeout = LeaseTimeout
+	}
+	var (
+		vm  viewmodel.Payload
+		png []byte
+	)
+	err := r.Use(timeout, func(inst *Instance) (e error) {
+		vm, png, e = recogniseInLease(inst.pipe, string(inst.device), rgb, opts)
+		return
+	})
+	return vm, png, err
+}
+
+// recogniseInLease is the body of RecogniseImage that runs while the lease is held.
+func recogniseInLease(runner documentRunner, device string, rgb imaging.Image,
+	opts ImageOptions) (vm viewmodel.Payload, png []byte, err error) {
+
+	res, err := runner.RunImage(rgb, pipeline.RunOptions{
+		Docconf: opts.Docconf,
+		ImgSize: opts.ImgSize,
+		Scrub:   true,
+	})
+	// Whatever came back is wiped before the lease goes back — also when the run reported an
+	// error alongside a partial result, and also when the transform below panics.
+	if res != nil {
+		defer res.Wipe()
+	}
+	if err != nil {
+		return viewmodel.Payload{}, nil, err
+	}
+	vm = viewModelOf(res, device, false)
+	if opts.WithCanvas && res.HasCanvas {
+		png, err = imaging.EncodePNGFromRGBScrubbed(res.Canvas)
+		if err != nil {
+			return viewmodel.Payload{}, nil, err
+		}
+	}
+	return vm, png, nil
 }
 
 // warm pays the cold-start cost once, up front.

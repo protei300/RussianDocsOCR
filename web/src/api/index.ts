@@ -1,7 +1,8 @@
 import Api from '@/common/fetch'
 import type {
     ApiKeyRow, AuditRow, AuthConfig, AuthUserPayload, DocumentDetail, DocumentFilter,
-    DocumentListResponse, LoginResponse, PasswordRule, Progress, SettingDef, UserRow,
+    DocumentListResponse, LoginResponse, PasswordRule, Progress, RecognitionRow, RecognizeResult,
+    SettingDef, UserRow,
 } from '@/types'
 
 const $api = {
@@ -75,6 +76,23 @@ const $api = {
         /** Images are behind auth, so <img src> cannot fetch them directly. */
         imageUrl(id: number, kind: 'canvas' | 'original' | 'thumb'): string {
             return `/documents/${id}/image/${kind}`
+        },
+    },
+    recognize: {
+        /** In-memory recognition: the image is the request body (not multipart), the
+         *  answer comes back in the same request and nothing is stored on the server. */
+        run(file: File, withImage = true, onProgress?: (pct: number) => void): Promise<RecognizeResult> {
+            return Api.post('/recognize', file, {
+                params: withImage ? { images: 1 } : {},
+                headers: { 'Content-Type': file.type || 'application/octet-stream' },
+                onUploadProgress: (e) => {
+                    if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100))
+                },
+            })
+        },
+        journal(params: { limit?: number; offset?: number } = {}):
+            Promise<{ items: RecognitionRow[]; total: number; counts: Record<string, number> }> {
+            return Api.get('/recognitions', { params, silent: true } as object)
         },
     },
     apiKeys: {

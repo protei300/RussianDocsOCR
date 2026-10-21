@@ -12,6 +12,7 @@ import net.russiandocs.service.api.ApiServer
 import net.russiandocs.service.auth.AuthMode
 import net.russiandocs.service.auth.Tokens
 import net.russiandocs.service.repositories.Users
+import net.russiandocs.service.config.ProcessingMode
 import net.russiandocs.service.config.Settings
 import net.russiandocs.service.logging.LogRing
 import net.russiandocs.service.logging.ServiceLog
@@ -191,17 +192,20 @@ private fun run(addr: String): Int {
     }
 
     val repoRoot = cfg.repoRoot()
+    val storing = announceProcessingMode(cfg, log)
 
     // Seeded BEFORE the worker starts, so the drain loop never sees a half-inserted fixture. A negative
-    // SEED_SAMPLES disables it; 0 means all available.
-    if (cfg.seedSamples >= 0 && repoRoot != null) {
+    // SEED_SAMPLES disables it; 0 means all available. Never in memory mode: the samples are anonymised, but a
+    // list of stored documents is exactly what that mode promises not to have.
+    if (storing && cfg.seedSamples >= 0 && repoRoot != null) {
         SeedData.ifEmpty(db, repoRoot, cfg.seedSamples, log)
     }
 
     val runtime = PipelineRuntime(log.sink())
     val settings = SettingsRepository(cfg, log.sink())
     val worker = RecognitionWorker(db, runtime, cfg, settings, log)
-    worker.start()
+    // In memory mode the runtime is still built (POST /recognize needs it); the queue is not drained.
+    worker.start(drain = storing)
 
     val webRoot = ApiServer.findWebRoot(repoRoot)
     if (webRoot == null) {
@@ -259,6 +263,23 @@ private fun run(addr: String): Int {
     log.info("[MAIN] listening on $addr")
     app.run()
     return 0
+}
+
+/**
+ * Logs which processing mode is in force; returns true when documents are stored. Port of
+ * `_announce_processing_mode` in `service/main.py` — WARNING in memory mode, and for a value that was not used.
+ */
+private fun announceProcessingMode(cfg: Settings, log: ServiceLog): Boolean {
+    val resolved = ProcessingMode.resolve(cfg.processingMode)
+    resolved.reason?.let { log.warn("[BOOT] $it") }
+    if (!resolved.storing) {
+        log.warn("[BOOT] PROCESSING_MODE=memory — documents are NOT stored: the document routes and the " +
+            "background worker are off, POST /api/v1/recognize recognises in memory and keeps only outcome + time")
+        return false
+    }
+    log.info("[BOOT] PROCESSING_MODE=stored — uploads are stored and recognised in the background; " +
+        "POST /api/v1/recognize is also available")
+    return true
 }
 
 /**

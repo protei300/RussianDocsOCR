@@ -56,6 +56,12 @@ service.interceptors.response.use(
             }
             return Promise.reject(error)
         }
+        // A request may opt out of the toast with `silent: true` in its config: the
+        // recognition journal is optional — a service that predates it answers 404,
+        // and the page simply shows no journal instead of an error.
+        if ((error.config as { silent?: boolean } | undefined)?.silent) {
+            return Promise.reject(error)
+        }
         // Global toast means page controllers rarely need their own .catch().
         const message = error.response?.data?.detail
             || error.response?.data?.message

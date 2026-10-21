@@ -41,6 +41,10 @@ var authContractRoutes = []struct{ method, path, guard string }{
 	{"POST", "/api/v1/documents/{id}/reprocess", "require_api_or_operator"},
 	{"DELETE", "/api/v1/documents/{id}", "require_api_or_operator"},
 	{"POST", "/api/v1/documents/purge", "require_admin"},
+	// In-memory recognition (ports/MEMORY.md §3): the level of an upload; the journal is outcome
+	// and time only, so a viewer may read it like the document list.
+	{"POST", "/api/v1/recognize", "require_api_or_operator"},
+	{"GET", "/api/v1/recognitions", "require_api_or_viewer"},
 	{"GET", "/api/v1/status", "require_viewer"},
 	{"GET", "/api/v1/api-keys", "require_admin"},
 	{"POST", "/api/v1/api-keys", "require_admin"},

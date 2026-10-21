@@ -92,6 +92,35 @@ public class Image private constructor(private var backing: Mat?) : AutoCloseabl
         backing = null
     }
 
+    /**
+     * Overwrites the pixels with zeros, then releases them — [close] for an image that held personal data.
+     *
+     * `release()` alone returns the buffer to the allocator with the photo still in it, and the next
+     * allocation of that size may hand it to anyone. In-memory recognition (`PROCESSING_MODE=memory`,
+     * ports/MEMORY.md §5) promises that the document is cleared, not merely dropped. Idempotent like [close].
+     */
+    /**
+     * A second owner of the SAME pixels (OpenCV reference counting): closing either leaves the other valid, and
+     * a write through one is seen through the other. For a test that must look at a buffer after its owner
+     * released it — e.g. to prove the owner zeroed it first.
+     */
+    public fun alias(): Image = Image(mat.submat(0, mat.rows(), 0, mat.cols()))
+
+    /** Non-zero bytes over all channels. */
+    public fun nonZeroCount(): Int {
+        val flat = mat.reshape(1)
+        return try {
+            org.opencv.core.Core.countNonZero(flat)
+        } finally {
+            flat.release()
+        }
+    }
+
+    public fun zeroAndClose() {
+        backing?.let { if (!it.empty()) it.setTo(org.opencv.core.Scalar.all(0.0)) }
+        close()
+    }
+
     public companion object {
         /** Takes ownership of an existing Mat. */
         public fun wrap(mat: Mat): Image = Image(mat)

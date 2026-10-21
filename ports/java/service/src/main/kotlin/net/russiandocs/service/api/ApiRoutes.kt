@@ -119,6 +119,19 @@ public class ApiRoutes(private val api: ApiServer) {
         api.imageArtifact(api.parseId(id), kind)
     }
 
+    // --- in-memory recognition: ports/MEMORY.md §3-§4 ------------------------------------------
+    // Recognising runs the pipeline on the caller's image — the level of an upload. The journal is outcome and
+    // time only, so a viewer may read it like the document list. **No body parameter, and the multipart
+    // resolver never sees this path** (UploadOnlyMultipartResolver): the handler reads the raw stream itself.
+
+    @PostMapping("${ApiServer.PREFIX}/recognize")
+    public fun recognize(request: HttpServletRequest, response: HttpServletResponse): ResponseEntity<*> =
+        api.guard(request, response, api.auth.requireApiOrOperator) { api.recognize(request) }
+
+    @GetMapping("${ApiServer.PREFIX}/recognitions")
+    public fun recognitions(request: HttpServletRequest, response: HttpServletResponse): ResponseEntity<*> =
+        api.guard(request, response, api.auth.requireApiOrViewer) { api.listRecognitions(request) }
+
     // --- status: any signed-in role, never an API key -------------------------------------------
 
     @GetMapping("${ApiServer.PREFIX}/status")

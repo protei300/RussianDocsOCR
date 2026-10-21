@@ -6,13 +6,18 @@ import AuthedImage from '@/components/AuthedImage.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import Icon from '@/components/Icon.vue'
 import UploadModal from '@/components/UploadModal.vue'
+import RecognitionJournal from '@/components/RecognitionJournal.vue'
+import RecognizeModal from '@/components/RecognizeModal.vue'
 import $api from '@/api'
 import { formatBytes, formatDate, formatMs, formatTime } from '@/utils/format'
 import type { DocumentRow } from '@/types'
-import { getData, getDataSearch, useHooks } from './controller'
-import { DOC_TYPES, documents, form, loading, stats, total, uploadOpen } from './model'
+import { getData, getDataSearch, getRecognitions, useHooks } from './controller'
+import {
+    DOC_TYPES, documents, form, loading, processingMode, recognitions, recognitionsLoading,
+    recognitionsTotal, stats, total, uploadOpen,
+} from './model'
 
-const { setSort, sortIcon, goPage, reprocess, remove, onUploaded } = useHooks()
+const { setSort, sortIcon, goPage, reprocess, remove, onUploaded, onRecognised, recognizeOpen } = useHooks()
 const store = useStore()
 const canWrite = computed<boolean>(() => store.getters['auth/canWrite'])
 
@@ -35,7 +40,10 @@ const pages = computed(() => {
     return out
 })
 
+const memoryMode = computed(() => processingMode.value === 'memory')
+
 const topbarMeta = computed(() => {
+    if (memoryMode.value) return 'memory mode · nothing is stored'
     const q = stats.value.queued ?? 0
     const p = stats.value.processing ?? 0
     return q || p ? `${q} queued · ${p} processing` : undefined
@@ -79,7 +87,10 @@ const QUALITY_KEYS: [string, string][] = [
 // discoverable without a permanent dropzone breaking the layout rhythm.
 function onPageDragOver(e: DragEvent): void {
     if (!canWrite.value) return
-    if (e.dataTransfer?.types?.includes('Files')) { pageDragging.value = true; uploadOpen.value = true }
+    if (!e.dataTransfer?.types?.includes('Files') || recognizeOpen.value) return
+    pageDragging.value = true
+    if (memoryMode.value) recognizeOpen.value = true
+    else if (processingMode.value === 'stored') uploadOpen.value = true
 }
 onMounted(() => document.addEventListener('dragover', onPageDragOver))
 onUnmounted(() => document.removeEventListener('dragover', onPageDragOver))
@@ -93,12 +104,30 @@ function download(row: DocumentRow): void {
 <template>
   <AppTopbar :meta="topbarMeta">
     <template #actions>
-      <button v-if="canWrite" class="btn btn-primary" @click="uploadOpen = true">Upload document</button>
-      <button class="btn btn-outline" :disabled="loading" @click="getData()">Refresh</button>
+      <template v-if="memoryMode">
+        <button v-if="canWrite" class="btn btn-primary" @click="recognizeOpen = true">Recognise document</button>
+        <button class="btn btn-outline" :disabled="recognitionsLoading" @click="getRecognitions()">Refresh</button>
+      </template>
+      <template v-else-if="processingMode === 'stored'">
+        <button v-if="canWrite" class="btn btn-ghost" title="Recognise in memory; nothing is stored"
+                @click="recognizeOpen = true">Recognise without storing</button>
+        <button v-if="canWrite" class="btn btn-primary" @click="uploadOpen = true">Upload document</button>
+        <button class="btn btn-outline" :disabled="loading" @click="getData(); getRecognitions()">Refresh</button>
+      </template>
     </template>
   </AppTopbar>
 
-  <div class="content">
+  <div v-if="memoryMode" class="content">
+    <div class="memory-banner">
+      <strong>Memory mode — documents are not stored.</strong>
+      Each image is recognised in memory and answered in the same request; the image, the
+      recognised data and the canvas are discarded right after. The journal below records only
+      that a recognition happened, how it ended and how long it took — there is nothing to open.
+    </div>
+    <RecognitionJournal :items="recognitions" :total="recognitionsTotal" :loading="recognitionsLoading" />
+  </div>
+
+  <div v-else-if="processingMode === 'stored'" class="content">
     <div class="filterbar">
       <div class="search-wrap">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -257,8 +286,13 @@ function download(row: DocumentRow): void {
     <div class="ephemeral-note" style="margin-top:12px">
       Documents are stored in ephemeral storage and are cleared when the service restarts.
     </div>
+
+    <div v-if="recognitionsTotal" style="margin-top:20px">
+      <RecognitionJournal :items="recognitions" :total="recognitionsTotal" :loading="recognitionsLoading" />
+    </div>
   </div>
 
+  <RecognizeModal :open="recognizeOpen" @CLOSE="recognizeOpen = false" @DONE="onRecognised()" />
   <UploadModal :open="uploadOpen" @CLOSE="uploadOpen = false" @UPLOADED="onUploaded()" />
   <ConfirmDialog :open="!!confirmRow" title="Delete document" danger confirm-label="Delete"
                  :message="`Delete ${confirmRow?.filename ?? ''}? This cannot be undone.`"
@@ -292,5 +326,7 @@ function download(row: DocumentRow): void {
   cursor:pointer;font-size:13px;text-decoration:none;color:var(--color-text-sub);}
 .act-btn:hover{border-color:var(--color-primary);color:var(--color-primary);
   background:var(--color-primary-light);}
+.memory-banner{font-size:13px;color:var(--color-text-sub);background:var(--color-primary-light);
+  border-left:3px solid var(--color-primary);border-radius:6px;padding:12px 14px;margin-bottom:14px;line-height:1.5;}
 .pg-ellipsis{padding:0 6px;color:var(--color-text-muted);}
 </style>

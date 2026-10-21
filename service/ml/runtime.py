@@ -58,6 +58,16 @@ against ``document_processing`` 3.0.2, not inferred from documentation.
 10. **Only this module imports ``document_processing``.** That keeps the rest of
     the service testable without the models, and bounds the work of porting the
     service to another language.
+
+11. **A pipeline keeps the last document until the next one arrives.** Everything
+    ``process_img`` produced — the original, the rectified canvas, every field and
+    word crop, ~16 MB per document — stays reachable from ``pipeline.results``
+    until the next call rebinds it. For an in-memory recognition that is the one
+    copy nobody would think to clear, so ``recognise_image`` zeroes every array
+    under ``pipeline.results`` and drops the reference **before releasing the
+    lease**. Only ``results``: the other arrays a pipeline holds are model weights
+    and the blank-page templates of ``page_registrar``, which were verified to be
+    loaded before the first document and unchanged by it.
 """
 from __future__ import annotations
 
@@ -479,3 +489,93 @@ def recognise(image_path: str | Path, *, include_debug: bool = False,
         except (KeyError, AttributeError):
             canvas = None
         return payload, canvas
+
+
+# ---------------------------------------------------------------------------
+# In-memory recognition (PROCESSING_MODE=memory, POST /recognize)
+# ---------------------------------------------------------------------------
+
+def wipe_arrays(obj: Any, _seen: set[int] | None = None, _depth: int = 0) -> int:
+    """Zero every writable numpy array reachable from ``obj``; return bytes wiped.
+
+    Walks dicts, lists, tuples and plain objects. Strings cannot be wiped in
+    Python — they are immutable — so recognised text is only released, not
+    overwritten; the pixels, which are most of the personal data by volume, are.
+    """
+    import numpy as np                      # local: keeps this module importable without numpy
+    seen = _seen if _seen is not None else set()
+    if id(obj) in seen or _depth > 12:
+        return 0
+    seen.add(id(obj))
+    if isinstance(obj, np.ndarray):
+        if obj.flags.writeable and obj.size:
+            obj.fill(0)
+            return int(obj.nbytes)
+        return 0
+    wiped = 0
+    if isinstance(obj, dict):
+        for value in list(obj.values()):
+            wiped += wipe_arrays(value, seen, _depth + 1)
+    elif isinstance(obj, (list, tuple)):
+        for value in obj:
+            wiped += wipe_arrays(value, seen, _depth + 1)
+    elif hasattr(obj, "__dict__") and not isinstance(obj, type):
+        for value in list(vars(obj).values()):
+            wiped += wipe_arrays(value, seen, _depth + 1)
+    return wiped
+
+
+@contextlib.contextmanager
+def _discarded_stdout() -> Iterator[None]:
+    """Like ``_captured_stdout`` but nothing is kept, not even at DEBUG: an
+    in-memory recognition must not put a single library message into the log."""
+    with contextlib.redirect_stdout(io.StringIO()) as buf:
+        try:
+            yield
+        finally:
+            buf.seek(0)
+            buf.truncate(0)
+
+
+def recognise_image(rgb: Any, *, docconf: float = 0.5, img_size: int = 1500,
+                    with_canvas: bool = False,
+                    lease_timeout: float = LEASE_TIMEOUT_SEC) -> tuple[dict[str, Any], bytearray | None]:
+    """Recognise an already-decoded RGB image without touching the disk.
+
+    Returns ``(viewmodel, canvas_png)`` where ``canvas_png`` is a ``bytearray`` the
+    caller wipes after sending, or ``None`` unless ``with_canvas``. Before the lease
+    is released every array under ``pipeline.results`` is zeroed and the reference
+    dropped (rule 11) — on success and on failure alike.
+    """
+    with lease_pipeline(timeout=lease_timeout) as pipeline:
+        try:
+            with _discarded_stdout():
+                results = pipeline.process_img(
+                    rgb, ocr=True, get_doc_borders=True, find_text_fields=True,
+                    check_quality=True, low_quality=True,
+                    docconf=docconf, img_size=img_size,
+                )
+            payload = transform.build_viewmodel(results, device=pipeline.device,
+                                                include_debug=False)
+            png = None
+            if with_canvas:
+                try:
+                    canvas = results.img_with_fixed_perspective
+                except (KeyError, AttributeError):
+                    canvas = None
+                if canvas is not None:
+                    import cv2
+                    ok, buf = cv2.imencode(".png", cv2.cvtColor(canvas, cv2.COLOR_RGB2BGR))
+                    if ok:
+                        png = bytearray(buf.tobytes())
+                        buf.fill(0)
+            return payload, png
+        finally:
+            # results and the per-image MRZ state are the two attributes the pipeline
+            # resets for every document (documents.py::_start_document) — i.e. the
+            # only per-document state it keeps between calls.
+            for attr in ("results", "_mrz_zone"):
+                leftover = getattr(pipeline, attr, None)
+                if leftover is not None:
+                    wipe_arrays(leftover)
+                    setattr(pipeline, attr, None)

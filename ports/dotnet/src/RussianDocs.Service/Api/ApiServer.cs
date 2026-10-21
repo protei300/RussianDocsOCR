@@ -58,6 +58,10 @@ public sealed partial class ApiServer(
     /// </summary>
     public void MapRoutes(WebApplication app)
     {
+        // PROCESSING_MODE=memory: every /documents route is a 404 BEFORE routing reaches a handler, so
+        // before authentication and before the body is read (ports/MEMORY.md §2). See MemoryModeGate.
+        app.Use(MemoryModeGate);
+
         // --- public ----------------------------------------------------------
         Map(app, "GET", "/health", Guard.Public, (_, _) => Health());
         Map(app, "GET", $"{Prefix}/auth/config", Guard.Public, (_, _) => AuthConfigInfo());
@@ -85,6 +89,12 @@ public sealed partial class ApiServer(
             (r, _) => Reprocess(ParseId(Route(r, "id"))));
         Map(app, "DELETE", $"{Prefix}/documents/{{id}}", Guard.ApiOrOperator,
             (r, _) => DeleteDocument(ParseId(Route(r, "id"))));
+
+        // --- in-memory recognition (ports/MEMORY.md §3) ----------------------------
+        // The same level as an upload — it runs the pipeline on the caller's image. The journal is
+        // outcome + time only, so a viewer may read it like the document list. Available in both modes.
+        MapAsync(app, "POST", $"{Prefix}/recognize", Guard.ApiOrOperator, (r, _) => Recognize(r));
+        Map(app, "GET", $"{Prefix}/recognitions", Guard.ApiOrViewer, (r, _) => ListRecognitions(r));
 
         // Purge is administration, not document work: one call removes every document. Admin, and a
         // session — an integration has no business emptying the store.
@@ -162,6 +172,41 @@ public sealed partial class ApiServer(
             try
             {
                 return handler(request, identity);
+            }
+            catch (Exception ex)
+            {
+                return ApiErrors.Write(ex, log);
+            }
+        }).WithMetadata(guard);
+    }
+
+    /// <summary>
+    /// <see cref="Map"/> for the one handler that must read its body asynchronously without blocking a
+    /// thread on it — <c>POST /recognize</c>, whose body is up to MAX_UPLOAD_MB. Same guard, same metadata,
+    /// same error path.
+    /// </summary>
+    private void MapAsync(WebApplication app, string method, string pattern, Guard guard,
+        Func<HttpRequest, Identity?, Task<IResult>> handler)
+    {
+        app.MapMethods(pattern, [method], async (HttpRequest request) =>
+        {
+            Identity? identity;
+            try
+            {
+                identity = guard.Admit(_auth, request);
+            }
+            catch (Exception ex)
+            {
+                if (ex is ServiceException { Kind: ErrorKind.Unauthorized })
+                {
+                    request.HttpContext.Response.Headers.WWWAuthenticate = "Bearer";
+                }
+                return ApiErrors.Write(ex, log);
+            }
+
+            try
+            {
+                return await handler(request, identity);
             }
             catch (Exception ex)
             {

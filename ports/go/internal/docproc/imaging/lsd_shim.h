@@ -24,6 +24,17 @@ int rdocs_get_rect_sub_pix(void* src, int w, int h, double cx, double cy, void* 
    do not meet; a negative value is an OpenCV error. */
 double rdocs_rotated_intersection_area(const float* a, const float* b);
 
+
+/* In-memory recognition (ports/MEMORY.md §5): decode an encoded image to RGB with NO copy of the
+   encoded bytes and with the intermediate BGR zeroed before it is released. gocv's IMDecode first
+   copies the whole buffer into a std::vector it frees without zeroing - a copy of a passport photo
+   left in the native heap; this one wraps the caller's bytes in a cv::Mat header instead.
+
+   data/len are the caller's bytes (not retained); dst is the cv::Mat* behind a gocv.Mat that
+   receives CV_8UC3 RGB. Returns 0; 1 when the decoder produced nothing; a negative value on an
+   OpenCV error. */
+int rdocs_imdecode_rgb_scrubbed(const unsigned char* data, int len, void* dst);
+
 #ifdef __cplusplus
 }
 #endif

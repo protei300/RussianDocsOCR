@@ -298,3 +298,32 @@ Verified three ways: the maps against what OpenCV does to a marked pixel (quarte
 stitch), the quadrilaterals of a real photo against the canvas patch (a driving licence, an internal passport,
 an STS front and a back: the residual shift of the best match stays under half a pixel, and the test goes red
 with the chain reversed or the half pixel dropped), and the conformance stage `quads` with the strict 1e-3.
+
+## N-15 - In-memory recognition (`PROCESSING_MODE=memory`, `POST /recognize`), 2026-10-19
+
+The contract is [`../MEMORY.md`](../MEMORY.md); `conformance/memory_contract.py --port dotnet` passes 11/11, the
+unit side of §7 is `tests/RussianDocs.Service.Tests/MemoryTests.cs`. What differs, all deliberate:
+
+- **The multipart body is split by a span search over our own buffer, not by `MultipartReader`** (MEMORY.md §3.1
+  suggests the reader over a `MemoryStream`). The reader's `BufferedReadStream` rents its own buffers from
+  `ArrayPool<byte>.Shared` and returns them uncleared, so pieces of the image would stay readable in a pool any
+  later request reuses. The span search (a port of the reference's `_image_from_multipart`) copies nothing but
+  the one part, and matches the part headers as bytes, so the filename is never turned into a string at all.
+  `IFormFile` / `ReadFormAsync` are not used on this route (they spool past 64 KB to `ASPNETCORE_*.tmp`).
+- **Body and image buffers come from `ArrayPool<byte>`**, zeroed with `CryptographicOperations.ZeroMemory` and
+  returned with `clearArray: true`. A grown buffer's old array is zeroed before it goes back.
+- **The library gained three small, opt-in pieces** (no behaviour change for anything else, conformance
+  untouched): `Recognizer.Run(Image, Results, RunOptions)` - run over an image the caller decoded, into a
+  `Results` the caller created; `Results.WipeOnDispose` / `Results.Wipe()` / `Image.Zero()` - zero every image a
+  run owns before releasing it, including the release a failed run does itself; `RunOptions.Quiet` - the
+  "unknown type" notice is not written to stderr. Python's rule 11 scrubs `pipeline.results`; here a run holds
+  nothing between calls, and its `Results` is the per-document state, so that is what is zeroed, inside the lease.
+- **An oversized body is read and discarded (up to 256 MB) before the 413.** Kestrel resets a connection whose
+  unread body is over its limit, and a client still sending then sees a reset instead of the answer. Nothing of
+  it is kept: one 16 KB scratch buffer, zeroed.
+
+What cannot be wiped, stated rather than promised away: .NET strings are immutable, so the recognised text, the
+base64 of the canvas PNG and the serialised JSON are released and their memory reused, not overwritten. Native
+temporaries the library frees during a run (word crops, resized tensors) are released, not zeroed - only the
+images that reach `Results` are; the same holds for the reference, which zeroes only what `pipeline.results`
+still reaches. `Cv2.ImEncode`'s internal `std::vector` is freed by OpenCV unzeroed; the managed copy we own is zeroed.

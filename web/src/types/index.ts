@@ -169,6 +169,42 @@ export interface AuthConfig {
     password_rules?: PasswordRule[]
     /** Only in the demo default: printed on the login page on purpose. */
     demo_credentials?: { username: string; password: string }
+    /** stored (default) or memory. Absent on a service that predates the mode —
+     *  treated as stored. */
+    processing_mode?: ProcessingMode
+}
+
+export type ProcessingMode = 'stored' | 'memory'
+
+/** One line of the in-memory recognition journal. There is nothing behind it to
+ *  open: no filename, no type, no fields — only that something was recognised. */
+export interface RecognitionRow {
+    id: number
+    at: string
+    outcome: 'recognised' | 'not_recognised' | 'rejected' | 'busy' | 'error'
+    status_code: number
+    processing_ms: number
+    stored: false
+}
+
+/** POST /recognize — the result of an in-memory recognition. Shown once, never stored. */
+export interface RecognizeResult {
+    stored: false
+    doc_type: string | null
+    doc_type_base: string | null
+    doc_type_era: string | null
+    recognised: boolean
+    doc_conf: number | null
+    device: string | null
+    canvas: { width: number | null; height: number | null; is_fallback?: boolean;
+              image_png_base64?: string }
+    boxes: Box[]
+    fields: Field[]
+    ocr: Record<string, string>
+    quality: Record<string, string | number>
+    address: AddressBlock | null
+    timings: Record<string, number>
+    processing_ms: number
 }
 
 export interface AuthUserPayload {

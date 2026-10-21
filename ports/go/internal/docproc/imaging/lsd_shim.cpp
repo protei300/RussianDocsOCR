@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
 extern "C" int rdocs_lsd_detect(void* mat, float** out) {
@@ -64,5 +65,27 @@ extern "C" double rdocs_rotated_intersection_area(const float* a, const float* b
         return cv::contourArea(region);
     } catch (const cv::Exception&) {
         return -1.0;
+    }
+}
+
+// In-memory recognition: see rdocs_imdecode_rgb_scrubbed in lsd_shim.h. The flag is the one
+// cv2.imdecode(..., IMREAD_COLOR) uses, so the pixels are the ones DecodeRGB produces.
+extern "C" int rdocs_imdecode_rgb_scrubbed(const unsigned char* data, int len, void* dst) {
+    cv::Mat bgr;
+    try {
+        // A header over the caller's bytes: imdecode reads them where they are.
+        const cv::Mat encoded(1, len, CV_8UC1, const_cast<unsigned char*>(data));
+        bgr = cv::imdecode(encoded, cv::IMREAD_COLOR);
+        if (bgr.empty()) {
+            return 1;
+        }
+        cv::cvtColor(bgr, *static_cast<cv::Mat*>(dst), cv::COLOR_BGR2RGB);
+        bgr.setTo(cv::Scalar::all(0));
+        return 0;
+    } catch (const cv::Exception&) {
+        if (!bgr.empty()) {
+            bgr.setTo(cv::Scalar::all(0));
+        }
+        return -1;
     }
 }

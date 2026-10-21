@@ -18,6 +18,12 @@ public sealed record RunOptions
     /// <summary>Stop after this stage, inclusive. Empty runs the whole pipeline.</summary>
     public string? UpTo { get; init; }
     public bool IncludeDebug { get; init; }
+
+    /// <summary>
+    /// Says nothing on stderr (the "unknown type" notice). For a caller that promises no library output
+    /// about a document reaches its log - the service's in-memory recognition (ports/MEMORY.md §4).
+    /// </summary>
+    public bool Quiet { get; init; }
 }
 
 /// <summary>One date field whose word-by-word reading was replaced by the reading of the whole line.</summary>
@@ -191,13 +197,37 @@ public sealed class Results : IDisposable
         return canvas;
     }
 
+    /// <summary>
+    /// Overwrite every image this run owns with zeros before releasing it (ports/MEMORY.md §5) - on
+    /// <see cref="Dispose"/>, on <see cref="TakeCanvas"/> (all but the canvas, which the caller then owns)
+    /// and on the release a failed run does itself. Off by default: zeroing costs a pass over ~16 MB per
+    /// document, and only an in-memory recognition promises it. Only the images of THIS run: weights,
+    /// templates and every other array the <see cref="Recognizer"/> keeps are never touched.
+    /// </summary>
+    public bool WipeOnDispose { get; set; }
+
+    /// <summary>Zeroes and releases every image this run owns, the canvas included.</summary>
+    public void Wipe()
+    {
+        WipeOnDispose = true;
+        Dispose();
+    }
+
     public void Dispose()
     {
         foreach (Image image in _owned)
         {
+            if (WipeOnDispose)
+            {
+                image.Zero();
+            }
             image.Dispose();
         }
         _owned.Clear();
+        if (WipeOnDispose)
+        {
+            Canvas?.Zero();
+        }
         Canvas?.Dispose();
         Canvas = null;
     }
@@ -331,6 +361,29 @@ public sealed class Recognizer : IDisposable
     /// point of <c>--upto</c>.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Runs the pipeline over an image the caller already decoded (RGB, as <see cref="Io.DecodeRgb"/> gives),
+    /// into a <see cref="Results"/> the caller created. For a caller that must never let the image touch the
+    /// disk and must wipe what the run produced even when it fails: the caller owns
+    /// <paramref name="results"/> from before the first stage, so set <see cref="Results.WipeOnDispose"/>
+    /// on it first, and a failure part-way releases it zeroed (the run's own release on failure disposes
+    /// it). The source image stays the caller's: it is borrowed, never owned or disposed here.
+    /// </summary>
+    public void Run(Image source, Results results, RunOptions options)
+    {
+        results.Device = _device.Wire();
+        var timings = new Timings();
+        List<DetectedDocument> documents = FindDocuments(source, options.ImgSize, timings,
+            options.Sink);
+        results.Documents = documents;
+        results.DocumentIndex = documents.Count > 0 ? 0 : null;
+        if (options.UpTo == "documents")
+        {
+            return;
+        }
+        ReadDocument(source, results, timings, options);
+    }
+
     public Results Run(string imagePath, RunOptions options)
     {
         var results = new Results { Device = _device.Wire() };
@@ -606,7 +659,10 @@ public sealed class Recognizer : IDisposable
             }
             if (meta.DocType == "NONE")
             {
-                Console.Error.WriteLine("[!] The document on picture has unknown type");
+                if (!options.Quiet)
+                {
+                    Console.Error.WriteLine("[!] The document on picture has unknown type");
+                }
                 results.Quality = new Dictionary<string, object> { ["DocConf"] = meta.DocTypeConfidence };
                 // The canvas of an unrecognised frame is what the fallback's border detection warped
                 // (`img_with_fixed_perspective` reads the DocDetector result once it exists, and the
@@ -759,7 +815,10 @@ public sealed class Recognizer : IDisposable
                         // reference, 2026-08-02). A real registration page virtually always has detectable
                         // address lines (49/50 on its test set); zero lines on an accepted "address page" marks
                         // a false accept, and it is rejected the way the doctype stage rejects.
-                        Console.Error.WriteLine("[!] The document on picture has unknown type");
+                        if (!options.Quiet)
+                        {
+                            Console.Error.WriteLine("[!] The document on picture has unknown type");
+                        }
                         results.DocType = "NONE";
                         results.Quality["DocConf"] = 0.0;
                         results.Timings = timings.Report();

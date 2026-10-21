@@ -73,6 +73,27 @@ public sealed record Settings
     /// </summary>
     public string DefaultApiKey { get; init; } = "";
 
+    // --- What happens to a document --------------------------------------------
+
+    /// <summary>
+    /// <c>stored</c> (the default, unchanged behaviour) or <c>memory</c>: documents are never stored, the
+    /// only way in is <c>POST /recognize</c>, which recognises within the request and keeps a journal line
+    /// with the outcome and the time only. **Never read directly** — only through
+    /// <see cref="ProcessingMode.Resolve"/>, which turns an unknown value into <c>memory</c>. Configuration
+    /// only, never a runtime setting: a switch on a web page would let an admin turn storage back on for a
+    /// service that promised not to store. Port of <c>processing_mode</c> in <c>service/core/config.py</c>.
+    /// </summary>
+    public string ProcessingMode { get; init; } = "stored";
+
+    /// <summary>
+    /// How long <c>POST /recognize</c> waits for a free pipeline before answering 503 with Retry-After. The
+    /// pool is shared with the background worker.
+    /// </summary>
+    public int RecognizeWaitSec { get; init; } = 30;
+
+    /// <summary>Lines kept in the recognition journal (in memory, never written to disk).</summary>
+    public int RecognitionJournalMax { get; init; } = 5000;
+
     // --- Storage ------------------------------------------------------------
 
     /// <summary>
@@ -230,6 +251,10 @@ public sealed record Settings
             LoginMaxAttempts = Num("LOGIN_MAX_ATTEMPTS", s.LoginMaxAttempts),
             LoginLockoutSeconds = Num("LOGIN_LOCKOUT_SECONDS", s.LoginLockoutSeconds),
             DefaultApiKey = Str("DEFAULT_API_KEY", s.DefaultApiKey),
+
+            ProcessingMode = Str("PROCESSING_MODE", s.ProcessingMode),
+            RecognizeWaitSec = Num("RECOGNIZE_WAIT_SEC", s.RecognizeWaitSec),
+            RecognitionJournalMax = Num("RECOGNITION_JOURNAL_MAX", s.RecognitionJournalMax),
 
             DatabaseConnectionString = Str("RUSSIANDOCS_DATABASE_CONNECTIONSTRING",
                 Str("DATABASE_CONNECTIONSTRING", s.DatabaseConnectionString)),

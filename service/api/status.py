@@ -14,6 +14,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from service.core import processing as _processing
+from service.repositories import recognitions as _recognitions
 from service.api.deps import require_viewer
 from service.core.config import get_settings
 from service.core.database import DbSession, get_db
@@ -119,4 +121,11 @@ def get_status(request: Request, db: DbSession = Depends(get_db),
         "storage": getattr(request.app.state, "storage_mode", None).as_dict()
         if getattr(request.app.state, "storage_mode", None) else
         {"backend": db.backend, "ephemeral": db.is_ephemeral},
+        # stored | memory, and why it is not what was configured (if it is not).
+        # The recognition journal counts are outcomes only — see recognitions.py.
+        "processing": {
+            "mode": _processing.resolve_processing_mode()[0],
+            "reason": _processing.resolve_processing_mode()[1],
+            "recognitions": _recognitions.counts(),
+        },
     }

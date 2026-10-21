@@ -239,6 +239,13 @@ internal fun ApiServer.status(): ResponseEntity<*> {
             "backend" to JsonPrimitive(db.backend),
             "ephemeral" to JsonPrimitive(db.isEphemeral),
         )),
+        // stored | memory, and why it is not what was configured (if it is not). The journal counts are outcomes
+        // only — see Recognitions.
+        "processing" to JsonObject(linkedMapOf(
+            "mode" to JsonPrimitive(processing.mode),
+            "reason" to (processing.reason?.let { JsonPrimitive(it) } ?: JsonNull),
+            "recognitions" to JsonObject(recognitions.counts().mapValues { (_, v) -> JsonPrimitive(v) }),
+        )),
     )))
 }
 

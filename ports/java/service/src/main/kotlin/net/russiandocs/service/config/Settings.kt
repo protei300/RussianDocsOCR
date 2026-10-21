@@ -80,6 +80,19 @@ public data class Settings(
      */
     val seedSamples: Int = 0,
 
+    // --- What happens to a document --------------------------------------
+    /**
+     * `stored` (default, unchanged behaviour) or `memory`: documents are never stored, the only way in is
+     * `POST /recognize`. **Read ONLY through `ProcessingMode.resolve`**, which turns an unknown value into
+     * `memory` with a reason — a mistyped privacy setting fails toward privacy. Not a runtime setting. See
+     * ports/MEMORY.md §1.
+     */
+    val processingMode: String = "",
+    /** How long `POST /recognize` waits for a free pipeline before answering 503 with Retry-After. */
+    val recognizeWaitSec: Int = 30,
+    /** Lines kept in the recognition journal (in memory, never written to disk). */
+    val recognitionJournalMax: Int = 5000,
+
     // --- Recognition --------------------------------------------------------
     /** auto | cpu | gpu */
     val computeDevice: String = "auto",
@@ -187,6 +200,9 @@ public data class Settings(
                 dataWipeOnStart = bool("DATA_WIPE_ON_START", d.dataWipeOnStart),
                 maxUploadMb = num("MAX_UPLOAD_MB", d.maxUploadMb),
                 seedSamples = num("SEED_SAMPLES", d.seedSamples),
+                processingMode = str("PROCESSING_MODE", d.processingMode),
+                recognizeWaitSec = num("RECOGNIZE_WAIT_SEC", d.recognizeWaitSec),
+                recognitionJournalMax = num("RECOGNITION_JOURNAL_MAX", d.recognitionJournalMax),
                 computeDevice = str("COMPUTE_DEVICE", d.computeDevice),
                 modelFormat = str("MODEL_FORMAT", d.modelFormat),
                 ocrMode = str("OCR_MODE", d.ocrMode),

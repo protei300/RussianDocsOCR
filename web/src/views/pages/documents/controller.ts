@@ -1,7 +1,10 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import $api from '@/api'
-import { documents, form, loading, stats, total, uploadOpen } from './model'
+import {
+    documents, form, loading, processingMode, recognitions, recognitionsLoading, recognitionsTotal,
+    recognizeOpen, stats, total, uploadOpen,
+} from './model'
 import type { DocStatus, DocumentRow } from '@/types'
 
 const ACTIVE: DocStatus[] = ['queued', 'processing']
@@ -26,6 +29,16 @@ export function getData(): void {
         })
         .catch(() => { /* cancels are silent; real errors already toasted */ })
         .finally(() => { if (id === requestId) loading.value = false })
+}
+
+/** The in-memory journal. Silent on failure: a backend without the route (an older
+ *  version, or a port that has not caught up) simply shows no journal. */
+export function getRecognitions(): void {
+    recognitionsLoading.value = true
+    $api.recognize.journal({ limit: 50 })
+        .then((res) => { recognitions.value = res.items; recognitionsTotal.value = res.total })
+        .catch(() => { recognitions.value = []; recognitionsTotal.value = 0 })
+        .finally(() => { recognitionsLoading.value = false })
 }
 
 export function getDataSearch(): void {
@@ -86,8 +99,20 @@ export function useHooks() {
         startPoll()
     }
 
-    onMounted(getData)
+    function onRecognised(): void { getRecognitions() }
+
+    onMounted(() => {
+        // The mode decides what this page is: in memory mode there are no documents,
+        // and asking for them would only produce a 404 toast.
+        $api.auth.config()
+            .then((cfg) => { processingMode.value = cfg.processing_mode ?? 'stored' })
+            .catch(() => { processingMode.value = 'stored' })
+            .finally(() => {
+                if (processingMode.value === 'stored') getData()
+                getRecognitions()
+            })
+    })
     onUnmounted(stopPoll)   // model.ts is module-scope; the timer must not leak
 
-    return { setSort, sortIcon, goPage, reprocess, remove, onUploaded }
+    return { setSort, sortIcon, goPage, reprocess, remove, onUploaded, onRecognised, recognizeOpen }
 }

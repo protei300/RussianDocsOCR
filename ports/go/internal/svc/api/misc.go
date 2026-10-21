@@ -207,6 +207,13 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, _ *Identit
 			"backend":   s.db.Backend(),
 			"ephemeral": s.db.IsEphemeral(),
 		},
+		// stored | memory, and why it is not what was configured (if it is not). The journal
+		// counts are outcomes only — see package recognitions.
+		"processing": map[string]any{
+			"mode":         s.processingMode,
+			"reason":       s.processingReason,
+			"recognitions": s.journal.Counts(),
+		},
 	})
 }
 

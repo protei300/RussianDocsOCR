@@ -177,6 +177,30 @@ contract this port implements is [`ports/AUTH.md`](../AUTH.md); check it with
 python -m conformance.auth_contract --port dotnet     # from the repository root, after a Release build
 ```
 
+**Documents can be kept, or never stored at all**, chosen by `PROCESSING_MODE` (configuration only, never a
+setting on the web page):
+
+| `PROCESSING_MODE` | |
+|---|---|
+| unset / `stored` | as before: uploads are stored and recognised in the background; `POST /api/v1/recognize` is available too |
+| `memory` | nothing about a document is stored: every `/documents` route is a 404 (answered before the body is read), the background worker and seeding are off, and `POST /api/v1/recognize` recognises inside the request and answers |
+| anything else | `memory` - a mistyped privacy setting fails toward privacy, and `/status` says why |
+
+`POST /api/v1/recognize` (API key, or operator and above) takes the image as the body or as the multipart `file`
+part (`?images=1` adds the canvas as base64 PNG) and answers the same JSON as a stored document's detail, with
+`stored: false` and `Cache-Control: no-store`. It reads the body itself (never `IFormFile`, which spools to a temp
+file past 64 KB), zeroes the body, the image bytes, the decoded pixels, the canvas PNG and every image the run
+produced, and leaves one log line, `[API] recognize: outcome=… status=… ms=…`, and one line in an in-memory
+journal (`GET /api/v1/recognitions`: id, time, outcome, status, milliseconds - nothing else).
+**What cannot be wiped:** .NET strings are immutable, so the recognised text and the JSON answer are released and
+their memory reused, not overwritten. Also `RECOGNIZE_WAIT_SEC` (30, the wait for a free pipeline before a 503)
+and `RECOGNITION_JOURNAL_MAX` (5000). The contract is [`ports/MEMORY.md`](../MEMORY.md), the deviations are
+`N-15` in [`DEVIATIONS.md`](DEVIATIONS.md); check it with
+
+```bash
+python -m conformance.memory_contract --port dotnet   # from the repository root, after a Release build
+```
+
 Docker (from the repository root):
 
 ```bash

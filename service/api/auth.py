@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 from service.api.deps import (SESSION_USER, require_session_allow_password_change)
 from service.core import auth as auth_core
 from service.core import passwords
+from service.core import processing
 from service.core.auth import create_access_token, verify_pin
 from service.core.config import DEFAULT_ADMIN_PASSWORD, get_settings
 from service.core.database import DbSession, get_db
@@ -113,6 +114,10 @@ def auth_config(db: DbSession = Depends(get_db)) -> dict:
         # mode string; the two are the same today and need not stay that way.
         "users_enabled": mode == auth_core.USERS_MODE,
         "downgrade_reason": downgrade_reason,
+        # stored | memory. Public like the rest of this endpoint: the login page and
+        # the document list render differently in memory mode, and the /documents
+        # routes already answer 404 to anyone in it — this reveals nothing new.
+        "processing_mode": processing.processing_mode(),
     }
     if mode == auth_core.USERS_MODE:
         payload["password_rules"] = passwords.rules_for_ui()

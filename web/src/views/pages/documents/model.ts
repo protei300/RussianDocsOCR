@@ -1,5 +1,5 @@
 import { reactive, ref } from 'vue'
-import type { DocumentFilter, DocumentRow } from '@/types'
+import type { DocumentFilter, DocumentRow, ProcessingMode, RecognitionRow } from '@/types'
 
 // Module-scope on purpose: filters survive navigating to a document and back.
 export const loading = ref(false)
@@ -7,6 +7,15 @@ export const documents = ref<DocumentRow[]>([])
 export const total = ref(0)
 export const stats = ref<Record<string, number | null>>({})
 export const uploadOpen = ref(false)
+
+// In-memory recognition. `processingMode` stays null until /auth/config answers, so
+// the page shows neither layout instead of flashing the stored one first. An older
+// backend that does not report the mode is a stored one.
+export const processingMode = ref<ProcessingMode | null>(null)
+export const recognizeOpen = ref(false)
+export const recognitions = ref<RecognitionRow[]>([])
+export const recognitionsTotal = ref(0)
+export const recognitionsLoading = ref(false)
 
 export const form = reactive<DocumentFilter>({
     page: 1,

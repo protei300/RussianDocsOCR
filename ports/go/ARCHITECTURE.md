@@ -45,8 +45,9 @@ ports/go/
 ```
 
 **The library/service boundary is enforced, not merely intended.** `internal/docproc/**` must
-never import `internal/svc/**`, and `internal/svc/**` reaches the library only through
-`svc/runtime`. That mirrors rule 10 of the reference's integration layer, and it is what makes
+never import `internal/svc/**`, and `internal/svc/**` reaches the models and the pipeline only
+through `svc/runtime`; the model-free `docproc/imaging` package is the one exception (`svc/repo`
+writes canvas files with it, `svc/api` decodes the image of `POST /recognize`). That mirrors rule 10 of the reference's integration layer, and it is what makes
 the rest of the service testable without 215 MB of models — nine of the eleven service test
 packages need no model artifacts at all.
 

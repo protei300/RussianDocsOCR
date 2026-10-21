@@ -58,6 +58,9 @@ class RouteTableTests {
             Triple("POST", "$P/documents/{id}/reprocess", "require_api_or_operator"),
             Triple("DELETE", "$P/documents/{id}", "require_api_or_operator"),
             Triple("POST", "$P/documents/purge", "require_admin"),
+            // In-memory recognition (ports/MEMORY.md §3): the level of an upload; the journal, of the list.
+            Triple("POST", "$P/recognize", "require_api_or_operator"),
+            Triple("GET", "$P/recognitions", "require_api_or_viewer"),
             Triple("GET", "$P/status", "require_viewer"),
             Triple("GET", "$P/api-keys", "require_admin"),
             Triple("POST", "$P/api-keys", "require_admin"),

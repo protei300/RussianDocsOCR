@@ -127,6 +127,9 @@ internal fun ApiServer.authConfigEndpoint(): ResponseEntity<*> {
         // the same today and need not stay that way.
         "users_enabled" to JsonPrimitive(mode.usersEnabled),
         "downgrade_reason" to nullable(mode.downgradeReason),
+        // stored | memory. Public like the rest: the login page and the document list render differently in
+        // memory mode, and the /documents routes already answer 404 to anyone in it — this reveals nothing new.
+        "processing_mode" to JsonPrimitive(processing.mode),
     )
     if (mode.usersEnabled) {
         payload["password_rules"] = rulesJson()

@@ -90,6 +90,64 @@ public object Io {
     public fun loadRgb(path: String): Image = decodeRgb(File(path).readBytes())
 
     /**
+     * [decodeRgb] for a document that must leave no trace: `null` when the bytes do not decode, and every
+     * native copy it makes — the encoded bytes handed to the decoder, the BGR pixels — is overwritten with zeros
+     * before it is released. [data] stays the caller's to zero. For in-memory recognition (ports/MEMORY.md §5).
+     *
+     * `Mat.put` copies straight into native memory; `MatOfByte(*data)` would first spread the image into a
+     * second Java array that nothing zeroes.
+     */
+    public fun decodeRgbWiping(data: ByteArray): Image? {
+        if (data.isEmpty()) {
+            return null
+        }
+        val encoded = Mat(1, data.size, CvType.CV_8UC1)
+        var bgr: Mat? = null
+        try {
+            encoded.put(0, 0, data)
+            bgr = try {
+                Imgcodecs.imdecode(encoded, Imgcodecs.IMREAD_COLOR)
+            } catch (e: Exception) {
+                null
+            }
+            if (bgr == null || bgr.empty()) {
+                return null
+            }
+            val rgb = Mat()
+            Imgproc.cvtColor(bgr, rgb, Imgproc.COLOR_BGR2RGB)
+            return Image.wrap(rgb)
+        } finally {
+            zeroAndRelease(encoded)
+            bgr?.let { zeroAndRelease(it) }
+        }
+    }
+
+    /**
+     * The RGB image as PNG bytes, or `null` if the encoder refuses. The BGR copy and the encoder's native buffer
+     * are zeroed before release; the returned array is the caller's to zero.
+     */
+    public fun encodePngWiping(rgb: Image): ByteArray? {
+        val bgr = toBgr(rgb)
+        val encoded = MatOfByte()
+        try {
+            if (!Imgcodecs.imencode(".png", bgr.mat, encoded)) {
+                return null
+            }
+            return encoded.toArray()
+        } finally {
+            zeroAndRelease(encoded)
+            bgr.zeroAndClose()
+        }
+    }
+
+    private fun zeroAndRelease(mat: Mat) {
+        if (!mat.empty()) {
+            mat.setTo(Scalar.all(0.0))
+        }
+        mat.release()
+    }
+
+    /**
      * Resizes to an exact size.
      *
      * Argument order follows `cv2.resize`'s `dsize=(w, h)`, NOT numpy's `(h, w)`. The shipped model

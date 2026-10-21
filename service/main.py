@@ -19,11 +19,12 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from service import __version__, worker
-from service.api import api_keys, auth, documents, logs, settings_api, status, users
+from service.api import api_keys, auth, documents, logs, recognize, settings_api, status, users
 from service.core import auth as auth_core
+from service.core import processing
 from service.core.auth import resolve_default_key
 from service.core.config import DEFAULT_ADMIN_PASSWORD, get_settings
 from service.core.database import set_store
@@ -148,6 +149,21 @@ def _announce_auth_mode(store) -> None:
                     "restart because this store is temporary", created.username, shown)
 
 
+def _announce_processing_mode() -> bool:
+    """Log which processing mode is in force; return True when documents are stored."""
+    mode, reason = processing.resolve_processing_mode()
+    if reason:
+        log.warning("[BOOT] %s", reason)
+    if mode == processing.MEMORY:
+        log.warning("[BOOT] PROCESSING_MODE=memory — documents are NOT stored: the document "
+                    "routes and the background worker are off, POST /api/v1/recognize "
+                    "recognises in memory and keeps only outcome + time")
+        return False
+    log.info("[BOOT] PROCESSING_MODE=stored — uploads are stored and recognised in the "
+             "background; POST /api/v1/recognize is also available")
+    return True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
@@ -178,17 +194,20 @@ async def lifespan(app: FastAPI):
     # deployment would accept AUTH_MODE=users and fail at the first login.
     auth_core.configure_storage_backend(mode.backend)
     _announce_auth_mode(store)
+    storing = _announce_processing_mode()
 
     # Only when the store is empty, so a database keeps whatever the operator
-    # left there and a deleted sample stays deleted.
-    if settings.seed_samples >= 0:
+    # left there and a deleted sample stays deleted. Never in memory mode: the
+    # samples are anonymised, but a list of stored documents is exactly what that
+    # mode promises not to have.
+    if storing and settings.seed_samples >= 0:
         seeded = seed_if_empty(store, limit=settings.seed_samples or None)
         if seeded:
             log.info("[BOOT] seeded %d sample document(s) from pre-computed "
                      "results — already visible in the log, no GPU time spent",
                      seeded)
 
-    await worker.start_worker()
+    await worker.start_worker(drain=storing)
     try:
         yield
     finally:
@@ -208,9 +227,33 @@ app.add_middleware(
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def _no_document_routes_in_memory_mode(request, call_next):
+    """In PROCESSING_MODE=memory every /documents route answers 404 — **before the
+    request body is read**.
+
+    This cannot be a check inside the handlers or a dependency: for a route with an
+    ``UploadFile`` parameter FastAPI parses the multipart body before any dependency
+    runs, authentication included, and Starlette spools a part larger than 1 MB to a
+    temporary file on disk. A passport photo POSTed to /documents in memory mode
+    would therefore touch the disk before the 404. Answering here, without
+    ``call_next``, never reads the body. The cost — an anonymous caller learns that
+    storage is off — is not a secret worth a file on disk.
+    """
+    path = request.url.path
+    if path.startswith(f"{PREFIX}/documents") and not processing.storage_enabled():
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Document storage is disabled (PROCESSING_MODE=memory): "
+                               "documents are not stored and cannot be listed or opened. "
+                               "Recognise with POST /api/v1/recognize."})
+    return await call_next(request)
+
+
 app.include_router(auth.router, prefix=PREFIX)
 app.include_router(users.router, prefix=PREFIX)
 app.include_router(documents.router, prefix=PREFIX)
+app.include_router(recognize.router, prefix=PREFIX)
 app.include_router(api_keys.router, prefix=PREFIX)
 app.include_router(settings_api.router, prefix=PREFIX)
 app.include_router(status.router, prefix=PREFIX)

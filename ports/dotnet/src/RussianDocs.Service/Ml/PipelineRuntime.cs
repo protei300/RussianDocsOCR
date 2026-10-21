@@ -78,9 +78,20 @@ namespace RussianDocs.Service.Ml;
 /// <b>Only this namespace touches the library from the service side.</b> That keeps the rest of the
 /// service testable without 215 MB of models and bounds the work of porting the service again.
 /// </item>
+/// <item>
+/// <b>A run keeps the document until somebody releases it.</b> In Python the pipeline holds the last
+/// document in <c>pipeline.results</c> until the next call; here a run holds nothing between calls (rule 1),
+/// but its <see cref="PipelineResults"/> owns the original's crop, the upright frame, the canvas — about
+/// 16 MB of a person's document — until disposed, and disposing releases native memory WITHOUT
+/// overwriting it. <see cref="RecogniseImage"/> therefore creates the Results itself, marks it
+/// <see cref="PipelineResults.WipeOnDispose"/> before the first stage (so the run's own release on failure
+/// zeroes too), and zeroes everything it owns before the lease is released — on success and on failure
+/// alike. Only the run's images: weights, templates and centroids live in the <see cref="Recognizer"/>
+/// and are never touched. Port of rule 11 and <c>recognise_image</c> in <c>service/ml/runtime.py</c>.
+/// </item>
 /// </list>
 /// </summary>
-public sealed class PipelineRuntime(ILogger log) : IDisposable
+public sealed class PipelineRuntime(ILogger log) : IDisposable, IImageRecogniser
 {
     /// <summary>
     /// How long a caller waits for a free pipeline before giving up.
@@ -495,6 +506,63 @@ public sealed class PipelineRuntime(ILogger log) : IDisposable
         });
     }
 
+    /// <summary>
+    /// Recognises an already-decoded RGB image without touching the disk (<c>POST /recognize</c>).
+    ///
+    /// <para>
+    /// The image stays the CALLER's — borrowed, never disposed here; the caller zeroes it. What the run
+    /// produces is zeroed inside the lease (rule 11), and the PNG, when asked for, is the caller's to zero
+    /// after the response is built. Library output is switched off (<see cref="RunOptions.Quiet"/>): the
+    /// reference discards the library's stdout for this path, and nothing about a document may reach the log.
+    /// </para>
+    /// </summary>
+    public MemoryRecognition RecogniseImage(Image rgb, RecogniseOptions opts, bool withCanvas)
+    {
+        TimeSpan timeout = opts.LeaseTimeout > TimeSpan.Zero ? opts.LeaseTimeout : LeaseTimeout;
+        var run = new RunOptions { Docconf = opts.Docconf, ImgSize = opts.ImgSize, Quiet = true };
+        return Use(timeout, instance => Scrubbed(
+            results => instance.Pipeline.Run(rgb, results, run),
+            results => Recognizer.BuildViewModel(results, includeDebug: false),
+            withCanvas));
+    }
+
+    /// <summary>
+    /// Runs <paramref name="run"/> into a Results that zeroes on release, transforms it, encodes the canvas
+    /// when asked, and — in <c>finally</c>, before returning to the caller and so before the lease is
+    /// released — zeroes and releases everything the run owned. Separate from <see cref="RecogniseImage"/>
+    /// so the scrub can be tested without 215 MB of models (ports/MEMORY.md §7.3).
+    /// </summary>
+    internal static MemoryRecognition Scrubbed(Action<PipelineResults> run,
+        Func<PipelineResults, Payload> transform, bool withCanvas)
+    {
+        var results = new PipelineResults { WipeOnDispose = true };
+        try
+        {
+            run(results);
+            Payload payload = transform(results);
+            byte[]? png = withCanvas && results.Canvas is { IsEmpty: false } canvas ? EncodePng(canvas) : null;
+            return new MemoryRecognition(payload, png);
+        }
+        finally
+        {
+            results.Wipe();
+        }
+    }
+
+    /// <summary>The canvas as PNG bytes, in memory. RGB in, BGR to the encoder; the BGR copy is zeroed.</summary>
+    private static byte[]? EncodePng(Image rgb)
+    {
+        using Image bgr = DocumentProcessing.Imaging.Io.ToBgr(rgb);
+        try
+        {
+            return OpenCvSharp.Cv2.ImEncode(".png", bgr.Mat, out byte[] png) ? png : null;
+        }
+        finally
+        {
+            bgr.Zero();
+        }
+    }
+
     /// <summary>Pays the cold-start cost once, up front.</summary>
     private static int Warm(Instance instance, string sample)
     {
@@ -544,6 +612,22 @@ public sealed class PipelineRuntime(ILogger log) : IDisposable
         }
         return null;
     }
+}
+
+/// <summary>
+/// What <see cref="IImageRecogniser.RecogniseImage"/> produces: the view model and, only when asked, the
+/// canvas as PNG bytes the caller zeroes after building its response.
+/// </summary>
+public sealed record MemoryRecognition(Payload ViewModel, byte[]? Png);
+
+/// <summary>
+/// In-memory recognition of a decoded image. An interface only so the HTTP layer can be tested with a fake
+/// that keeps references to the buffers it was given (ports/MEMORY.md §7.2); <see cref="PipelineRuntime"/>
+/// is the one implementation.
+/// </summary>
+public interface IImageRecogniser
+{
+    MemoryRecognition RecogniseImage(Image rgb, PipelineRuntime.RecogniseOptions opts, bool withCanvas);
 }
 
 /// <summary>

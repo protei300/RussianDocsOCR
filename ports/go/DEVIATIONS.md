@@ -272,6 +272,37 @@ Every rule of `ports/AUTH.md` is implemented as written, and the black-box
 
 ---
 
+## D-15 — in-memory recognition (ports/MEMORY.md): what differs from the reference
+
+Every rule of `ports/MEMORY.md` is implemented, and the black-box
+`conformance/memory_contract.py` passes 11/11. What differs, all of it deliberately:
+
+1. **There is no per-document pipeline state to scrub.** The reference zeroes everything under
+   `pipeline.results` and `pipeline._mrz_zone` before releasing the lease (runtime rule 11),
+   because its pipeline keeps the last document until the next one. The Go `Recognizer` keeps
+   none (runtime rule 1): everything a run produced is in the `Results` it returns. The
+   equivalent is `RunImage` with `RunOptions.Scrub` — the run zeroes the images it frees itself
+   (the frame at the processing size, the document crop, the field, word and address-line
+   patches) and a failed run wipes its partial `Results` — then `Results.Wipe` inside the lease,
+   on success and on failure. Images a module allocates and frees inside its own `predict`
+   (preprocessing tensors, segmentation masks, page-registration intermediates) are released
+   unzeroed, as in the reference, where they are garbage nobody holds.
+2. **Decoding goes through the shim** (`rdocs_imdecode_rgb_scrubbed`, beside G-01's LSD), not
+   gocv's `IMDecode`, which copies the encoded bytes into a native vector it frees unzeroed.
+   Same `cv::imdecode(IMREAD_COLOR)` and BGR→RGB, so the pixels are those of `DecodeRGB`.
+3. **Buffers Go does not let us reach** are released, not zeroed: `bufio`'s 4 KB window inside
+   `multipart.Reader`, `encoding/json`'s pooled encode buffer, strings. Listed in README.
+4. **A timed-out recognition is not cancelled** (a goroutine has no kill): the handler answers
+   504, and the goroutine zeroes its image, pixels and run when it finishes; a reaper zeroes the
+   PNG it returns. The reference's executor thread behaves the same, minus the reaper.
+5. **A body that breaks off mid-read** is a 400 `Could not read the request body`, journalled as
+   `rejected`; the reference's server drops the connection.
+6. **The memory-mode 404 runs after the CORS block** of the middleware, so a preflight `OPTIONS`
+   is still answered 204; in the reference the 404 middleware is outermost. The SPA never calls
+   `/documents` in memory mode, so nothing sees the difference.
+
+---
+
 ## G-01 — the line segment detector is reached through a C++ file of this repository
 
 *Go only. `D-nn` are shared across ports; a `G-` entry belongs to this binding alone.*

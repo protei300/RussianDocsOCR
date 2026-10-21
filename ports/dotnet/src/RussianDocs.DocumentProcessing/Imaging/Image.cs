@@ -96,6 +96,19 @@ public sealed class Image : IDisposable
         return NdArray.FromUInt8(data, h, w, c);
     }
 
+    /// <summary>
+    /// Overwrites the pixels with zeros, in place. Every Mat that shares this data (a view, a header copy)
+    /// sees zeros too - which is the point when the pixels are a person's document. A no-op on an empty or
+    /// released image.
+    /// </summary>
+    public void Zero()
+    {
+        if (!_disposed && _mat is not null && !_mat.Empty())
+        {
+            _mat.SetTo(Scalar.All(0));
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)

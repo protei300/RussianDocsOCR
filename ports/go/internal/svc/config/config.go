@@ -62,6 +62,20 @@ type Settings struct {
 	// that survives restarts.
 	DefaultApiKey string
 
+	// --- What happens to a document ------------------------------------------
+	// ProcessingMode: "stored" (the default, unchanged behaviour) — an upload is written to the
+	// store, queued and recognised in the background; "memory" — documents are never stored,
+	// the only way in is POST /recognize, which recognises within the request and keeps a
+	// journal line with the outcome and the time only. The raw value is read ONLY by
+	// processing.Resolve, which turns anything unknown into "memory" (ports/MEMORY.md §1).
+	// Configuration only, never a runtime setting.
+	ProcessingMode string
+	// RecognizeWaitSec is how long POST /recognize waits for a free pipeline before answering
+	// 503 with Retry-After. The pool is shared with the background worker.
+	RecognizeWaitSec int
+	// RecognitionJournalMax is how many lines the recognition journal keeps (in memory only).
+	RecognitionJournalMax int
+
 	// --- Storage -----------------------------------------------------------
 	// DatabaseConnectionString selects the metadata store. Empty falls back to a
 	// temporary on-disk store wiped at every start — fine for a demo, useless for
@@ -134,6 +148,10 @@ func Defaults() Settings {
 		AdminPassword:       DefaultAdminPassword,
 		LoginMaxAttempts:    10,
 		LoginLockoutSeconds: 300,
+
+		ProcessingMode:        "stored",
+		RecognizeWaitSec:      30,
+		RecognitionJournalMax: 5000,
 
 		DatabaseConnectionString: "",
 		DataDir:                  "data",
@@ -217,6 +235,10 @@ func Load() (Settings, error) {
 	str("ADMIN_PASSWORD", &s.AdminPassword)
 	num("LOGIN_MAX_ATTEMPTS", &s.LoginMaxAttempts)
 	num("LOGIN_LOCKOUT_SECONDS", &s.LoginLockoutSeconds)
+
+	str("PROCESSING_MODE", &s.ProcessingMode)
+	num("RECOGNIZE_WAIT_SEC", &s.RecognizeWaitSec)
+	num("RECOGNITION_JOURNAL_MAX", &s.RecognitionJournalMax)
 
 	str("DATABASE_CONNECTIONSTRING", &s.DatabaseConnectionString)
 	str("RUSSIANDOCS_DATABASE_CONNECTIONSTRING", &s.DatabaseConnectionString)

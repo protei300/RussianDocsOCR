@@ -56,6 +56,10 @@ public sealed partial class ApiServer
             // string; the two are the same today and need not stay that way.
             ["users_enabled"] = auth.UsersEnabled,
             ["downgrade_reason"] = auth.DowngradeReason,
+            // stored | memory. Public like the rest of this endpoint: the login page and the document
+            // list render differently in memory mode, and /documents already answers 404 to anyone in
+            // it — this reveals nothing new.
+            ["processing_mode"] = Config.ProcessingMode.Resolve(cfg).Mode,
         };
         if (auth.UsersEnabled)
         {

@@ -11,6 +11,7 @@ import net.russiandocs.docproc.inference.DeviceResolution
 import net.russiandocs.docproc.pipeline.Device
 import net.russiandocs.docproc.pipeline.OcrTier
 import net.russiandocs.docproc.pipeline.Recognizer
+import net.russiandocs.docproc.pipeline.Results
 import net.russiandocs.docproc.pipeline.RunOptions
 import net.russiandocs.docproc.viewmodel.Payload
 import net.russiandocs.service.errors.ServiceException
@@ -409,6 +410,26 @@ public class PipelineRuntime(private val log: (String) -> Unit) : AutoCloseable 
                 RecogniseResult(viewModel = payload, canvas = canvas)
             }
         }
+    }
+
+    /**
+     * Recognises an already-decoded RGB image without touching the disk — `recognise_image` in the reference.
+     *
+     * Runs [InMemory.recogniseOn] inside the lease, so the result's images are zeroed and released **before
+     * the instance goes back to the pool** (rule 11 in the reference's list, see [InMemory]). [rgb] stays the
+     * caller's, who zeroes it.
+     */
+    public fun recogniseImage(
+        rgb: Image,
+        docconf: Double,
+        imgSize: Int,
+        withCanvas: Boolean,
+        leaseTimeoutMs: Long,
+    ): InMemoryResult = use(if (leaseTimeoutMs > 0) leaseTimeoutMs else LEASE_TIMEOUT_MS) { instance ->
+        InMemory.recogniseOn(object : DocumentPipeline {
+            override fun read(frame: Image, options: RunOptions): Results = instance.pipeline.run(frame, options)
+            override fun viewModel(results: Results): Payload = instance.pipeline.buildViewModel(results, false)
+        }, rgb, docconf, imgSize, withCanvas)
     }
 
     /** Pays the cold-start cost once, up front. */

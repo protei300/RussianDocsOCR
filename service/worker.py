@@ -287,18 +287,24 @@ def notify_new_work() -> None:
     _WAKE.set()
 
 
-async def start_worker() -> None:
+async def start_worker(*, drain: bool = True) -> None:
+    """Load the models in the background and, unless ``drain`` is False, start the
+    queue. ``drain=False`` is PROCESSING_MODE=memory: there is no queue to drain and
+    no stored document to requeue — the runtime is still needed for /recognize."""
     global _EXECUTOR
     settings = get_settings()
     _EXECUTOR = ThreadPoolExecutor(max_workers=max(1, settings.pipeline_pool_size),
                                    thread_name_prefix="recognise")
 
+    _TASKS.append(asyncio.create_task(_init_runtime_bg(), name="runtime_init"))
+    if not drain:
+        log.info("[WORKER] background queue disabled (PROCESSING_MODE=memory)")
+        return
+
     with db_session() as db:
         recovered = repo.reset_stale_processing(db)
     if recovered:
         log.info("[WORKER] requeued %d document(s) left mid-processing", recovered)
-
-    _TASKS.append(asyncio.create_task(_init_runtime_bg(), name="runtime_init"))
     _TASKS.append(asyncio.create_task(_drain_loop(), name="drain"))
 
 

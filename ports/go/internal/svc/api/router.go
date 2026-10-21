@@ -9,12 +9,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/imaging"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/auth"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/config"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/errs"
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/processing"
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/recognitions"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/runtime"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/store"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/worker"
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/viewmodel"
 )
 
 // Prefix is the API root. Versioned, because a published REST contract that cannot change
@@ -43,17 +47,39 @@ type Server struct {
 	// throttle is per-process state, like the store index: the service is pinned to one
 	// process, so an in-memory counter is the whole mechanism.
 	throttle *auth.Throttle
+
+	// processingMode is the EFFECTIVE mode (stored | memory), resolved once from
+	// PROCESSING_MODE by processing.Resolve; processingReason says why it differs from what was
+	// configured, or is nil. No handler reads cfg.ProcessingMode.
+	processingMode   string
+	processingReason *string
+	// journal is the recognition journal: in memory only, outcome + status + time per line.
+	journal *recognitions.Journal
+	// recogniseBytes and recogniseImage are the two steps of POST /recognize behind the body
+	// parse — decode-and-wipe, then the pipeline. Fields so a unit test can watch the buffers
+	// each step was given (and replace the pipeline); production uses the defaults NewServer sets.
+	recogniseBytes func(image []byte, opts runtime.ImageOptions) (viewmodel.Payload, []byte, error)
+	recogniseImage func(rgb imaging.Image, opts runtime.ImageOptions) (viewmodel.Payload, []byte, error)
 }
 
 func NewServer(db store.DocumentStore, rt *runtime.Runtime, wk *worker.Worker,
 	cfg config.Settings, webRoot string) *Server {
 
 	mode, reason := auth.ResolveMode(cfg.AuthMode, db.Backend())
-	return &Server{db: db, rt: rt, worker: wk, cfg: cfg,
+	pmode, preason := processing.Resolve(cfg.ProcessingMode)
+	s := &Server{db: db, rt: rt, worker: wk, cfg: cfg,
 		startedAt: time.Now(), webRoot: webRoot,
 		authMode: mode, downgradeReason: reason,
-		throttle: auth.NewThrottle(cfg.LoginMaxAttempts, cfg.LoginLockoutSeconds)}
+		throttle:       auth.NewThrottle(cfg.LoginMaxAttempts, cfg.LoginLockoutSeconds),
+		processingMode: pmode, processingReason: preason,
+		journal: recognitions.New(cfg.RecognitionJournalMax)}
+	s.recogniseBytes = s.decodeAndRecognise
+	s.recogniseImage = rt.RecogniseImage
+	return s
 }
+
+// storageEnabled is false in PROCESSING_MODE=memory.
+func (s *Server) storageEnabled() bool { return s.processingMode == processing.Stored }
 
 // route is one entry of the API surface: method, path, the guard it declares, and the handler.
 type route struct {
@@ -131,6 +157,12 @@ func (s *Server) routes() []route {
 		// Purge is the one document route that is session-only and admin-only: it empties the
 		// store for everyone, which is service management rather than document work.
 		{"POST", Prefix + "/documents/purge", requireAdmin, h(requireAdmin, s.handlePurge)},
+
+		// --- in-memory recognition: available in both processing modes ----------
+		// The same level as an upload — it runs the pipeline on the caller's image. The
+		// journal is outcome + time only, so a viewer may read it like the document list.
+		{"POST", Prefix + "/recognize", requireApiOrOperator, h(requireApiOrOperator, s.handleRecognize)},
+		{"GET", Prefix + "/recognitions", requireApiOrViewer, h(requireApiOrViewer, s.handleRecognitions)},
 
 		// --- operator surface: session only -----------------------------------
 		{"GET", Prefix + "/status", requireViewer, h(requireViewer, s.handleStatus)},
@@ -239,9 +271,23 @@ func (s *Server) withMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
+		// **PROCESSING_MODE=memory: every /documents route is 404 HERE, before the body is
+		// read and before authentication.** Not inside the handlers: POST /documents parses
+		// its upload with ParseMultipartForm, which spools a large part to a temporary file
+		// on disk — a passport photo would touch the disk before a handler-level 404. That an
+		// anonymous caller learns storage is off is not a secret worth a file on disk.
+		if !s.storageEnabled() && strings.HasPrefix(r.URL.Path, Prefix+"/documents") {
+			writeJSON(w, http.StatusNotFound, errorBody{Detail: documentsDisabled})
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
+
+// documentsDisabled is the 404 text of every document route in memory mode (ports/MEMORY.md §2).
+const documentsDisabled = "Document storage is disabled (PROCESSING_MODE=memory): documents " +
+	"are not stored and cannot be listed or opened. Recognise with POST /api/v1/recognize."
 
 // handleSPA serves the built frontend, falling back to index.html for client-side routes.
 //

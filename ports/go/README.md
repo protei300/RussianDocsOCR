@@ -216,6 +216,31 @@ frontend needs nothing: it asks `/auth/config` and renders the right screens. Pa
 Argon2id PHC strings via `golang.org/x/crypto/argon2` (BSD-3), so a `users.json` written by any
 of the four services verifies in the others.
 
+## The service: in-memory recognition
+
+`rdocs-service` implements [`../MEMORY.md`](../MEMORY.md) — `PROCESSING_MODE=memory`, where a
+document is recognised inside the request and nothing about it is stored —
+and `python -m conformance.memory_contract --port go` is its executable form (11/11).
+
+| Variable | Default | |
+|---|---|---|
+| `PROCESSING_MODE` | `stored` | `stored` — the service as before, plus `POST /api/v1/recognize`. `memory` — `/api/v1/documents/**` answer 404 before the body is read, no worker queue, no seeding; `POST /api/v1/recognize` is the only way in. Any other value means `memory`, with the reason logged and shown on `/status` |
+| `RECOGNIZE_WAIT_SEC` | `30` | how long `/recognize` waits for a free pipeline before 503 + `Retry-After` |
+| `RECOGNITION_JOURNAL_MAX` | `5000` | lines of the in-memory journal (`GET /api/v1/recognitions`: outcome, status, ms — nothing else) |
+
+What is zeroed, and what cannot be. The body is read from `r.Body` into one buffer of the
+declared size (never `ParseMultipartForm`/`FormFile`, which spool to temporary files; a
+multipart body is split with `multipart.NewReader` over those bytes), and that buffer, the image
+part, the decoded pixels (decoded by the shim's `rdocs_imdecode_rgb_scrubbed`, which reads the
+bytes in place and zeroes its BGR intermediate — gocv's `IMDecode` copies them into a native
+vector it frees unzeroed), every image of the run (`RunOptions.Scrub`, then `Results.Wipe`
+inside the lease), the canvas PNG, its base64 and the serialised answer are overwritten with
+zeros before they are released. Not reachable from here and therefore not zeroed: **Go strings**
+(the recognised text — immutable, released and reused, not overwritten), the 4 KB read window of
+`bufio` inside `multipart.Reader`, `encoding/json`'s pooled encode buffer, and the working memory
+of OpenCV's decoders/encoder and of ONNX Runtime. What differs from the reference is DEVIATIONS
+D-15.
+
 ## Build
 
 ```powershell
@@ -280,11 +305,16 @@ internal/viewmodel/    PipelineResults -> the client JSON   (library side; D-01)
 internal/svc/          the service port                              (M9)
   passwords/           Argon2id PHC hashing and the password rules
   auth/                JWT, PIN, API keys, mode resolution, login throttle
+  processing/          PROCESSING_MODE resolution (stored | memory)
+  recognitions/        the in-memory journal of POST /recognize
 ```
 
 `internal/docproc/**` must not import `internal/svc/**`, and the service reaches the
-library only through `internal/svc/runtime` — the same boundary that keeps the Python
-service testable without 215 MB of models.
+**models and the pipeline** only through `internal/svc/runtime` — the same boundary that
+keeps the Python service testable without 215 MB of models. The one exception is
+`internal/docproc/imaging`, which loads no model: `svc/repo` uses it for image sizes and canvas files, and
+`svc/api` for decoding the image of `POST /recognize` (so the decoded pixels can be zeroed
+where they are made).
 
 **Nothing under `ports/` may contain a model, a sample or a copy of a `model.json`.**
 The data lives once, in `document_processing/`, and is found via `RDOCS_MODELS_ROOT` or

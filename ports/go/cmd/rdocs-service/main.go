@@ -36,6 +36,7 @@ import (
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/auth"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/config"
 	svclog "github.com/protei300/RussianDocsOCR/ports/go/internal/svc/logging"
+	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/processing"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/repo"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/runtime"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/svc/seed"
@@ -158,12 +159,15 @@ func run(addr string) error {
 	}
 
 	announceAuthMode(db, cfg)
+	storing := announceProcessingMode(cfg)
 
 	repoRoot := cfg.RepoRoot()
 
 	// Seeded BEFORE the worker starts, so the drain loop never sees a half-inserted fixture.
-	// A negative SEED_SAMPLES disables it; 0 means all available.
-	if cfg.SeedSamples >= 0 {
+	// A negative SEED_SAMPLES disables it; 0 means all available. Never in memory mode: the
+	// samples are anonymised, but a list of stored documents is exactly what that mode
+	// promises not to have.
+	if storing && cfg.SeedSamples >= 0 {
 		if n := seed.IfEmpty(db, repoRoot, cfg.SeedSamples); n > 0 {
 			slog.Info("[BOOT] seeded sample documents from pre-computed results",
 				"count", n, "dir", seed.Dir(repoRoot))
@@ -177,7 +181,7 @@ func run(addr string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	wk.Start(ctx)
+	wk.Start(ctx, storing)
 
 	webRoot := api.FindWebRoot(repoRoot)
 	if webRoot == "" {
@@ -229,6 +233,24 @@ func run(addr string) error {
 	wk.Stop()
 	slog.Info("[MAIN] stopped")
 	return nil
+}
+
+// announceProcessingMode logs which processing mode is in force and reports whether documents
+// are stored (ports/MEMORY.md §1). Memory mode is a WARNING, so it is the line nobody misses.
+func announceProcessingMode(cfg config.Settings) bool {
+	mode, reason := processing.Resolve(cfg.ProcessingMode)
+	if reason != nil {
+		slog.Warn("[BOOT] " + *reason)
+	}
+	if mode == processing.Memory {
+		slog.Warn("[BOOT] PROCESSING_MODE=memory — documents are NOT stored: the document " +
+			"routes and the background worker are off, POST /api/v1/recognize recognises in " +
+			"memory and keeps only outcome + time")
+		return false
+	}
+	slog.Info("[BOOT] PROCESSING_MODE=stored — uploads are stored and recognised in the " +
+		"background; POST /api/v1/recognize is also available")
+	return true
 }
 
 // announceAuthMode says which authentication is in force, and seeds the first account.

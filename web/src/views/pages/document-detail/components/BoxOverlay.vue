@@ -38,6 +38,9 @@ const props = defineProps<{
      *  "0 regions" there would read as a detection failure rather than as
      *  "boxes are not drawn on this view". */
     note?: string | null
+    /** A ready image source (an object URL) instead of a served artifact. Used for
+     *  an in-memory recognition, whose canvas exists only in the browser. */
+    src?: string | null
 }>()
 
 const emit = defineEmits<{ HOVER: [key: string | null]; PICK: [key: string] }>()
@@ -116,7 +119,8 @@ defineExpose({ mode, setMode })
 
   <div ref="scrollEl" :class="['doc-view', mode]">
     <div class="doc-wrap">
-      <AuthedImage :url="imageUrl" alt="Recognised document canvas" img-class="doc-img" />
+      <img v-if="src" :src="src" alt="Recognised document canvas" class="doc-img">
+      <AuthedImage v-else :url="imageUrl" alt="Recognised document canvas" img-class="doc-img" />
 
       <svg v-if="width && height" class="doc-svg" :viewBox="`0 0 ${width} ${height}`"
            preserveAspectRatio="none" role="img" aria-label="Detected regions">

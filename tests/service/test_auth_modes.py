@@ -57,6 +57,11 @@ EXPECTED_GUARDS = {
     ("POST", "/api/v1/documents"): "require_api_or_operator",
     ("POST", "/api/v1/documents/{doc_id}/reprocess"): "require_api_or_operator",
     ("DELETE", "/api/v1/documents/{doc_id}"): "require_api_or_operator",
+    # In-memory recognition: the same level as an upload (operator or API key) —
+    # it runs the pipeline on the caller's image. The journal is outcome + time
+    # only, so a viewer may read it like the document list.
+    ("POST", "/api/v1/recognize"): "require_api_or_operator",
+    ("GET", "/api/v1/recognitions"): "require_api_or_viewer",
     # Everyone's data at once: a session, and an administrator's.
     ("POST", "/api/v1/documents/purge"): "require_admin",
 

@@ -98,6 +98,13 @@ type RunOptions struct {
 	// UpTo stops AFTER the named stage, leaving Results partial. Used only by the
 	// conformance CLI, which is what makes a half-finished port gradeable.
 	UpTo string
+	// Scrub zeroes, before releasing it, every image of the document this run allocates and
+	// frees itself — the frame at the processing size, the crop of the document, the field,
+	// word and address-line patches — and makes a failed run Wipe its partial Results rather
+	// than Close them. For in-memory recognition (ports/MEMORY.md §5): a freed Mat leaves the
+	// pixels in the heap until the block is reused. The caller wipes the returned Results
+	// with Wipe. Off by default: it costs a pass over each buffer and nothing else needs it.
+	Scrub bool
 }
 
 // Results is everything one run produced.
@@ -176,6 +183,29 @@ func (r *Results) Close() {
 		_ = r.Canvas.Close()
 		r.HasCanvas = false
 	}
+}
+
+// Wipe zeroes every image the run allocated, the canvas included, then releases them — Close
+// for a document that must leave nothing behind (ports/MEMORY.md §5). After it, Close and
+// TakeCanvas are no-ops. Model weights and templates are not reachable from Results and are
+// never touched.
+func (r *Results) Wipe() {
+	for i := range r.owned {
+		r.owned[i].Zero()
+	}
+	if r.HasCanvas {
+		r.Canvas.Zero()
+	}
+	r.Close()
+}
+
+// release is Close, or Wipe when the run scrubs.
+func (r *Results) release(scrub bool) {
+	if scrub {
+		r.Wipe()
+		return
+	}
+	r.Close()
 }
 
 // TakeCanvas hands the canvas to the caller and releases everything else.
@@ -361,6 +391,16 @@ func (r *Recognizer) Run(imagePath string, opts RunOptions) (*Results, error) {
 	return list[0], nil
 }
 
+// RunImage is Run on an image already decoded to RGB — the in-memory path, where the document
+// never touches the disk. src stays the CALLER'S: it is read, never modified or closed here.
+func (r *Recognizer) RunImage(src imaging.Image, opts RunOptions) (*Results, error) {
+	list, err := r.runOn(src, opts, false)
+	if err != nil {
+		return nil, err
+	}
+	return list[0], nil
+}
+
 // RunFrame reads EVERY document in the frame (Pipeline.process_frame, issue #26), not only
 // the largest: one Results per document, largest first; with no document found, one element
 // holding the whole-frame reading, exactly what Run returns. Two sides of one document lying
@@ -382,6 +422,17 @@ func (r *Recognizer) RunFrame(imagePath string, opts RunOptions) ([]*Results, er
 // run is the shared body of process_img and process_frame: load, find the documents once,
 // then read the first (all == false) or each of them.
 func (r *Recognizer) run(imagePath string, opts RunOptions, all bool) ([]*Results, error) {
+	src, err := imaging.LoadRGB(imagePath)
+	if err != nil {
+		return nil, err
+	}
+	// The frame is only ever read to cut a document out of it: every crop is a new image.
+	defer src.Close()
+	return r.runOn(src, opts, all)
+}
+
+// runOn reads documents from a frame the caller owns and closes.
+func (r *Recognizer) runOn(src imaging.Image, opts RunOptions, all bool) ([]*Results, error) {
 	sink := opts.Sink
 	if sink == nil {
 		sink = NullStageSink{}
@@ -395,18 +446,16 @@ func (r *Recognizer) run(imagePath string, opts RunOptions, all bool) ([]*Result
 	// Documents first (decision #142): find what lies in the frame, then read the crop of
 	// the LARGEST document, cut from the frame at its full resolution. No document found,
 	// or no detector in this weight set - the whole frame, as before.
-	src, err := imaging.LoadRGB(imagePath)
-	if err != nil {
-		return nil, err
-	}
-	// The frame is only ever read to cut a document out of it: every crop is a new image.
-	defer src.Close()
-
 	documents, small, err := r.findDocuments(src, opts.ImgSize, timings, sink)
 	if err != nil {
 		return nil, err
 	}
-	defer small.Close()
+	defer func() {
+		if opts.Scrub {
+			small.Zero()
+		}
+		_ = small.Close()
+	}()
 	if opts.UpTo == "documents" {
 		return []*Results{{Quality: map[string]any{}, Ocr: map[string]string{},
 			Documents: documents, DocumentIndex: -1, PairedWith: -1,
@@ -432,7 +481,7 @@ func (r *Recognizer) run(imagePath string, opts RunOptions, all bool) ([]*Result
 		res, err := r.readDocument(src, documents, small, index, opts, t, sink)
 		if err != nil {
 			for _, done := range list {
-				done.Close()
+				done.release(opts.Scrub)
 			}
 			return nil, err
 		}
@@ -454,7 +503,7 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 	// intermediates are registered with the Results as they are created and `fail` closes
 	// them. Without this an error path leaks a canvas per failed document.
 	fail := func(err error) (*Results, error) {
-		out.Close()
+		out.release(opts.Scrub)
 		return nil, err
 	}
 
@@ -476,6 +525,9 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 			cutW, cutH = cut.Width(), cut.Height()
 			geo = geo.Then(geometry.Offset{DX: float64(-x0), DY: float64(-y0)})
 			prepared = imaging.FitToLongestSide(cut, opts.ImgSize)
+			if opts.Scrub {
+				cut.Zero()
+			}
 			_ = cut.Close()
 			havePrepared = true
 		}
@@ -711,6 +763,10 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 		return fail(err)
 	}
 	defer modules.FieldsClose(fields)
+	if opts.Scrub {
+		// Deferred AFTER the close, so it runs BEFORE it.
+		defer zeroFields(fields)
+	}
 	out.Boxes = boxesOf(fields)
 
 	if err := sink.Emit("fields.bbox", BoxesPayload(out.Boxes)); err != nil {
@@ -726,7 +782,7 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 	// lie in are found. Between the fields and the word split, as in _process_document.
 	if ocrOpts.HasAddress {
 		if err := timings.Time(StageAddressLines, func() (e error) {
-			out.Address, e = r.readAddress(deskewed, out.ToInput)
+			out.Address, e = r.readAddress(deskewed, out.ToInput, opts.Scrub)
 			return
 		}); err != nil {
 			return fail(err)
@@ -783,6 +839,9 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 		return fail(err)
 	}
 	defer FieldWordsClose(fieldWords)
+	if opts.Scrub {
+		defer zeroFieldWords(fieldWords)
+	}
 
 	for _, fw := range fieldWords {
 		if err := sink.Emit("words."+fw.Label+".bbox", WordBoxesPayload(fw.WordBoxes)); err != nil {
@@ -967,4 +1026,23 @@ func emitImage(sink StageSink, name string, img imaging.Image) error {
 		return fmt.Errorf("pipeline: stage %s: %w", name, err)
 	}
 	return sink.Emit(name, ArrayPayload{Array: arr})
+}
+
+// zeroFields and zeroFieldWords overwrite the patches a run cut, before they are closed
+// (RunOptions.Scrub).
+func zeroFields(fields []modules.Field) {
+	for i := range fields {
+		fields[i].Patch.Zero()
+	}
+}
+
+func zeroFieldWords(fw []FieldWords) {
+	for i := range fw {
+		for j := range fw[i].Patches {
+			fw[i].Patches[j].Zero()
+		}
+		for j := range fw[i].DateLines {
+			fw[i].DateLines[j].Zero()
+		}
+	}
 }

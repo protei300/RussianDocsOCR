@@ -220,6 +220,38 @@ written by any of the four services verifies in the others.
 python -m conformance.auth_contract --port java     # the black box: 53 checks, 0 failed
 ```
 
+### In-memory recognition
+
+`rdocs-service` implements [`../MEMORY.md`](../MEMORY.md); its executable form is
+`python -m conformance.memory_contract --port java`.
+
+| Variable | Default | |
+|---|---|---|
+| `PROCESSING_MODE` | `stored` | `stored` — as before, plus `POST /api/v1/recognize`. `memory` — `/api/v1/documents/**` answer 404 before the body is read and before auth (a servlet filter), no worker queue, no seeding; `POST /api/v1/recognize` is the only way in. Any other value means `memory`, with the reason logged and shown on `/status` |
+| `RECOGNIZE_WAIT_SEC` | `30` | how long `/recognize` waits for a free pipeline before 503 + `Retry-After` |
+| `RECOGNITION_JOURNAL_MAX` | `5000` | lines of the in-memory journal (`GET /api/v1/recognitions`: outcome, status, ms — nothing else) |
+
+What it takes on Spring/Tomcat (`api/ApiRecognize.kt`, `api/MemoryModeWiring.kt`, `ml/InMemory.kt`):
+
+- **No spooling.** Spring's multipart resolver hands a multipart request to Tomcat's part parser, which
+  writes every part past `file-size-threshold` (0 bytes by default) to a temporary file — and on Tomcat even
+  `request.getParameter` parses a multipart body. So `/recognize` reads `getInputStream()` into one array
+  it owns (capped at `MAX_UPLOAD_MB` + 64 KiB), splits multipart itself, parses `?images=` from the raw
+  query string, and `UploadOnlyMultipartResolver` replaces Boot's resolver so that nothing but the stored
+  upload (`POST /documents`, stored mode only) is ever parsed as multipart.
+- **Zeroed, then released**: the body and the image part (`Arrays.fill`), the decoder's input and BGR
+  pixels (`Io.decodeRgbWiping`), the RGB pixels, the PNG and its BGR copy (`Mat.setTo(0)` before
+  `release()`), and the pipeline's per-document state: the run gets `RunOptions(wipeImages = true)`, so every
+  image its `Results` owns is zeroed when released — also when the run fails half-way — and `Results.wipe()`
+  runs inside the lease, before the instance goes back to the pool. Model weights and templates are not
+  touched. Intermediates a stage allocates and frees within the run (field and word crops) are released, not
+  overwritten — they are no longer reachable once the run returns, as the reference's temporaries are not.
+- **Strings cannot be wiped on the JVM.** The recognised text, the serialised JSON answer and the base64 of
+  the canvas are immutable `String`s: they are released and their memory reused, not overwritten.
+- **Nothing about the document is logged**: one line per request, `[API] recognize: outcome=… status=… ms=…`;
+  an unexpected exception is logged by its type name only; what the library prints during the run
+  (stdout/stderr) is discarded on that thread.
+
 ## Handling rules that are not negotiable
 
 - **`DATA_DIR` must live outside the repository.** It holds uploaded documents, which are personal

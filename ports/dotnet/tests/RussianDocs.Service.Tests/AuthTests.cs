@@ -190,6 +190,10 @@ public sealed class AuthTests
         ("POST", "/api/v1/documents/{id}/reprocess", "require_api_or_operator"),
         ("DELETE", "/api/v1/documents/{id}", "require_api_or_operator"),
         ("POST", "/api/v1/documents/purge", "require_admin"),
+        // In-memory recognition (ports/MEMORY.md §3): the same level as an upload — it runs the
+        // pipeline on the caller's image. The journal is outcome + time only, so a viewer may read it.
+        ("POST", "/api/v1/recognize", "require_api_or_operator"),
+        ("GET", "/api/v1/recognitions", "require_api_or_viewer"),
         ("GET", "/api/v1/status", "require_viewer"),
         ("GET", "/api/v1/api-keys", "require_admin"),
         ("POST", "/api/v1/api-keys", "require_admin"),

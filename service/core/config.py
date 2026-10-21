@@ -82,6 +82,22 @@ class Settings(BaseSettings):
     login_max_attempts: int = 10
     login_lockout_seconds: int = 300
 
+    # --- What happens to a document --------------------------------------------
+    #: ``stored`` (default, unchanged behaviour): an upload is written to the store,
+    #: queued, recognised in the background, and kept until deleted or the next
+    #: restart. ``memory``: documents are never stored — the only way in is
+    #: ``POST /recognize``, which decodes, recognises and answers within the request,
+    #: wipes its buffers, and keeps a journal line with the outcome and the time only.
+    #: Resolved in core/processing.py; an unknown value means ``memory`` — see there.
+    processing_mode: str = "stored"
+
+    #: How long ``POST /recognize`` waits for a free pipeline before answering
+    #: 503 with Retry-After. The pipeline pool is shared with the background worker.
+    recognize_wait_sec: int = 30
+
+    #: Lines kept in the recognition journal (in memory, never written to disk).
+    recognition_journal_max: int = 5000
+
     # --- Storage ------------------------------------------------------------
     #: SQLAlchemy connection URL for the metadata store. When empty the service
     #: falls back to a temporary on-disk store that is wiped at every start —

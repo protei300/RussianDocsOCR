@@ -270,6 +270,14 @@ public sealed partial class ApiServer
                 ["backend"] = db.Backend,
                 ["ephemeral"] = db.IsEphemeral,
             },
+            // stored | memory, and why it is not what was configured (if it is not). The recognition
+            // journal counts are outcomes only — see RecognitionJournal.
+            ["processing"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["mode"] = Config.ProcessingMode.Resolve(cfg).Mode,
+                ["reason"] = Config.ProcessingMode.Resolve(cfg).Reason,
+                ["recognitions"] = Journal.Counts(),
+            },
         });
     }
 

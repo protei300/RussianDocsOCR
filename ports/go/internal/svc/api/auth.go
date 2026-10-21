@@ -153,6 +153,9 @@ func (s *Server) handleAuthConfig(w http.ResponseWriter, r *http.Request) {
 		// string; the two are the same today and need not stay that way.
 		"users_enabled":    s.authMode == auth.UsersMode,
 		"downgrade_reason": s.downgradeReason,
+		// stored | memory. Public like the rest: the login page and the document list render
+		// differently in memory mode, and /documents already answers 404 to anyone in it.
+		"processing_mode": s.processingMode,
 	}
 	if s.authMode == auth.UsersMode {
 		payload["password_rules"] = passwords.RulesForUI()

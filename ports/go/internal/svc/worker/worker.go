@@ -190,13 +190,21 @@ func round1(v float64) float64 { return math.Round(v*10) / 10 }
 // sessions plus a warmup document take seconds, and blocking startup would delay /health and
 // fight Docker's healthcheck. Uploads are accepted immediately and wait in the queue, which
 // is exactly what the async design is for.
-func (w *Worker) Start(ctx context.Context) {
+//
+// drain false is PROCESSING_MODE=memory: there is no queue to drain and no stored document to
+// requeue, so neither the stale-job reset nor the drain loop runs — but the runtime is still
+// built and warmed up, because POST /recognize needs it.
+func (w *Worker) Start(ctx context.Context, drain bool) {
+	go w.initRuntime(ctx)
+	if !drain {
+		slog.Info("[WORKER] background queue disabled (PROCESSING_MODE=memory)")
+		return
+	}
+
 	recovered := repo.ResetStaleProcessing(w.db)
 	if recovered > 0 {
 		slog.Info("[WORKER] requeued documents left mid-processing", "count", recovered)
 	}
-
-	go w.initRuntime(ctx)
 	go w.drainLoop(ctx)
 }
 

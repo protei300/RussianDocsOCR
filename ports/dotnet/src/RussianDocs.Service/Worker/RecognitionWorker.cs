@@ -223,9 +223,24 @@ public sealed class RecognitionWorker
     /// Docker's healthcheck. Uploads are accepted immediately and wait in the queue, which is exactly
     /// what the async design is for.
     /// </para>
+    ///
+    /// <para>
+    /// <paramref name="drain"/> false is <c>PROCESSING_MODE=memory</c>: there is no queue to drain and no
+    /// stored document to requeue, so neither the stale-job reset nor the drain loop runs — but the runtime
+    /// is still built and warmed up, because <c>POST /recognize</c> needs it. Port of
+    /// <c>start_worker(drain=…)</c>.
+    /// </para>
     /// </summary>
-    public void Start(CancellationToken ct)
+    public void Start(CancellationToken ct, bool drain = true)
     {
+        if (!drain)
+        {
+            _ = Task.Factory.StartNew(() => InitRuntime(), ct, TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+            _log.LogInformation("[WORKER] background queue disabled (PROCESSING_MODE=memory)");
+            return;
+        }
+
         int recovered = Documents.ResetStaleProcessing(_db);
         if (recovered > 0)
         {

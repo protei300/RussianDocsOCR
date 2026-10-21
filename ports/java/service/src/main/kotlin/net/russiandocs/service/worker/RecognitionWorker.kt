@@ -190,12 +190,18 @@ public class RecognitionWorker(
      * healthcheck. Uploads are accepted immediately and wait in the queue, which is exactly what the async
      * design is for.
      */
-    public fun start() {
+    public fun start(drain: Boolean = true) {
+        // The runtime is built in BOTH modes: `POST /recognize` needs it even when there is no queue.
+        threads.submit { initRuntime() }
+        if (!drain) {
+            // PROCESSING_MODE=memory: no queue to drain and no stored document to requeue.
+            log.info("[WORKER] background queue disabled (PROCESSING_MODE=memory)")
+            return
+        }
         val recovered = Documents.resetStaleProcessing(db)
         if (recovered > 0) {
             log.info("[WORKER] requeued $recovered document(s) left mid-processing")
         }
-        threads.submit { initRuntime() }
         threads.submit { drainLoop() }
     }
 

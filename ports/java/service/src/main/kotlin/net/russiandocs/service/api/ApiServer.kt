@@ -10,10 +10,13 @@ import kotlinx.serialization.json.JsonObject
 import net.russiandocs.service.auth.AuthMode
 import net.russiandocs.service.auth.LoginThrottle
 import net.russiandocs.service.auth.Tokens
+import net.russiandocs.service.config.ProcessingMode
 import net.russiandocs.service.config.Settings
 import net.russiandocs.service.errors.ServiceException
 import net.russiandocs.service.logging.ServiceLog
+import net.russiandocs.service.ml.MemoryRecogniser
 import net.russiandocs.service.ml.PipelineRuntime
+import net.russiandocs.service.repositories.Recognitions
 import net.russiandocs.service.repositories.SettingsRepository
 import net.russiandocs.service.store.DocumentStore
 import net.russiandocs.service.worker.RecognitionWorker
@@ -123,6 +126,41 @@ public class ApiServer(
      * Every handler asks this, never `cfg.authMode` — see [AuthMode].
      */
     internal val mode: AuthMode.Resolved = AuthMode.resolve(cfg.authMode, db.backend)
+
+    /**
+     * `stored` or `memory`, resolved ONCE from the environment tier (ports/MEMORY.md §1). Every handler asks
+     * this, never `cfg.processingMode`.
+     */
+    internal val processing: ProcessingMode.Resolved = ProcessingMode.resolve(cfg.processingMode)
+
+    /** The in-memory recognition journal: outcome, status and time per `POST /recognize`. Never on disk. */
+    internal val recognitions: Recognitions = Recognitions(cfg.recognitionJournalMax)
+
+    /**
+     * Decoded pixels in, view model and canvas PNG out. The runtime in production; a test replaces it with a
+     * fake that keeps references to what it was given, to prove the buffers are zeroed afterwards.
+     */
+    @Volatile
+    internal var memoryRecogniser: MemoryRecogniser = MemoryRecogniser { rgb, docconf, imgSize, withCanvas, leaseMs ->
+        runtime.recogniseImage(rgb, docconf, imgSize, withCanvas, leaseMs)
+    }
+
+    /**
+     * Test hook: told about every byte buffer `POST /recognize` allocates (the body, the image part, the PNG),
+     * so a test can check each is zero after the answer. Null in production, like [guardObserver].
+     */
+    @Volatile
+    internal var bufferObserver: ((ByteArray) -> Unit)? = null
+
+    /**
+     * The threads `POST /recognize` recognises on — separate from the background worker's, so an in-memory
+     * request does not queue behind a stored document's thread. The pipeline pool is still shared; the lease
+     * is what serialises access to it.
+     */
+    internal val recognizeExecutor: java.util.concurrent.ExecutorService =
+        java.util.concurrent.Executors.newFixedThreadPool(maxOf(1, cfg.pipelinePoolSize)) { r ->
+            Thread(r, "rdocs-recognize-mem").apply { isDaemon = true }
+        }
 
     /** One per process, like the store index: the service is pinned to a single process. */
     internal val throttle: LoginThrottle = LoginThrottle(cfg.loginMaxAttempts, cfg.loginLockoutSeconds)

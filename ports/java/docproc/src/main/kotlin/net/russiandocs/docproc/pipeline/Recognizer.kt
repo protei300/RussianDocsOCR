@@ -108,6 +108,13 @@ public data class RunOptions(
     /** Stops AFTER the named stage, inclusive. Null runs everything implemented. */
     val upTo: String? = null,
     val includeDebug: Boolean = false,
+    /**
+     * Every image the run's [Results] owns is overwritten with zeros when it is released — on [Results.close],
+     * on [Results.wipe], and when the run fails and closes its results itself. For in-memory recognition, where
+     * "released" must mean "cleared" (ports/MEMORY.md §5). Off by default: the stored path and the conformance
+     * CLI release as before.
+     */
+    val wipeImages: Boolean = false,
 )
 
 /**
@@ -280,6 +287,31 @@ public class Results : AutoCloseable {
     }
 
     /**
+     * Whether releasing an image of this result overwrites it with zeros first. Set from
+     * [RunOptions.wipeImages] when the run starts; see there.
+     */
+    public var zeroOnClose: Boolean = false
+        internal set
+
+    /**
+     * Hands [image] to this result: it is released (and, with [zeroOnClose], zeroed) together with the rest.
+     * The library's own stages use the internal equivalent; this exists for a caller that assembles a result
+     * itself — the service's tests build one around a fake pipeline.
+     */
+    public fun adopt(image: Image): Image = own(image)
+
+    /**
+     * Zeroes every image this result still owns — the canvas, the prepared and turned frames, the pages —
+     * and releases them. The per-document state of an in-memory recognition, cleared before the pipeline
+     * goes back to the pool (ports/MEMORY.md §5). Text cannot be wiped on the JVM (strings are immutable); it
+     * is only released.
+     */
+    public fun wipe() {
+        zeroOnClose = true
+        close()
+    }
+
+    /**
      * Detaches the canvas and hands ownership over, releasing everything else.
      *
      * The one image that must outlive a run is the canvas the service stores; every intermediate must not.
@@ -298,12 +330,16 @@ public class Results : AutoCloseable {
     }
 
     override fun close() {
-        canvas?.let { if (!owned.contains(it)) it.close() }
+        canvas?.let { if (!owned.contains(it)) release(it) }
         canvas = null
         for (image in owned) {
-            image.close()
+            release(image)
         }
         owned.clear()
+    }
+
+    private fun release(image: Image) {
+        if (zeroOnClose) image.zeroAndClose() else image.close()
     }
 }
 
@@ -397,20 +433,35 @@ public class Recognizer(
     public fun run(imagePath: String, options: RunOptions): Results {
         val frame = Io.loadRgb(imagePath)
         try {
-            // ---- stage: documents (decision №142) -----------------------------------------------
-            //
-            // Documents first: the frame is searched at the processing size, the boxes are carried back to
-            // the input photo, and the document is CUT THERE, at full resolution plus a margin. Everything
-            // after this point reads that crop.
-            val head = newResults()
+            return run(frame, options)
+        } finally {
+            frame.close()
+        }
+    }
+
+    /**
+     * [run] over an image already decoded to RGB, which stays the CALLER's: it is read, never released or
+     * modified here. For in-memory recognition, where no file exists and the caller zeroes the pixels after
+     * the run (ports/MEMORY.md §5).
+     */
+    public fun run(frame: Image, options: RunOptions): Results {
+        // ---- stage: documents (decision №142) -----------------------------------------------
+        //
+        // Documents first: the frame is searched at the processing size, the boxes are carried back to
+        // the input photo, and the document is CUT THERE, at full resolution plus a margin. Everything
+        // after this point reads that crop.
+        val head = newResults(options)
+        try {
             val documents = findDocuments(frame, options, head)
             head.documents = documents
             if (options.upTo == "documents") {
                 return head
             }
             return readDocument(frame, documents, if (documents.isEmpty()) null else 0, options, head)
-        } finally {
-            frame.close()
+        } catch (e: Throwable) {
+            // readDocument has already closed it; a failure in findDocuments has not. Idempotent either way.
+            head.close()
+            throw e
         }
     }
 
@@ -426,7 +477,7 @@ public class Recognizer(
     public fun runFrame(imagePath: String, options: RunOptions): List<Results> {
         val frame = Io.loadRgb(imagePath)
         try {
-            val head = newResults()
+            val head = newResults(options)
             val documents = findDocuments(frame, options, head)
             head.documents = documents
             if (options.upTo == "documents") {
@@ -438,7 +489,7 @@ public class Recognizer(
             val out = ArrayList<Results>()
             try {
                 for (index in documents.indices) {
-                    val results = if (index == 0) head else newResults().also { it.documents = documents }
+                    val results = if (index == 0) head else newResults(options).also { it.documents = documents }
                     out += readDocument(frame, documents, index, options, results)
                 }
                 PairSides.pair(out)
@@ -452,7 +503,10 @@ public class Recognizer(
         }
     }
 
-    private fun newResults(): Results = Results().also { it.device = device.wire }
+    private fun newResults(options: RunOptions): Results = Results().also {
+        it.device = device.wire
+        it.zeroOnClose = options.wipeImages
+    }
 
     /**
      * Prepares the crop of `documents[index]` (the whole frame when [index] is null) and reads it.
