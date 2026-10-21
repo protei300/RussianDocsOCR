@@ -15,6 +15,7 @@ from ..pipeline_modules.page_registration.geometry import PageGeometry
 # The stages of Pipeline, one module each; Pipeline below is the orchestrator
 # (construction, process_img / process_frame, _process_document) and inherits
 # the stage methods from these.
+from ..validation.fields import field_checks
 from .date_fields import DateFieldsStage
 from .documents import DocumentsStage, pair_sides
 from .fields import FieldsStage
@@ -552,6 +553,15 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
                 self._reread_dates_whole()
                 self._normalize_dates()
                 self._read_leasing(doc_type)
+
+        # Verdict per field (docs/validation-checks.md): the last step, over the
+        # finished reading, which it never changes. After BOTH reading paths - the
+        # registration page reads its address lines without text fields, and its
+        # fields must get their (unchecked) entries too.
+        if ocr and self.results._meta_results.get('OCR'):
+            self.results._meta_results['FieldChecks'] = field_checks(
+                self.results._meta_results['OCR'], doc_type)
+            self._emit('checks', self.results._meta_results['FieldChecks'])
 
         return self.results
 

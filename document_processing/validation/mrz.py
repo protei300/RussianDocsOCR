@@ -139,8 +139,15 @@ def _mrz_date(raw: str, kind: str = 'past'):
         return None
 
 
-def parse_mrz(mrz_text: str) -> dict:
-    """Field values carried by the zone. Missing/malformed parts come back None."""
+def parse_mrz(mrz_text: str, internal: bool = None) -> dict:
+    """Field values carried by the zone. Missing/malformed parts come back None.
+
+    ``internal`` says whether this is an internal passport's zone, whose
+    optional data holds three printed fields (``_internal_optional_data``).
+    None takes it from the zone's own type characters - a caller that knows the
+    document type from the classifier should pass it, because those two
+    characters can be misread like any other.
+    """
     lines = split_lines(mrz_text)
     fields = {}
     if lines:
@@ -159,7 +166,70 @@ def parse_mrz(mrz_text: str) -> dict:
         fields['sex'] = line2[20] if line2[20] in ('M', 'F') else None
         fields['expiry_date'] = _mrz_date(line2[21:27], 'future')
         fields['personal_number'] = line2[28:42].replace(FILLER, '') or None
+        if internal is None:
+            internal = fields.get('document_type') == INTERNAL_TYPE
+        if internal:
+            fields.update(_internal_optional_data(line2[28:42]))
     return fields
+
+
+#: Document type of the internal passport's zone ("Passport National").
+INTERNAL_TYPE = 'PN'
+
+
+def _internal_optional_data(optional: str) -> dict:
+    """The internal passport's optional data: three printed fields in one run.
+
+    FMS order No. 279 (2011-06-30), table 2, positions 29-42: the LAST digit of
+    the series, the issue date as YYMMDD, the issuing subdivision's code as six
+    digits without the hyphen, then a filler. The zone's own number (positions
+    1-9) holds only the first three digits of the series, so the fourth one has
+    to be taken from here to rebuild the printed series and number.
+    """
+    digit = optional[0:1]
+    code = optional[7:13]
+    return {
+        'series_last_digit': digit if digit.isdigit() else None,
+        'issue_date': _mrz_date(optional[1:7], 'past'),
+        'subdivision_code': code if len(code) == 6 and code.isdigit() else None,
+    }
+
+
+def printed_number(fields: dict, internal: bool = None):
+    """The zone's document number in the form the page prints it, digits only.
+
+    External passport: the number field as is. Internal passport: the first
+    three digits of the series + the fourth one from the optional data + the
+    six digits of the number - the zone splits the ten printed digits in two
+    places, and comparing its nine-digit field with the page's ten digits
+    reported every correctly read internal passport as a mismatch.
+    """
+    number = fields.get('document_number')
+    if not number:
+        return None
+    if internal is None:
+        internal = fields.get('document_type') == INTERNAL_TYPE
+    if not internal:
+        return number
+    last = fields.get('series_last_digit')
+    if not last or len(number) != 9:
+        return None
+    return number[:3] + last + number[3:]
+
+
+def numbers_agree(zone_number: str, page_digits: str) -> bool:
+    """Zone number against the page's digits.
+
+    Five of the 19 external passports of the 2003 form in samples/ write the
+    number WITHOUT its two-digit series (seven digits); the rest, and every
+    biometric one, write all nine. A seven-digit zone number is therefore
+    compared with the end of the printed number.
+    """
+    if not zone_number or not page_digits:
+        return False
+    if len(zone_number) == 7 and len(page_digits) == 9:
+        return page_digits.endswith(zone_number)
+    return zone_number == page_digits
 
 
 def _digits(text):
@@ -174,7 +244,12 @@ def cross_check(mrz_text: str, ocr: dict) -> dict:
     did not find says nothing about agreement. Names are compared only when the
     document prints a Latin name of its own - the internal passport substitutes
     digits for Cyrillic-only letters in the MRZ, so its zone can never match a
-    transliteration character for character.
+    transliteration character for character (the per-field verdicts in
+    ``fields.py`` compare those through the order's own table instead).
+
+    The internal passport's number is rebuilt from two places of the zone
+    (``printed_number``), and its issue date and subdivision code - which only
+    that zone carries - are compared too.
     """
     fields = parse_mrz(mrz_text)
     ocr = ocr or {}
@@ -185,11 +260,17 @@ def cross_check(mrz_text: str, ocr: dict) -> dict:
             return
         checks[name] = 'ok' if normalize(mrz_value) == normalize(ocr_value) else 'mismatch'
 
-    # The visual zone prints the number with a space ("75 1591921"); the MRZ
+    # The visual zone prints the number with a space ("76 4820154"); the MRZ
     # does not. Compare digits only.
-    compare('document_number', fields.get('document_number'),
-            ocr.get('Licence_number'), _digits)
+    zone_number = printed_number(fields)
+    page_number = _digits(ocr.get('Licence_number'))
+    if zone_number and page_number:
+        checks['document_number'] = ('ok' if numbers_agree(zone_number, page_number)
+                                     else 'mismatch')
     compare('birth_date', fields.get('birth_date'), ocr.get('Birth_date'), _digits)
+    compare('issue_date', fields.get('issue_date'), ocr.get('Issue_date'), _digits)
+    compare('subdivision_code', fields.get('subdivision_code'),
+            ocr.get('Issue_organisation_code'), _digits)
     compare('expiry_date', fields.get('expiry_date'), ocr.get('Expiration_date'), _digits)
     compare('sex', fields.get('sex'), ocr.get('Sex_en'), lambda v: v.strip().upper())
     compare('surname', fields.get('surname'), ocr.get('Last_name_en'),

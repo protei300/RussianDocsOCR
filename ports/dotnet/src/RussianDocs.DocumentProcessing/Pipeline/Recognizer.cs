@@ -54,6 +54,15 @@ public sealed class Results : IDisposable
     public Dictionary<string, string> OcrNormalized { get; internal set; } = [];
 
     /// <summary>
+    /// A verdict for every field of <see cref="Ocr"/>: <c>verified</c>, <c>mismatch</c> or <c>unchecked</c>
+    /// (<c>results.field_checks</c>, <c>validation/fields.py</c>, decision No. 152). A SEPARATE view like
+    /// <see cref="OcrNormalized"/>: the reading is never corrected, and a check that had a value to compare
+    /// with carries it as <c>Reference</c>. Not part of the view model and not of the service JSON. Empty
+    /// when nothing was read.
+    /// </summary>
+    public Dictionary<string, FieldVerdict> FieldChecks { get; internal set; } = [];
+
+    /// <summary>
     /// Every document the detector found in the frame, largest first, with boxes on the INPUT image
     /// (<c>results.documents</c>). Empty when none was found, or when the weight set has no document
     /// detector — the whole frame was read then.
@@ -863,8 +872,20 @@ public sealed class Recognizer : IDisposable
                         ReadLeasing(bareType, results, options.Sink);
                     }
 
+                    // ---- stage: checks --------------------------------------------------------
+                    // A verdict per field (docs/validation-checks.md): the last step, over the finished
+                    // reading, which it never changes. After BOTH reading paths - the registration page
+                    // reads its address lines without text fields, and its fields must get their
+                    // (unchecked) entries too. Not a timed stage; nothing read -> no stage, as in the
+                    // reference (`if ocr and meta_results.get('OCR')`).
+                    if (results.Ocr.Count > 0)
+                    {
+                        results.FieldChecks = FieldChecks.Compute(results.Ocr, bareType);
+                        options.Sink.Emit("checks", FieldChecks.ToPayload(results.FieldChecks));
+                    }
+
                     results.Timings = timings.Report();
-                    if (options.UpTo == "join" || options.UpTo == "leasing")
+                    if (options.UpTo is "join" or "leasing" or "checks")
                     {
                         return results;
                     }

@@ -16,14 +16,14 @@
   },
   "go": {
     "cmd": ["{repo}/ports/go/bin/rdocs-conform"],
-    "note": "complete on cpu: every stage of the 15 cases, verdict DECLARED (2026-10-17)"
+    "note": "complete on cpu: every stage of the 15 cases incl. checks, verdict DECLARED (2026-10-20)"
   },
   "dotnet": {
     "cmd": ["{repo}/ports/dotnet/src/RussianDocs.Conform/bin/Release/net8.0/rdocs-conform"],
-    "note": "complete on cpu: every stage of the 15 cases, verdict DECLARED (2026-10-17)"
+    "note": "complete on cpu: every stage of the 15 cases incl. checks, verdict DECLARED (2026-10-20)"
   },
   "java": {
     "cmd": ["java", "-jar", "{repo}/ports/java/conform/build/dist/rdocs-conform.jar"],
-    "note": "Complete on cpu: every stage of the 15 cases, verdict DECLARED (2026-10-17). Needs RDOCS_OPENCV_HOME, and on Windows RDOCS_TOOLCHAIN_BIN plus a JDK whose bundled C runtime is current — see ports/java/DEVIATIONS.md J-01 and J-16"
+    "note": "Complete on cpu: every stage of the 15 cases incl. checks, verdict DECLARED (2026-10-20). Needs RDOCS_OPENCV_HOME, and on Windows RDOCS_TOOLCHAIN_BIN plus a JDK whose bundled C runtime is current — see ports/java/DEVIATIONS.md J-01 and J-16"
   }
 }

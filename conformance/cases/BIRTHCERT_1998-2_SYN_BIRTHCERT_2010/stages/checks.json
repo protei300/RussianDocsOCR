@@ -1,0 +1,67 @@
+{
+  "Last_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "First_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Birth_date": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Birth_place_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Act_date": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Act_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Father_last_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Father_first_middle_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Mother_last_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Mother_first_middle_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Issue_organization_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Issue_date": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Licence_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  }
+}

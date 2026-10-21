@@ -200,6 +200,15 @@ public class Results : AutoCloseable {
         internal set
 
     /**
+     * A verdict for every field of [ocr] — `PipelineResults.field_checks`: `verified`, `mismatch` or `unchecked`,
+     * with the checks that decided it (see [FieldChecks]). A SEPARATE view, like [ocrNormalized]: the reading in
+     * [ocr] is never corrected, and a check that had a value to compare with carries it as `reference`. Not part
+     * of the view model. Empty when nothing was read.
+     */
+    public var fieldChecks: Map<String, FieldVerdict> = emptyMap()
+        internal set
+
+    /**
      * Index of the other side of this document in [Recognizer.runFrame]'s list — `paired_with`; null: no pair
      * was found, or a single-document call. See [PairSides].
      */
@@ -831,9 +840,17 @@ public class Recognizer(
                         results.leasing = StsMarks.readLeasing(results.ocr, bareType, options.sink)
                     }
 
+                    // `_process_document`, last step: a verdict per field over the FINISHED reading, which it never
+                    // changes. After BOTH reading paths - the registration page reads its address lines without text
+                    // fields (nothing above ran for it) and its fields must get their (unchecked) entries too.
+                    if (results.ocr.isNotEmpty()) {
+                        results.fieldChecks = FieldChecks.fieldChecks(results.ocr, meta.docType)
+                        options.sink.emit("checks", FieldChecks.toJson(results.fieldChecks))
+                    }
+
                     finaliseTimings(results.timings)
 
-                    if (options.upTo == "join") {
+                    if (options.upTo == "join" || options.upTo == "checks") {
                         return results
                     }
 
@@ -1488,7 +1505,7 @@ public class Recognizer(
                 // exist depends on the document. Claiming a bare "words" matches nothing, and the symptom is
                 // silent: every per-field stage is reported SKIPPED and the run still says PASS. Caught here
                 // by the stage count not moving from 7 after the work was done.
-                "fields.bbox", "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel",
+                "fields.bbox", "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "checks", "viewmodel",
             )
 
         /** The quality keys, in the reference's insertion order. */

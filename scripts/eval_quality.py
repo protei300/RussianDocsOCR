@@ -15,14 +15,24 @@ Metrics: per-field and overall CER (levenshtein / len(gt), over fields with non-
 GT), exact-match rate, and doctype accuracy. samples/ comparison is strict (uppercase +
 whitespace collapse only). The Damir labels come from another OCR system with its own
 conventions and known label errors (see docs/progress-log.md), so its comparison is
-looser: gender compares by first letter, numbers ignore spacing, text ignores
-punctuation, and a GT value of ``'-'`` means "not labeled" and is skipped — treat the
-resulting numbers as cross-system agreement, not gold accuracy.
+looser: gender compares by first letter, numbers ignore spacing, text treats
+punctuation as a word separator (a lost dot is not an error, two words run together
+are; since 2026-10-20 - before, the dot was dropped without a space and text-field
+numbers are not comparable across that date), and a GT value of ``'-'`` means "not
+labeled" and is skipped — treat the resulting numbers as cross-system agreement, not
+gold accuracy.
+
+``--damir-labels labels_printed`` reads a second labeling of the same images that sits
+next to ``labels/`` (same file names and format): every field the pipeline disagreed with
+was re-read by eye from the field crop and written as printed (conventions and counts in
+docs/progress-log.md, 2026-10-20). There a value of ``'?'`` means "not readable by eye"
+and is skipped like ``'-'``. The default stays the original ``labels``.
 
 Usage:
     python scripts/eval_quality.py                        # eval samples/
     python scripts/eval_quality.py -i path/to/root        # other samples-layout root
     python scripts/eval_quality.py --damir D:/.../Passports_Damir
+    python scripts/eval_quality.py --damir D:/.../Passports_Damir --damir-labels labels_printed
     python scripts/eval_quality.py --limit 3              # cap images per doctype
 
 ``tests/test_quality.py`` imports this module and asserts thresholds on the same
@@ -60,7 +70,10 @@ def normalize(text, kind='strict'):
     if kind == 'number':
         text = ''.join(ch for ch in text if ch not in ' .')
     elif kind == 'text':
-        text = ' '.join(''.join(ch for ch in text if ch not in '.,"\'«»').split())
+        # punctuation separates words: a lost dot is not an error ('ГОР.МОСКВА' ==
+        # 'ГОР МОСКВА'), a lost word boundary is ('ГОРМОСКВА' != 'ГОР МОСКВА');
+        # user's decision 2026-10-20. Before it the dot was dropped without a space.
+        text = ' '.join(''.join(' ' if ch in '.,"\'«»' else ch for ch in text).split())
     elif kind == 'gender':
         text = text[:1]
     return text
@@ -179,11 +192,22 @@ def eval_samples(pipeline, root, limit=None):
     return overall, by_doctype
 
 
-def eval_damir(pipeline, root, limit=None):
-    """Evaluate the Damir layout (internal passports, external GT schema)."""
+# Damir GT values that mean "no answer to compare with": '-' = not labeled (original
+# labels), '?' = not readable by eye (labels_printed)
+DAMIR_SKIP_VALUES = ('-', '?')
+
+
+def eval_damir(pipeline, root, limit=None, labels_dir='labels'):
+    """Evaluate the Damir layout (internal passports, external GT schema).
+
+    labels_dir - the labeling folder inside root: 'labels' (the original one) or
+    'labels_printed' (re-read as printed, see the module docstring).
+    """
     agg = MetricAggregator()
     root = Path(root)
-    labels = sorted((root / 'labels').glob('*.txt'))
+    labels = sorted((root / labels_dir).glob('*.txt'))
+    if not labels:
+        raise FileNotFoundError(f'no labels in {root / labels_dir}')
     if limit:
         labels = labels[:limit]
     for label_path in labels:
@@ -206,7 +230,7 @@ def eval_damir(pipeline, root, limit=None):
             gt_value = gt.get(key)
             if isinstance(gt_value, list):
                 gt_value = gt_value[0]
-            if gt_value == '-':  # Damir convention for "field not labeled"
+            if gt_value in DAMIR_SKIP_VALUES:
                 continue
             value = cer(predictions.get(field, ''), gt_value, kind)
             if value is None:
@@ -226,6 +250,9 @@ def main():
                         help='samples-layout root (default: repo samples/)')
     parser.add_argument('--damir', metavar='DIR',
                         help='additionally evaluate a Damir-layout dataset')
+    parser.add_argument('--damir-labels', default='labels', metavar='NAME',
+                        help="labeling folder inside the --damir root: 'labels' (default, the "
+                             "original) or 'labels_printed' (re-read as printed)")
     parser.add_argument('--limit', type=int,
                         help='max images per doctype folder (or total for --damir)')
     parser.add_argument('-f', '--format', default='ONNX',
@@ -265,8 +292,8 @@ def main():
         print(f'  [!] {name}: {message}')
 
     if args.damir:
-        agg = eval_damir(pipeline, args.damir, limit=args.limit)
-        print(f'\n==== {args.damir} ====')
+        agg = eval_damir(pipeline, args.damir, limit=args.limit, labels_dir=args.damir_labels)
+        print(f'\n==== {args.damir} ({args.damir_labels}) ====')
         print(f'OVERALL: {agg.summary()}')
         print('BY FIELD:')
         _print_fields(agg)

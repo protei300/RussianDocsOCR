@@ -43,7 +43,7 @@ var stagesImplemented = []string{
 	"borders.segments", "borders.canvas", "deskew.canvas",
 	// `words.<Field>.bbox` is a PATTERN, expanded by the checker: which fields exist
 	// depends on the document, so a port claims the shape rather than the names.
-	"fields.bbox", "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "viewmodel",
+	"fields.bbox", "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "checks", "viewmodel",
 }
 
 // errNotImplemented signals exit code 2.

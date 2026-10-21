@@ -65,6 +65,7 @@ rather than a column of dashes that reads as "missing files".
 | … `_split_words` + `_duplicate_field_indices` | `pipeline/splitwords.go` | `Pipeline/SplitWords.cs` | `pipeline/SplitWords.kt` |
 | … `_ocr_serial` + `_join_field` + `_fix_fms` (stub) | `pipeline/ocr.go` | `Pipeline/Ocr.cs` | `pipeline/Ocr.kt` |
 | … `_address_lines` + `_route_word_ocr` + `_is_number_token` (`pipeline/reading.py`), `StampsStage` (`pipeline/stamps.py`) | `pipeline/address.go` | `Pipeline/Address.cs`, `Pipeline/Stamps.cs` | `pipeline/Address.kt` |
+| `validation/fields.py` (`field_checks`, `results.field_checks`, stage `checks`) **+** the part of `validation/mrz.py` it uses (`check_digit`, `validate_mrz`, `parse_mrz`, `printed_number`, `numbers_agree`; `cross_check`/`validate` not ported) | `pipeline/fieldchecks.go`, `mrzcheck.go` (`Results.FieldChecks`) | `Pipeline/FieldChecks.cs`, `MrzChecks.cs` (`Results.FieldChecks`) | `pipeline/FieldChecks.kt`, `MrzChecks.kt` (`Results.fieldChecks`) |
 | … the two parallel groups | `pipeline/parallel.go` | `Pipeline/Parallel.cs` | `pipeline/Parallel.kt` |
 | … stage timings (WIRE names: `_doctype_angle`, …) | `pipeline/timings.go` | `Pipeline/Timings.cs` | `pipeline/Recognizer.kt` |
 | `pipeline/probe.py` (`StageSink`) | `pipeline/probe.go`, `payloads.go` | `Pipeline/StageSink.cs` | `pipeline/StageSink.kt` |

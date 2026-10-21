@@ -242,6 +242,11 @@
       "kind": "json"
     },
     {
+      "stage": "checks",
+      "file": "checks.json",
+      "kind": "json"
+    },
+    {
       "stage": "viewmodel",
       "file": "viewmodel.json",
       "kind": "json"

@@ -1,0 +1,62 @@
+{
+  "Licence_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Last_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Last_name_en": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "First_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "First_name_en": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Middle_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Living_region_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "House_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Apartment_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Special_marks": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Issue_organisation_code": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Issue_date": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  }
+}

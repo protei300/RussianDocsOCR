@@ -1,0 +1,12 @@
+{
+  "Address": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Address_has_handwritten": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  }
+}

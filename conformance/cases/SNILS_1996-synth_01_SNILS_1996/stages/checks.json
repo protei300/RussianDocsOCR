@@ -1,0 +1,86 @@
+{
+  "Licence_number": {
+    "status": "mismatch",
+    "checks": [
+      {
+        "id": "SNILS-1",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "SNILS-2",
+        "kind": "confirming",
+        "result": "mismatch",
+        "reference": "16"
+      }
+    ],
+    "notes": []
+  },
+  "Last_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "First_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Middle_name_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Birth_date": {
+    "status": "unchecked",
+    "checks": [
+      {
+        "id": "GEN-1",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "GEN-2",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "GEN-2",
+        "kind": "refuting",
+        "result": "ok"
+      }
+    ],
+    "notes": []
+  },
+  "Birth_place_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Sex_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Issue_date": {
+    "status": "unchecked",
+    "checks": [
+      {
+        "id": "GEN-1",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "GEN-2",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "GEN-2",
+        "kind": "refuting",
+        "result": "ok"
+      }
+    ],
+    "notes": []
+  }
+}

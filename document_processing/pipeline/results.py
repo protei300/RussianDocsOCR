@@ -146,6 +146,22 @@ class PipelineResults:
         return validate(self.ocr or {})
 
     @property
+    def field_checks(self) -> dict:
+        """A verdict for every field of ``ocr``: verified, mismatch or unchecked.
+
+        ``{name: {'status': ..., 'checks': [...], 'notes': [...]}}`` - see
+        ``validation/fields.py`` for what each part means and
+        docs/validation-checks.md for the checks. A SEPARATE view like
+        ``ocr_normalized``, by the user's decision (2026-10-19): the reading in
+        ``ocr`` is never corrected; a check that had a value to compare with
+        carries it as ``reference``, and acting on it is the caller's choice.
+        Not part of ``full_report`` for the same reason as ``validation``.
+
+        Empty dict when nothing was read.
+        """
+        return deepcopy(self._meta_results.get('FieldChecks') or {})
+
+    @property
     def doctype(self) -> Union[str, None]:
         """Gets detected document type, if available."""
         doctype = self._meta_results.get('DocType')

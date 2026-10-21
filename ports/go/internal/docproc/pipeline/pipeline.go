@@ -141,6 +141,10 @@ type Results struct {
 	// the document is not an STS. Only the flag (LeasingReported says why). A SEPARATE view,
 	// like OcrNormalized: Ocr["Special_marks"] keeps the text as read.
 	Leasing map[string]any
+	// FieldChecks is a verdict for every field of Ocr (PipelineResults.field_checks): verified,
+	// mismatch or unchecked, with the checks behind it. A SEPARATE view, like OcrNormalized -
+	// Ocr is never corrected. Nil when nothing was read (the reference's empty dict).
+	FieldChecks map[string]FieldVerdict
 	// Geometry maps a point of Canvas to the image passed to Run (PipelineResults.geometry);
 	// ToInput applies it. Quads are the read fields and their word patches on that image.
 	Geometry geometry.Geometry
@@ -805,6 +809,11 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 	// Nothing was split: nothing is read either (`if ocr and words_splitted`), so there is no
 	// `_ocr` timing, no `join` stage and no date or leasing pass - the registration page ends here.
 	if len(fieldWords) == 0 {
+		// The registration page has its address in the reading all the same, and its fields get
+		// their (unchecked) entries too.
+		if err := emitFieldChecks(out, meta.DocType, sink); err != nil {
+			return fail(err)
+		}
 		out.Timings = timings.Report()
 		return out, nil
 	}
@@ -877,8 +886,24 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 		}
 	}
 
+	// The verdict per field, the LAST step: over the finished reading, which it never changes
+	// (docs/validation-checks.md). After leasing, before the view model.
+	if err := emitFieldChecks(out, meta.DocType, sink); err != nil {
+		return fail(err)
+	}
+
 	out.Timings = timings.Report()
 	return out, nil
+}
+
+// emitFieldChecks computes Results.FieldChecks and emits the `checks` stage - when something was
+// read: with an empty reading the reference makes no verdicts and emits no stage.
+func emitFieldChecks(out *Results, docType string, sink StageSink) error {
+	if len(out.Ocr) == 0 {
+		return nil
+	}
+	out.FieldChecks = FieldChecks(out.Ocr, docType, time.Time{})
+	return sink.Emit("checks", out.FieldChecks)
 }
 
 // runQuality runs the four quality classifiers and assembles the Quality dict.

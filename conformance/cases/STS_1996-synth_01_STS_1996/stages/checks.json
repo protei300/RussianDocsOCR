@@ -1,0 +1,82 @@
+{
+  "Reg_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "VIN": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Vehicle_make_ru": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Vehicle_make_en": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Vehicle_type": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Vehicle_category": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Vehicle_year": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Chassis_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Body_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Vehicle_color": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Engine_power": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Eco_class": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Max_mass": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Curb_mass": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "PTS_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  },
+  "Licence_number": {
+    "status": "unchecked",
+    "checks": [],
+    "notes": []
+  }
+}

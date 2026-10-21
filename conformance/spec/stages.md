@@ -48,6 +48,7 @@ other document here exists to support this one.
 | 11 | `ocr.<Field>.words` | the per-word strings of one field, after `fix_errors` | `.json` |
 | 12 | `join` | the assembled OCR dict, after field joining | `.json` |
 | 12a | `leasing` | `results.leasing` of an STS: `{"leasing": true}` or `null` (STS back only - the side with the special marks) | `.json` |
+| 12b | `checks` | `results.field_checks`: a verdict for every field of `join`, `{<Field>: {status, checks: [{id, kind, result, reference?}], notes: [{id, text}]}}` - `status` verified / mismatch / unchecked, `kind` confirming / refuting, `result` ok / mismatch; `document_processing/validation/fields.py`, ids from `docs/validation-checks.md` | `.json` |
 | 13 | `viewmodel` | the final client-facing JSON (== `recognize` output) | `.json` |
 
 `borders.segments` comes BEFORE `borders.canvas` because the contours are upstream of
@@ -72,6 +73,12 @@ library computes it; the numbers are unrounded corners graded as coordinates (th
 profile's sub-pixel allowance applies, see `compare.py`). `null` for `fields` and
 `words` means a stage of this run kept no map (`geometry.Unknown`) and is a different
 answer from any set of quadrilaterals.
+
+`checks` is a pure function of `join` and `doctype.label` (no image, no model), so a port that
+agrees on both and differs here has a defect in the checks themselves, never in recognition.
+Two of its rules read the calendar - a date in the future, and the century of a two-digit year
+in the machine-readable zone - so every implementation takes today's date the same way; the
+goldens hold no date close enough to today for that to move. Strings only: compared exactly.
 
 `documents` comes FIRST because since decision #142 (2026-10-01) everything else reads
 the crop of one document rather than the whole frame: a port that finds a different

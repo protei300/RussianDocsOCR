@@ -8,8 +8,8 @@ the contract rather than cosmetics.
 from document_processing.pipeline.pipeline import (OCROptionsClass, OCROptionsEXTPassport,
                                                    OCROptionsINTPassport, Pipeline)
 
-LINE1 = 'P<RUSPOPOVA<<ALENA<<<<<<<<<<<<<<<<<<<<<<<<<<'
-LINE2 = '7515919230RUS8410102F2506090<<<<<<<<<<<<<<02'
+LINE1 = 'P<RUSROGOVA<<IRINA<<<<<<<<<<<<<<<<<<<<<<<<<<'
+LINE2 = '7648201572RUS8803148F3105205<<<<<<<<<<<<<<04'
 
 
 def test_lines_are_joined_with_a_newline():

@@ -48,7 +48,7 @@ EXIT_INPUT = 3
 STAGES_IMPLEMENTED = [
     "documents", "prepare", "doctype.label", "rotate", "quality",
     "borders.segments", "borders.canvas", "deskew.canvas", "fields.bbox",
-    "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing",
+    "address.lines", "address.stamps", "words.<Field>.bbox", "quads", "ocr.<Field>.words", "join", "leasing", "checks",
     "viewmodel",
 ]
 
