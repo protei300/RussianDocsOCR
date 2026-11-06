@@ -77,7 +77,7 @@ func buildQuads(records []SplitRecord, frames []fieldFrame, toInput func([]geome
 			return &Quads{}
 		}
 		fields[rec.Label] = append(fields[rec.Label], toQuad(field))
-		if !rec.Split {
+		if !rec.Split || rec.ReadWhole {
 			words[rec.Label] = append(words[rec.Label], toQuad(field))
 			continue
 		}

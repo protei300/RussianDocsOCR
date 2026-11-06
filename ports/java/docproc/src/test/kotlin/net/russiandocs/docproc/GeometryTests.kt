@@ -329,6 +329,17 @@ class GeometryTests {
     }
 
     @Test
+    fun aWholeLineRetryMapsTheReadPatchInsteadOfRejectedWords() {
+        Image.wrap(Mat.zeros(20, 40, CvType.CV_8UC3)).use { patch ->
+            val field = Field(box(10, 10, 50, 30, "Sex_ru"), patch, Offset(-10.0, -10.0))
+            for (boxes in listOf(emptyList(), listOf(box(1, 1, 5, 10, "word")))) {
+                val quads = FieldQuads.compute(listOf(KeptField(field, boxes, readWhole = true)), false) { it }
+                assertEquals(quads.fields!!["Sex_ru"], quads.words!!["Sex_ru"])
+            }
+        }
+    }
+
+    @Test
     fun theSeriesNumberWordLandsOnItsOwnEndOfTheField() {
         // The series/number patch is turned once before the words are found on it, so its word must land on its own
         // end of the field — not on the other end. Drawn, turned with the library's own rotation, and found again.

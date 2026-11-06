@@ -1,5 +1,5 @@
 from pathlib import Path
-from time import time
+from time import perf_counter
 from typing import List, Optional, Union
 
 import cv2
@@ -567,9 +567,9 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
 
     def _model_call(self, func, *args, **kwargs):
         """ Wrapper for making timing calculations."""
-        time_start = time()
+        time_start = perf_counter()
         result = func(*args, **kwargs)
-        self.results.timings = {func.__name__: round(time() - time_start, 4)}
+        self.results.timings = {func.__name__: round(perf_counter() - time_start, 4)}
         return result
 
     def _load_image(self, img_path: Union[Path, str, np.ndarray]) -> np.ndarray:

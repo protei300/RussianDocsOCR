@@ -42,3 +42,19 @@ class RuntimeNotReady(RecognitionError):
     """
 
     transient = True
+
+
+class RegistrationUnavailable(RecognitionError):
+    """The registration reader's own files (field network, stamp OCR, dictionaries)
+    are not on this machine. They are not in git or in the image; the environment
+    variables named in ``missing`` point at them.
+
+    Not transient for a request - the same request fails until an operator
+    supplies the files - but nothing about the document is wrong either.
+    """
+
+    transient = False
+
+    def __init__(self, missing: list[str]):
+        super().__init__(", ".join(missing))
+        self.missing = missing

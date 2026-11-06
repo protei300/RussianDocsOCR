@@ -1,6 +1,6 @@
 """Quality checks: glare, blur, print and screen spoofing."""
 from concurrent.futures import ThreadPoolExecutor
-from time import time
+from time import perf_counter
 
 
 class QualityStage:
@@ -55,11 +55,11 @@ class QualityStage:
         max_pages = 2 if is_spread else 1
 
         def timed(fn, *args, **kwargs):
-            t0 = time()
+            t0 = perf_counter()
             r = fn(*args, **kwargs)
-            return r, round(time() - t0, 4)
+            return r, round(perf_counter() - t0, 4)
 
-        group_start = time()
+        group_start = perf_counter()
         with ThreadPoolExecutor(max_workers=5) as ex:
             f_glare = ex.submit(timed, self.glare.predict, img)
             f_blur = ex.submit(timed, self.blur.predict, img)
@@ -73,7 +73,7 @@ class QualityStage:
             print_res, t_print = f_print.result()
             lcd_res, t_lcd = f_lcd.result()
             det_res, t_det = f_det.result()
-        group_elapsed = time() - group_start
+        group_elapsed = perf_counter() - group_start
 
         self.results._meta_results['Quality']['Glare'] = glare_res[self.glare.model_name][0]
         self.results._meta_results['Quality']['Blur'] = blur_res[self.blur.model_name][0]

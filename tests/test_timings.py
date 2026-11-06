@@ -44,6 +44,29 @@ class TestTimingAccounting:
         r.add_concurrent_group('_group', 0.30, {'_slow': 0.29, '_fast': 0.01})
         assert r.timings['total'] >= r.timings['_slow']
 
+    def test_repeated_stage_is_accumulated(self):
+        r = PipelineResults()
+        r.timings = {'_type': .2}
+        r.timings = {'_type': .3}
+        assert r.timings['_type'] == .5
+        assert r.timings['total'] == .5
+
+    def test_same_stage_before_inside_and_after_group(self):
+        r = PipelineResults()
+        r.timings = {'_borders': .2}
+        r.add_concurrent_group('_group', .4, {'_borders': .3, '_quality': .35})
+        r.timings = {'_borders': .1}
+        assert r.timings['_borders'] == .6
+        assert r.timings['total'] == .7
+
+    def test_repeated_group_counts_each_wall_time_once(self):
+        r = PipelineResults()
+        r.add_concurrent_group('_group', .4, {'_x': .3, '_y': .35})
+        r.add_concurrent_group('_group', .2, {'_x': .1, '_y': .15})
+        assert r.timings['_group'] == .6
+        assert r.timings['_x'] == .4
+        assert r.timings['total'] == .6
+
 
 def test_total_does_not_exceed_wall_clock():
     """End-to-end: reported total must stay within measured wall time."""

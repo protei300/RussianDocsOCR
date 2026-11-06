@@ -314,6 +314,7 @@ class FieldsStage:
         # it: there the engine is chosen by word-index parity (see _word_engines),
         # and a line read whole destroys the parity the routing depends on.
         fallback = []
+        whole_lines = set()
         no_ink = []
         if doc_type != 'SNILS':
             # `kept` order is top-to-bottom, and a multi-line field collects its
@@ -342,6 +343,7 @@ class FieldsStage:
                         continue
                 if gap > self.WORDS_MAX_GAP:
                     words_by_idx[i] = [patches[i]]
+                    whole_lines.add(i)
                     fallback.append({'field': label, 'line': ordinal,
                                      'gap': None if gap == float('inf')
                                      else round(gap, 3)})
@@ -393,10 +395,12 @@ class FieldsStage:
             self._emit(f'words.{field_name}.bbox', boxes)
 
         self.results._meta_results[self.words_detector.model_name] = result
-        self._field_quads(bboxes, patches, kept, word_bbox_by_idx, frames)
+        self._field_quads(bboxes, patches, kept, word_bbox_by_idx, frames,
+                          whole_lines=whole_lines)
         return result
 
-    def _field_quads(self, bboxes, patches, kept, word_bbox_by_idx, frames):
+    def _field_quads(self, bboxes, patches, kept, word_bbox_by_idx, frames,
+                     whole_lines=()):
         """Where the read fields and their word patches lie on the input image.
 
         A field patch is the canvas (or, on a spread, the page) cut at its box -
@@ -423,7 +427,10 @@ class FieldsStage:
                 quads['fields'] = quads['words'] = None
                 return
             fields.setdefault(label, []).append(field)
-            if i not in word_bbox_by_idx:
+            # The gap guard reads one whole field patch, not the detector's
+            # rejected word crops. Keep raw boxes for the probe, but map the
+            # actual input of OCR (also when no words were detected at all).
+            if i not in word_bbox_by_idx or i in whole_lines:
                 words.setdefault(label, []).append(field)
                 continue
             h, w = patches[i].shape[:2]

@@ -398,7 +398,7 @@ def init_runtime(*, compute_device: str = "auto", model_format: str = "ONNX",
 
             first = built[0]
             _set_info(state="ready", device=first.device, ocr_device=first.ocr_device,
-                      fell_back=(wanted == "gpu" and attempt == "cpu"),
+                      fell_back=((compute_device == "gpu" or wanted == "gpu") and attempt == "cpu"),
                       load_ms=load_ms, warmup_ms=warmup_ms, error=None)
             log.info("[RUNTIME] ready: device=%s ocr_device=%s load=%dms warmup=%sms "
                      "instances=%d", first.device, first.ocr_device, load_ms,
@@ -579,3 +579,58 @@ def recognise_image(rgb: Any, *, docconf: float = 0.5, img_size: int = 1500,
                 if leftover is not None:
                     wipe_arrays(leftover)
                     setattr(pipeline, attr, None)
+
+
+# --- registration page --------------------------------------------------------------------------
+_REGISTRATION = None
+_REGISTRATION_LOCK = threading.Lock()
+
+
+def registration_reader():
+    """The process-wide registration reader, built on first use. Its files are
+    checked every time it is asked for until they are found, so supplying them
+    does not need a restart."""
+    global _REGISTRATION
+    from service.ml.errors import RegistrationUnavailable
+    from service.ml.registration.config import RegistrationConfig
+    with _REGISTRATION_LOCK:
+        if _REGISTRATION is None:
+            cfg = RegistrationConfig()
+            missing = cfg.missing()
+            if missing:
+                raise RegistrationUnavailable(missing)
+            from service.ml.registration.page import RegistrationReader
+            reader = RegistrationReader(cfg)
+            reader.stamp_reader                        # load the models now, not mid-request
+            _REGISTRATION = reader
+        return _REGISTRATION
+
+
+def recognise_registration(rgb: Any, *, docconf: float = 0.5, img_size: int = 1500,
+                           lease_timeout: float = LEASE_TIMEOUT_SEC) -> dict[str, Any]:
+    """A registration page in memory -> the stamps and their fields.
+
+    Only finding and cutting the stamps needs the library, so only that runs inside
+    the lease; the stamps are read after it is released (they are copies), which
+    keeps a pipeline free for other requests during the slow part. Every array the
+    pipeline kept is zeroed before the lease goes back (rule 11), and the crops are
+    zeroed after reading.
+    """
+    reader = registration_reader()
+    with lease_pipeline(timeout=lease_timeout) as pipeline:
+        try:
+            with _discarded_stdout():
+                cut = reader.cut(pipeline, rgb, docconf=docconf, img_size=img_size)
+        finally:
+            for attr in ("results", "_mrz_zone"):
+                leftover = getattr(pipeline, attr, None)
+                if leftover is not None:
+                    wipe_arrays(leftover)
+                    setattr(pipeline, attr, None)
+    try:
+        return reader.read_stamps(cut)
+    finally:
+        for st in cut.get("stamps", []):             # left unread only when reading failed
+            crop = st.pop("crop_bgr", None)
+            if crop is not None:
+                crop.fill(0)

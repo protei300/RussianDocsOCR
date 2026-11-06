@@ -22,9 +22,9 @@ class PipelineResults:
 
         self._meta_results = dict(Quality={})
         self._timings = dict()
-        # stage keys that ran inside a concurrent group: kept in the report for
-        # visibility, but excluded from the 'total' sum (see add_concurrent_group)
-        self._concurrent_members = set()
+        # Account per invocation, rather than excluding stage names globally:
+        # a fallback may call the same stage both outside and inside a group.
+        self._timed_total = 0.0
         # index of the other side of this document in Pipeline.process_frame's list
         # (see pair_sides); None - no pair found, or a single-document call
         self.paired_with = None
@@ -321,14 +321,18 @@ class PipelineResults:
         is not a timed stage, so wall-clock time is slightly higher.
         """
         timings = self._timings.copy()
-        total_time = sum(v for k, v in timings.items() if k not in self._concurrent_members)
-        timings['total'] = round(total_time, 4)
+        timings['total'] = round(self._timed_total, 4)
         return timings
 
     @timings.setter
     def timings(self, value):
-        """Sets updated timings."""
-        self._timings = self._timings | value
+        """Add sequential invocations, including retries of the same stage."""
+        self._accumulate_timings(value)
+        self._timed_total += sum(value.values())
+
+    def _accumulate_timings(self, values):
+        for name, elapsed in values.items():
+            self._timings[name] = round(self._timings.get(name, 0.0) + elapsed, 4)
 
     def add_concurrent_group(self, name: str, wall_time: float, members: dict):
         """Records a set of stages that ran concurrently with each other.
@@ -340,6 +344,6 @@ class PipelineResults:
             members: per-stage times inside the group; reported as usual but
                 not summed into 'total'.
         """
-        self._timings[name] = round(wall_time, 4)
-        self._timings = self._timings | members
-        self._concurrent_members |= set(members)
+        self._accumulate_timings({name: wall_time})
+        self._accumulate_timings(members)
+        self._timed_total += wall_time

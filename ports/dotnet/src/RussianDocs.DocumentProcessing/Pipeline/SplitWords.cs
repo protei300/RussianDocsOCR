@@ -87,7 +87,7 @@ public sealed class SplitOutcome
 /// whole patch is the single word) - not the same as a split that found no words, which is an empty list.
 /// </summary>
 /// <param name="FieldIndex">Index into the list of fields the split was given.</param>
-public sealed record SplitDetection(int FieldIndex, string Label, List<Box>? WordBoxes);
+public sealed record SplitDetection(int FieldIndex, string Label, List<Box>? WordBoxes, bool ReadWhole = false);
 
 public static class SplitWords
 {
@@ -276,7 +276,7 @@ public static class SplitWords
                     boxes = null;
                 }
 
-                detections.Add(new SplitDetection(i, label, boxes));
+                detections.Add(new SplitDetection(i, label, boxes, readWhole.Contains(i)));
                 if (position.TryGetValue(label, out int at))
                 {
                     output[at].LineWordCounts.Add(patches.Count);

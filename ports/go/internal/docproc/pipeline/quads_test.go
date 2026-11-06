@@ -105,6 +105,19 @@ func TestAnUnknownWayBackIsSaidOnceForTheRun(t *testing.T) {
 	}
 }
 
+func TestWholeLineRetryMapsTheActualPatch(t *testing.T) {
+	canvas := geometry.Chain{}
+	frames := []fieldFrame{{Map: geometry.Offset{DX: -5, DY: -6}, W: 100, H: 20}}
+	for _, boxes := range [][]postprocess.Box{nil, {{X1: 1, Y1: 1, X2: 4, Y2: 10}}} {
+		records := []SplitRecord{{Index: 0, Label: "X", PatchW: 100, PatchH: 20,
+			Split: true, ReadWhole: true, WordBoxes: boxes}}
+		q := buildQuads(records, frames, canvas.ToInput, false)
+		if len(q.Words["X"]) != 1 || q.Words["X"][0] != q.Fields["X"][0] {
+			t.Fatalf("whole-line retry mapped stale word boxes: %+v", q.Words)
+		}
+	}
+}
+
 func TestThePayloadHasTheStageShape(t *testing.T) {
 	canvas := geometry.Chain{}
 	frames := []fieldFrame{{Map: geometry.Offset{DX: -5, DY: -6}, W: 10, H: 20}}

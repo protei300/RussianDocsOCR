@@ -60,7 +60,7 @@ def required_doc_types(module):
 @pytest.fixture
 def model():
     model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/DocTypeAngles/ONNX/model.json'))
+    return model_loader(Path('../document_processing/models/DocTypeAngles/ONNX/model.json'), device='cpu')
 
 
 @pytest.fixture

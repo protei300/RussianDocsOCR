@@ -91,7 +91,7 @@ public class FieldQuads(
                 }
                 fields.getOrPut(label) { ArrayList() } += field
                 val wordBoxes = k.wordBoxes
-                if (wordBoxes == null) {
+                if (wordBoxes == null || k.readWhole) {
                     words.getOrPut(label) { ArrayList() } += field
                     continue
                 }

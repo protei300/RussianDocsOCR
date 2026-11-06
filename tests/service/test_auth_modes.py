@@ -61,6 +61,7 @@ EXPECTED_GUARDS = {
     # it runs the pipeline on the caller's image. The journal is outcome + time
     # only, so a viewer may read it like the document list.
     ("POST", "/api/v1/recognize"): "require_api_or_operator",
+    ("POST", "/api/v1/recognize/registration"): "require_api_or_operator",
     ("GET", "/api/v1/recognitions"): "require_api_or_viewer",
     # Everyone's data at once: a session, and an administrator's.
     ("POST", "/api/v1/documents/purge"): "require_admin",

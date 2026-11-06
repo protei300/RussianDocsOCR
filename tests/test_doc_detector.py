@@ -8,7 +8,7 @@ from document_processing.processing.models import ModelLoader
 @pytest.fixture
 def model():
     model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/Borders/ONNX/model.json'))
+    return model_loader(Path('../document_processing/models/Borders/ONNX/model.json'), device='cpu')
 
 
 @pytest.fixture

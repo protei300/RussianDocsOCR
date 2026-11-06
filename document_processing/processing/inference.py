@@ -123,6 +123,7 @@ class ModelInference:
         else:
             providers = ['CPUExecutionProvider', ]
         self.model = self.ort.InferenceSession(onnx_model_path, providers=providers)
+        self._check_onnx_provider()
         inputs = self.model.get_inputs()
         ort_inputs = {}
         for inp in inputs:
@@ -145,6 +146,16 @@ class ModelInference:
             self.model.run(None, ort_inputs)
         except Exception as e:
             print(f"[!] ONNX warmup skipped for {onnx_model_path}: {e}")
+        # ORT may also drop CUDA while executing its first run. A skipped
+        # warmup must not hide a device fallback from the service's CPU retry.
+        self._check_onnx_provider()
+
+    def _check_onnx_provider(self):
+        if self.device == 'gpu' and 'CUDAExecutionProvider' not in self.model.get_providers():
+            raise RuntimeError(
+                "CUDAExecutionProvider is not active for a requested GPU model; "
+                f"active providers: {self.model.get_providers()}. "
+                "Check CUDA/cuDNN or select device='cpu'.")
 
     def __load_openvino(self, model_path: Path):
         core = self.openvino.Core()
@@ -169,7 +180,9 @@ class ModelInference:
         if self._run_lock is None:
             return self.model.run(None, ort_inputs)
         with self._run_lock:                      # CUDA only - see __init__
-            return self.model.run(None, ort_inputs)
+            result = self.model.run(None, ort_inputs)
+            self._check_onnx_provider()
+            return result
 
     def __predict_openvino(self, tensor: np.ndarray):
         request = getattr(self._ov_local, 'request', None)

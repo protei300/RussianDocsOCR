@@ -75,7 +75,7 @@ public class SplitResult(
 )
 
 /** One detected field that is read, and the word boxes found on its patch (null — not split). */
-public class KeptField(public val field: Field, public val wordBoxes: List<Box>?)
+public class KeptField(public val field: Field, public val wordBoxes: List<Box>?, public val readWhole: Boolean = false)
 
 public object SplitWords {
 
@@ -246,7 +246,7 @@ public object SplitWords {
                     boxes = null
                 }
 
-                keptFields += KeptField(fields[i], boxes)
+                keptFields += KeptField(fields[i], boxes, i in wholeLine)
 
                 val at = position[label]
                 if (at != null) {

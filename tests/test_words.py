@@ -13,7 +13,7 @@ def module():
 @pytest.fixture
 def model():
     model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/Words/ONNX/model.json'))
+    return model_loader(Path('../document_processing/models/Words/ONNX/model.json'), device='cpu')
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 {
-  "models_version": "v11",
-  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v11/",
+  "models_version": "v12",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v12/",
   "release_url": "https://github.com/protei300/RussianDocsOCR/releases/download/{release}/",
   "networks": {
     "AddressLines": "v4",
@@ -15,8 +15,10 @@
     "OCR/cyrillic_fast": "v4",
     "OCR/latin_accurate": "v4",
     "OCR/latin_fast": "v4",
+    "OCR/stamp_v3": "v12",
     "PrintSpoofing": "v4",
     "RegistrationStamps": "v11",
+    "StampFields": "v12",
     "TextFields": "v10",
     "Words": "v6"
   },
@@ -197,6 +199,20 @@
       "release": "models-v4"
     },
     {
+      "path": "OCR/stamp_v3/ONNX/model.json",
+      "asset": "OCR__stamp_v3__ONNX__model.d8b98730b9e4.json",
+      "size": 600,
+      "sha256": "d8b98730b9e4b82802280a5725e372281e7ff701a4663edebc829d86f6d6ba44",
+      "release": "models-v12"
+    },
+    {
+      "path": "OCR/stamp_v3/ONNX/model.onnx",
+      "asset": "OCR__stamp_v3__ONNX__model.fde72e8d27a9.onnx",
+      "size": 21427887,
+      "sha256": "fde72e8d27a9063260ab7f98acebd507c40ea95b1733509966e8d729911dc0ff",
+      "release": "models-v12"
+    },
+    {
       "path": "PrintSpoofing/ONNX/model.json",
       "asset": "PrintSpoofing__ONNX__model.json",
       "size": 896,
@@ -223,6 +239,20 @@
       "size": 10836190,
       "sha256": "144427daf12d25dda701177508d8fff8dded308eee6ceb03553543f8881cdddd",
       "release": "models-v11"
+    },
+    {
+      "path": "StampFields/ONNX/model.json",
+      "asset": "StampFields__ONNX__model.c4dd448defdf.json",
+      "size": 690,
+      "sha256": "c4dd448defdfff0f5c26c06567d84dbe1d62d57deb07b8c804d36caae36cc28f",
+      "release": "models-v12"
+    },
+    {
+      "path": "StampFields/ONNX/model.onnx",
+      "asset": "StampFields__ONNX__model.a12448eb9bd3.onnx",
+      "size": 38903983,
+      "sha256": "a12448eb9bd3fb0c7902332ffe4cc3341c2ef906701f186b3bc11d26f95b8f71",
+      "release": "models-v12"
     },
     {
       "path": "TextFields/ONNX/model.json",

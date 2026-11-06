@@ -232,6 +232,18 @@ public class MapsTests
         Assert.That(quads[1][2], Is.EqualTo(new Point(180, 230)));
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AWholeLineRetry_MapsTheReadPatchRatherThanRejectedWords(bool empty)
+    {
+        using Field field = FieldAt("Birth_place_ru", 100, 200, 80, 30, 80, 30);
+        List<Box> boxes = empty ? [] : [new() { X1 = 1, Y1 = 1, X2 = 5, Y2 = 10 }];
+        FieldQuadSet set = FieldQuads.Build(new ChainMap(), [field],
+            Split(new SplitDetection(0, "Birth_place_ru", boxes, ReadWhole: true)), new OcrOptions());
+        Assert.That(set.Words!["Birth_place_ru"].Count, Is.EqualTo(1));
+        Assert.That(set.Words["Birth_place_ru"][0], Is.EqualTo(set.Fields!["Birth_place_ru"][0]));
+    }
+
     [Test]
     public void TheTurnedSeriesAndNumber_WordsLandOnTheirOwnEndOfTheField()
     {

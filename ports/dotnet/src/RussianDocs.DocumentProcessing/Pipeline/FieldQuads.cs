@@ -78,7 +78,7 @@ public static class FieldQuads
             }
             Add(fieldQuads, label, onInput);
 
-            if (detection.WordBoxes is null)
+            if (detection.WordBoxes is null || detection.ReadWhole)
             {
                 Add(wordQuads, label, onInput);
                 continue;

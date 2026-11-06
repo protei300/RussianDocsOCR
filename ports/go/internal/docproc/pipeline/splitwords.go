@@ -268,7 +268,7 @@ func SplitWords(fields []modules.Field, opts OcrOptions,
 		s, split := byIdx[i]
 		records = append(records, SplitRecord{Index: i, Label: fields[i].Box.Label,
 			PatchW: fields[i].Patch.Width(), PatchH: fields[i].Patch.Height(),
-			Split: split, WordBoxes: s.boxes})
+			Split: split, ReadWhole: readWhole[i], WordBoxes: s.boxes})
 	}
 	return out, flags, records, nil
 }
@@ -283,6 +283,7 @@ type SplitRecord struct {
 	PatchW, PatchH int
 	// Split is false for a field that needs no splitting: its whole patch is the single word.
 	Split     bool
+	ReadWhole bool // the gap guard replaced the word crops with the whole field
 	WordBoxes []postprocess.Box
 }
 

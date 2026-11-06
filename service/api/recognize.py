@@ -43,7 +43,7 @@ from service.api.deps import require_api_or_role
 from service.core.config import get_settings
 from service.core.database import DbSession, get_db
 from service.ml import runtime
-from service.ml.errors import PipelineBusy, RuntimeNotReady
+from service.ml.errors import PipelineBusy, RegistrationUnavailable, RuntimeNotReady
 from service.repositories import artifacts
 from service.repositories import recognitions
 from service.repositories import settings as settings_repo
@@ -264,6 +264,117 @@ async def recognize(
         _wipe(body)
         _wipe(image)
         _wipe(png)
+        payload = None
+        gc.collect()
+
+
+def _registration_sync(image: bytearray, docconf: float, img_size: int) -> dict[str, Any]:
+    """Decode, read the registration page, wipe - as ``_recognise_sync``."""
+    import cv2
+    import numpy as np
+
+    bgr = rgb = None
+    try:
+        bgr = cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
+        if bgr is None:
+            raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                           "The image could not be decoded — it may be corrupt")
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        bgr.fill(0)
+        return runtime.recognise_registration(rgb, docconf=docconf, img_size=img_size,
+                                              lease_timeout=float(get_settings().recognize_wait_sec))
+    finally:
+        for arr in (bgr, rgb):
+            if arr is not None:
+                arr.fill(0)
+        _wipe(image)
+
+
+@router.post("/recognize/registration")
+async def recognize_registration(
+    request: Request,
+    db: DbSession = Depends(get_db),
+    _identity=Depends(require_api_or_operator),
+) -> JSONResponse:
+    """A registration page (photo, scan, spread or a cut-out stamp) in memory ->
+    the stamps found on it and the fields of each. Nothing is stored.
+
+    The answer: ``decision`` (``registration`` / ``stamp_fragment`` /
+    ``not_registration`` / ``multiple_documents`` / ``no_document``), ``pages``,
+    ``stamps`` freshest first with ``kind``, ``cancels``, ``current``, ``fields``
+    and their ``boxes``; coordinates in the pixels of the upload.
+    """
+    started = time.perf_counter()
+    settings = get_settings()
+    limit = settings.max_upload_mb * 1024 * 1024
+    body = image = None
+    try:
+        body = await _read_body(request, limit)
+        content_type = request.headers.get("content-type", "")
+        if content_type.lower().startswith("multipart/form-data"):
+            boundary = _boundary(content_type)
+            if not boundary:
+                raise _Refused(status.HTTP_400_BAD_REQUEST, "Malformed multipart body")
+            image = _image_from_multipart(body, boundary)
+            _wipe(body)
+        else:
+            image, body = body, None
+        if not image:
+            raise _Refused(status.HTTP_400_BAD_REQUEST, "Empty upload")
+        if len(image) > limit:
+            raise _Refused(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                           f"File exceeds the {settings.max_upload_mb} MB limit")
+        if artifacts.is_pdf(image):
+            raise _Refused(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                           "PDF is not supported — send a JPEG, PNG, WEBP, BMP or TIFF image")
+        if artifacts.sniff_image(image) is None:
+            raise _Refused(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                           "Unsupported file type — expected an image")
+
+        docconf = float(settings_repo.get_value(db, "docconf", 0.5))
+        img_size = int(settings_repo.get_value(db, "img_size", 1500))
+        timeout = float(settings_repo.get_value(db, "job_timeout_sec", 120))
+        loop = asyncio.get_running_loop()
+        try:
+            payload = await asyncio.wait_for(
+                loop.run_in_executor(_executor(), _registration_sync, image, docconf, img_size),
+                timeout=timeout + settings.recognize_wait_sec)
+        except PipelineBusy:
+            raise _Refused(status.HTTP_503_SERVICE_UNAVAILABLE,
+                           "All recognition pipelines are busy — retry shortly", "busy",
+                           {"Retry-After": "5"}) from None
+        except RuntimeNotReady:
+            raise _Refused(status.HTTP_503_SERVICE_UNAVAILABLE,
+                           "The recognition runtime is not ready yet", "busy",
+                           {"Retry-After": "10"}) from None
+        except RegistrationUnavailable as missing:
+            raise _Refused(status.HTTP_503_SERVICE_UNAVAILABLE,
+                           "Registration reading is not installed on this server — missing: "
+                           + ", ".join(missing.missing), "error") from None
+        except asyncio.TimeoutError:
+            raise _Refused(status.HTTP_504_GATEWAY_TIMEOUT,
+                           "Recognition took too long", "error") from None
+        image = None                                # wiped by _registration_sync
+
+        ms = int((time.perf_counter() - started) * 1000)
+        content = {"stored": False, **payload, "processing_ms": ms}
+        outcome = "recognised" if payload.get("recognised") else "not_recognised"
+        _finish(outcome, 200, started)
+        return JSONResponse(content, headers={"Cache-Control": "no-store"})
+    except _Refused as refused:
+        _finish(refused.outcome, refused.status_code, started)
+        raise HTTPException(refused.status_code, detail=refused.detail,
+                            headers=refused.headers) from None
+    except HTTPException:
+        raise
+    except Exception as error:                       # noqa: BLE001 — logged by type only
+        _finish("error", 500, started)
+        log.warning("[API] recognize registration failed: %s", type(error).__name__)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Recognition failed") from None
+    finally:
+        _wipe(body)
+        _wipe(image)
         payload = None
         gc.collect()
 
