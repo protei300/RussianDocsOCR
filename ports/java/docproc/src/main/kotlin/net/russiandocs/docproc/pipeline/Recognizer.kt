@@ -20,6 +20,7 @@ import net.russiandocs.docproc.modules.DocBox
 import net.russiandocs.docproc.modules.DocumentDetector
 import net.russiandocs.docproc.modules.DocDetector
 import net.russiandocs.docproc.modules.DocDeskewer
+import java.io.File
 import net.russiandocs.docproc.modules.DocTypeAngles
 import net.russiandocs.docproc.modules.Blur
 import net.russiandocs.docproc.modules.DocTypeResult
@@ -372,6 +373,7 @@ public class Recognizer(
     private val docDetector: DocDetector
     private val deskewer: DocDeskewer
     private val textFields: TextFieldsDetector
+    private val migrationFields: TextFieldsDetector?
     private val words: WordsDetector
 
     /** `Pipeline.address_lines` / `address_textkind`: the registration page (INTPASSPORTADDR). */
@@ -412,6 +414,10 @@ public class Recognizer(
         docDetector = DocDetector(root, paths, device, intraOpThreads)
         deskewer = DocDeskewer.forPipeline()
         textFields = TextFieldsDetector(root, paths, device, intraOpThreads)
+        migrationFields = if (docTypeAngles.migrationEnabled) {
+            val bundle = ModelPaths.resolve(root, paths, "MigrationPipeline")
+            TextFieldsDetector(root, File(bundle, "MigrationTextFields/ONNX").path, device, intraOpThreads)
+        } else null
         words = WordsDetector(root, paths, device, intraOpThreads)
         addressLines = AddressLinesDetector(root, paths, device, intraOpThreads)
         addressTextKind = AddressTextKindClassifier(root, paths, device, intraOpThreads)
@@ -724,10 +730,12 @@ public class Recognizer(
             // whole-canvas call. The `placements.size == pages.size` check mirrors the reference's defensive
             // equal-length check, which is never false here since both come from the same call ([Geometry.
             // fixPerspective] or [registerPages]/[Geometry.stitchPages]).
-            val fields: MutableList<Field> = if (registered.pages.size >= 2 && registered.placements.size == registered.pages.size) {
+            val detector = if (meta.docType == DocTypeAngles.MIGRATION_CARD) checkNotNull(migrationFields) else textFields
+            val fields: MutableList<Field> = if (detector === textFields && registered.pages.size >= 2 &&
+                registered.placements.size == registered.pages.size) {
                 fieldsFromPages(registered.pages, registered.placements, ocrOptions.needsLicenceRotation).toMutableList()
             } else {
-                textFields.predictTransform(deskewed, ocrOptions.needsLicenceRotation).toMutableList().also {
+                detector.predictTransform(deskewed, ocrOptions.needsLicenceRotation).toMutableList().also {
                     // a patch is the canvas cut at its box (`TextFieldsDetector`)
                     for (f in it) {
                         f.cutMap = Offset(-f.box.x1.toInt().toDouble(), -f.box.y1.toInt().toDouble())
@@ -880,7 +888,7 @@ public class Recognizer(
                         // convention `_join_field` uses: any key whose name contains "date", case-insensitive.
                         val normalized = LinkedHashMap<String, String>()
                         for ((name, value) in results.ocr) {
-                            if (!name.lowercase().contains("date")) {
+                            if (!name.lowercase().contains("date") && name !in ocrOptions.extraDates) {
                                 continue
                             }
                             Dates.canonicalDate(name, value)?.let { normalized[name] = it }
@@ -1416,7 +1424,7 @@ public class Recognizer(
         // memory in how long it takes to notice.
         val failures = mutableListOf<Throwable>()
         for (closeable in listOfNotNull(documentDetector, docTypeAngles, glare, blur, printSpoofing, lcdSpoofing, docDetector,
-            textFields, words, addressLines, addressTextKind, registrationStamps, cyrillic, latin, pageRegistrar) + cardRegistrars.values.filterNotNull()) {
+            textFields, migrationFields, words, addressLines, addressTextKind, registrationStamps, cyrillic, latin, pageRegistrar) + cardRegistrars.values.filterNotNull()) {
             try {
                 closeable.close()
             } catch (e: Throwable) {

@@ -53,10 +53,11 @@ class DocumentDetector(BaseModule):
     white sheet around it (measured 2026-09-29: type by frame 50 % on licences,
     by crop 99 %) - and it can hold several documents (issue #26).
     """
-    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool = False, runtime: str = None):
+    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool = False, runtime: str = None,
+                 model_config: Path = None):
         self.model_name = 'DocumentDetector'
         super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose,
-                         runtime=runtime)
+                         runtime=runtime, model_config=model_config)
 
     def predict(self, img: Union[str, Path, np.ndarray]) -> dict:
         """Detects documents and passport pages.

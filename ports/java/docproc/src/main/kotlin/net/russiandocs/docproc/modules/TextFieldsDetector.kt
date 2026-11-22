@@ -29,16 +29,17 @@ public fun closeAllFields(fields: Iterable<Field>?) {
 }
 
 /** Locates the text fields on a corrected canvas and crops each one. */
-public class TextFieldsDetector(
+public class TextFieldsDetector internal constructor(
     root: String,
-    paths: Map<String, String>,
+    dir: String,
     device: Device,
     threads: Int,
 ) : AutoCloseable {
 
-    private val model = DetectionModel(
-        File(ModelPaths.resolve(root, paths, "TextFieldsDetector"), "ONNX").path,
-        device, threads, root)
+    public constructor(root: String, paths: Map<String, String>, device: Device, threads: Int) :
+        this(root, File(ModelPaths.resolve(root, paths, "TextFieldsDetector"), "ONNX").path, device, threads)
+
+    private val model = DetectionModel(dir, device, threads, root)
 
     /**
      * Detects and crops.

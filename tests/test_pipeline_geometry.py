@@ -175,6 +175,29 @@ def assert_corners(found, expected):
         assert min(np.linalg.norm(found - corner, axis=1)) <= ATOL, (found, expected)
 
 
+def test_migration_head_rotates_card_and_routes_separate_fields_to_ocr():
+    image = np.full((88, 140, 3), PAPER, dtype=np.uint8)
+    image[25:39, 30:70] = BLUE
+    photo = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    stub = pipeline('NONE', 0)
+    stub.doctype_angles.migration_threshold = .9
+    stub.doctype_angles.model.predict = lambda _: (('NONE', 1., .2), (0, .8), (90, .99))
+    stub.migration_fields = module(TextFieldsDetector, 'TextFieldsDetector',
+                                   lambda img: box_of(img, BLUE, 'Stay_to'))
+    stub.ocr_lat.fix_errors = lambda *, field_type, text: text
+    stub.ocr_lat.predict = lambda patch: {'OCRLatin': {'ocr_output': '31012027'}}
+
+    result = stub.process_img(photo, get_doc_borders=False, check_quality=False)
+
+    assert result.doctype == 'MIGRATIONCARD_ALL'
+    assert result.angle == 90
+    assert result.ocr == {'Stay_to': '31012027'}
+    assert result.ocr_normalized == {'Stay_to': '31.01.2027'}
+    assert 'Licence_number' not in result.field_quads
+    assert_corners(result.field_quads['Stay_to'][0],
+                   clockwise([(30, 25), (70, 25), (70, 39), (30, 39)], image.shape[0]))
+
+
 def clockwise(points, height):
     """Points of an upright photo of `height` on the same photo turned clockwise: (x, y) -> (height - y, x)."""
     points = np.asarray(points, dtype=float).reshape(-1, 2)

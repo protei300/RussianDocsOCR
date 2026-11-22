@@ -77,9 +77,13 @@ public sealed class TextFieldsDetector : IDisposable
 
     public TextFieldsDetector(string root, IReadOnlyDictionary<string, string> paths, Device device,
         int threads)
-        => _model = new DetectionModel(
-            Path.Combine(ModelPaths.Resolve(root, paths, "TextFieldsDetector"), "ONNX"),
-            device, threads);
+        : this(Path.Combine(ModelPaths.Resolve(root, paths, "TextFieldsDetector"), "ONNX"),
+            device, threads)
+    {
+    }
+
+    internal TextFieldsDetector(string dir, Device device, int threads)
+        => _model = new DetectionModel(dir, device, threads);
 
     /// <summary>
     /// Detects and crops.

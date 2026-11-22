@@ -22,6 +22,7 @@ type OcrOptions struct {
 	NeedsLicenceRotation bool
 	// HasAddress routes through the address-line path instead of text fields.
 	HasAddress bool
+	ExtraDates []string
 	// EngineByYear is OCROptionsClass.engine_by_year: Field -> {form year (the label
 	// suffix): "cyr" | "lat"}, an engine that overrides RuFields/EnFields on that year only.
 	// For a line whose alphabet follows the form edition. The field must still be listed in
@@ -146,6 +147,16 @@ func MakeOcrOptions(docType string) OcrOptions {
 				"Middle_name_en"},
 			RuFields: []string{"Last_name_ru", "First_name_ru", "Birth_place_ru",
 				"Issue_organization_ru", "Living_region_ru", "Middle_name_ru"},
+		}
+	case t == "migrationcard" || t == "migrationcard_all":
+		return OcrOptions{
+			NeededSplit: []string{"Inviting_party", "Citizenship"},
+			ExtraDates:  []string{"Stay_from", "Stay_to"},
+			EnFields: []string{"Last_name_en", "First_name_en", "Middle_name_en", "Sex_en",
+				"Licence_number", "Birth_date", "Card_series", "Card_number",
+				"Visa_number", "Stay_from", "Stay_to"},
+			RuFields: []string{"Last_name_ru", "First_name_ru", "Middle_name_ru", "Sex_ru",
+				"Citizenship", "Visit_purpose", "Inviting_party"},
 		}
 	case strings.Contains(t, "snils"):
 		return OcrOptions{

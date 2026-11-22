@@ -28,7 +28,20 @@ type TextFieldsDetector struct {
 func NewTextFieldsDetector(root string, paths *config.ModelPaths, format string,
 	device inference.Device, threads int) (*TextFieldsDetector, error) {
 
-	dir, err := paths.Dir("TextFieldsDetector", format)
+	return newTextFieldsDetector(root, paths, "TextFieldsDetector", format, device, threads)
+}
+
+func NewMigrationTextFieldsDetector(root string, paths *config.ModelPaths, format string,
+	device inference.Device, threads int) (*TextFieldsDetector, error) {
+
+	return newTextFieldsDetector(root, paths, "MigrationPipeline", "MigrationTextFields/"+format,
+		device, threads)
+}
+
+func newTextFieldsDetector(root string, paths *config.ModelPaths, key, subdir string,
+	device inference.Device, threads int) (*TextFieldsDetector, error) {
+
+	dir, err := paths.Dir(key, subdir)
 	if err != nil {
 		return nil, err
 	}

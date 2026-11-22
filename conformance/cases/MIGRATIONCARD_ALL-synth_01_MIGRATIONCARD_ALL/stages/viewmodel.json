@@ -1,0 +1,387 @@
+{
+  "doc_type": "MIGRATIONCARD_ALL",
+  "doc_type_base": "MIGRATIONCARD",
+  "doc_type_era": "ALL",
+  "recognised": true,
+  "device": "cpu",
+  "canvas": {
+    "width": 991,
+    "height": 1436,
+    "is_fallback": false
+  },
+  "coord_space": "canvas",
+  "coord_space_note": "Box coordinates are in canvas pixel space and match the canvas image exactly. They cannot be mapped onto the original upload: the library does not retain the deskew angle.",
+  "boxes": [
+    {
+      "id": "b0",
+      "label": "Card_series",
+      "display": "Card_series",
+      "kind": "text",
+      "x1": 491,
+      "y1": 206,
+      "x2": 619,
+      "y2": 245,
+      "conf": 0.89,
+      "cls": 10,
+      "text": "0001",
+      "ambiguous": false
+    },
+    {
+      "id": "b1",
+      "label": "Card_number",
+      "display": "Card_number",
+      "kind": "text",
+      "x1": 492,
+      "y1": 287,
+      "x2": 730,
+      "y2": 330,
+      "conf": 0.902,
+      "cls": 11,
+      "text": "0000002",
+      "ambiguous": false
+    },
+    {
+      "id": "b2",
+      "label": "Last_name_ru",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 325,
+      "y1": 358,
+      "x2": 659,
+      "y2": 389,
+      "conf": 0.815,
+      "cls": 0,
+      "text": "ПРИМЕРОВА",
+      "ambiguous": false
+    },
+    {
+      "id": "b3",
+      "label": "Last_name_en",
+      "display": "Last name",
+      "kind": "text",
+      "x1": 321,
+      "y1": 401,
+      "x2": 664,
+      "y2": 432,
+      "conf": 0.763,
+      "cls": 2,
+      "text": "PRIMEROVAA",
+      "ambiguous": false
+    },
+    {
+      "id": "b4",
+      "label": "First_name_ru",
+      "display": "First name",
+      "kind": "text",
+      "x1": 321,
+      "y1": 443,
+      "x2": 510,
+      "y2": 477,
+      "conf": 0.865,
+      "cls": 1,
+      "text": "АЛИНА",
+      "ambiguous": false
+    },
+    {
+      "id": "b5",
+      "label": "Sex_ru",
+      "display": "Sex",
+      "kind": "text",
+      "x1": 748,
+      "y1": 573,
+      "x2": 938,
+      "y2": 608,
+      "conf": 0.841,
+      "cls": 7,
+      "text": "Ж М",
+      "ambiguous": false
+    },
+    {
+      "id": "b6",
+      "label": "Sex_ru",
+      "display": "Sex",
+      "kind": "text",
+      "x1": 485,
+      "y1": 577,
+      "x2": 602,
+      "y2": 605,
+      "conf": 0.597,
+      "cls": 7,
+      "text": null,
+      "ambiguous": true
+    },
+    {
+      "id": "b7",
+      "label": "Birth_date",
+      "display": "Date of birth",
+      "kind": "text",
+      "x1": 68,
+      "y1": 654,
+      "x2": 455,
+      "y2": 690,
+      "conf": 0.836,
+      "cls": 5,
+      "text": "02.02.1981",
+      "ambiguous": false
+    },
+    {
+      "id": "b8",
+      "label": "Citizenship",
+      "display": "Citizenship",
+      "kind": "text",
+      "x1": 462,
+      "y1": 656,
+      "x2": 832,
+      "y2": 692,
+      "conf": 0.804,
+      "cls": 12,
+      "text": "ТАДЖИКИСТАН Н",
+      "ambiguous": false
+    },
+    {
+      "id": "b9",
+      "label": "Visa_number",
+      "display": "Visa_number",
+      "kind": "text",
+      "x1": 495,
+      "y1": 764,
+      "x2": 688,
+      "y2": 798,
+      "conf": 0.727,
+      "cls": 13,
+      "text": "000000002",
+      "ambiguous": false
+    },
+    {
+      "id": "b10",
+      "label": "Licence_number",
+      "display": "Document number",
+      "kind": "text",
+      "x1": 59,
+      "y1": 786,
+      "x2": 349,
+      "y2": 817,
+      "conf": 0.805,
+      "cls": 4,
+      "text": "AB00000002",
+      "ambiguous": false
+    },
+    {
+      "id": "b11",
+      "label": "Inviting_party",
+      "display": "Inviting_party",
+      "kind": "text",
+      "x1": 451,
+      "y1": 973,
+      "x2": 827,
+      "y2": 1006,
+      "conf": 0.728,
+      "cls": 15,
+      "text": "ООО МАКЕТ, Г. ПРИМЕРСК",
+      "ambiguous": false
+    },
+    {
+      "id": "b12",
+      "label": "Stay_from",
+      "display": "Stay_from",
+      "kind": "text",
+      "x1": 157,
+      "y1": 1068,
+      "x2": 345,
+      "y2": 1100,
+      "conf": 0.836,
+      "cls": 16,
+      "text": "02.11.2026",
+      "ambiguous": false
+    },
+    {
+      "id": "b13",
+      "label": "Stay_to",
+      "display": "Stay_to",
+      "kind": "text",
+      "x1": 478,
+      "y1": 1068,
+      "x2": 664,
+      "y2": 1102,
+      "conf": 0.869,
+      "cls": 17,
+      "text": "03.12.2026",
+      "ambiguous": false
+    }
+  ],
+  "fields": [
+    {
+      "name": "Birth_date",
+      "display": "Date of birth",
+      "value": "02.02.1981",
+      "script": "num",
+      "conf": 0.836,
+      "box_ids": [
+        "b7"
+      ],
+      "normalized": "02.02.1981"
+    },
+    {
+      "name": "Card_number",
+      "display": "Card_number",
+      "value": "0000002",
+      "script": "ru",
+      "conf": 0.902,
+      "box_ids": [
+        "b1"
+      ]
+    },
+    {
+      "name": "Card_series",
+      "display": "Card_series",
+      "value": "0001",
+      "script": "ru",
+      "conf": 0.89,
+      "box_ids": [
+        "b0"
+      ]
+    },
+    {
+      "name": "Citizenship",
+      "display": "Citizenship",
+      "value": "ТАДЖИКИСТАН Н",
+      "script": "ru",
+      "conf": 0.804,
+      "box_ids": [
+        "b8"
+      ]
+    },
+    {
+      "name": "First_name_ru",
+      "display": "First name",
+      "value": "АЛИНА",
+      "script": "ru",
+      "conf": 0.865,
+      "box_ids": [
+        "b4"
+      ]
+    },
+    {
+      "name": "Inviting_party",
+      "display": "Inviting_party",
+      "value": "ООО МАКЕТ, Г. ПРИМЕРСК",
+      "script": "ru",
+      "conf": 0.728,
+      "box_ids": [
+        "b11"
+      ]
+    },
+    {
+      "name": "Last_name_en",
+      "display": "Last name",
+      "value": "PRIMEROVAA",
+      "script": "en",
+      "conf": 0.763,
+      "box_ids": [
+        "b3"
+      ]
+    },
+    {
+      "name": "Last_name_ru",
+      "display": "Last name",
+      "value": "ПРИМЕРОВА",
+      "script": "ru",
+      "conf": 0.815,
+      "box_ids": [
+        "b2"
+      ]
+    },
+    {
+      "name": "Licence_number",
+      "display": "Document number",
+      "value": "AB00000002",
+      "script": "num",
+      "conf": 0.805,
+      "box_ids": [
+        "b10"
+      ]
+    },
+    {
+      "name": "Sex_ru",
+      "display": "Sex",
+      "value": "Ж М",
+      "script": "ru",
+      "conf": 0.841,
+      "box_ids": [
+        "b5",
+        "b6"
+      ]
+    },
+    {
+      "name": "Stay_from",
+      "display": "Stay_from",
+      "value": "02.11.2026",
+      "script": "ru",
+      "conf": 0.836,
+      "box_ids": [
+        "b12"
+      ],
+      "normalized": "02.11.2026"
+    },
+    {
+      "name": "Stay_to",
+      "display": "Stay_to",
+      "value": "03.12.2026",
+      "script": "ru",
+      "conf": 0.869,
+      "box_ids": [
+        "b13"
+      ],
+      "normalized": "03.12.2026"
+    },
+    {
+      "name": "Visa_number",
+      "display": "Visa_number",
+      "value": "000000002",
+      "script": "ru",
+      "conf": 0.727,
+      "box_ids": [
+        "b9"
+      ]
+    }
+  ],
+  "ocr": {
+    "Card_series": "0001",
+    "Card_number": "0000002",
+    "Last_name_ru": "ПРИМЕРОВА",
+    "Last_name_en": "PRIMEROVAA",
+    "First_name_ru": "АЛИНА",
+    "Sex_ru": "Ж М",
+    "Birth_date": "02.02.1981",
+    "Citizenship": "ТАДЖИКИСТАН Н",
+    "Visa_number": "000000002",
+    "Licence_number": "AB00000002",
+    "Inviting_party": "ООО МАКЕТ, Г. ПРИМЕРСК",
+    "Stay_from": "02.11.2026",
+    "Stay_to": "03.12.2026"
+  },
+  "quality": {
+    "DocConf": 0.9981,
+    "Glare": "good",
+    "Blur": "good",
+    "PrintSpoofing": "FAKE",
+    "LCDSpoofing": "REAL"
+  },
+  "timings": {
+    "_document_detector": 0.1457,
+    "_doctype_angle": 0.0224,
+    "_quality_and_borders": 0.4811,
+    "_glare": 0.1308,
+    "_blur": 0.1773,
+    "_print_spoofing": 0.0139,
+    "_lcd_spoofing": 0.009,
+    "_doc_detector": 0.4522,
+    "_register_pages": 0.0,
+    "_deskew": 0.023,
+    "_fields_detector": 0.1698,
+    "_split_words": 0.1024,
+    "_ocr": 0.9911,
+    "total": 1.9355
+  },
+  "address": null
+}

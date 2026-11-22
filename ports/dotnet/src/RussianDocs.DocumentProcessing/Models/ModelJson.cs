@@ -21,6 +21,7 @@ public sealed class ModelConfig
     [JsonPropertyName("File")] public string File { get; set; } = "";
     [JsonPropertyName("ModelType")] public string ModelType { get; set; } = "";
     [JsonPropertyName("Runtime")] public string? Runtime { get; set; }
+    [JsonPropertyName("MigrationThreshold")] public double? MigrationThreshold { get; set; }
     [JsonPropertyName("Inputs")] public List<ModelInput> Inputs { get; set; } = [];
     [JsonPropertyName("Outputs")] public List<ModelOutput> Outputs { get; set; } = [];
 

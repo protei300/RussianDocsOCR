@@ -6,6 +6,9 @@ import cv2
 
 from ...geometry import QuarterTurns
 
+MIGRATION_CARD = 'MIGRATIONCARD_ALL'
+
+
 class DocTypeAngles(BaseModule):
     """Classifies document type and 90-degree rotation angle from an image.
 
@@ -25,14 +28,34 @@ class DocTypeAngles(BaseModule):
         }}
     """
 
-    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool=False, runtime: str = None):
+    migration_threshold = None
+
+    def __init__(self, model_format: str = 'ONNX', device='cpu', verbose: bool=False, runtime: str = None,
+                 model_config: Path = None):
         """Initializes document type and angles detection model."""
         self.model_name = 'DocTypeAngles'
-        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose, runtime=runtime)
+        super().__init__(self.model_name, model_format=model_format, device=device, verbose=verbose,
+                         runtime=runtime, model_config=model_config)
+        self.migration_threshold = self.model_info.get('MigrationThreshold')
+        if self.migration_threshold is not None:
+            if not (0 < self.migration_threshold <= 1):
+                raise ValueError('MigrationThreshold must be in (0, 1]')
+            outputs = self.model_info['Outputs']
+            if len(outputs) != 3 or outputs[2]['Labels'] != ['other', 0, 90, 180, 270]:
+                raise ValueError('The migration output must supply other and the four correcting angles')
 
     def __predict_meta(self, img: np.ndarray) -> dict:
         """Runs the model and builds the flat payload dict (no rotation)."""
-        doctype_meta, angle_meta = self.model.predict(img)
+        doctype_meta, angle_meta, *extra = self.model.predict(img)
+        if self.migration_threshold is not None:
+            migration_angle, score = extra[0]
+            if migration_angle != 'other' and score >= self.migration_threshold:
+                return {
+                    'doc_type': MIGRATION_CARD,
+                    'doc_type_confidence': float(score),
+                    'angle': migration_angle,
+                    'angle_confidence': float(score),
+                }
         doc_type, dist, thresh = doctype_meta
         angle, angle_conf = angle_meta
         # thresh == 0 is the postprocessing's "no centroid within radius" sentinel

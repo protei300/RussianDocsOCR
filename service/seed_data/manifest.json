@@ -100,5 +100,14 @@
   "content_type": "image/jpeg",
   "size_bytes": 253246,
   "search_text": ""
+ },
+ {
+  "slug": "MIGRATIONCARD_ALL-synth_01_MIGRATIONCARD_ALL",
+  "sample": "conformance/material/MIGRATIONCARD_ALL/synth_01_MIGRATIONCARD_ALL.png",
+  "filename": "sample-MIGRATIONCARD_ALL-synth_01_MIGRATIONCARD_ALL.png",
+  "original_ext": ".png",
+  "content_type": "image/png",
+  "size_bytes": 3096687,
+  "search_text": ""
  }
 ]

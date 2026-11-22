@@ -37,23 +37,24 @@ type Recognizer struct {
 	// docs is nil when the weight set has no DocDetect (models-v8 or older): the whole
 	// frame is then read, as before decision #142 - the reference does the same instead
 	// of refusing to start.
-	docs       *modules.DocumentDetector
-	doctype    *modules.DocTypeAngles
-	glare      *modules.Glare
-	blur       *modules.Blur
-	printSpoof *modules.Spoofing
-	lcdSpoof   *modules.Spoofing
-	borders    *modules.DocDetector
-	deskewer   *modules.DocDeskewer
-	fields     *modules.TextFieldsDetector
+	docs            *modules.DocumentDetector
+	doctype         *modules.DocTypeAngles
+	glare           *modules.Glare
+	blur            *modules.Blur
+	printSpoof      *modules.Spoofing
+	lcdSpoof        *modules.Spoofing
+	borders         *modules.DocDetector
+	deskewer        *modules.DocDeskewer
+	fields          *modules.TextFieldsDetector
+	migrationFields *modules.TextFieldsDetector
 	// pageRegistrar is nil only if templates failed to load - matching the
 	// reference's PageRegistrar(), which the Pipeline constructs unconditionally
 	// whenever page_registration=True (the default). A missing/broken template set
 	// is therefore a construction-time failure, not a silent feature disable.
 	pageRegistrar *modules.PageRegistrar
-	words      *modules.WordsDetector
-	cyr        *modules.OcrEngine
-	lat        *modules.OcrEngine
+	words         *modules.WordsDetector
+	cyr           *modules.OcrEngine
+	lat           *modules.OcrEngine
 
 	// The registration page (INTPASSPORTADDR): the oriented line detector and the printed-or-
 	// handwritten classifier are as required as the rest; the stamp detector is optional - a
@@ -283,6 +284,12 @@ func NewRecognizer(opts RecognizerOptions) (*Recognizer, error) {
 	step(func() (e error) { r.lcdSpoof, e = modules.NewLCDSpoofing(root, paths, f, dev, th); return })
 	step(func() (e error) { r.borders, e = modules.NewDocDetector(root, paths, f, dev, th); return })
 	step(func() (e error) { r.fields, e = modules.NewTextFieldsDetector(root, paths, f, dev, th); return })
+	if r.doctype != nil && r.doctype.MigrationEnabled() {
+		step(func() (e error) {
+			r.migrationFields, e = modules.NewMigrationTextFieldsDetector(root, paths, f, dev, th)
+			return
+		})
+	}
 	step(func() (e error) { r.words, e = modules.NewWordsDetector(root, paths, f, dev, th); return })
 	step(func() (e error) { r.cyr, e = modules.NewOcrCyrillic(root, paths, f, opts.OcrDevice, th, tier); return })
 	step(func() (e error) { r.lat, e = modules.NewOcrLatin(root, paths, f, opts.OcrDevice, th, tier); return })
@@ -330,6 +337,9 @@ func (r *Recognizer) Close() error {
 	}
 	if r.fields != nil {
 		closers = append(closers, r.fields.Close)
+	}
+	if r.migrationFields != nil {
+		closers = append(closers, r.migrationFields.Close)
 	}
 	if r.words != nil {
 		closers = append(closers, r.words.Close)
@@ -741,11 +751,15 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 		// _fields_from_pages: with 2+ pages, the field detector runs on EACH PAGE
 		// separately (its 640x640 input gives a stitched spread only half of itself
 		// per page) and the boxes are moved onto the canvas by that page's placement.
-		if len(pages) >= 2 && len(placements) == len(pages) {
+		detector := r.fields
+		if meta.DocType == modules.MigrationCard {
+			detector = r.migrationFields
+		}
+		if detector == r.fields && len(pages) >= 2 && len(placements) == len(pages) {
 			fields, frames, e = r.fieldsFromPages(pages, placements, ocrOpts.NeedsLicenceRotation)
 			return
 		}
-		fields, e = r.fields.PredictTransform(deskewed, ocrOpts.NeedsLicenceRotation)
+		fields, e = detector.PredictTransform(deskewed, ocrOpts.NeedsLicenceRotation)
 		if e == nil {
 			frames = make([]fieldFrame, len(fields))
 			for i, f := range fields {
@@ -924,7 +938,7 @@ func (r *Recognizer) readDocument(src imaging.Image, documents []modules.Documen
 	for _, ft := range texts {
 		order = append(order, ft.Label)
 	}
-	out.OcrNormalized = NormalizeDates(out.Ocr, order)
+	out.OcrNormalized = NormalizeDates(out.Ocr, order, ocrOpts.ExtraDates...)
 
 	// The leasing flag from the STS special marks, alongside the reading (_read_leasing); the
 	// special marks themselves stay as read. Every STS back - the side with the special marks

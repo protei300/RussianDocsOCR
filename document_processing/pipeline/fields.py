@@ -7,6 +7,7 @@ import numpy as np
 
 from ..geometry import Chain, Offset, QuarterTurns, Scale, corners
 from ..pipeline_modules.doc_detector.image_transformation import placement_rect
+from ..pipeline_modules.doctype_angles_classificator.doctype_angles import MIGRATION_CARD
 
 
 class FieldsStage:
@@ -31,12 +32,13 @@ class FieldsStage:
         meta = self.results._meta_results.get('DocDetector') or {}
         pages = meta.get('pages') or []
         placements = meta.get('page_placements') or []
-        if len(pages) >= 2 and len(placements) == len(pages):
+        detector = self.migration_fields if self.results.doctype == MIGRATION_CARD else self.text_fields
+        if detector is self.text_fields and len(pages) >= 2 and len(placements) == len(pages):
             text_fields, frames = self._fields_from_pages(pages, placements)
             result = {self.text_fields.model_name: text_fields}
         else:
-            result = self.text_fields.predict_transform(img)
-            text_fields = result[self.text_fields.model_name]
+            result = detector.predict_transform(img)
+            text_fields = result[detector.model_name]
             # a patch is the canvas cut at its box (see TextFieldsDetector)
             frames = [Offset(-float(box[0]), -float(box[1])) for box in text_fields['bbox']]
             self._read_margins(text_fields, frames, img)

@@ -32,6 +32,9 @@ class OCROptionsClass:
     en_fields - that routing is what the other years get."""
     engine_by_year = {}
 
+    """Additional date fields whose canonical names do not contain 'date'."""
+    extra_dates = ()
+
     """dict: Field -> vertical margin, as a share of the box height, added to the
     crop that is READ (the box itself is not changed). For fields labelled tight
     to the letters (Pipeline._read_margins)."""
@@ -74,6 +77,8 @@ class OCROptionsClass:
             return OCROptionsDL()
         elif 'snils' in doc_type.lower():
             return OCROptionsSNILS()
+        elif doc_type.upper() == 'MIGRATIONCARD':
+            return OCROptionsMigrationCard()
         elif 'birthcert' in doc_type.lower():
             return OCROptionsBIRTHCERT()
         # 'stsback' contains 'sts': both sides of the certificate land here
@@ -128,6 +133,18 @@ class OCROptionsINTPASSPORTADDR(OCROptionsClass):
     ru_fields = []
     has_address = True
     needs_licence_rotation = False
+
+
+class OCROptionsMigrationCard(OCROptionsClass):
+    """Canonical fields of the separate migration card detector."""
+
+    needed_split = ['Inviting_party', 'Citizenship']
+    extra_dates = ('Stay_from', 'Stay_to')
+    en_fields = ['Last_name_en', 'First_name_en', 'Middle_name_en', 'Sex_en',
+                 'Licence_number', 'Birth_date', 'Card_series', 'Card_number',
+                 'Visa_number', 'Stay_from', 'Stay_to']
+    ru_fields = ['Last_name_ru', 'First_name_ru', 'Middle_name_ru', 'Sex_ru',
+                 'Citizenship', 'Visit_purpose', 'Inviting_party']
 
 
 class OCROptionsBIRTHCERT(OCROptionsClass):

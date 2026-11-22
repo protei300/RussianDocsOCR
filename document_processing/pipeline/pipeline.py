@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 import cv2
 import numpy as np
 
+from ..config import DEFAULT_CFG
 from ..geometry import Chain, Offset, QuarterTurns, Scale
 from ..pipeline_modules import (AddressLinesDetector, AddressTextKindClassifier, Blur,
                                 DocDeskewer, DocDetector, DocTypeAngles, DocumentDetector,
@@ -60,7 +61,7 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
 
     def __init__(self, model_format='ONNX', device=None, ocr='accurate', verbose=False,
                  ocr_gpu_batch=False, page_registration=True, page_geometry=False,
-                 detect_documents=True, card_registration=True):
+                 detect_documents=True, card_registration=True, migration_models=None):
         """
         Initialize pipeline.
 
@@ -139,6 +140,11 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
                 its Borders quad, which on a card in a sleeve is the sleeve's
                 edge (see _register_card). Runs under page_registration: False
                 there switches this off too.
+            migration_models (str or Path): Override the installed migration bundle
+                (`models/MigrationPipeline`). The bundle is a directory
+                with DocTypeAngles/ONNX/model.json (including the card/angle
+                head) and MigrationTextFields/ONNX/model.json. When supplied,
+                it can also override the DocDetect and Borders configs.
         """
         self.card_registration = card_registration
         device = _resolve_device(device)
@@ -175,22 +181,48 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         else:
             artifact, runtime = model_format, None
 
+        candidate = Path(migration_models) if migration_models is not None else None
+        if candidate is None and artifact == 'ONNX':
+            installed = Path(DEFAULT_CFG['MigrationPipeline'])
+            if installed.is_dir():
+                candidate = installed
+
+        def config_for(name, *, required=False):
+            if candidate is None:
+                return {}
+            config = candidate / name / artifact / 'model.json'
+            if not config.is_file():
+                if required or config.parent.parent.exists():
+                    raise FileNotFoundError(config)
+                return {}
+            return {'model_config': config}
+
         self.document_detector = None
         if detect_documents:
+            doc_config = config_for('DocDetect')
             try:
                 self.document_detector = DocumentDetector(model_format=artifact, device=device,
-                                                          verbose=verbose, runtime=runtime)
+                                                          verbose=verbose, runtime=runtime, **doc_config)
             except FileNotFoundError:
+                if doc_config:
+                    raise
                 # A weight set of models-v8 or older has no DocDetect: read the whole
                 # frame as before rather than refuse to start.
                 print("[!] DocumentDetector weights not found (models/DocDetect): reading whole "
                       "frames. Run scripts/fetch_models.py for a weight set that has them.")
         self.doctype_angles = DocTypeAngles(model_format=artifact, device=device, verbose=verbose,
-                                            runtime=runtime)
+                                            runtime=runtime, **config_for('DocTypeAngles', required=True))
         self.doc_detector = DocDetector(model_format=artifact, device=device, verbose=verbose,
-                                        runtime=runtime)
+                                        runtime=runtime, **config_for('Borders'))
         self.text_fields = TextFieldsDetector(model_format=artifact, device=device, verbose=verbose,
                                               runtime=runtime)
+        self.migration_fields = None
+        if candidate is not None:
+            if self.doctype_angles.migration_threshold is None:
+                raise ValueError('The candidate DocTypeAngles config must enable its migration output')
+            self.migration_fields = TextFieldsDetector(model_format=artifact, device=device, verbose=verbose,
+                                                       runtime=runtime,
+                                                       **config_for('MigrationTextFields', required=True))
         # The OCR family never compiled under OpenVINO, so it stays on
         # onnxruntime regardless of the requested runtime.
         ocr_format = artifact

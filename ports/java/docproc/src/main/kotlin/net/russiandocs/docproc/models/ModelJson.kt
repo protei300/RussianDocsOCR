@@ -37,6 +37,7 @@ public class ModelConfig private constructor(
     public val file: String get() = string("File") ?: ""
     public val modelType: String get() = string("ModelType") ?: ""
     public val runtime: String? get() = string("Runtime")
+    public val migrationThreshold: Double? get() = (root["MigrationThreshold"] as? JsonPrimitive)?.doubleOrNull
 
     public val inputs: List<ModelInput> =
         (root["Inputs"] as? JsonArray)?.map { ModelInput(it.jsonObject) } ?: emptyList()

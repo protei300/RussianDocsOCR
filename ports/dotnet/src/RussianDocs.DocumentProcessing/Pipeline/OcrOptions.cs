@@ -12,6 +12,7 @@ namespace RussianDocs.DocumentProcessing.Pipeline;
 public sealed record OcrOptions
 {
     public string[] NeededSplit { get; init; } = [];
+    public string[] ExtraDates { get; init; } = [];
     public string[] EnFields { get; init; } = [];
     public string[] RuFields { get; init; } = [];
     public bool NeedsLicenceRotation { get; init; }
@@ -164,6 +165,19 @@ public sealed record OcrOptions
                     "Middle_name_en"],
                 RuFields = ["Last_name_ru", "First_name_ru", "Birth_place_ru",
                     "Issue_organization_ru", "Living_region_ru", "Middle_name_ru"],
+            };
+        }
+        if (t == "migrationcard" || t == "migrationcard_all")
+        {
+            return new OcrOptions
+            {
+                NeededSplit = ["Inviting_party", "Citizenship"],
+                ExtraDates = ["Stay_from", "Stay_to"],
+                EnFields = ["Last_name_en", "First_name_en", "Middle_name_en", "Sex_en",
+                    "Licence_number", "Birth_date", "Card_series", "Card_number",
+                    "Visa_number", "Stay_from", "Stay_to"],
+                RuFields = ["Last_name_ru", "First_name_ru", "Middle_name_ru", "Sex_ru",
+                    "Citizenship", "Visit_purpose", "Inviting_party"],
             };
         }
         if (t.Contains("snils", StringComparison.Ordinal))

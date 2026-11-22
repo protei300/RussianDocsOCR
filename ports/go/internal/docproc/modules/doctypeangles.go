@@ -3,6 +3,9 @@ package modules
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
 
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/config"
 	"github.com/protei300/RussianDocsOCR/ports/go/internal/docproc/imaging"
@@ -36,6 +39,12 @@ type DocTypeResult struct {
 }
 
 const moduleName = "DocTypeAngles"
+const MigrationCard = "MIGRATIONCARD_ALL"
+
+// MigrationEnabled reports whether this classifier has the migration-card head.
+func (d *DocTypeAngles) MigrationEnabled() bool {
+	return d.model.Config.MigrationThreshold != nil
+}
 
 // NewDocTypeAngles loads the module from the repository's model directory.
 func NewDocTypeAngles(root string, paths *config.ModelPaths, format string,
@@ -45,14 +54,37 @@ func NewDocTypeAngles(root string, paths *config.ModelPaths, format string,
 	if err != nil {
 		return nil, err
 	}
+	migration := false
+	if bundle, err := paths.Dir("MigrationPipeline", ""); err == nil {
+		info, err := os.Stat(bundle)
+		if err == nil && info.IsDir() {
+			dir = filepath.Join(bundle, moduleName, format)
+			migration = true
+		} else if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
 	m, err := models.Load(root, dir, device, threads)
 	if err != nil {
 		return nil, fmt.Errorf("modules: %s: %w", moduleName, err)
 	}
-	if len(m.Config.Outputs) != 2 {
+	expected := 2
+	if migration {
+		expected = 3
+	}
+	if len(m.Config.Outputs) != expected {
 		_ = m.Close()
-		return nil, fmt.Errorf("modules: %s expects 2 outputs (embeddings, angle), got %d",
-			moduleName, len(m.Config.Outputs))
+		return nil, fmt.Errorf("modules: %s expects %d outputs, got %d",
+			moduleName, expected, len(m.Config.Outputs))
+	}
+	if migration {
+		threshold := m.Config.MigrationThreshold
+		labels, err := m.Config.Outputs[2].LabelsAsStrings()
+		if err != nil || threshold == nil || *threshold <= 0 || *threshold > 1 ||
+			!slices.Equal(labels, []string{"other", "0", "90", "180", "270"}) {
+			_ = m.Close()
+			return nil, fmt.Errorf("modules: %s has an invalid migration head config", moduleName)
+		}
 	}
 	angleLabels, err := m.Config.Outputs[1].LabelsAsInts()
 	if err != nil {
@@ -69,6 +101,22 @@ func (d *DocTypeAngles) Predict(img imaging.Image) (DocTypeResult, error) {
 	out, err := d.model.Predict(img)
 	if err != nil {
 		return DocTypeResult{}, err
+	}
+
+	if d.MigrationEnabled() {
+		migration, ok := out[2].(postprocess.ClassResult)
+		if !ok {
+			return DocTypeResult{}, fmt.Errorf("modules: %s migration output is %T, want ClassResult",
+				moduleName, out[2])
+		}
+		score := float64(migration.Confidence)
+		if migration.Label != "other" && score >= *d.model.Config.MigrationThreshold {
+			degrees, err := d.angleFromLabel(migration.Label)
+			if err != nil {
+				return DocTypeResult{}, err
+			}
+			return DocTypeResult{MigrationCard, score, degrees, score}, nil
+		}
 	}
 
 	// ONE checked assertion per output, at the layer that knows what it asked for.

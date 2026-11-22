@@ -23,7 +23,7 @@ class BaseModule:
 
     """
     def __init__(self, model_name: str, model_format: str = 'ONNX', device='cpu', verbose: bool = False,
-                 cfg_key: str = None, runtime: str = None):
+                 cfg_key: str = None, runtime: str = None, model_config: Path = None):
         """Initializes base model and loads model artifact.
 
         Args:
@@ -40,9 +40,12 @@ class BaseModule:
                 so there is no second copy of the weights and no per-runtime
                 config to drift out of sync. Defaults to the artifact's own
                 format.
+            model_config: Optional explicit path to an alternate model.json.
         """
         lookup = cfg_key or model_name
-        if lookup in DEFAULT_CFG.keys():
+        if model_config is not None:
+            self.__model_path = Path(model_config)
+        elif lookup in DEFAULT_CFG:
             self.__model_path = Path(DEFAULT_CFG.get(lookup)).joinpath(model_format, 'model.json')
         else:
             raise Exception("No path for this type of model detected in models_path.yaml")

@@ -5,6 +5,7 @@ AddressLinesDetector: models\AddressLines
 AddressTextKindClassifier: models\AddressTextKind
 RegistrationStamps: models\RegistrationStamps
 DocTypeAngles: models\DocTypeAngles
+MigrationPipeline: models\MigrationPipeline
 Blur: models\Blur
 Glare: models\Glare
 LCDSpoofing: models\LCDSpoofing

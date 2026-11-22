@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -254,7 +255,15 @@ func RecordDateToDdmmyyyy(text string) string {
 
 // CanonicalDate is the canonical view of one field: by its printed layout. Port of
 // dates.canonical_date.
+var compactStayDate = regexp.MustCompile("^[0-9]{8}$")
+
 func CanonicalDate(field, text string) string {
+	if (field == "Stay_from" || field == "Stay_to") && compactStayDate.MatchString(text) {
+		day, _ := strconv.Atoi(text[:2])
+		month, _ := strconv.Atoi(text[2:4])
+		year, _ := strconv.Atoi(text[4:])
+		return asDate(day, month, year)
+	}
 	if contains(RecordDateFields, field) {
 		return RecordDateToDdmmyyyy(text)
 	}
@@ -285,10 +294,10 @@ func CanonicalDates(ocr map[string]string, fields []string) map[string]string {
 // the same `'date' in name.lower()` convention _join_field uses. Runs once, on the
 // finished OCR dict, so nothing upstream sees a rewritten value. Returns nil when no
 // field converted, matching the absent 'OCR_normalized' key of the reference.
-func NormalizeDates(ocr map[string]string, order []string) map[string]string {
+func NormalizeDates(ocr map[string]string, order []string, extraDates ...string) map[string]string {
 	var fields []string
 	for _, name := range order {
-		if strings.Contains(strings.ToLower(name), "date") {
+		if strings.Contains(strings.ToLower(name), "date") || slices.Contains(extraDates, name) {
 			fields = append(fields, name)
 		}
 	}

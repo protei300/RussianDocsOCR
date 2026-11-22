@@ -43,23 +43,46 @@ public class DocTypeAngles(
 
     private val model: Model
     private val angleLabels: List<Int>
+    internal val migrationEnabled: Boolean get() = model.config.migrationThreshold != null
 
     init {
-        val dir = File(ModelPaths.resolve(root, paths, MODULE_NAME), "ONNX").path
+        val bundle = paths["MigrationPipeline"]?.let { File(ModelPaths.resolve(root, paths, "MigrationPipeline")) }
+        val migration = bundle?.isDirectory == true
+        val dir = if (migration) {
+            File(bundle, "$MODULE_NAME/ONNX").path
+        } else {
+            File(ModelPaths.resolve(root, paths, MODULE_NAME), "ONNX").path
+        }
         model = Loader.load(dir, device, threads, root)
 
-        if (model.config.outputs.size != 2) {
+        val expected = if (migration) 3 else 2
+        if (model.config.outputs.size != expected) {
             model.close()
             throw IllegalArgumentException(
-                "modules: $MODULE_NAME expects 2 outputs (embeddings, angle), got " +
-                    "${model.config.outputs.size}",
+                "modules: $MODULE_NAME expects $expected outputs, got ${model.config.outputs.size}",
             )
+        }
+        val threshold = model.config.migrationThreshold
+        if (migration && (threshold == null || threshold <= 0 || threshold > 1 ||
+                model.config.outputs[2].labelsAsStrings() != listOf("other", "0", "90", "180", "270"))) {
+            model.close()
+            throw IllegalArgumentException("modules: $MODULE_NAME has an invalid migration head config")
         }
         angleLabels = model.config.outputs[1].labelsAsInts()
     }
 
     public fun predict(image: Image): DocTypeResult {
         val outputs = model.predict(image)
+
+        val threshold = model.config.migrationThreshold
+        if (threshold != null) {
+            val migration = outputs[2] as? ClassResult
+                ?: error("modules: $MODULE_NAME migration output must be ClassResult")
+            val score = migration.confidence.toDouble()
+            if (migration.label != "other" && score >= threshold) {
+                return DocTypeResult(MIGRATION_CARD, score, angleFromLabel(migration.label), score)
+            }
+        }
 
         // Cast ONCE, here, in the module that knows what it asked for. This is the single place the closed
         // result set is narrowed — see CONVENTIONS §5.
@@ -124,7 +147,8 @@ public class DocTypeAngles(
 
     override fun close(): Unit = model.close()
 
-    private companion object {
-        const val MODULE_NAME = "DocTypeAngles"
+    internal companion object {
+        const val MIGRATION_CARD = "MIGRATIONCARD_ALL"
+        private const val MODULE_NAME = "DocTypeAngles"
     }
 }

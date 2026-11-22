@@ -118,6 +118,8 @@ COPY --from=frontend-builder /frontend/dist/ ./web/dist/
 # would otherwise build and push cleanly and die on its first document. Cheap
 # here, expensive to diagnose in a registry.
 # -----------------------------------------------------------------------------
+RUN python document_processing/fetch_models.py --check
+
 RUN <<'PY' python
 import pathlib
 root = pathlib.Path('document_processing/models')

@@ -1,0 +1,16 @@
+{
+  "slug": "MIGRATIONCARD_ALL-synth_01_MIGRATIONCARD_ALL",
+  "sample": "conformance/material/MIGRATIONCARD_ALL/synth_01_MIGRATIONCARD_ALL.png",
+  "doc_type": "MIGRATIONCARD_ALL",
+  "args": {
+    "device": "cpu",
+    "ocr": "accurate",
+    "img_size": 1500,
+    "docconf": 0.5,
+    "model_format": "ONNX"
+  },
+  "expect": {
+    "doc_type": "MIGRATIONCARD_ALL"
+  },
+  "note": "Goldens are CPU-generated; see spec/tolerances.md for the separate GPU numeric profile."
+}

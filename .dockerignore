@@ -41,6 +41,7 @@ web/dist
 **/*.pyc
 **/.pytest_cache
 service/seed_data/**/*.tmp.*
+document_processing/models/.MigrationPipeline-*/
 
 # HOST build output under ports/ must never enter the context. bin/ holds a
 # 19 MB Windows binary plus the four MSYS2 DLLs that D-09 requires beside it —

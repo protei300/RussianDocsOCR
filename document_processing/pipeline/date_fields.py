@@ -58,13 +58,13 @@ class DateFieldsStage:
         Runs once, after OCR, on the finished ``results.ocr`` - that is the whole
         point of the placement: the conversion happens when the RESULT is formed,
         not while decoding or checking OCR, so nothing upstream sees a rewritten
-        value. Date fields are recognised by name, the same convention
-        ``_join_field`` already uses.
+        value. Dates are recognised by name or declared by the document's
+        OCR options.
         """
         ocr = self.results._meta_results.get('OCR')
         if not ocr:
             return
-        fields = [name for name in ocr if 'date' in name.lower()]
+        fields = [name for name in ocr if 'date' in name.lower() or name in self.ocr_options.extra_dates]
         normalized = canonical_dates(ocr, fields)
         if normalized:
             self.results._meta_results['OCR_normalized'] = normalized

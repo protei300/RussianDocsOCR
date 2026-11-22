@@ -30,6 +30,7 @@ public data class OcrOptions(
      * `glue_torn`.
      */
     val glueTorn: List<String> = emptyList(),
+    val extraDates: List<String> = emptyList(),
 ) {
     public fun isOcrField(label: String): Boolean = label in enFields || label in ruFields
 
@@ -133,6 +134,17 @@ public data class OcrOptions(
                         "Middle_name_en"),
                     ruFields = listOf("Last_name_ru", "First_name_ru", "Birth_place_ru",
                         "Issue_organization_ru", "Living_region_ru", "Middle_name_ru"),
+                )
+            }
+            if (t == "migrationcard" || t == "migrationcard_all") {
+                return OcrOptions(
+                    neededSplit = listOf("Inviting_party", "Citizenship"),
+                    extraDates = listOf("Stay_from", "Stay_to"),
+                    enFields = listOf("Last_name_en", "First_name_en", "Middle_name_en", "Sex_en",
+                        "Licence_number", "Birth_date", "Card_series", "Card_number",
+                        "Visa_number", "Stay_from", "Stay_to"),
+                    ruFields = listOf("Last_name_ru", "First_name_ru", "Middle_name_ru", "Sex_ru",
+                        "Citizenship", "Visit_purpose", "Inviting_party"),
                 )
             }
             if (t.contains("snils")) {

@@ -37,6 +37,8 @@ public sealed record DocTypeResult
 public sealed class DocTypeAngles : IDisposable
 {
     private const string ModuleName = "DocTypeAngles";
+    internal const string MigrationCard = "MIGRATIONCARD_ALL";
+    internal bool MigrationEnabled => _model.Config.MigrationThreshold is not null;
 
     private readonly Model _model;
     private readonly int[] _angleLabels;
@@ -45,14 +47,28 @@ public sealed class DocTypeAngles : IDisposable
         int threads)
     {
         string dir = Path.Combine(ModelPaths.Resolve(root, paths, ModuleName), "ONNX");
+        string? bundle = paths.ContainsKey("MigrationPipeline")
+            ? ModelPaths.Resolve(root, paths, "MigrationPipeline")
+            : null;
+        bool migration = Directory.Exists(bundle);
+        if (migration)
+        {
+            dir = Path.Combine(bundle!, ModuleName, "ONNX");
+        }
         _model = Loader.Load(dir, device, threads);
 
-        if (_model.Config.Outputs.Count != 2)
+        int expected = migration ? 3 : 2;
+        if (_model.Config.Outputs.Count != expected)
         {
             _model.Dispose();
             throw new InvalidDataException(
-                $"modules: {ModuleName} expects 2 outputs (embeddings, angle), got " +
-                $"{_model.Config.Outputs.Count}");
+                $"modules: {ModuleName} expects {expected} outputs, got {_model.Config.Outputs.Count}");
+        }
+        if (migration && (_model.Config.MigrationThreshold is null or <= 0 or > 1 ||
+            !_model.Config.Outputs[2].LabelsAsStrings().SequenceEqual(new[] { "other", "0", "90", "180", "270" })))
+        {
+            _model.Dispose();
+            throw new InvalidDataException($"modules: {ModuleName} has an invalid migration head config");
         }
         _angleLabels = _model.Config.Outputs[1].LabelsAsInts();
     }
@@ -60,6 +76,24 @@ public sealed class DocTypeAngles : IDisposable
     public DocTypeResult Predict(Image image)
     {
         IResult[] outputs = _model.Predict(image);
+
+        if (_model.Config.MigrationThreshold is double threshold)
+        {
+            if (outputs[2] is not ClassResult migration)
+            {
+                throw new InvalidDataException($"modules: {ModuleName} migration output must be ClassResult");
+            }
+            if (migration.Label != "other" && migration.Confidence >= threshold)
+            {
+                return new DocTypeResult
+                {
+                    DocType = MigrationCard,
+                    DocTypeConfidence = migration.Confidence,
+                    Angle = AngleFromLabel(migration.Label),
+                    AngleConfidence = migration.Confidence,
+                };
+            }
+        }
 
         // Cast ONCE, here, in the module that knows what it asked for. This is the single place the
         // closed result set is narrowed — see CONVENTIONS §5.

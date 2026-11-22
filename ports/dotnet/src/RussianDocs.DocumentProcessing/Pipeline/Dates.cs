@@ -278,10 +278,18 @@ public static class Dates
     }
 
     /// <summary>The canonical view of one field: by its printed layout. Port of <c>dates.canonical_date</c>.</summary>
-    public static string? CanonicalDate(string field, string? text) =>
-        Array.IndexOf(RecordDateFields, field) >= 0
+    public static string? CanonicalDate(string field, string? text)
+    {
+        if ((field is "Stay_from" or "Stay_to") && text is { Length: 8 } && IsDigits(text))
+        {
+            return AsDate(int.Parse(text.AsSpan(0, 2), CultureInfo.InvariantCulture),
+                int.Parse(text.AsSpan(2, 2), CultureInfo.InvariantCulture),
+                int.Parse(text.AsSpan(4), CultureInfo.InvariantCulture));
+        }
+        return Array.IndexOf(RecordDateFields, field) >= 0
             ? RecordDateToDdmmyyyy(text)
             : ToDdmmyyyy(text);
+    }
 
     private static bool IsDigits(string s)
     {
@@ -334,10 +342,13 @@ public static class Dates
     /// field converted, matching the absent <c>OCR_normalized</c> key of the reference.
     /// </summary>
     public static Dictionary<string, string> NormalizeDates(Dictionary<string, string> ocr,
-        IEnumerable<string> order)
+        IEnumerable<string> order) => NormalizeDates(ocr, order, []);
+
+    internal static Dictionary<string, string> NormalizeDates(Dictionary<string, string> ocr,
+        IEnumerable<string> order, string[] extraDates)
     {
         List<string> fields = [.. order.Where(
-            name => name.Contains("date", StringComparison.OrdinalIgnoreCase))];
+            name => name.Contains("date", StringComparison.OrdinalIgnoreCase) || extraDates.Contains(name))];
         return CanonicalDates(ocr, fields);
     }
 }

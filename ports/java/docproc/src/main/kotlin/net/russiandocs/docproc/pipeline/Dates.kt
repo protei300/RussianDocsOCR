@@ -198,8 +198,14 @@ public object Dates {
     }
 
     /** The canonical view of one field: by its printed layout. `canonical_date`. */
-    public fun canonicalDate(field: String, text: String?): String? =
-        if (field in RECORD_DATE_FIELDS) recordDateToDdMmYyyy(text) else toDdMmYyyy(text)
+    public fun canonicalDate(field: String, text: String?): String? {
+        if ((field == "Stay_from" || field == "Stay_to") &&
+            text != null && text.length == 8 && text.all { it in '0'..'9' }) {
+            return asDate(text.substring(0, 2).toInt(), text.substring(2, 4).toInt(),
+                text.substring(4).toInt())
+        }
+        return if (field in RECORD_DATE_FIELDS) recordDateToDdMmYyyy(text) else toDdMmYyyy(text)
+    }
 
     /**
      * Canonical view of every date field that yields one. `canonical_dates`.

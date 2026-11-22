@@ -1,6 +1,6 @@
 {
-  "models_version": "v12",
-  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v12/",
+  "models_version": "v13",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v13/",
   "release_url": "https://github.com/protei300/RussianDocsOCR/releases/download/{release}/",
   "networks": {
     "AddressLines": "v4",
@@ -11,6 +11,8 @@
     "DocTypeAngles": "v11",
     "Glare": "v4",
     "LCDSpoofing": "v4",
+    "MigrationPipeline/DocTypeAngles": "v13",
+    "MigrationPipeline/MigrationTextFields": "v13",
     "OCR/cyrillic_accurate": "v4",
     "OCR/cyrillic_fast": "v4",
     "OCR/latin_accurate": "v4",
@@ -141,6 +143,41 @@
       "size": 1615367,
       "sha256": "2b626084be8eed5d4f0e73a22272e9d056063c9edccfffa39142577542ff842a",
       "release": "models-v4"
+    },
+    {
+      "path": "MigrationPipeline/DocTypeAngles/ONNX/model.json",
+      "asset": "MigrationPipeline__DocTypeAngles__ONNX__model.564c75ba55a1.json",
+      "size": 1105,
+      "sha256": "564c75ba55a18d4cbca24d7aea6f5075bd92eff5d1bcff616eae4d83abbdf1f9",
+      "release": "models-v13"
+    },
+    {
+      "path": "MigrationPipeline/DocTypeAngles/ONNX/model.onnx",
+      "asset": "MigrationPipeline__DocTypeAngles__ONNX__model.4877d7523a00.onnx",
+      "size": 10066554,
+      "sha256": "4877d7523a00d79d6df51b82b8426218b0f731e4dece9bc8d5a1ae1a7a4cc87e",
+      "release": "models-v13"
+    },
+    {
+      "path": "MigrationPipeline/DocTypeAngles/ONNX/resources/centers.npz",
+      "asset": "MigrationPipeline__DocTypeAngles__ONNX__resources__centers.a7b4aedac1bf.npz",
+      "size": 72448,
+      "sha256": "a7b4aedac1bf2dbd2dd90c5b1764397749e8eaaabcb0887407d839b4a2896d5e",
+      "release": "models-v13"
+    },
+    {
+      "path": "MigrationPipeline/MigrationTextFields/ONNX/model.json",
+      "asset": "MigrationPipeline__MigrationTextFields__ONNX__model.b571c6003ebf.json",
+      "size": 1148,
+      "sha256": "b571c6003ebfab345f60b6afb7c7a52437246757acf80ebd0332f65b4ade19e6",
+      "release": "models-v13"
+    },
+    {
+      "path": "MigrationPipeline/MigrationTextFields/ONNX/model.onnx",
+      "asset": "MigrationPipeline__MigrationTextFields__ONNX__model.60087a8007fe.onnx",
+      "size": 41456169,
+      "sha256": "60087a8007fe5abf9c1fcb483348719e6fef21d6c57dd5df6f23d90f8e4ab5ad",
+      "release": "models-v13"
     },
     {
       "path": "OCR/cyrillic_accurate/ONNX/model.json",

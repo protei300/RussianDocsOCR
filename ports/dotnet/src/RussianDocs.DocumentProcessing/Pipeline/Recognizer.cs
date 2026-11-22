@@ -256,6 +256,7 @@ public sealed class Recognizer : IDisposable
     private readonly DocDetector _docDetector;
     private readonly DocDeskewer _deskewer;
     private readonly TextFieldsDetector _textFields;
+    private readonly TextFieldsDetector? _migrationFields;
     private readonly WordsDetector _words;
     private readonly AddressLinesDetector _addressLines;
     private readonly AddressTextKindClassifier _addressTextKind;
@@ -319,6 +320,12 @@ public sealed class Recognizer : IDisposable
         _deskewer = DocDeskewer.ForPipeline();
         _device = device;
         _textFields = new TextFieldsDetector(root, paths, device, intraOpThreads);
+        if (_docTypeAngles.MigrationEnabled)
+        {
+            string bundle = ModelPaths.Resolve(root, paths, "MigrationPipeline");
+            _migrationFields = new TextFieldsDetector(
+                Path.Combine(bundle, "MigrationTextFields", "ONNX"), device, intraOpThreads);
+        }
         _words = new WordsDetector(root, paths, device, intraOpThreads);
 
         // The registration page (INTPASSPORTADDR): the oriented line detector and the printed/handwritten
@@ -778,7 +785,10 @@ public sealed class Recognizer : IDisposable
             OcrOptions ocrOptions = OcrOptions.For(meta.DocType);
             List<Field> fields = timings.Time(Timings.FieldsDetector, () =>
             {
-                List<Field> detected = _textFields.PredictTransform(deskewed, ocrOptions.NeedsLicenceRotation);
+                TextFieldsDetector detector = meta.DocType == DocTypeAngles.MigrationCard
+                    ? _migrationFields!
+                    : _textFields;
+                List<Field> detected = detector.PredictTransform(deskewed, ocrOptions.NeedsLicenceRotation);
                 ReadMargins(detected, ocrOptions, deskewed);
                 return detected;
             });
@@ -925,7 +935,7 @@ public sealed class Recognizer : IDisposable
                         // rewritten value. Not a timed stage — the reference calls it as a plain method, not
                         // through `_model_call`.
                         results.OcrNormalized = Dates.NormalizeDates(
-                            results.Ocr, texts.Select(t => t.Label));
+                            results.Ocr, texts.Select(t => t.Label), ocrOptions.ExtraDates);
 
                         // The leasing flag of an STS, from the finished special marks. Not a timed stage.
                         ReadLeasing(bareType, results, options.Sink);
@@ -1625,7 +1635,7 @@ public sealed class Recognizer : IDisposable
         foreach (IDisposable? module in new IDisposable?[]
                  {
                      _documentDetector, _docTypeAngles, _glare, _blur, _printSpoofing, _lcdSpoofing, _docDetector,
-                     _textFields, _words, _addressLines, _addressTextKind, _stamps, _cyrillic, _latin,
+                     _textFields, _migrationFields, _words, _addressLines, _addressTextKind, _stamps, _cyrillic, _latin,
                      _pageRegistrar,
                  }.Concat(_cardRegistrars.Values))
         {

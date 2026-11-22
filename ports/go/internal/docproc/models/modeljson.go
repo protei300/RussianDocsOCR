@@ -23,12 +23,13 @@ import (
 // This is not defensive style: `BlankIndex` legitimately is 0, and `Threshold`
 // defaults to 0.5 when missing — collapsing the two would silently change behaviour.
 type Config struct {
-	Name      string   `json:"Name"`
-	File      string   `json:"File"`
-	ModelType string   `json:"ModelType"`
-	Runtime   string   `json:"Runtime"`
-	Inputs    []Input  `json:"Inputs"`
-	Outputs   []Output `json:"Outputs"`
+	Name               string   `json:"Name"`
+	File               string   `json:"File"`
+	ModelType          string   `json:"ModelType"`
+	Runtime            string   `json:"Runtime"`
+	MigrationThreshold *float64 `json:"MigrationThreshold"`
+	Inputs             []Input  `json:"Inputs"`
+	Outputs            []Output `json:"Outputs"`
 
 	// Dir is where this config was read from; relative paths inside it resolve
 	// against it (notably Output.Centers).
@@ -48,24 +49,24 @@ type Input struct {
 }
 
 type Output struct {
-	Type       string          `json:"Type"`
-	Name       string          `json:"Name"`
-	Shape      []int           `json:"Shape"`
-	Labels     json.RawMessage `json:"Labels"`
-	Threshold  *float64        `json:"Threshold"`
-	IOU        *float64        `json:"IOU"`
-	CLS        *float64        `json:"CLS"`
+	Type      string          `json:"Type"`
+	Name      string          `json:"Name"`
+	Shape     []int           `json:"Shape"`
+	Labels    json.RawMessage `json:"Labels"`
+	Threshold *float64        `json:"Threshold"`
+	IOU       *float64        `json:"IOU"`
+	CLS       *float64        `json:"CLS"`
 	// IOUPerClass / CLSPerClass override the shared thresholds for NAMED classes only
 	// (PerClassYOLODetector; postprocessing.py:521-566). Absent means "shared value".
 	IOUPerClass map[string]float64 `json:"IOUPerClass"`
 	CLSPerClass map[string]float64 `json:"CLSPerClass"`
-	MaskFilter *float64        `json:"MaskFilter"`
-	Metric     string          `json:"Metric"`
-	Centers    string          `json:"Centers"`
-	Alphabet   string          `json:"Alphabet"`
-	Script     string          `json:"Script"`
-	Country    string          `json:"Country"`
-	BlankIndex *int            `json:"BlankIndex"`
+	MaskFilter  *float64           `json:"MaskFilter"`
+	Metric      string             `json:"Metric"`
+	Centers     string             `json:"Centers"`
+	Alphabet    string             `json:"Alphabet"`
+	Script      string             `json:"Script"`
+	Country     string             `json:"Country"`
+	BlankIndex  *int               `json:"BlankIndex"`
 }
 
 // LabelsAsStrings decodes Labels as strings.
@@ -79,17 +80,20 @@ func (o Output) LabelsAsStrings() ([]string, error) {
 	if len(o.Labels) == 0 {
 		return nil, nil
 	}
-	var asStrings []string
-	if err := json.Unmarshal(o.Labels, &asStrings); err == nil {
-		return asStrings, nil
+	var labels []any
+	if err := json.Unmarshal(o.Labels, &labels); err != nil {
+		return nil, fmt.Errorf("models: invalid Labels array: %w", err)
 	}
-	var asNumbers []float64
-	if err := json.Unmarshal(o.Labels, &asNumbers); err != nil {
-		return nil, fmt.Errorf("models: Labels is neither strings nor numbers: %s", o.Labels)
-	}
-	out := make([]string, len(asNumbers))
-	for i, v := range asNumbers {
-		out[i] = fmt.Sprintf("%g", v)
+	out := make([]string, len(labels))
+	for i, label := range labels {
+		switch value := label.(type) {
+		case string:
+			out[i] = value
+		case float64:
+			out[i] = fmt.Sprintf("%g", value)
+		default:
+			return nil, fmt.Errorf("models: label %d must be a string or number", i)
+		}
 	}
 	return out, nil
 }

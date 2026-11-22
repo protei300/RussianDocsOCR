@@ -173,6 +173,8 @@ def record_date_to_ddmmyyyy(text: str):
 
 def canonical_date(field: str, text: str):
     """The canonical view of one field: by its printed layout."""
+    if field in ('Stay_from', 'Stay_to') and text and re.fullmatch(r'[0-9]{8}', text):
+        return _as_date(int(text[:2]), int(text[2:4]), int(text[4:]))
     if field in RECORD_DATE_FIELDS:
         return record_date_to_ddmmyyyy(text)
     return to_ddmmyyyy(text)
