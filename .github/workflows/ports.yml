@@ -18,9 +18,8 @@
 # that used to stand here predicted exactly that and was right. What it cost, so that a fourth port
 # does not pay it again:
 #
-#   1. ONNX Runtime 1.21.1 publishes no linux-x64 CPU tarball; the download 404'd. Already recorded
-#      in ports/go/build/Dockerfile, which had met it and pinned 1.21.0 — but the workflow had its
-#      own copy of the version. Both now read the `env:` block below.
+#   1. A GitHub release archive stopped resolving. Go now uses the shared library in the
+#      reference's pinned CPU wheel.
 #   2. Every shell script in the repository was mode 100644. `Permission denied`, exit 126.
 #   3. `RDOCS_OPENCV_HOME` could not resolve for two independent reasons at once: it named
 #      ${{ github.workspace }}/../opencv-build while the script installs into ~/opencv-build, and it
@@ -50,9 +49,6 @@ on:
 
 env:
   OPENCV_VERSION: 4.13.0
-  # See the ONNX Runtime step in the Go job for why this is 1.21.0 and not the
-  # reference's 1.21.1. Kept in step with ports/go/build/Dockerfile's ARG.
-  ONNXRUNTIME_VERSION: 1.21.0
 
 jobs:
   # ─── Go ────────────────────────────────────────────────────────────────────
@@ -120,26 +116,15 @@ jobs:
             echo "LD_LIBRARY_PATH=$HOME/opencv-go/install/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           } >> "$GITHUB_ENV"
 
-      # 1.21.x is REQUIRED, not preferred: onnxruntime_go v1.19.0 vendors ORT_API_VERSION 21 and a
-      # newer runtime rejects the handshake. 1.21.**0** rather than the reference's 1.21.1 because
-      # **1.21.1 publishes no CPU tarball** — that release ships only
-      # onnxruntime-linux-x64-gpu-1.21.1.tgz, so this step 404'd on its first real run. The same
-      # discovery is already recorded in ports/go/build/Dockerfile, which pins 1.21.0 for the same
-      # reason; the version now lives in one place at the top of this file so the two cannot drift.
-      # The patch difference against the reference is safe on evidence: the spike measured 1.21.1
-      # against 1.28.0 on CPU and got bit-identical tensors, so a patch bump inside 1.21 cannot move
-      # numbers that two minor versions did not.
-      - name: ONNX Runtime
-        run: |
-          curl -fsSL -o ort.tgz \
-            "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
-          tar xzf ort.tgz
-          echo "ORT_SO=$PWD/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}/lib/libonnxruntime.so" >> "$GITHUB_ENV"
-
-      - name: Install the reference (the checker is Python)
+      # The pinned CPU wheel also provides the shared C runtime used by the Go binding.
+      # Its 1.21 API matches the binding without a separate GitHub release archive.
+      - name: Install the reference and ONNX Runtime
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          ort_so="$(python -c 'from pathlib import Path; import onnxruntime as ort; print(Path(ort.__file__).parent / "capi" / f"libonnxruntime.so.{ort.__version__}")')"
+          test -f "$ort_so"
+          printf 'ORT_SO=%s\n' "$ort_so" >> "$GITHUB_ENV"
 
       # The ports read the weights from the same directory the reference does
       # (RDOCS_MODELS_ROOT); since 3.0.2 they are fetched, not checked out.

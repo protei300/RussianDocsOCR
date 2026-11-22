@@ -65,16 +65,8 @@
 # runtime stage. Keep it.
 # =============================================================================
 
-# 1.21.x is REQUIRED, not preferred: onnxruntime_go v1.19.0 vendors ORT_API_VERSION 21, and a
-# newer runtime rejects the handshake. The reference runs 1.21.1.
-#
-# **1.21.0 rather than 1.21.1, and only because 1.21.1 publishes no CPU tarball** — that release
-# ships `onnxruntime-linux-x64-gpu-1.21.1.tgz` and no `onnxruntime-linux-x64-1.21.1.tgz`, so the
-# CPU image cannot be built from it. Checked against the GitHub release API, after the download
-# failed. The patch difference against the reference is safe on the evidence already gathered:
-# the spike measured ORT 1.21.1 against 1.28.0 on CPU and got bit-identical tensors across seven
-# outputs, so a patch bump inside 1.21 cannot move numbers that two minor versions did not.
-ARG ONNXRUNTIME_VERSION=1.21.0
+# The official CPU and GPU wheels supply the shared runtime used through the C API.
+ARG ONNXRUNTIME_VERSION=1.21.1
 
 # =============================================================================
 # Stage 1: build the SPA
@@ -165,31 +157,23 @@ RUN mkdir -p build && cd build && cmake \
     && rm -rf /tmp/opencv
 
 # =============================================================================
-# Stage 3: ONNX Runtime, both flavours
-#
-# Downloaded rather than built: these are the same official binaries the Python
-# wheel bundles, and the version must MATCH what the port is verified against.
-# onnxruntime_go v1.19.0 vendors ORT_API_VERSION 21, and the C API is backward
-# compatible one way only — a newer library serves an older request, never the
-# reverse. Against a mismatch the failure is GetApi() returning NULL, which
-# surfaces as "broken or missing library" and says nothing about versions.
+# Stage 3: official ONNX Runtime libraries. The binding supplies its own header.
+# The CPU image only needs the CPU wheel. The GPU image also copies the providers
+# from the GPU wheel, which includes the CPU fallback.
 # =============================================================================
-FROM debian:bookworm-slim AS ort-downloader
+FROM python:3.12-slim-bookworm AS ort-cpu
 ARG ONNXRUNTIME_VERSION
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates tar \
-    && rm -rf /var/lib/apt/lists/*
-WORKDIR /ort
-# `curl -f` matters here and its absence cost a build: without it a 404 writes GitHub's
-# HTML error page into cpu.tgz and the failure surfaces as `tar: Error is not recoverable`,
-# which points at the archive instead of at the URL. Fail at the download.
-RUN set -eu; \
-    base="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}"; \
-    curl -fsSL -o cpu.tgz "${base}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"; \
-    curl -fsSL -o gpu.tgz "${base}/onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}.tgz"; \
-    mkdir -p cpu gpu; \
-    tar -xzf cpu.tgz -C cpu --strip-components=1; \
-    tar -xzf gpu.tgz -C gpu --strip-components=1; \
-    rm cpu.tgz gpu.tgz
+RUN python -m pip install --no-cache-dir --no-deps --target /tmp/ort "onnxruntime==${ONNXRUNTIME_VERSION}" \
+    && install -D "/tmp/ort/onnxruntime/capi/libonnxruntime.so.${ONNXRUNTIME_VERSION}" /ort/libonnxruntime.so \
+    && rm -rf /tmp/ort
+
+FROM python:3.12-slim-bookworm AS ort-gpu
+ARG ONNXRUNTIME_VERSION
+RUN python -m pip install --no-cache-dir --no-deps --target /tmp/ort "onnxruntime-gpu==${ONNXRUNTIME_VERSION}" \
+    && mkdir /ort \
+    && cp /tmp/ort/onnxruntime/capi/libonnxruntime_providers_*.so /ort/ \
+    && install "/tmp/ort/onnxruntime/capi/libonnxruntime.so.${ONNXRUNTIME_VERSION}" /ort/libonnxruntime.so \
+    && rm -rf /tmp/ort
 
 # =============================================================================
 # Stage 4: compile the Go binaries
@@ -233,10 +217,6 @@ COPY ports/go/go.mod ports/go/go.sum ./
 RUN go mod download
 
 COPY ports/go/ ./
-# The ORT headers only have to satisfy the compiler; the shared library is
-# resolved at RUN time from ORT_SO. Linking against the GPU build here and
-# running the CPU library later is fine — the C API is the same.
-COPY --from=ort-downloader /ort/cpu/include /usr/local/include/onnxruntime
 
 # -s -w strips the symbol table and DWARF: about 30% off a cgo binary, and a
 # stack trace from a stripped Go binary still names functions, because Go's own
@@ -292,7 +272,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=opencv-builder /usr/local/lib/libopencv_*.so* /usr/local/lib/
-COPY --from=ort-downloader /ort/cpu/lib/libonnxruntime.so* /usr/local/lib/
+COPY --from=ort-cpu /ort/libonnxruntime.so /usr/local/lib/
 RUN ldconfig
 
 WORKDIR /app
@@ -364,7 +344,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=opencv-builder /usr/local/lib/libopencv_*.so* /usr/local/lib/
-COPY --from=ort-downloader /ort/gpu/lib/libonnxruntime*.so* /usr/local/lib/
+COPY --from=ort-gpu /ort/libonnxruntime*.so /usr/local/lib/
 RUN ldconfig
 
 WORKDIR /app
