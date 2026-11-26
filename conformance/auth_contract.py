@@ -55,15 +55,16 @@ API = "/api/v1"
 PUBLISHED_DEFAULT_SECRET = "changeme-in-production"
 
 #: How each implementation is started. {port} is substituted; {python} is this
-#: interpreter. Paths are relative to the repository root.
+#: interpreter; {ports_root} defaults to <repo>/ports (override with --ports-root or
+#: RDOCS_PORTS_ROOT when ports live in a sibling repository).
 PRESETS: dict[str, list[str]] = {
     "python": ["{python}", "-m", "uvicorn", "service.main:app", "--host", "127.0.0.1",
                "--port", "{port}", "--workers", "1"],
-    "go": ["ports/go/bin/rdocs-service" + (".exe" if os.name == "nt" else ""),
+    "go": ["{ports_root}/go/bin/rdocs-service" + (".exe" if os.name == "nt" else ""),
            "--addr", "127.0.0.1:{port}"],
-    "dotnet": ["ports/dotnet/src/RussianDocs.Service/bin/Release/net8.0/rdocs-service"
+    "dotnet": ["{ports_root}/dotnet/src/RussianDocs.Service/bin/Release/net8.0/rdocs-service"
                + (".exe" if os.name == "nt" else ""), "--addr", "127.0.0.1:{port}"],
-    "java": ["java", "-jar", "ports/java/service/build/dist/rdocs-service.jar",
+    "java": ["java", "-jar", "{ports_root}/java/service/build/dist/rdocs-service.jar",
              "--addr", "127.0.0.1:{port}"],
 }
 
@@ -151,11 +152,19 @@ def free_port() -> int:
 class Service:
     """One running instance with its own empty data directory."""
 
-    def __init__(self, cmd: list[str], env: dict[str, str], label: str) -> None:
+    def __init__(self, cmd: list[str], env: dict[str, str], label: str,
+                 ports_root: pathlib.Path | None = None) -> None:
         self.port = free_port()
         self.data_dir = pathlib.Path(tempfile.mkdtemp(prefix=f"rdocs-auth-{label}-"))
         self.log_path = self.data_dir.parent / f"{self.data_dir.name}.log"
-        argv = [part.replace("{port}", str(self.port)).replace("{python}", sys.executable)
+        resolved_ports = (
+            ports_root
+            if ports_root is not None
+            else pathlib.Path(os.environ.get("RDOCS_PORTS_ROOT") or (REPO / "ports"))
+        ).resolve()
+        argv = [part.replace("{port}", str(self.port))
+                    .replace("{python}", sys.executable)
+                    .replace("{ports_root}", str(resolved_ports))
                 for part in cmd]
         if not os.path.isabs(argv[0]) and (REPO / argv[0]).exists():
             argv[0] = str(REPO / argv[0])
@@ -789,11 +798,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--port", choices=sorted(PRESETS), help="an implementation preset")
     parser.add_argument("--cmd", help="a command line with {port}, instead of a preset")
+    parser.add_argument("--ports-root", default=None,
+                        help="root directory of the ports checkout (defaults to <repo>/ports)")
     parser.add_argument("--only", nargs="*", help="run only these scenarios")
     args = parser.parse_args()
     if not args.port and not args.cmd:
         parser.error("give --port or --cmd")
     cmd = shlex.split(args.cmd, posix=os.name != "nt") if args.cmd else PRESETS[args.port]
+    ports_root = pathlib.Path(args.ports_root) if args.ports_root else None
 
     secret = "contract-test-secret-" + "x" * 32
     real_admin_password = "Real-Admin-Secret-77"
@@ -812,7 +824,7 @@ def main() -> int:
             continue
         print(f"\n== {name}  {env}")
         try:
-            svc = Service(cmd, env, name)
+            svc = Service(cmd, env, name, ports_root=ports_root)
         except Exception as error:                              # noqa: BLE001
             report.failed.append((f"{name}: start", str(error)))
             print(f"    ERROR could not start: {error}")

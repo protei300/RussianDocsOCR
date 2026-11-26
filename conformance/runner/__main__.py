@@ -37,22 +37,26 @@ IMAGE_STAGES = frozenset({"prepare", "rotate", "borders.canvas", "deskew.canvas"
 EXIT_NOT_IMPLEMENTED = 2
 
 
-def load_ports() -> dict[str, dict]:
+def load_ports(ports_file: Path | None = None) -> dict[str, dict]:
     """Registered implementations, minus the documentation.
 
     JSON has no comments, so `ports.json` uses `_`-prefixed keys for prose. They
     are dropped here rather than at every use site, because forgetting once turns
     a comment into a port with no `cmd`.
     """
-    if not PORTS_JSON.is_file():
-        raise FileNotFoundError(f"{PORTS_JSON} is missing")
-    raw = json.loads(PORTS_JSON.read_text(encoding="utf-8"))
+    path = Path(ports_file) if ports_file is not None else PORTS_JSON
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} is missing")
+    raw = json.loads(path.read_text(encoding="utf-8"))
     return {k: v for k, v in raw.items() if not k.startswith("_")}
 
 
-def resolve_cmd(port: dict) -> list[str]:
-    """Expand the registered command, mapping {python} and {repo} placeholders."""
-    return [str(part).replace("{python}", sys.executable).replace("{repo}", str(REPO))
+def resolve_cmd(port: dict, ports_root: Path | None = None) -> list[str]:
+    """Expand the registered command, mapping {python}, {repo} and {ports_root}."""
+    root = str(Path(ports_root).resolve()) if ports_root is not None else str(REPO / "ports")
+    return [str(part).replace("{python}", sys.executable)
+                     .replace("{repo}", str(REPO))
+                     .replace("{ports_root}", root)
             for part in port["cmd"]]
 
 
@@ -84,7 +88,8 @@ def run_port(cmd: list[str], args: list[str], timeout: int) -> subprocess.Comple
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    ports = load_ports()
+    ports_file = Path(args.ports_file) if getattr(args, "ports_file", None) else None
+    ports = load_ports(ports_file)
     print("registered ports:")
     for name, spec in ports.items():
         print(f"  {name:10s} {' '.join(str(c) for c in spec['cmd'])}")
@@ -335,11 +340,13 @@ def cmd_run(args: argparse.Namespace) -> int:
               "no profile can absorb)", file=sys.stderr)
         return 3
 
-    ports = load_ports()
+    ports_file = Path(args.ports_file) if getattr(args, "ports_file", None) else None
+    ports_root = ports_file.resolve().parent if ports_file is not None else (REPO / "ports")
+    ports = load_ports(ports_file)
     if args.port not in ports:
         print(f"unknown port {args.port!r}; registered: {', '.join(ports)}", file=sys.stderr)
         return 3
-    cmd = resolve_cmd(ports[args.port])
+    cmd = resolve_cmd(ports[args.port], ports_root=ports_root)
     # The profile follows the device unless it was named explicitly. Two
     # independent defaults are how a GPU run gets graded by CPU allowances with
     # nothing said about it: the device pin answers "should this run at all", the
@@ -421,10 +428,15 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sp = sub.add_parser("list", help="show registered ports and cases")
+    sp.add_argument("--ports-file", default=None,
+                    help="path to a ports.json registry (defaults to conformance/ports.json)")
     sp.set_defaults(func=cmd_list)
 
     sp = sub.add_parser("run", help="grade an implementation")
     sp.add_argument("--port", required=True)
+    sp.add_argument("--ports-file", default=None,
+                    help="path to a ports.json registry (defaults to conformance/ports.json); "
+                         "{ports_root} in its commands expands to that file's parent directory")
     sp.add_argument("--profile", default=None, choices=sorted(PROFILES),
                     help="numeric allowances; defaults to the profile matching "
                          "--device, so the two cannot drift apart silently")

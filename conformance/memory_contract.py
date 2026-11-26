@@ -275,11 +275,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--port", choices=sorted(PRESETS), help="an implementation preset")
     parser.add_argument("--cmd", help="a command line with {port}, instead of a preset")
+    parser.add_argument("--ports-root", default=None,
+                        help="root directory of the ports checkout (defaults to <repo>/ports)")
     parser.add_argument("--only", nargs="*", help="run only these scenarios")
     args = parser.parse_args()
     if not args.port and not args.cmd:
         parser.error("give --port or --cmd")
     cmd = shlex.split(args.cmd, posix=os.name != "nt") if args.cmd else PRESETS[args.port]
+    ports_root = pathlib.Path(args.ports_root) if args.ports_root else None
     os.environ.pop("PROCESSING_MODE", None)        # only the scenario decides it
 
     base = {"DEFAULT_API_KEY": API_KEY, "MAX_UPLOAD_MB": str(MAX_UPLOAD_MB)}
@@ -294,7 +297,7 @@ def main() -> int:
             continue
         print(f"\n== {name}  {env}")
         try:
-            svc = Svc(cmd, env, f"mem-{name}")
+            svc = Svc(cmd, env, f"mem-{name}", ports_root=ports_root)
         except Exception as error:                              # noqa: BLE001
             report.failed.append((f"{name}: start", str(error)))
             print(f"    ERROR could not start: {error}")
