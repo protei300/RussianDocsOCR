@@ -48,9 +48,14 @@ class TextFieldsDetector(BaseModule):
         """
         img = self.load_img(img)
         bbox = self.model.predict(img)
+        h, w = img.shape[:2]
         img_patches = []
         for box in bbox:
-            img_patches.append(img[box[1]:box[3], box[0]: box[2]])
+            x1 = max(0, min(w, int(box[0])))
+            y1 = max(0, min(h, int(box[1])))
+            x2 = max(x1, min(w, int(box[2])))
+            y2 = max(y1, min(h, int(box[3])))
+            img_patches.append(img[y1:y2, x1:x2])
         meta = {
             self.model_name:
                 {

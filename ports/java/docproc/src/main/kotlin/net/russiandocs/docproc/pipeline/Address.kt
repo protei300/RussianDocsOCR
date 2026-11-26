@@ -300,15 +300,15 @@ public object Stamps {
             if (stamp.kind != "deregistered") {
                 continue
             }
-            val j = (k + 1 until stamps.size).firstOrNull { stamps[it].kind == "registered" }
+            val j = (k + 1 until stamps.size).firstOrNull { stamps[it].kind == "registered" && it !in cancelled }
             stamp.cancels = j
             if (j != null) {
                 cancelled += j
             }
         }
-        val current = stamps.indices.firstOrNull { stamps[it].kind == "registered" && it !in cancelled }
-        if (current != null) {
-            stamps[current].current = true
+        val firstReg = stamps.indices.firstOrNull { stamps[it].kind == "registered" }
+        if (firstReg != null && firstReg !in cancelled) {
+            stamps[firstReg].current = true
         }
     }
 

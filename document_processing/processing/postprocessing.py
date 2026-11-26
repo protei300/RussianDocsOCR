@@ -1,4 +1,3 @@
-import string
 import numpy as np
 from pathlib import Path
 import cv2
@@ -78,67 +77,6 @@ class BinaryClassPostprocessing(BasePostprocessing):
         """
         probability = probability.ravel()
         return self.labels[0 if probability[0] < self.threshold else 1], probability[0]
-
-
-class OCRPostprocessing(BasePostprocessing):
-    """Postprocessing for OCR models.
-
-    Transforms model output to decoded text string.
-    Supports English and Russian languages.
-
-    Attributes:
-        lang (str): Language to use for decoding text.
-                    Must be either 'eng' or 'rus'.
-
-    """
-
-    def __init__(self, lang: str, verbose=False):
-        """Initializes the OCR postprocessing.
-
-        Args:
-            lang (str): Language to decode text into.
-                        Must be either 'eng' or 'rus'.
-            verbose (bool): Whether to print logging message.
-                            Defaults to False.
-        """
-
-
-        super().__init__(verbose)
-        assert lang in ['eng', 'rus']
-        self.lang = lang
-
-    def __call__(self, output_value: np.ndarray) -> str:
-        """Transforms network output values into text string.
-
-        Args:
-            output_value (np.ndarray): Output values from network
-
-        Returns:
-            str: Decoded text string
-        """
-
-        labels = string.digits + string.ascii_uppercase + "%'(),-./:*#" if self.lang == 'eng' else \
-            "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ.-"
-
-
-        output_value = np.ravel(output_value)
-
-
-        decoded = ''.join([labels[x] for x in output_value if x > -1 ])
-
-        return decoded
-
-class OCRFVPostprocessing(BasePostprocessing):
-    """Postprocessing for OCV FV models."""
-
-    def __init__(self, verbose=False):
-        super().__init__(verbose)
-
-    def __call__(self, output_value: np.ndarray) -> np.ndarray:
-        """Transforms network output values into text string."""
-
-        output_value = np.ravel(output_value)
-        return output_value
 
 
 class OCRProbsPostprocessing(BasePostprocessing):
@@ -738,7 +676,7 @@ class YOLOSegmentorPostprocessing(BasePostprocessing):
         masks = self.sigmoid(masks_matmul).reshape((-1, imh, imw))
 
 
-        masks_resized = np.zeros((masks.shape[0],im_orig_h, im_orig_w))
+        masks_resized = np.zeros((masks.shape[0], im_orig_h, im_orig_w), dtype=np.float32)
 
 
         # removing padding
@@ -757,7 +695,7 @@ class YOLOSegmentorPostprocessing(BasePostprocessing):
 
         masks_resized = self.clip_boxes(masks_resized, bbox)
 
-        masks_resized = np.where(masks_resized>self.mask_filter, 1, 0) * 255
+        masks_resized = (masks_resized > self.mask_filter).astype(np.uint8) * np.uint8(255)
 
         segments = self.get_segments(masks_resized)
 
@@ -775,7 +713,8 @@ class YOLOSegmentorPostprocessing(BasePostprocessing):
             List of generated segments
         """
         segments=[]
-        for x in masks.astype('uint8'):
+        masks_u8 = masks if masks.dtype == np.uint8 else masks.astype(np.uint8)
+        for x in masks_u8:
             c = cv2.findContours(x, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
             if c:
                 c = np.array(c[np.array([len(x) for x in c]).argmax()]).reshape(-1, 2)

@@ -30,18 +30,12 @@ public static class Geometry
     public const double DocMarginFraction = 0.01;
 
     /// <summary>
-    /// Orders four points as top-left, top-right, bottom-right, bottom-left.
+    /// Orders four points clockwise as top-left, top-right, bottom-right, bottom-left.
     ///
     /// <para>
-    /// By coordinate SUM and DIFFERENCE, exactly as the reference: the smallest x+y is top-left, the
-    /// largest is bottom-right, and the extremes of y-x give the other two. It is not a sort by angle
-    /// and it does not generalise — but it is what produced the goldens.
-    /// </para>
-    ///
-    /// <para>
-    /// Ties resolve to the FIRST index reaching the extreme, because the comparisons are strict. On a
-    /// perfectly axis-aligned rectangle two corners can share a sum, and picking the later one
-    /// rotates the whole quad.
+    /// Sorts clockwise around the centroid (+y downward) and rotates the cycle so top-left
+    /// (minimum x+y, tie-broken by minimum y then x) is index 0. Always returns four distinct
+    /// vertices even for quads tilted near 45 degrees.
     /// </para>
     /// </summary>
     public static Point[]? OrderPoints(IReadOnlyList<Point> points)
@@ -51,29 +45,20 @@ public static class Geometry
             return null;
         }
 
-        int minSum = 0, maxSum = 0, minDiff = 0, maxDiff = 0;
-        for (int i = 0; i < points.Count; i++)
+        double cx = (points[0].X + points[1].X + points[2].X + points[3].X) / 4.0;
+        double cy = (points[0].Y + points[1].Y + points[2].Y + points[3].Y) / 4.0;
+        Point[] cw = [.. points.OrderBy(p => Math.Atan2(p.Y - cy, p.X - cx))];
+        int tl = 0;
+        for (int i = 1; i < 4; i++)
         {
-            double sum = points[i].X + points[i].Y;
-            double diff = points[i].Y - points[i].X;
-            if (sum < points[minSum].X + points[minSum].Y)
+            double si = cw[i].X + cw[i].Y;
+            double st = cw[tl].X + cw[tl].Y;
+            if (si < st || (si == st && (cw[i].Y < cw[tl].Y || (cw[i].Y == cw[tl].Y && cw[i].X < cw[tl].X))))
             {
-                minSum = i;
-            }
-            if (sum > points[maxSum].X + points[maxSum].Y)
-            {
-                maxSum = i;
-            }
-            if (diff < points[minDiff].Y - points[minDiff].X)
-            {
-                minDiff = i;
-            }
-            if (diff > points[maxDiff].Y - points[maxDiff].X)
-            {
-                maxDiff = i;
+                tl = i;
             }
         }
-        return [points[minSum], points[minDiff], points[maxSum], points[maxDiff]];
+        return [cw[tl], cw[(tl + 1) % 4], cw[(tl + 2) % 4], cw[(tl + 3) % 4]];
     }
 
     /// <summary>

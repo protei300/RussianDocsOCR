@@ -95,15 +95,21 @@ public object Ocr {
      */
     private fun readMrz(lineIndex: Int, text: String, zone: MrzZone?, latin: OcrEngine): String {
         val trimmed = trimToMrzAlphabet(text)
-        if (trimmed.length == MRZ_LINE_LEN) {
+        if (trimmed.length >= MRZ_LINE_LEN) {
             return trimmed
         }
         if (zone == null || lineIndex >= zone.boxes.size) {
             return trimmed
         }
         val canvas = zone.canvas
+        val height = canvas.height
         val width = canvas.width
-        val (x1, y1, x2, y2) = zone.boxes[lineIndex].let { Quad(it[0], it[1], it[2], it[3]) }
+        val (x1, rawY1, x2, rawY2) = zone.boxes[lineIndex].let { Quad(it[0], it[1], it[2], it[3]) }
+        val y1 = rawY1.coerceIn(0, height)
+        val y2 = rawY2.coerceIn(0, height)
+        if (y2 <= y1) {
+            return trimmed
+        }
         var best = trimmed
         for (growth in MRZ_RETRY_GROWTH) {
             val (left0, right0) = zone.span ?: (x1 to x2)

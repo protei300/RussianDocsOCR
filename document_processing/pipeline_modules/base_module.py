@@ -1,7 +1,7 @@
 from typing import Union
 from pathlib import Path
 import numpy as np
-from ..config import DEFAULT_CFG
+from ..config import DEFAULT_CFG, resolve_model_dir
 from ..processing.models import ModelLoader
 import cv2
 import json
@@ -46,7 +46,7 @@ class BaseModule:
         if model_config is not None:
             self.__model_path = Path(model_config)
         elif lookup in DEFAULT_CFG:
-            self.__model_path = Path(DEFAULT_CFG.get(lookup)).joinpath(model_format, 'model.json')
+            self.__model_path = resolve_model_dir(lookup).joinpath(model_format, 'model.json')
         else:
             raise Exception("No path for this type of model detected in models_path.yaml")
 
@@ -93,15 +93,14 @@ class BaseModule:
     @staticmethod
     def load_img(img_path: Union[str, Path, np.ndarray]):
         """Method that loads image and converts it to RGB color mode"""
-        if isinstance(img_path, Path):
-            img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        elif isinstance(img_path, str):
-            img_path = Path(img_path)
-            img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+        if isinstance(img_path, (Path, str)):
+            path = Path(img_path)
+            img = cv2.imdecode(np.frombuffer(path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+            if img is None:
+                raise ValueError(f"Could not decode image: {path}")
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         elif isinstance(img_path, np.ndarray):
             img = img_path
         else:
-            raise Exception("Unsupported image type")
+            raise TypeError(f"Unsupported image type: {type(img_path).__name__}")
         return img

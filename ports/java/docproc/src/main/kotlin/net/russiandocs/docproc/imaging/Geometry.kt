@@ -6,6 +6,7 @@ import org.opencv.core.Mat
 import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.max
 import kotlin.math.sqrt
 
@@ -66,33 +67,28 @@ public object Geometry {
     public const val DOC_MARGIN_FRACTION: Double = 0.01
 
     /**
-     * Orders four points as top-left, top-right, bottom-right, bottom-left.
+     * Orders four points clockwise as top-left, top-right, bottom-right, bottom-left.
      *
-     * By coordinate SUM and DIFFERENCE, exactly as the reference: the smallest `x+y` is top-left, the
-     * largest is bottom-right, and the extremes of `y-x` give the other two. It is not a sort by angle and
-     * it does not generalise — but it is what produced the goldens.
-     *
-     * Ties resolve to the FIRST index reaching the extreme, because the comparisons are strict. On a
-     * perfectly axis-aligned rectangle two corners can share a sum, and picking the later one rotates the
-     * whole quad.
+     * Sorts clockwise around the centroid (+y downward) and rotates the cycle so top-left (minimum `x+y`,
+     * tie-broken by minimum `y` then `x`) is index 0. Always returns four distinct vertices even for quads
+     * tilted near 45 degrees.
      */
     public fun orderPoints(points: List<Pt>): List<Pt>? {
         if (points.size != 4) {
             return null
         }
-        var minSum = 0
-        var maxSum = 0
-        var minDiff = 0
-        var maxDiff = 0
-        for (i in points.indices) {
-            val sum = points[i].x + points[i].y
-            val diff = points[i].y - points[i].x
-            if (sum < points[minSum].x + points[minSum].y) minSum = i
-            if (sum > points[maxSum].x + points[maxSum].y) maxSum = i
-            if (diff < points[minDiff].y - points[minDiff].x) minDiff = i
-            if (diff > points[maxDiff].y - points[maxDiff].x) maxDiff = i
+        val cx = points.sumOf { it.x } / 4.0
+        val cy = points.sumOf { it.y } / 4.0
+        val cw = points.sortedBy { atan2(it.y - cy, it.x - cx) }
+        var tl = 0
+        for (i in 1 until 4) {
+            val si = cw[i].x + cw[i].y
+            val st = cw[tl].x + cw[tl].y
+            if (si < st || (si == st && (cw[i].y < cw[tl].y || (cw[i].y == cw[tl].y && cw[i].x < cw[tl].x)))) {
+                tl = i
+            }
         }
-        return listOf(points[minSum], points[minDiff], points[maxSum], points[maxDiff])
+        return listOf(cw[tl], cw[(tl + 1) % 4], cw[(tl + 2) % 4], cw[(tl + 3) % 4])
     }
 
     /**

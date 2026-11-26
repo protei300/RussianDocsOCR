@@ -160,6 +160,12 @@ public static class Dates
         {
             return null;
         }
+        // Reject pure numeric ISO YYYY-MM-DD rather than swapping day and month.
+        if (tokens.Count == 3 && IsDigits(tokens[0]) && tokens[0].Length == 4
+            && IsDigits(tokens[1]) && IsDigits(tokens[2]))
+        {
+            return null;
+        }
 
         int day = -1, month = -1, year = -1;
         foreach (string token in tokens)
@@ -187,6 +193,11 @@ public static class Dates
                 {
                     // A two-digit year is ambiguous (26 -> 1926 or 2026?) and this module does not
                     // guess, so it is left unresolved.
+                    return null;
+                }
+                else
+                {
+                    // Stray numeric token (extra digits / second date / out-of-range).
                     return null;
                 }
                 continue;

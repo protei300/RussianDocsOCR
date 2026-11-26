@@ -33,14 +33,18 @@ def strip_day_quote(word: str) -> str:
 
 
 def check_en_sex(sex: str) -> str:
-    """Standardize Latin sex text to 'M' or 'F'."""
-    to_check = sex.lstrip('.').upper().replace('.', '')
+    """Standardize Latin sex text to 'M' or 'F'; empty input stays empty."""
+    to_check = sex.lstrip('.').upper().replace('.', '').strip()
+    if not to_check:
+        return ''
     return 'M' if 'M' in to_check else 'F'
 
 
 def check_rus_sex(sex: str) -> str:
-    """Standardize Cyrillic sex text to 'М' or 'Ж'."""
-    to_check = sex.lstrip('.').upper().replace('.', '')
+    """Standardize Cyrillic sex text to 'М' or 'Ж'; empty input stays empty."""
+    to_check = sex.lstrip('.').upper().replace('.', '').strip()
+    if not to_check:
+        return ''
     return 'М' if 'М' in to_check else 'Ж'
 
 

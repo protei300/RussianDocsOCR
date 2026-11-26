@@ -1,12 +1,24 @@
 {
   "Card_series": {
     "status": "unchecked",
-    "checks": [],
+    "checks": [
+      {
+        "id": "MIG-1",
+        "kind": "refuting",
+        "result": "ok"
+      }
+    ],
     "notes": []
   },
   "Card_number": {
     "status": "unchecked",
-    "checks": [],
+    "checks": [
+      {
+        "id": "MIG-2",
+        "kind": "refuting",
+        "result": "ok"
+      }
+    ],
     "notes": []
   },
   "Last_name_ru": {
@@ -31,7 +43,23 @@
   },
   "Birth_date": {
     "status": "unchecked",
-    "checks": [],
+    "checks": [
+      {
+        "id": "GEN-1",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "GEN-2",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "GEN-2",
+        "kind": "refuting",
+        "result": "ok"
+      }
+    ],
     "notes": []
   },
   "Citizenship": {
@@ -56,12 +84,39 @@
   },
   "Stay_from": {
     "status": "unchecked",
-    "checks": [],
+    "checks": [
+      {
+        "id": "GEN-1",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "GEN-2",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "MIG-3",
+        "kind": "refuting",
+        "result": "ok"
+      }
+    ],
     "notes": []
   },
   "Stay_to": {
     "status": "unchecked",
-    "checks": [],
+    "checks": [
+      {
+        "id": "GEN-1",
+        "kind": "refuting",
+        "result": "ok"
+      },
+      {
+        "id": "MIG-3",
+        "kind": "refuting",
+        "result": "ok"
+      }
+    ],
     "notes": []
   }
 }

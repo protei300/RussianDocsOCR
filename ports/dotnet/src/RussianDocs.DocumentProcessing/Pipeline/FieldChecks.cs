@@ -69,12 +69,13 @@ public static class FieldChecks
     };
 
     /// <summary>
-    /// Sex as printed to the zone's letter. The page prints «МУЖ.»/«ЖЕН.» (the ground truth keeps the
-    /// first letter), the external passport also «M»/«F».
+    /// Sex as printed to the zone's letter. Matched on the whole normalized token so arbitrary words
+    /// starting with «М» or «Ж» cannot pass MRZ-7.
     /// </summary>
-    private static readonly Dictionary<char, char> Sex = new()
+    private static readonly Dictionary<string, string> Sex = new(StringComparer.Ordinal)
     {
-        ['М'] = 'M', ['Ж'] = 'F', ['M'] = 'M', ['F'] = 'F',
+        ["М"] = "M", ["Ж"] = "F", ["M"] = "M", ["F"] = "F",
+        ["МУЖ"] = "M", ["МУЖ."] = "M", ["ЖЕН"] = "F", ["ЖЕН."] = "F",
     };
 
     /// <summary>
@@ -105,11 +106,12 @@ public static class FieldChecks
     private const int SeriesYearWindow = 3;
 
     private static readonly string[] DateFields = ["Birth_date", "Issue_date", "Expiration_date"];
+    private static readonly string[] MigrationDateFields = ["Birth_date", "Stay_from", "Stay_to"];
 
     /// <summary>
     /// The printed form of numbers, whitespace collapsed (internal passport, its code, external passport,
-    /// SNILS). The comparisons with the zone look at digits only, so without the form a reading with a
-    /// stray character was 'verified' while not being what is printed.
+    /// SNILS, migration card). The comparisons with the zone look at digits only, so without the form a
+    /// reading with a stray character was 'verified' while not being what is printed.
     /// </summary>
     private static readonly Dictionary<string, (string Field, string Id, Regex Pattern)[]> NumberForms = new()
     {
@@ -120,6 +122,11 @@ public static class FieldChecks
         ],
         ["EXTPASSPORT"] = [("Licence_number", "EXT-1", Form(@"[0-9]{2} [0-9]{7}"))],
         ["SNILS"] = [("Licence_number", "SNILS-1", Form(@"[0-9]{3}-[0-9]{3}-[0-9]{3} [0-9]{2}"))],
+        ["MIGRATIONCARD"] =
+        [
+            ("Card_series", "MIG-1", Form(@"[0-9](?: ?[0-9]){3}")),
+            ("Card_number", "MIG-2", Form(@"[0-9](?: ?[0-9]){6}")),
+        ],
     };
 
     private static Regex Form(string pattern) =>
@@ -157,7 +164,7 @@ public static class FieldChecks
         {
             return null;
         }
-        foreach (string name in new[] { "INTPASSPORT", "EXTPASSPORT", "SNILS", "DL" })
+        foreach (string name in new[] { "INTPASSPORT", "EXTPASSPORT", "SNILS", "DL", "MIGRATIONCARD" })
         {
             if (label.StartsWith(name, StringComparison.Ordinal))
             {
@@ -369,11 +376,12 @@ public static class FieldChecks
 
     // ---- dates -----------------------------------------------------------------------------------
 
-    /// <summary>GEN-1, GEN-2, PASS-7 / DL-4, DL-2 / EXT-3.</summary>
+    /// <summary>GEN-1, GEN-2, PASS-7 / DL-4, DL-2 / EXT-3, MIG-3.</summary>
     private static void CheckDates(Verdicts v, string fam, DateOnly today)
     {
+        string[] fields = fam == "MIGRATIONCARD" ? MigrationDateFields : DateFields;
         var dates = new Dictionary<string, DateOnly>(StringComparer.Ordinal);
-        foreach (string name in DateFields)
+        foreach (string name in fields)
         {
             string? text = v.Value(name);
             if (text is null)
@@ -388,6 +396,26 @@ public static class FieldChecks
             {
                 dates[name] = parsed.Value;
             }
+        }
+
+        if (fam == "MIGRATIONCARD")
+        {
+            DateOnly? migBirth = dates.TryGetValue("Birth_date", out DateOnly mb) ? mb : null;
+            DateOnly? stayFrom = dates.TryGetValue("Stay_from", out DateOnly sf) ? sf : null;
+            DateOnly? stayTo = dates.TryGetValue("Stay_to", out DateOnly st) ? st : null;
+            if (migBirth is not null)
+            {
+                v.Add("Birth_date", "GEN-2", Refuting, migBirth.Value <= today);
+            }
+            if (migBirth is not null && stayFrom is not null && migBirth.Value <= today)
+            {
+                v.Add(["Birth_date", "Stay_from"], "GEN-2", Refuting, migBirth.Value < stayFrom.Value);
+            }
+            if (stayFrom is not null && stayTo is not null)
+            {
+                v.Add(["Stay_from", "Stay_to"], "MIG-3", Refuting, stayFrom.Value <= stayTo.Value);
+            }
+            return;
         }
 
         DateOnly? birth = dates.TryGetValue("Birth_date", out DateOnly b) ? b : null;
@@ -546,20 +574,21 @@ public static class FieldChecks
                 string? text = v.Value(name);
                 if (text is not null)
                 {
-                    bool agrees = Sex.TryGetValue(char.ToUpperInvariant(text[0]), out char letter)
-                                  && letter.ToString() == sexZone;
+                    bool agrees = Sex.TryGetValue(text.ToUpperInvariant(), out string? letter)
+                                  && letter == sexZone;
                     v.Add(name, "MRZ-7", Confirming, agrees, sexZone);
                 }
             }
         }
 
         // MRZ-8: names from the top line. No check digit covers that line, so a disagreement says "one of
-        // the two readings is wrong", not which - and a line of the wrong length may have lost part of a
-        // name: not compared.
+        // the two readings is wrong", not which - and a line of the wrong length (or extra lines) may
+        // have lost part of a name: not compared.
         List<string> lines = MrzChecks.SplitLines(mrzText);
         string line1 = lines.Count > 0 ? lines[0] : "";
         string nameArea = line1.Length > 5 ? line1[5..] : "";
-        bool wellFormed = line1.Length == 44
+        bool wellFormed = lines.Count == 2
+                          && line1.Length == 44
                           && line1.StartsWith(Line1Prefix[fam], StringComparison.Ordinal)
                           && nameArea.Contains("<<", StringComparison.Ordinal)
                           && nameArea.All(NameChars[fam].Contains);
@@ -570,26 +599,38 @@ public static class FieldChecks
         }
         bool truncated = !lines[0].EndsWith('<');
         string surname = (zone.GetValueOrDefault("surname") ?? "").Replace(" ", "");
-        string[] given = (zone.GetValueOrDefault("given_names") ?? "").Split(' ', 2);
-        string zoneFirst = given[0];
-        string zoneRest = given.Length > 1 ? given[1].Replace(" ", "") : "";
         Func<string, string> convert;
         string[] names;
+        string[] zoneValues;
         if (internalZone)
         {
+            string[] given = (zone.GetValueOrDefault("given_names") ?? "").Split(' ', 2);
+            string zoneFirst = given[0];
+            string zoneRest = given.Length > 1 ? given[1].Replace(" ", "") : "";
             // Ё is '2' in the zone; made equal to Е on both sides (CyrillicToZone).
             surname = surname.Replace('2', 'E');
             zoneFirst = zoneFirst.Replace('2', 'E');
             zoneRest = zoneRest.Replace('2', 'E');
             convert = CyrillicToZone;
             names = ["Last_name_ru", "First_name_ru", "Middle_name_ru"];
+            zoneValues = [surname, zoneFirst, zoneRest];
         }
         else
         {
+            // EXTPASSPORT has no Middle_name_en field: keep compound/hyphenated given names together.
+            string zoneGiven = (zone.GetValueOrDefault("given_names") ?? "").Replace(" ", "");
             convert = ZoneNames;
-            names = ["Last_name_en", "First_name_en", "Middle_name_en"];
+            names = ["Last_name_en", "First_name_en"];
+            zoneValues = [surname, zoneGiven];
         }
-        string[] zoneValues = [surname, zoneFirst, zoneRest];
+        int lastNonEmpty = -1;
+        for (int k = 0; k < zoneValues.Length; k++)
+        {
+            if (zoneValues[k].Length > 0)
+            {
+                lastNonEmpty = k;
+            }
+        }
         var agreed = new List<bool>();
         for (int k = 0; k < names.Length; k++)
         {
@@ -598,7 +639,8 @@ public static class FieldChecks
             {
                 continue;
             }
-            agreed.Add(NamesAgree(zoneValues[k], convert(text), truncated));
+            bool segTruncated = truncated && k == lastNonEmpty;
+            agreed.Add(NamesAgree(zoneValues[k], convert(text), segTruncated));
             v.Add(names[k], "MRZ-8", Confirming, agreed[^1], zoneValues[k]);
         }
         // The zone itself is confirmed only when every compared name agrees. A disagreement does not mark

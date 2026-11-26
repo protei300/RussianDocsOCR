@@ -107,6 +107,7 @@ ARG GIT_COMMIT=unknown
 ENV GIT_COMMIT=$GIT_COMMIT
 
 COPY document_processing/ ./document_processing/
+COPY ocr_postprocessing/ ./ocr_postprocessing/
 COPY service/ ./service/
 COPY samples/ ./samples/
 COPY --from=frontend-builder /frontend/dist/ ./web/dist/

@@ -12,7 +12,7 @@ from typing import Any
 
 from fastapi import (APIRouter, Depends, File, HTTPException, Query, Response,
                      UploadFile, status)
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from service import worker
 from service.api.deps import (require_admin, require_api_or_role)
@@ -21,6 +21,7 @@ from service.api.deps import (require_admin, require_api_or_role)
 #: dependency, and FastAPI caches dependencies by identity.
 require_api_or_viewer = require_api_or_role("viewer")
 require_api_or_operator = require_api_or_role("operator")
+from service.core import image_guard
 from service.core.config import get_settings
 from service.core.database import DbSession, get_db
 from service.core.models import VALID_STATUSES, iso
@@ -98,6 +99,7 @@ def _detail(record) -> dict[str, Any]:
         "fields": result.get("fields") or [],
         "ocr": result.get("ocr") or {},
         "quality": result.get("quality") or {},
+        "quality_gate": result.get("quality_gate"),
         "timings": result.get("timings") or {},
         "address": result.get("address"),
     })
@@ -109,7 +111,7 @@ async def upload_document(
     file: UploadFile = File(...),
     db: DbSession = Depends(get_db),
     _identity=Depends(require_api_or_operator),
-) -> dict[str, Any]:
+) -> Any:
     """Accept one image and queue it.
 
     Everything that can be checked cheaply is checked here, so a bad upload
@@ -141,10 +143,13 @@ async def upload_document(
                             detail="Unsupported file type — expected an image")
     ext, media_type = sniffed
 
-    dimensions = artifacts.decode_dimensions(data)
-    if dimensions is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            detail="The image could not be decoded — it may be corrupt")
+    try:
+        dimensions = image_guard.validate_image_bytes(data)
+    except image_guard.ImageGuardError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={"detail": exc.detail, "error_code": exc.code},
+        )
 
     filename = _safe_filename(file.filename)
 

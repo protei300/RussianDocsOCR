@@ -40,6 +40,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 
 from service.api.deps import require_api_or_role
+from service.core import image_guard
 from service.core.config import get_settings
 from service.core.database import DbSession, get_db
 from service.ml import runtime
@@ -75,9 +76,14 @@ def _wipe(buf: bytearray | None) -> None:
 
 class _Refused(Exception):
     def __init__(self, status_code: int, detail: str, outcome: str = "rejected",
-                 headers: dict[str, str] | None = None):
+                 headers: dict[str, str] | None = None,
+                 error_code: str | None = None):
         super().__init__(detail)
-        self.status_code, self.detail, self.outcome, self.headers = status_code, detail, outcome, headers
+        self.status_code = status_code
+        self.detail = detail
+        self.outcome = outcome
+        self.headers = headers
+        self.error_code = error_code
 
 
 async def _read_body(request: Request, limit: int) -> bytearray:
@@ -130,22 +136,25 @@ def _image_from_multipart(body: bytearray, boundary: bytes) -> bytearray:
 
 
 def _recognise_sync(image: bytearray, docconf: float, img_size: int,
-                    with_canvas: bool) -> tuple[dict[str, Any], bytearray | None]:
-    """Decode, recognise, wipe. Runs on the executor; every pixel buffer it creates
-    is zeroed here, in ``finally``, even when recognition fails or times out."""
+                    with_canvas: bool,
+                    quality_gate: str = "warn") -> tuple[dict[str, Any], bytearray | None]:
+    """Decode, validate, recognise, wipe. Runs on the executor; every pixel
+    buffer it creates is zeroed here, in ``finally``, even when validation or
+    recognition fails or times out."""
     import cv2
-    import numpy as np
 
     bgr = rgb = None
     try:
-        bgr = cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
-        if bgr is None:
+        try:
+            bgr = image_guard.decode_and_validate_bgr(image)
+        except image_guard.ImageGuardError as exc:
             raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
-                           "The image could not be decoded — it may be corrupt")
+                           exc.detail, error_code=exc.code) from None
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         bgr.fill(0)
         return runtime.recognise_image(rgb, docconf=docconf, img_size=img_size,
                                        with_canvas=with_canvas,
+                                       quality_gate=quality_gate,
                                        lease_timeout=float(get_settings().recognize_wait_sec))
     finally:
         for arr in (bgr, rgb):
@@ -174,6 +183,7 @@ def _response_body(payload: dict[str, Any], png: bytearray | None, ms: int) -> d
         "ocr": payload.get("ocr") or {},
         # Same split as a stored document's row: DocConf on its own, the rest as quality.
         "quality": {k: v for k, v in (payload.get("quality") or {}).items() if k != "DocConf"},
+        "quality_gate": payload.get("quality_gate"),
         "address": payload.get("address"),
         "timings": payload.get("timings") or {},
         "processing_ms": ms,
@@ -188,10 +198,17 @@ def _finish(outcome: str, status_code: int, started: float) -> int:
     return ms
 
 
+_VALID_QUALITY_GATE_MODES = frozenset({"off", "warn", "reject"})
+
+
 @router.post("/recognize")
 async def recognize(
     request: Request,
     images: bool = Query(False, description="also return the rectified document as base64 PNG"),
+    quality_gate: str | None = Query(
+        None,
+        description="Layer B quality gate mode: warn (default), reject, or off",
+    ),
     db: DbSession = Depends(get_db),
     _identity=Depends(require_api_or_operator),
 ) -> JSONResponse:
@@ -201,6 +218,15 @@ async def recognize(
     limit = settings.max_upload_mb * 1024 * 1024
     body = image = png = None
     try:
+        if quality_gate is not None:
+            gate_mode = quality_gate.strip().lower()
+            if gate_mode not in _VALID_QUALITY_GATE_MODES:
+                raise _Refused(
+                    status.HTTP_400_BAD_REQUEST,
+                    "quality_gate must be one of: off, warn, reject",
+                )
+        else:
+            gate_mode = str(settings_repo.get_value(db, "quality_gate_mode", "warn"))
         body = await _read_body(request, limit)
         content_type = request.headers.get("content-type", "")
         if content_type.lower().startswith("multipart/form-data"):
@@ -222,6 +248,11 @@ async def recognize(
         if artifacts.sniff_image(image) is None:
             raise _Refused(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                            "Unsupported file type — expected an image")
+        try:
+            image_guard.validate_image_header(image)
+        except image_guard.ImageGuardError as exc:
+            raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                           exc.detail, error_code=exc.code) from None
 
         docconf = float(settings_repo.get_value(db, "docconf", 0.5))
         img_size = int(settings_repo.get_value(db, "img_size", 1500))
@@ -229,7 +260,7 @@ async def recognize(
         loop = asyncio.get_running_loop()
         try:
             payload, png = await asyncio.wait_for(
-                loop.run_in_executor(_executor(), _recognise_sync, image, docconf, img_size, images),
+                loop.run_in_executor(_executor(), _recognise_sync, image, docconf, img_size, images, gate_mode),
                 timeout=timeout + settings.recognize_wait_sec)
         except PipelineBusy:
             raise _Refused(status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -251,6 +282,13 @@ async def recognize(
         return JSONResponse(content, headers={"Cache-Control": "no-store"})
     except _Refused as refused:
         _finish(refused.outcome, refused.status_code, started)
+        if refused.error_code is not None:
+            headers = {"Cache-Control": "no-store", **(refused.headers or {})}
+            return JSONResponse(
+                {"detail": refused.detail, "error_code": refused.error_code},
+                status_code=refused.status_code,
+                headers=headers,
+            )
         raise HTTPException(refused.status_code, detail=refused.detail,
                             headers=refused.headers) from None
     except HTTPException:
@@ -269,16 +307,16 @@ async def recognize(
 
 
 def _registration_sync(image: bytearray, docconf: float, img_size: int) -> dict[str, Any]:
-    """Decode, read the registration page, wipe - as ``_recognise_sync``."""
+    """Decode, validate, read the registration page, wipe - as ``_recognise_sync``."""
     import cv2
-    import numpy as np
 
     bgr = rgb = None
     try:
-        bgr = cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
-        if bgr is None:
+        try:
+            bgr = image_guard.decode_and_validate_bgr(image)
+        except image_guard.ImageGuardError as exc:
             raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
-                           "The image could not be decoded — it may be corrupt")
+                           exc.detail, error_code=exc.code) from None
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         bgr.fill(0)
         return runtime.recognise_registration(rgb, docconf=docconf, img_size=img_size,
@@ -330,6 +368,11 @@ async def recognize_registration(
         if artifacts.sniff_image(image) is None:
             raise _Refused(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                            "Unsupported file type — expected an image")
+        try:
+            image_guard.validate_image_header(image)
+        except image_guard.ImageGuardError as exc:
+            raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                           exc.detail, error_code=exc.code) from None
 
         docconf = float(settings_repo.get_value(db, "docconf", 0.5))
         img_size = int(settings_repo.get_value(db, "img_size", 1500))
@@ -363,6 +406,13 @@ async def recognize_registration(
         return JSONResponse(content, headers={"Cache-Control": "no-store"})
     except _Refused as refused:
         _finish(refused.outcome, refused.status_code, started)
+        if refused.error_code is not None:
+            headers = {"Cache-Control": "no-store", **(refused.headers or {})}
+            return JSONResponse(
+                {"detail": refused.detail, "error_code": refused.error_code},
+                status_code=refused.status_code,
+                headers=headers,
+            )
         raise HTTPException(refused.status_code, detail=refused.detail,
                             headers=refused.headers) from None
     except HTTPException:

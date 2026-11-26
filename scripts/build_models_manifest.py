@@ -173,22 +173,22 @@ def git_tracked_model_files() -> list:
     return sorted(REPO_ROOT / p for p in out)
 
 
-def pinned_files(previous: dict, extra: list) -> list:
+def pinned_files(previous: dict, extra: list, remove: list = ()) -> list:
     """Which files make up the set.
 
     Once the weights left git, `git ls-files` returns nothing here — so the
     manifest itself is what defines membership, and this only refreshes sizes
     and checksums for the paths already in it. A new model is an explicit act
-    (--add), never a side effect of something appearing on disk: the models tree
-    also holds local A/B folders (Borders/ONNX_old, TextFields/ONNX_legacy_backup,
-    threshold sweeps) that must never reach the published set.
+    (--add), and retiring an old one is explicit (--remove), never a side effect
+    of something appearing or disappearing on disk.
     """
-    paths = [MODELS_DIR / e['path'] for e in previous.get('files', [])]
-    if not paths:
+    drop = {item.replace('\\', '/').lstrip('./') for item in remove}
+    paths = [MODELS_DIR / e['path'] for e in previous.get('files', []) if e['path'] not in drop]
+    if not paths and not drop:
         paths = git_tracked_model_files()
     for item in extra:
         candidate = (MODELS_DIR / item).resolve()
-        if not str(candidate).startswith(str(MODELS_DIR.resolve())):
+        if not candidate.is_relative_to(MODELS_DIR.resolve()):
             sys.exit(f'--add outside the models directory: {item}')
         if candidate not in {p.resolve() for p in paths}:
             paths.append(candidate)
@@ -233,6 +233,8 @@ def main():
                          'default flattens them for GitHub release assets')
     ap.add_argument('--add', nargs='*', default=[], metavar='PATH',
                     help='paths (relative to document_processing/models) to add to the set')
+    ap.add_argument('--remove', nargs='*', default=[], metavar='PATH',
+                    help='paths (relative to document_processing/models) to retire from the set')
     args = ap.parse_args()
 
     previous = {}
@@ -248,7 +250,10 @@ def main():
     # a manifest ends up pointing at the tag of a different set.
     if args.base_url:
         base_url = args.base_url
-    elif previous.get('base_url') and models_version in previous['base_url']:
+    elif previous.get('base_url') and (
+        previous.get('models_version') == models_version
+        or f'models-{models_version}/' in previous['base_url']
+    ):
         base_url = previous['base_url']
     else:
         base_url = DEFAULT_BASE_URL
@@ -256,7 +261,7 @@ def main():
     if not base_url.endswith('/'):
         base_url += '/'
 
-    files = pinned_files(previous, args.add)
+    files = pinned_files(previous, args.add, args.remove)
     if not files:
         sys.exit('nothing to pin: no existing manifest and no tracked files under '
                  'document_processing/models')

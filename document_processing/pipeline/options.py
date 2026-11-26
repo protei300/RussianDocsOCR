@@ -77,7 +77,7 @@ class OCROptionsClass:
             return OCROptionsDL()
         elif 'snils' in doc_type.lower():
             return OCROptionsSNILS()
-        elif doc_type.upper() == 'MIGRATIONCARD':
+        elif 'migrationcard' in doc_type.lower():
             return OCROptionsMigrationCard()
         elif 'birthcert' in doc_type.lower():
             return OCROptionsBIRTHCERT()

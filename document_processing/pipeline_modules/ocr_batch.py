@@ -68,6 +68,7 @@ model with a handful of tiny calibration probes on first use (cached on the
 model instance), then computes it in O(1) per patch.
 """
 from collections import defaultdict
+import threading
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -119,6 +120,7 @@ class _WidthToTime:
         self._model = model
         self._stride: int = 1
         self._bases: Dict[int, Tuple[int, int]] = {}  # residue -> (w, t)
+        self._lock = threading.Lock()
 
     def _t_for_width(self, w: int) -> int:
         x = np.zeros((1, 32, max(w, 1), 3), dtype=np.uint8)
@@ -127,14 +129,20 @@ class _WidthToTime:
     def _ensure_calibrated(self):
         if self._bases:
             return
-        w1, w2 = self._CALIB_W, self._CALIB_W * 5
-        t1, t2 = self._t_for_width(w1), self._t_for_width(w2)
-        self._stride = max(1, round((w2 - w1) / max(1, t2 - t1)))
-        self._bases[w1 % self._stride] = (w1, t1)
-        for r in range(self._stride):
-            if r not in self._bases:
-                w = self._CALIB_W + r
-                self._bases[r] = (w, self._t_for_width(w))
+        with self._lock:
+            if self._bases:
+                return
+            w1, w2 = self._CALIB_W, self._CALIB_W * 5
+            t1, t2 = self._t_for_width(w1), self._t_for_width(w2)
+            stride = max(1, round((w2 - w1) / max(1, t2 - t1)))
+            bases: Dict[int, Tuple[int, int]] = {w1 % stride: (w1, t1)}
+            for offset in range(stride):
+                w = self._CALIB_W + offset
+                r = w % stride
+                if r not in bases:
+                    bases[r] = (w, self._t_for_width(w))
+            self._stride = stride
+            self._bases = bases
 
     def t_of(self, w: int) -> int:
         self._ensure_calibrated()

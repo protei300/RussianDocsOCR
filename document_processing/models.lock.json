@@ -1,6 +1,6 @@
 {
-  "models_version": "v13",
-  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v13/",
+  "models_version": "v14",
+  "base_url": "https://github.com/protei300/RussianDocsOCR/releases/download/models-v14/",
   "release_url": "https://github.com/protei300/RussianDocsOCR/releases/download/{release}/",
   "networks": {
     "AddressLines": "v4",
@@ -17,10 +17,11 @@
     "OCR/cyrillic_fast": "v4",
     "OCR/latin_accurate": "v4",
     "OCR/latin_fast": "v4",
-    "OCR/stamp_v3": "v12",
+    "OCR/stamp_v4": "v14",
     "PrintSpoofing": "v4",
+    "RegistrationRefs": "v14",
     "RegistrationStamps": "v11",
-    "StampFields": "v12",
+    "StampFields": "v14",
     "TextFields": "v10",
     "Words": "v6"
   },
@@ -236,18 +237,18 @@
       "release": "models-v4"
     },
     {
-      "path": "OCR/stamp_v3/ONNX/model.json",
-      "asset": "OCR__stamp_v3__ONNX__model.d8b98730b9e4.json",
+      "path": "OCR/stamp_v4/ONNX/model.json",
+      "asset": "OCR__stamp_v4__ONNX__model.d8b98730b9e4.json",
       "size": 600,
       "sha256": "d8b98730b9e4b82802280a5725e372281e7ff701a4663edebc829d86f6d6ba44",
-      "release": "models-v12"
+      "release": "models-v14"
     },
     {
-      "path": "OCR/stamp_v3/ONNX/model.onnx",
-      "asset": "OCR__stamp_v3__ONNX__model.fde72e8d27a9.onnx",
-      "size": 21427887,
-      "sha256": "fde72e8d27a9063260ab7f98acebd507c40ea95b1733509966e8d729911dc0ff",
-      "release": "models-v12"
+      "path": "OCR/stamp_v4/ONNX/model.onnx",
+      "asset": "OCR__stamp_v4__ONNX__model.d5ba676925bb.onnx",
+      "size": 21427886,
+      "sha256": "d5ba676925bbc797571a7fabf0246f5f9fea8af43fd5ed8ed0fafeddd919a001",
+      "release": "models-v14"
     },
     {
       "path": "PrintSpoofing/ONNX/model.json",
@@ -262,6 +263,27 @@
       "size": 1615583,
       "sha256": "79a1a3d8a23329fe25e1593b740d33a1bab4262f93ccd4df32a4e5b8b059deca",
       "release": "models-v4"
+    },
+    {
+      "path": "RegistrationRefs/addressru.zip",
+      "asset": "RegistrationRefs__addressru.51f420a6626e.zip",
+      "size": 28034914,
+      "sha256": "51f420a6626e6f30b4fe8c765357942cb46de370db93d747e8e572a10f04f1a2",
+      "release": "models-v14"
+    },
+    {
+      "path": "RegistrationRefs/fms_unit_2026-09-22.csv",
+      "asset": "RegistrationRefs__fms_unit_2026-09-22.f05a98e270c1.csv",
+      "size": 1602940,
+      "sha256": "f05a98e270c108afec76853fd8f694bbec7eeea985447ccceee5c731b5610ed4",
+      "release": "models-v14"
+    },
+    {
+      "path": "RegistrationRefs/street_names_kladr.json",
+      "asset": "RegistrationRefs__street_names_kladr.cbd6af9804ba.json",
+      "size": 66326,
+      "sha256": "cbd6af9804ba06f72eef2f266730b643ddedaa68fbadab6bdf24726ba0917822",
+      "release": "models-v14"
     },
     {
       "path": "RegistrationStamps/ONNX/model.json",
@@ -279,17 +301,17 @@
     },
     {
       "path": "StampFields/ONNX/model.json",
-      "asset": "StampFields__ONNX__model.c4dd448defdf.json",
-      "size": 690,
-      "sha256": "c4dd448defdfff0f5c26c06567d84dbe1d62d57deb07b8c804d36caae36cc28f",
-      "release": "models-v12"
+      "asset": "StampFields__ONNX__model.13b667269864.json",
+      "size": 736,
+      "sha256": "13b667269864d98512026bfafa67c9f7cbf83a8809111c00ae6388bb81032dd7",
+      "release": "models-v14"
     },
     {
       "path": "StampFields/ONNX/model.onnx",
-      "asset": "StampFields__ONNX__model.a12448eb9bd3.onnx",
-      "size": 38903983,
-      "sha256": "a12448eb9bd3fb0c7902332ffe4cc3341c2ef906701f186b3bc11d26f95b8f71",
-      "release": "models-v12"
+      "asset": "StampFields__ONNX__model.02edd2f0e541.onnx",
+      "size": 39942306,
+      "sha256": "02edd2f0e5412ed771349615a42811ef9a79516814ee4bce14f0757bef000da9",
+      "release": "models-v14"
     },
     {
       "path": "TextFields/ONNX/model.json",

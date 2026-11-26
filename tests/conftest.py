@@ -8,6 +8,10 @@ import pytest
 def pytest_configure(config):
     """Ensure CWD is the tests/ directory so relative image paths resolve correctly."""
     os.chdir(Path(__file__).parent)
+    config.addinivalue_line(
+        "markers",
+        "service: needs requirements-service.txt (fastapi, sqlalchemy, PyJWT)",
+    )
 
 
 @pytest.fixture(autouse=True, scope='module')

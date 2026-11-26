@@ -80,6 +80,8 @@ def _fit_line(pts: np.ndarray, thr: float, rng: np.random.Generator):
         vx, vy, x0, y0 = cv2.fitLine(pts[inl].astype(np.float32), cv2.DIST_L2, 0, 0.01, 0.01).ravel()
         p0, dv = np.array([x0, y0], np.float64), np.array([vx, vy], np.float64)
         inl = np.abs((pts - p0) @ np.array([-dv[1], dv[0]])) < thr
+    if inl.sum() < 2:
+        return None
     return p0, dv, inl
 
 

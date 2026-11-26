@@ -64,6 +64,12 @@ SETTINGS_SCHEMA: tuple[SettingDef, ...] = (
         group="Recognition", min_value=640, max_value=2560,
     ),
     SettingDef(
+        "quality_gate_mode", "choice", "warn", "Document quality gate mode",
+        "'warn' reports quality_gate verdicts and runs OCR; 'reject' stops "
+        "before OCR on reject-level defects; 'off' disables the gate.",
+        group="Recognition", choices=("warn", "reject", "off"),
+    ),
+    SettingDef(
         "job_timeout_sec", "int", "120", "Job timeout (seconds)",
         "Typical processing is well under one second; this is a wedge detector, "
         "not a performance limit.",

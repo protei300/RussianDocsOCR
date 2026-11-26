@@ -68,12 +68,12 @@ class Blur(BaseModule):
         checker = QualityChecker(self.model, canvas_size)
         image = self.load_img(img)
         quality = checker.check_image_quality(image)
-        transformed_image = checker.annotate_image(image)
         if quality > 0.9:
             meta = {
                 self.model_name: ('good', quality)
             }
         else:
+            transformed_image = checker.annotate_image(image, reuse=True)
             meta = {
                 self.model_name: ('bad', quality),
                 'warped_img': transformed_image

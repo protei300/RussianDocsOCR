@@ -68,8 +68,11 @@ public object FieldChecks {
         'Ы' to 'Y', 'Ь' to '9', 'Э' to '6', 'Ю' to '7', 'Я' to '8',
     )
 
-    /** Sex as printed -> the zone's letter. The page prints «МУЖ.»/«ЖЕН.», the external passport also «M»/«F». */
-    private val SEX: Map<Char, String> = mapOf('М' to "M", 'Ж' to "F", 'M' to "M", 'F' to "F")
+    /** Sex as printed -> the zone's letter. Exact normalized tokens so arbitrary words cannot pass MRZ-7. */
+    private val SEX: Map<String, String> = mapOf(
+        "М" to "M", "Ж" to "F", "M" to "M", "F" to "F",
+        "МУЖ" to "M", "МУЖ." to "M", "ЖЕН" to "F", "ЖЕН." to "F",
+    )
 
     /** Years between issue and expiry: licences 10; external passports 10 (biometric) or 5 (2003 form) — either accepted for both. */
     private val VALIDITY_YEARS: Map<String, List<Int>> = mapOf("DL" to listOf(10), "EXTPASSPORT" to listOf(5, 10))
@@ -81,17 +84,22 @@ public object FieldChecks {
     private const val SERIES_YEAR_WINDOW = 3
 
     private val DATE_FIELDS = listOf("Birth_date", "Issue_date", "Expiration_date")
+    private val MIGRATION_DATE_FIELDS = listOf("Birth_date", "Stay_from", "Stay_to")
 
     /** The printed form of numbers, whitespace collapsed (full match): field, check id, pattern. */
     private class NumberForm(val field: String, val id: String, val pattern: Regex)
 
     private val NUMBER_FORMS: Map<String, List<NumberForm>> = mapOf(
         "INTPASSPORT" to listOf(
-            NumberForm("Licence_number", "PASS-1", Regex("""\d{2} \d{2} \d{6}""")),
-            NumberForm("Issue_organisation_code", "PASS-4", Regex("""\d{3}-\d{3}""")),
+            NumberForm("Licence_number", "PASS-1", Regex("""[0-9]{2} [0-9]{2} [0-9]{6}""")),
+            NumberForm("Issue_organisation_code", "PASS-4", Regex("""[0-9]{3}-[0-9]{3}""")),
         ),
-        "EXTPASSPORT" to listOf(NumberForm("Licence_number", "EXT-1", Regex("""\d{2} \d{7}"""))),
-        "SNILS" to listOf(NumberForm("Licence_number", "SNILS-1", Regex("""\d{3}-\d{3}-\d{3} \d{2}"""))),
+        "EXTPASSPORT" to listOf(NumberForm("Licence_number", "EXT-1", Regex("""[0-9]{2} [0-9]{7}"""))),
+        "SNILS" to listOf(NumberForm("Licence_number", "SNILS-1", Regex("""[0-9]{3}-[0-9]{3}-[0-9]{3} [0-9]{2}"""))),
+        "MIGRATIONCARD" to listOf(
+            NumberForm("Card_series", "MIG-1", Regex("""[0-9](?: ?[0-9]){3}""")),
+            NumberForm("Card_number", "MIG-2", Regex("""[0-9](?: ?[0-9]){6}""")),
+        ),
     )
 
     private val LINE1_PREFIX = mapOf("INTPASSPORT" to "PNRUS", "EXTPASSPORT" to "P<RUS")
@@ -104,14 +112,14 @@ public object FieldChecks {
     /**
      * The document family the checks are defined for, or null. Order matters as in `OcrOptionsClass.make_options`:
      * the registration page and the licence back side contain the names of the families they are not. Everything
-     * outside the four families is `unchecked` throughout — their rules were not measured.
+     * outside the measured families is `unchecked` throughout.
      */
     public fun family(docType: String?): String? {
         val label = (docType ?: "").uppercase()
         if ("INTPASSPORTADDR" in label || "DLBACK" in label) {
             return null
         }
-        for (name in listOf("INTPASSPORT", "EXTPASSPORT", "SNILS", "DL")) {
+        for (name in listOf("INTPASSPORT", "EXTPASSPORT", "SNILS", "DL", "MIGRATIONCARD")) {
             if (label.startsWith(name)) {
                 return name
             }
@@ -219,10 +227,11 @@ public object FieldChecks {
         return words.joinToString(" ")
     }
 
-    /** GEN-1, GEN-2, PASS-7 / DL-4, DL-2 / EXT-3. */
+    /** GEN-1, GEN-2, PASS-7 / DL-4, DL-2 / EXT-3, MIG-3. */
     private fun checkDates(v: Verdicts, fam: String, today: LocalDate) {
+        val fields = if (fam == "MIGRATIONCARD") MIGRATION_DATE_FIELDS else DATE_FIELDS
         val dates = HashMap<String, LocalDate>()
-        for (name in DATE_FIELDS) {
+        for (name in fields) {
             val text = v.value(name) ?: continue
             val parsed = asDate(name, text)
             // GEN-1: every reference date in samples/ converts, so a reading that does not is not a date.
@@ -230,6 +239,22 @@ public object FieldChecks {
             if (parsed != null) {
                 dates[name] = parsed
             }
+        }
+
+        if (fam == "MIGRATIONCARD") {
+            val birth = dates["Birth_date"]
+            val stayFrom = dates["Stay_from"]
+            val stayTo = dates["Stay_to"]
+            if (birth != null) {
+                v.add("Birth_date", "GEN-2", REFUTING, !birth.isAfter(today))
+            }
+            if (birth != null && stayFrom != null && !birth.isAfter(today)) {
+                v.add(listOf("Birth_date", "Stay_from"), "GEN-2", REFUTING, birth.isBefore(stayFrom))
+            }
+            if (stayFrom != null && stayTo != null) {
+                v.add(listOf("Stay_from", "Stay_to"), "MIG-3", REFUTING, !stayFrom.isAfter(stayTo))
+            }
+            return
         }
 
         val birth = dates["Birth_date"]
@@ -289,7 +314,7 @@ public object FieldChecks {
     }
 
     /** MRZ-1 .. MRZ-9 (docs/validation-checks.md, section MRZ). */
-    private fun checkMrz(v: Verdicts, fam: String) {
+    private fun checkMrz(v: Verdicts, fam: String, today: LocalDate) {
         val mrzText = v.value("MRZ") ?: return
         val checked = MrzChecks.validateMrz(mrzText)
         // The check digits cover line 2 only, so for the zone as a whole they can refute but not confirm; the
@@ -298,7 +323,7 @@ public object FieldChecks {
         val digitsOk = checked.checks
         val internal = fam == "INTPASSPORT"
         // The layout is chosen by the classifier's type, not by the zone's own first characters, which may be misread.
-        val zone = MrzChecks.parseMrz(mrzText, internal)
+        val zone = MrzChecks.parseMrz(mrzText, internal, today)
 
         fun trusted(vararg parts: String): Boolean = parts.all { digitsOk[it] == OK }
 
@@ -344,16 +369,17 @@ public object FieldChecks {
         if (!sexZone.isNullOrEmpty()) {
             for (name in listOf("Sex_ru", "Sex_en")) {
                 val text = v.value(name) ?: continue
-                v.add(name, "MRZ-7", CONFIRMING, SEX[text[0].uppercaseChar()] == sexZone, sexZone)
+                v.add(name, "MRZ-7", CONFIRMING, SEX[text.uppercase()] == sexZone, sexZone)
             }
         }
 
         // MRZ-8: names from the top line. No check digit covers that line, so a disagreement says "one of the two
-        // readings is wrong", not which - and a line of the wrong length may have lost part of a name: not compared.
+        // readings is wrong", not which - and a line of the wrong length (or extra lines) may have lost part of a
+        // name: not compared.
         val lines = mrzText.trim().let { MrzChecks.splitLines(it) }
         val line1 = lines.firstOrNull() ?: ""
         val tail = if (line1.length > 5) line1.substring(5) else ""
-        val wellFormed = line1.length == 44 && line1.startsWith(LINE1_PREFIX.getValue(fam)) &&
+        val wellFormed = lines.size == 2 && line1.length == 44 && line1.startsWith(LINE1_PREFIX.getValue(fam)) &&
             "<<" in tail && NAME_CHARS.getValue(fam).containsAll(tail.toSet())
         v.add("MRZ", "MRZ-9", REFUTING, wellFormed)
         if (!wellFormed) {
@@ -361,30 +387,35 @@ public object FieldChecks {
         }
         val truncated = !lines[0].endsWith("<")
         var surname = (zone.surname ?: "").replace(" ", "")
-        val givenText = zone.givenNames ?: ""
-        val space = givenText.indexOf(' ')
-        var zoneFirst = if (space >= 0) givenText.substring(0, space) else givenText
-        var zoneRest = if (space >= 0) givenText.substring(space + 1).replace(" ", "") else ""
         val convert: (String) -> String
-        val names: List<String>
+        val pairs: List<Pair<String, String>>
         if (internal) {
+            val givenText = zone.givenNames ?: ""
+            val space = givenText.indexOf(' ')
+            var zoneFirst = if (space >= 0) givenText.substring(0, space) else givenText
+            var zoneRest = if (space >= 0) givenText.substring(space + 1).replace(" ", "") else ""
             // Ё is '2' in the zone; made equal to Е on both sides (cyrillicToZone).
             surname = surname.replace('2', 'E')
             zoneFirst = zoneFirst.replace('2', 'E')
             zoneRest = zoneRest.replace('2', 'E')
             convert = ::cyrillicToZone
-            names = listOf("Last_name_ru", "First_name_ru", "Middle_name_ru")
+            pairs = listOf("Last_name_ru" to surname, "First_name_ru" to zoneFirst, "Middle_name_ru" to zoneRest)
         } else {
+            // EXTPASSPORT has no Middle_name_en field: keep compound/hyphenated given names together.
+            val zoneGiven = (zone.givenNames ?: "").replace(" ", "")
             convert = ::zoneNames
-            names = listOf("Last_name_en", "First_name_en", "Middle_name_en")
+            pairs = listOf("Last_name_en" to surname, "First_name_en" to zoneGiven)
         }
+        val lastNonEmpty = pairs.indexOfLast { it.second.isNotEmpty() }
         val agreed = ArrayList<Boolean>()
-        for ((name, zoneValue) in names.zip(listOf(surname, zoneFirst, zoneRest))) {
+        for ((i, pair) in pairs.withIndex()) {
+            val (name, zoneValue) = pair
             val text = v.value(name)
             if (text == null || zoneValue.isEmpty()) {
                 continue
             }
-            agreed.add(namesAgree(zoneValue, convert(text), truncated))
+            val segTruncated = truncated && i == lastNonEmpty
+            agreed.add(namesAgree(zoneValue, convert(text), segTruncated))
             v.add(name, "MRZ-8", CONFIRMING, agreed.last(), zoneValue)
         }
         // The zone itself is confirmed only when every compared name agrees. A disagreement does not mark it: the
@@ -466,7 +497,7 @@ public object FieldChecks {
         checkDates(v, fam, today)
         checkForms(v, fam)
         if (fam == "INTPASSPORT" || fam == "EXTPASSPORT") {
-            checkMrz(v, fam)
+            checkMrz(v, fam, today)
         }
         if (fam == "SNILS") {
             checkSnils(v)

@@ -114,7 +114,7 @@ class ModelInference:
            numpy.ndarray: Output prediction
 
         """
-        raise NotImplemented("Need to implement this method")
+        raise NotImplementedError("Need to implement this method")
 
     def __load_onnx(self, model_path: Path):
         onnx_model_path = model_path.as_posix()
@@ -125,6 +125,7 @@ class ModelInference:
         self.model = self.ort.InferenceSession(onnx_model_path, providers=providers)
         self._check_onnx_provider()
         inputs = self.model.get_inputs()
+        self._onnx_inputs = [(inp.name, _np_dtype_for(inp)) for inp in inputs]
         ort_inputs = {}
         for inp in inputs:
             # batch=1, and replace dynamic axes (None / str names) with a safe size.
@@ -172,10 +173,12 @@ class ModelInference:
 
 
     def __predict_onnx(self, tensors:  List[np.ndarray]):
-        inputs = self.model.get_inputs()
+        onnx_inputs = getattr(self, '_onnx_inputs', None)
+        if onnx_inputs is None:
+            onnx_inputs = [(inp.name, _np_dtype_for(inp)) for inp in self.model.get_inputs()]
         # cast each tensor to the dtype the model actually declares (float32 for
-        # the detectors, uint8 for the OCR nets) rather than always float32.
-        ort_inputs = {inp.name: tensors[i].astype(_np_dtype_for(inp)) for i, inp in enumerate(inputs)}
+        # the detectors, uint8 for the OCR nets) without copying when already matching.
+        ort_inputs = {name: tensors[i].astype(dtype, copy=False) for i, (name, dtype) in enumerate(onnx_inputs)}
 
         if self._run_lock is None:
             return self.model.run(None, ort_inputs)
@@ -190,9 +193,8 @@ class ModelInference:
             request = self.model.create_infer_request()
             self._ov_local.request = request
         request.infer(tensor)
-        outputs = [request.get_output_tensor(i).data
-                   for i in range(len(self.model.outputs))]
-        return outputs[0] if len(outputs) == 1 else outputs
+        return [request.get_output_tensor(i).data.copy()
+                for i in range(len(self.model.outputs))]
 
     def __predict_coreml(self, tensor: np.ndarray):
         pred = self.model.predict({'image': tensor})

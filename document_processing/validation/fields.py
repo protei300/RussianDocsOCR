@@ -57,7 +57,12 @@ _ZONE_LETTERS = str.maketrans({
 
 #: Sex as printed -> the zone's letter. The page prints «МУЖ.»/«ЖЕН.» (the
 #: ground truth keeps the first letter), the external passport also «M»/«F».
-_SEX = {'М': 'M', 'Ж': 'F', 'M': 'M', 'F': 'F'}
+#: Matched on the whole normalized token so arbitrary words starting with «М»
+#: or «Ж» cannot pass MRZ-7 as valid sex readings.
+_SEX = {
+    'М': 'M', 'Ж': 'F', 'M': 'M', 'F': 'F',
+    'МУЖ': 'M', 'МУЖ.': 'M', 'ЖЕН': 'F', 'ЖЕН.': 'F',
+}
 
 #: Years between the issue date and the expiry date. Driving licences: 10
 #: (35 of 35 references in samples/). External passports: 10 for the
@@ -78,6 +83,7 @@ _MIN_AGE = {'INTPASSPORT': 14, 'DL': 16}
 _SERIES_YEAR_WINDOW = 3
 
 _DATE_FIELDS = ('Birth_date', 'Issue_date', 'Expiration_date')
+_MIGRATION_DATE_FIELDS = ('Birth_date', 'Stay_from', 'Stay_to')
 
 #: The top MRZ line: its fixed start, and the characters its name area can
 #: hold. No check digit covers this line, but its form is strict: an external
@@ -87,15 +93,18 @@ _DATE_FIELDS = ('Birth_date', 'Issue_date', 'Expiration_date')
 #: letter O read as the digit 0), and such a line is no reference for the page.
 #: The printed form of numbers, whitespace collapsed. Every reference of
 #: samples/ has it (internal passport 24 of 24, its code 24 of 24, external
-#: passport 42 of 42, SNILS 14 of 14). The comparisons with the zone look at
-#: digits only, so without the form a reading with a stray character - a glare
-#: read as quotes in the number, a doubled hyphen in the code (Damir set) - was
-#: 'verified' while not being what is printed.
+#: passport 42 of 42, SNILS 14 of 14), and every real migration card in the
+#: measured set (59 of 59 series, 60 of 60 numbers). The comparisons with the
+#: zone look at digits only, so without the form a reading with a stray
+#: character - a glare read as quotes in the number, a doubled hyphen in the
+#: code (Damir set) - was 'verified' while not being what is printed.
 _NUMBER_FORMS = {
-    'INTPASSPORT': (('Licence_number', 'PASS-1', r'\d{2} \d{2} \d{6}'),
-                    ('Issue_organisation_code', 'PASS-4', r'\d{3}-\d{3}')),
-    'EXTPASSPORT': (('Licence_number', 'EXT-1', r'\d{2} \d{7}'),),
-    'SNILS': (('Licence_number', 'SNILS-1', r'\d{3}-\d{3}-\d{3} \d{2}'),),
+    'INTPASSPORT': (('Licence_number', 'PASS-1', r'[0-9]{2} [0-9]{2} [0-9]{6}'),
+                    ('Issue_organisation_code', 'PASS-4', r'[0-9]{3}-[0-9]{3}')),
+    'EXTPASSPORT': (('Licence_number', 'EXT-1', r'[0-9]{2} [0-9]{7}'),),
+    'SNILS': (('Licence_number', 'SNILS-1', r'[0-9]{3}-[0-9]{3}-[0-9]{3} [0-9]{2}'),),
+    'MIGRATIONCARD': (('Card_series', 'MIG-1', r'[0-9](?: ?[0-9]){3}'),
+                      ('Card_number', 'MIG-2', r'[0-9](?: ?[0-9]){6}')),
 }
 
 _LINE1_PREFIX = {'INTPASSPORT': 'PNRUS', 'EXTPASSPORT': 'P<RUS'}
@@ -108,13 +117,12 @@ def family(doc_type) -> str:
 
     Order matters as in ``OCROptionsClass.make_options``: the registration page
     and the licence back side contain the names of the families they are not.
-    Everything outside the four families gets ``unchecked`` throughout - their
-    rules were not measured.
+    Everything outside the measured families gets ``unchecked`` throughout.
     """
     label = (doc_type or '').upper()
     if 'INTPASSPORTADDR' in label or 'DLBACK' in label:
         return None
-    for name in ('INTPASSPORT', 'EXTPASSPORT', 'SNILS', 'DL'):
+    for name in ('INTPASSPORT', 'EXTPASSPORT', 'SNILS', 'DL', 'MIGRATIONCARD'):
         if label.startswith(name):
             return name
     return None
@@ -191,13 +199,16 @@ def _fmt(day: date) -> str:
 
 
 def _digits(text):
-    return re.sub(r'\D', '', text or '')
+    if not isinstance(text, str):
+        return ''
+    return re.sub(r'\D', '', text, flags=re.ASCII)
 
 
 def _check_dates(v: _Verdicts, fam: str, today: date):
-    """GEN-1, GEN-2, PASS-7 / DL-4, DL-2 / EXT-3."""
+    """GEN-1, GEN-2, PASS-7 / DL-4, DL-2 / EXT-3, MIG-3."""
+    date_fields = _MIGRATION_DATE_FIELDS if fam == 'MIGRATIONCARD' else _DATE_FIELDS
     dates = {}
-    for name in _DATE_FIELDS:
+    for name in date_fields:
         text = v.value(name)
         if text is None:
             continue
@@ -207,6 +218,19 @@ def _check_dates(v: _Verdicts, fam: str, today: date):
         v.add(name, 'GEN-1', REFUTING, parsed is not None)
         if parsed is not None:
             dates[name] = parsed
+
+    if fam == 'MIGRATIONCARD':
+        birth, stay_from, stay_to = (dates.get(n) for n in _MIGRATION_DATE_FIELDS)
+        if birth is not None:
+            v.add('Birth_date', 'GEN-2', REFUTING, birth <= today)
+        # Guard Birth_date < Stay_from on birth <= today so a misread future
+        # birth date (already flagged by GEN-2 above) does not false-alarm a
+        # valid Stay_from.
+        if birth is not None and stay_from is not None and birth <= today:
+            v.add(('Birth_date', 'Stay_from'), 'GEN-2', REFUTING, birth < stay_from)
+        if stay_from is not None and stay_to is not None:
+            v.add(('Stay_from', 'Stay_to'), 'MIG-3', REFUTING, stay_from <= stay_to)
+        return
 
     birth, issue, expiry = (dates.get(n) for n in _DATE_FIELDS)
     for name, day in (('Birth_date', birth), ('Issue_date', issue)):
@@ -256,12 +280,12 @@ def _names_agree(zone: str, page: str, truncated: bool) -> bool:
     return truncated and page.startswith(zone)
 
 
-def _check_mrz(v: _Verdicts, fam: str):
+def _check_mrz(v: _Verdicts, fam: str, today: date):
     """MRZ-1 .. MRZ-9 (docs/validation-checks.md, section MRZ)."""
     mrz_text = v.value('MRZ')
     if mrz_text is None:
         return
-    checked = validate_mrz(mrz_text)
+    checked = validate_mrz(mrz_text, today=today)
     # The check digits cover line 2 only, so for the zone as a whole they can
     # refute but not confirm; the confirmation is the names of line 1 agreeing
     # with the page (MRZ-8 below).
@@ -270,7 +294,7 @@ def _check_mrz(v: _Verdicts, fam: str):
     internal = fam == 'INTPASSPORT'
     # The layout is chosen by the classifier's type, not by the zone's own
     # first characters, which may be misread.
-    zone = parse_mrz(mrz_text, internal=internal)
+    zone = parse_mrz(mrz_text, internal=internal, today=today)
 
     def trusted(*parts):
         return all(digits_ok.get(p) == OK for p in parts)
@@ -310,39 +334,51 @@ def _check_mrz(v: _Verdicts, fam: str):
         for name in ('Sex_ru', 'Sex_en'):
             text = v.value(name)
             if text is not None:
-                v.add(name, 'MRZ-7', CONFIRMING, _SEX.get(text[0].upper()) == sex_zone, sex_zone)
+                v.add(name, 'MRZ-7', CONFIRMING, _SEX.get(text.upper()) == sex_zone, sex_zone)
 
     # MRZ-8: names from the top line. No check digit covers that line, so a
     # disagreement says "one of the two readings is wrong", not which - and a
-    # line of the wrong length may have lost part of a name: not compared.
+    # line of the wrong length (or extra lines) may have lost part of a name:
+    # not compared.
     lines = [ln.strip() for ln in mrz_text.strip().splitlines() if ln.strip()]
     line1 = lines[0] if lines else ''
-    well_formed = (len(line1) == 44 and line1.startswith(_LINE1_PREFIX[fam])
+    well_formed = (len(lines) == 2 and len(line1) == 44
+                   and line1.startswith(_LINE1_PREFIX[fam])
                    and '<<' in line1[5:] and set(line1[5:]) <= _NAME_CHARS[fam])
     v.add('MRZ', 'MRZ-9', REFUTING, well_formed)
     if not well_formed:
         return
-    truncated = not lines[0].endswith('<')
+    truncated = not line1.endswith('<')
     surname = (zone.get('surname') or '').replace(' ', '')
-    given = (zone.get('given_names') or '').split(' ', 1)
-    zone_first = given[0]
-    zone_rest = given[1].replace(' ', '') if len(given) > 1 else ''
     if internal:
+        given = (zone.get('given_names') or '').split(' ', 1)
+        zone_first = given[0]
+        zone_rest = given[1].replace(' ', '') if len(given) > 1 else ''
         # Ё is '2' in the zone; made equal to Е on both sides (_cyrillic_to_zone).
         surname, zone_first, zone_rest = (s.replace('2', 'E')
                                           for s in (surname, zone_first, zone_rest))
         convert = _cyrillic_to_zone
-        names = ('Last_name_ru', 'First_name_ru', 'Middle_name_ru')
+        pairs = (('Last_name_ru', surname),
+                 ('First_name_ru', zone_first),
+                 ('Middle_name_ru', zone_rest))
     else:
+        # EXTPASSPORT has no Middle_name_en field: keep compound/hyphenated
+        # given names together against First_name_en.
+        zone_given = (zone.get('given_names') or '').replace(' ', '')
         convert = _zone_names
-        names = ('Last_name_en', 'First_name_en', 'Middle_name_en')
-    pairs = zip(names, (surname, zone_first, zone_rest))
+        pairs = (('Last_name_en', surname),
+                 ('First_name_en', zone_given))
+    # Only the last non-empty segment in line 1 can be clipped by the 44-char
+    # boundary; earlier segments are bounded by '<' / '<<' and must match whole.
+    non_empty = [i for i, (_, zv) in enumerate(pairs) if zv]
+    last_non_empty = non_empty[-1] if non_empty else -1
     agreed = []
-    for name, zone_value in pairs:
+    for i, (name, zone_value) in enumerate(pairs):
         text = v.value(name)
         if text is None or not zone_value:
             continue
-        agreed.append(_names_agree(zone_value, convert(text), truncated))
+        seg_truncated = truncated and i == last_non_empty
+        agreed.append(_names_agree(zone_value, convert(text), seg_truncated))
         v.add(name, 'MRZ-8', CONFIRMING, agreed[-1], zone_value)
     # The zone itself is confirmed only when every compared name agrees. A
     # disagreement does not mark it: the zone's own misreadings are caught for
@@ -361,11 +397,12 @@ def _snils_control(body: str) -> int:
 
 
 def _check_forms(v: _Verdicts, fam: str):
-    """PASS-1, PASS-4, EXT-1, SNILS-1: the printed form of numbers (refuting)."""
+    """PASS-1, PASS-4, EXT-1, SNILS-1, MIG-1, MIG-2: the printed form of numbers (refuting)."""
     for name, check_id, pattern in _NUMBER_FORMS.get(fam, ()):
         text = v.value(name)
         if text is not None:
-            v.add(name, check_id, REFUTING, re.fullmatch(pattern, ' '.join(text.split())) is not None)
+            v.add(name, check_id, REFUTING,
+                  re.fullmatch(pattern, ' '.join(text.split()), flags=re.ASCII) is not None)
 
 
 def _check_snils(v: _Verdicts):
@@ -414,7 +451,7 @@ def field_checks(ocr: dict, doc_type, today: date = None) -> dict:
     _check_dates(v, fam, today)
     _check_forms(v, fam)
     if fam in ('INTPASSPORT', 'EXTPASSPORT'):
-        _check_mrz(v, fam)
+        _check_mrz(v, fam, today)
     if fam == 'SNILS':
         _check_snils(v)
     if fam == 'INTPASSPORT':

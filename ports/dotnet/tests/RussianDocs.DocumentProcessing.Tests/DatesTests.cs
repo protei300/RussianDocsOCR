@@ -127,6 +127,9 @@ public class DatesTests
         {
             Assert.That(Dates.ToDdmmyyyy(null), Is.Null);
             Assert.That(Dates.ToDdmmyyyy(""), Is.Null);
+            Assert.That(Dates.ToDdmmyyyy("2020-05-12"), Is.Null);
+            Assert.That(Dates.ToDdmmyyyy("12.05.2020 99"), Is.Null);
+            Assert.That(Dates.ToDdmmyyyy("123.05.2020"), Is.Null);
         });
     }
 

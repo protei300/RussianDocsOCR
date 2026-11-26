@@ -15,34 +15,29 @@ import (
 // never pull in area from outside the frame.
 const DocMarginFrac = 0.01
 
-// OrderPoints canonicalises four corners to [TL, TR, BR, BL].
+// OrderPoints canonicalises four corners clockwise to [TL, TR, BR, BL].
 //
-// Uses the sum and difference trick: the top-left has the smallest x+y and the
-// bottom-right the largest; the top-right has the smallest y-x and the bottom-left the
-// largest. Note the difference is **y - x**, matching `np.diff(pts, axis=1)` on
-// (x, y) pairs — reversing it silently swaps TR and BL, which then mirrors the warp.
+// Sorts the four vertices clockwise around their centroid (+y downward) and rotates the
+// cycle so top-left (minimum x+y, tie-broken by minimum y then x) is index 0. Always
+// returns all four distinct vertices even for quads tilted near 45 degrees.
 func OrderPoints(pts []Point) []Point {
 	if len(pts) != 4 {
 		return nil
 	}
-	minSum, maxSum := 0, 0
-	minDiff, maxDiff := 0, 0
-	for i, p := range pts {
-		s, d := p.X+p.Y, p.Y-p.X
-		if s < pts[minSum].X+pts[minSum].Y {
-			minSum = i
-		}
-		if s > pts[maxSum].X+pts[maxSum].Y {
-			maxSum = i
-		}
-		if d < pts[minDiff].Y-pts[minDiff].X {
-			minDiff = i
-		}
-		if d > pts[maxDiff].Y-pts[maxDiff].X {
-			maxDiff = i
+	cx, cy := centroid(pts)
+	cw := make([]Point, 4)
+	copy(cw, pts)
+	sort.SliceStable(cw, func(i, j int) bool {
+		return math.Atan2(cw[i].Y-cy, cw[i].X-cx) < math.Atan2(cw[j].Y-cy, cw[j].X-cx)
+	})
+	tl := 0
+	for i := 1; i < 4; i++ {
+		si, st := cw[i].X+cw[i].Y, cw[tl].X+cw[tl].Y
+		if si < st || (si == st && (cw[i].Y < cw[tl].Y || (cw[i].Y == cw[tl].Y && cw[i].X < cw[tl].X))) {
+			tl = i
 		}
 	}
-	return []Point{pts[minSum], pts[minDiff], pts[maxSum], pts[maxDiff]}
+	return []Point{cw[tl], cw[(tl+1)%4], cw[(tl+2)%4], cw[(tl+3)%4]}
 }
 
 // ExtractQuad reduces a segmentation contour to four corners.

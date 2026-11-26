@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 // A verdict for every recognised field: verified, mismatch or unchecked.
@@ -81,9 +80,12 @@ var cyrillicToZone = map[rune]rune{
 	'Ы': 'Y', 'Ь': '9', 'Э': '6', 'Ю': '7', 'Я': '8',
 }
 
-// zoneSex is the sex as printed -> the zone's letter. The page prints «МУЖ.»/«ЖЕН.» (the
-// ground truth keeps the first letter), the external passport also «M»/«F».
-var zoneSex = map[string]string{"М": "M", "Ж": "F", "M": "M", "F": "F"}
+// zoneSex is the sex as printed -> the zone's letter. Matched on the full normalized token
+// so arbitrary words starting with «М» or «Ж» cannot pass MRZ-7.
+var zoneSex = map[string]string{
+	"М": "M", "Ж": "F", "M": "M", "F": "F",
+	"МУЖ": "M", "МУЖ.": "M", "ЖЕН": "F", "ЖЕН.": "F",
+}
 
 // validityYears are the years between the issue date and the expiry date. Driving licences:
 // 10. External passports: 10 for the biometric form, 5 for the 2003 one - either is accepted
@@ -99,6 +101,7 @@ var minAge = map[string]int{"INTPASSPORT": 14, "DL": 16}
 const seriesYearWindow = 3
 
 var dateFieldNames = []string{"Birth_date", "Issue_date", "Expiration_date"}
+var migrationDateFieldNames = []string{"Birth_date", "Stay_from", "Stay_to"}
 
 type numberForm struct {
 	field, id string
@@ -115,6 +118,10 @@ var numberForms = map[string][]numberForm{
 	},
 	"EXTPASSPORT": {{"Licence_number", "EXT-1", regexp.MustCompile(`^[0-9]{2} [0-9]{7}$`)}},
 	"SNILS":       {{"Licence_number", "SNILS-1", regexp.MustCompile(`^[0-9]{3}-[0-9]{3}-[0-9]{3} [0-9]{2}$`)}},
+	"MIGRATIONCARD": {
+		{"Card_series", "MIG-1", regexp.MustCompile(`^[0-9](?: ?[0-9]){3}$`)},
+		{"Card_number", "MIG-2", regexp.MustCompile(`^[0-9](?: ?[0-9]){6}$`)},
+	},
 }
 
 // The top MRZ line: its fixed start and the characters its name area can hold. An external
@@ -133,14 +140,14 @@ func nameCharsFor(family string) func(rune) bool {
 
 // FieldFamily is family(): the document family the checks are defined for, or "". Order
 // matters as in MakeOcrOptions: the registration page and the licence back side contain the
-// names of the families they are not. Everything outside the four families gets `unchecked`
-// throughout - their rules were not measured.
+// names of the families they are not. Everything outside the measured families gets `unchecked`
+// throughout.
 func FieldFamily(docType string) string {
 	label := strings.ToUpper(docType)
 	if strings.Contains(label, "INTPASSPORTADDR") || strings.Contains(label, "DLBACK") {
 		return ""
 	}
-	for _, name := range []string{"INTPASSPORT", "EXTPASSPORT", "SNILS", "DL"} {
+	for _, name := range []string{"INTPASSPORT", "EXTPASSPORT", "SNILS", "DL", "MIGRATIONCARD"} {
 		if strings.HasPrefix(label, name) {
 			return name
 		}
@@ -282,10 +289,14 @@ func digitsOf(text string) string {
 	return b.String()
 }
 
-// checkDates is GEN-1, GEN-2, PASS-7 / DL-4, DL-2 / EXT-3.
+// checkDates is GEN-1, GEN-2, PASS-7 / DL-4, DL-2 / EXT-3, MIG-3.
 func checkDates(v *verdicts, fam string, today calDate) {
+	fields := dateFieldNames
+	if fam == "MIGRATIONCARD" {
+		fields = migrationDateFieldNames
+	}
 	dates := map[string]calDate{}
-	for _, name := range dateFieldNames {
+	for _, name := range fields {
 		text := v.value(name)
 		if text == "" {
 			continue
@@ -297,6 +308,22 @@ func checkDates(v *verdicts, fam string, today calDate) {
 		if ok {
 			dates[name] = parsed
 		}
+	}
+
+	if fam == "MIGRATIONCARD" {
+		birth, hasBirth := dates["Birth_date"]
+		stayFrom, hasStayFrom := dates["Stay_from"]
+		stayTo, hasStayTo := dates["Stay_to"]
+		if hasBirth {
+			v.addOne("Birth_date", "GEN-2", CheckRefuting, !birth.after(today))
+		}
+		if hasBirth && hasStayFrom && !birth.after(today) {
+			v.add([]string{"Birth_date", "Stay_from"}, "GEN-2", CheckRefuting, birth.before(stayFrom), nil)
+		}
+		if hasStayFrom && hasStayTo {
+			v.add([]string{"Stay_from", "Stay_to"}, "MIG-3", CheckRefuting, !stayFrom.after(stayTo), nil)
+		}
+		return
 	}
 
 	birth, hasBirth := dates["Birth_date"]
@@ -386,7 +413,7 @@ func namesAgree(zone, page string, truncated bool) bool {
 }
 
 // checkMrz is MRZ-1 .. MRZ-9 (docs/validation-checks.md, section MRZ).
-func checkMrz(v *verdicts, fam string) {
+func checkMrz(v *verdicts, fam string, today calDate) {
 	mrzText := v.value("MRZ")
 	if mrzText == "" {
 		return
@@ -398,7 +425,7 @@ func checkMrz(v *verdicts, fam string) {
 	internal := fam == "INTPASSPORT"
 	// The layout is chosen by the classifier's type, not by the zone's own first characters,
 	// which may be misread.
-	zone := ParseMrz(mrzText, internal)
+	zone := parseMrzAt(mrzText, internal, today)
 
 	trusted := func(parts ...string) bool {
 		for _, p := range parts {
@@ -452,20 +479,20 @@ func checkMrz(v *verdicts, fam string) {
 			if text == "" {
 				continue
 			}
-			first, _ := utf8.DecodeRuneInString(text)
-			v.addRef(name, "MRZ-7", CheckConfirming, zoneSex[strings.ToUpper(string(first))] == zone.Sex, zone.Sex)
+			v.addRef(name, "MRZ-7", CheckConfirming, zoneSex[strings.ToUpper(text)] == zone.Sex, zone.Sex)
 		}
 	}
 
 	// MRZ-8: names from the top line. No check digit covers that line, so a disagreement says
-	// "one of the two readings is wrong", not which - and a line of the wrong length may have
-	// lost part of a name: not compared.
+	// "one of the two readings is wrong", not which - and a line of the wrong length (or extra
+	// lines) may have lost part of a name: not compared.
 	lines := mrzSplitLines(mrzText)
 	var line1 []rune
 	if len(lines) > 0 {
 		line1 = lines[0]
 	}
-	wellFormed := len(line1) == mrzLineLen && strings.HasPrefix(string(line1), line1Prefix[fam]) &&
+	wellFormed := len(lines) == 2 && len(line1) == mrzLineLen &&
+		strings.HasPrefix(string(line1), line1Prefix[fam]) &&
 		strings.Contains(string(line1[5:]), "<<")
 	if wellFormed {
 		allowed := nameCharsFor(fam)
@@ -482,33 +509,44 @@ func checkMrz(v *verdicts, fam string) {
 	}
 	truncated := line1[len(line1)-1] != '<'
 	surname := strings.ReplaceAll(zone.Surname, " ", "")
-	given := strings.SplitN(zone.GivenNames, " ", 2)
-	zoneFirst := given[0]
-	zoneRest := ""
-	if len(given) > 1 {
-		zoneRest = strings.ReplaceAll(given[1], " ", "")
-	}
 	var convert func(string) string
 	var names []string
+	var zoneValues []string
 	if internal {
+		given := strings.SplitN(zone.GivenNames, " ", 2)
+		zoneFirst := given[0]
+		zoneRest := ""
+		if len(given) > 1 {
+			zoneRest = strings.ReplaceAll(given[1], " ", "")
+		}
 		// Ё is '2' in the zone; made equal to Е on both sides (zoneFromCyrillic).
 		surname = strings.ReplaceAll(surname, "2", "E")
 		zoneFirst = strings.ReplaceAll(zoneFirst, "2", "E")
 		zoneRest = strings.ReplaceAll(zoneRest, "2", "E")
 		convert = zoneFromCyrillic
 		names = []string{"Last_name_ru", "First_name_ru", "Middle_name_ru"}
+		zoneValues = []string{surname, zoneFirst, zoneRest}
 	} else {
+		// EXTPASSPORT has no Middle_name_en field: keep compound/hyphenated given names together.
+		zoneGiven := strings.ReplaceAll(zone.GivenNames, " ", "")
 		convert = zoneNames
-		names = []string{"Last_name_en", "First_name_en", "Middle_name_en"}
+		names = []string{"Last_name_en", "First_name_en"}
+		zoneValues = []string{surname, zoneGiven}
 	}
-	zoneValues := []string{surname, zoneFirst, zoneRest}
+	lastNonEmpty := -1
+	for i, zv := range zoneValues {
+		if zv != "" {
+			lastNonEmpty = i
+		}
+	}
 	var agreed []bool
 	for i, name := range names {
 		text := v.value(name)
 		if text == "" || zoneValues[i] == "" {
 			continue
 		}
-		agreed = append(agreed, namesAgree(zoneValues[i], convert(text), truncated))
+		segTruncated := truncated && i == lastNonEmpty
+		agreed = append(agreed, namesAgree(zoneValues[i], convert(text), segTruncated))
 		v.addRef(name, "MRZ-8", CheckConfirming, agreed[len(agreed)-1], zoneValues[i])
 	}
 	// The zone itself is confirmed only when every compared name agrees. A disagreement does
@@ -610,7 +648,7 @@ func FieldChecks(ocr map[string]string, docType string, today time.Time) map[str
 	checkDates(v, fam, now)
 	checkForms(v, fam)
 	if fam == "INTPASSPORT" || fam == "EXTPASSPORT" {
-		checkMrz(v, fam)
+		checkMrz(v, fam, now)
 	}
 	if fam == "SNILS" {
 		checkSnils(v)

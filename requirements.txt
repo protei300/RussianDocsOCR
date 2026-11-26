@@ -19,6 +19,7 @@ onnxruntime==1.21.1                 # CPU-сборка. Для GPU — см. с�
 opencv-python-headless==4.12.0.88
 PyYAML==6.0.2
 scikit-learn==1.7.0                 # нужен DocTypeAngles (Metric / NearestNeighbors)
+scipy>=1.14.0,<2                    # нужен page_registration/line_refine.py (least_squares); 1.15 на Python 3.10, 1.16 на 3.11+
 
 # ── Тесты ─────────────────────────────────────────────────────────────────────
 pytest==9.0.3                        # >=9.0.3: закрывает GHSA-алерт Dependabot
@@ -43,6 +44,5 @@ py-cpuinfo==9.0.0                   # benchmark.py — модель CPU в от�
 # ultralytics>=8.3                  # переобучение/экспорт YOLO-детекторов; тянет torch
 
 # ── Эксперименты Melnikov/ и eval-харнесы (опционально) ───────────────────────
-# scipy==1.16.0
 # matplotlib>=3.9
 # tqdm==4.67.1

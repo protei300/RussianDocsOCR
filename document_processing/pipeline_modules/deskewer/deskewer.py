@@ -66,12 +66,15 @@ class DocDeskewer:
 
         self.angles = np.linspace(-angle_range, angle_range, angle_steps)  # kept for introspection/back-compat
 
-        self.coarse_steps = max(3, min(coarse_steps, angle_steps))
+        self.coarse_steps = max(1, min(coarse_steps, angle_steps)) if angle_steps < 3 else max(3, min(coarse_steps, angle_steps))
         self.coarse_angles = np.linspace(-angle_range, angle_range, self.coarse_steps)
         coarse_step_deg = (2 * angle_range) / (self.coarse_steps - 1) if self.coarse_steps > 1 else angle_range
         full_res = (2 * angle_range) / (angle_steps - 1) if angle_steps > 1 else angle_range
         self._fine_half_range = coarse_step_deg
-        self._fine_count = max(3, int(round(2 * coarse_step_deg / full_res)) + 1)
+        if full_res > 0:
+            self._fine_count = max(3, int(round(2 * coarse_step_deg / full_res)) + 1)
+        else:
+            self._fine_count = 1
 
     def deskew(self, img: np.ndarray, n_segments: int = 1) -> np.ndarray:
         """Apply deskew correction.
@@ -113,6 +116,8 @@ class DocDeskewer:
 
     def _deskew_two_page(self, img: np.ndarray):
         h = img.shape[0]
+        if h < 2:
+            return img, None
         mid = h // 2
         upper = img[:mid]
         lower = img[mid:]

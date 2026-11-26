@@ -44,17 +44,18 @@ class BasePreprocessing(object):
         Returns:
             Loaded RGB image array
         """
-        if isinstance(image_path, Path):
-            img = cv2.imdecode(np.frombuffer(image_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        elif isinstance(image_path, str):
-            img_path = Path(image_path)
-            img = cv2.imdecode(np.frombuffer(img_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+        if isinstance(image_path, (Path, str)):
+            path = Path(image_path)
+            img = cv2.imdecode(np.frombuffer(path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+            if img is None:
+                raise ValueError(f"Could not decode image: {path}")
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         elif isinstance(image_path, np.ndarray):
+            if image_path.size == 0 or image_path.ndim < 2:
+                raise ValueError(f"Empty image passed to {self.__class__.__name__}: shape={image_path.shape}")
             img = image_path
         else:
-            raise Exception("Unsupported image type")
+            raise TypeError(f"Unsupported image type: {type(image_path).__name__}")
 
         return img
     def padding(self, img: np.array):
@@ -203,6 +204,8 @@ class YoloPreprocessing(BasePreprocessing):
 
         # Resize and pad image while meeting stride-multiple constraints
         shape = im.shape[:2]  # current shape [height, width]
+        if shape[0] <= 0 or shape[1] <= 0:
+            raise ValueError(f"Empty image passed to YoloPreprocessing: shape={im.shape}")
         if isinstance(new_shape, int):
             new_shape = (new_shape, new_shape)
 
@@ -213,7 +216,7 @@ class YoloPreprocessing(BasePreprocessing):
 
         # Compute padding
         ratio = r, r  # width, height ratios
-        new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
+        new_unpad = max(1, int(round(shape[1] * r))), max(1, int(round(shape[0] * r)))
         dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
         if auto:  # minimum rectangle
             dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
@@ -245,111 +248,16 @@ class OBBPreprocessing(YoloPreprocessing):
     def __call__(self, image_path: Union[Path, str, np.ndarray]):
         tensor, pad_ratio, pad_add_extra, pad_add_to_size, padded_image_shape = super().__call__(image_path)
         # tensor: [1, H, W, 3] uint8/float 0-255  ->  [1, 3, H, W] float /255
-        tensor = tensor.astype(np.float32).transpose(0, 3, 1, 2) / 255.0
+        tensor = np.ascontiguousarray(tensor.transpose(0, 3, 1, 2), dtype=np.float32)
+        tensor /= np.float32(255.0)
         return tensor, pad_ratio, pad_add_extra, pad_add_to_size, padded_image_shape
-
-
-class OCRPreprocessing(BasePreprocessing):
-    """Preprocessing for OCR models.
-
-    Handles padding and resizing for OCR input images.
-
-    """
-    def __init__(self,
-                 image_size=(31, 200, 1),
-                 normalization=(0,1),
-                 padding_size=(0,0),
-                 padding_color=(0,0,0),
-                 verbose=False):
-        """Initializes OCR preprocessing."""
-
-        super().__init__(image_size=image_size,
-                         normalization=normalization,
-                         padding_size=padding_size,
-                         padding_color=padding_color,
-                         verbose=verbose)
-
-    def __call__(self, image_path: np.ndarray):
-        """Runs OCR preprocessing pipeline.
-
-        1. Loads image
-        2. Applies padding
-        3. Returns processed image
-
-        Args:
-           image_path: Path to input image
-
-        Returns:
-           Preprocessed image
-        """
-
-        image = super().__call__(image_path)
-
-        image = self.padding(image)
-        image = image[None, ..., None]
-
-
-        return image
-
-    @staticmethod
-    def recalc_image(original_shape: Tuple[int, int]) -> Tuple[int, int]:
-        """Recalculates image shape for padding.
-
-        Computes new height and width to preserve aspect
-        ratio for padding.
-
-        Args:
-            original_shape: Original image shape
-
-        Returns:
-            new_h, new_w: Target height and width
-        """
-
-        target_h, target_w = [31, 200]
-        orig_h, orig_w = original_shape
-        new_h = target_h
-        ratio = new_h / float(orig_h)
-        new_w = int(orig_w * ratio)
-        # для длинных лоскутов подгоняем высоту
-        if new_w > target_w:
-            new_w = target_w
-            r = new_w / float(orig_w)
-            new_h = int(orig_h * r)
-        return new_h, new_w
-
-    def padding(self, image: np.ndarray) -> np.ndarray:
-        """Applies padding to resize and fit OCR input.
-
-        Args:
-            image: Input image
-
-        Returns:
-            Padded image
-        """
-
-        target_shape = [31, 200]
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        resized = cv2.resize(image, self.recalc_image(image.shape)[::-1])
-        orig_h, orig_w = resized.shape
-        target_h, target_w = target_shape
-
-        color_value = int(image[-1][-1])
-        x_offset = 0
-        y_offset = 0
-
-        padded = cv2.copyMakeBorder(resized, y_offset, target_h - orig_h - y_offset, x_offset,
-                                    target_w - orig_w - x_offset,
-                                    borderType=0, value=[color_value, color_value])
-
-        return padded
 
 
 class OCRv2Preprocessing(BasePreprocessing):
     """Preprocessing for the v2 OCR models (latin/cyrillic, mn4/edgenext).
 
-    Unlike :class:`OCRPreprocessing` (grayscale, fixed 31x200, [0,1] norm), the
-    v2 models take a full-color ``[1, H, W, 3]`` uint8 tensor with a fixed height
-    and *dynamic* width (no letterbox padding), and bake normalization into the
+    Takes a full-color ``[1, H, W, 3]`` uint8 tensor with a fixed height
+    and *dynamic* width (no letterbox padding), and bakes normalization into the
     ONNX graph. Channel order defaults to BGR because the models were trained on
     OpenCV BGR patches, while the pipeline works in RGB - so RGB input is flipped
     here.

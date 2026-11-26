@@ -117,12 +117,19 @@ public object Dates {
         if (tokens.isEmpty()) {
             return null
         }
+        // Reject pure numeric ISO YYYY-MM-DD rather than swapping day and month.
+        if (tokens.size == 3 && tokens.all { it.all { c -> c in '0'..'9' } } && tokens[0].length == 4) {
+            return null
+        }
 
         var day: Int? = null
         var month: Int? = null
         var year: Int? = null
         for (token in tokens) {
             if (token[0].isDigit()) {
+                if (!token.all { it in '0'..'9' }) {
+                    return null
+                }
                 val value = token.toIntOrNull() ?: return null
                 if (token.length == 4 && year == null) {
                     year = value
@@ -134,9 +141,10 @@ public object Dates {
                     // A two-digit year is ambiguous (26 -> 1926 or 2026?) and this module does not
                     // guess, so it is left unresolved.
                     return null
+                } else {
+                    // Stray numeric token (extra digits / second date / out-of-range).
+                    return null
                 }
-                // Any other number (a third digit group, a stray five-digit run) is ignored, as the
-                // reference's if/elif chain falls through without acting.
             } else {
                 val resolved = MONTHS[token]
                 if (resolved == null || month != null) {

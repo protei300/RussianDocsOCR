@@ -154,11 +154,13 @@ def get_len(list_of_coords):
 
 
 def order_points(pts):
-    """Order 4 points as top-left, top-right, bottom-right, bottom-left.
+    """Order 4 points clockwise as top-left, top-right, bottom-right, bottom-left.
 
-    Uses the coordinate sum/difference method which is robust to rotation:
-    the top-left has the smallest x+y, the bottom-right the largest; the
-    top-right has the smallest y-x, the bottom-left the largest.
+    Sorts the four vertices clockwise around their centroid (image coordinates,
+    +y downward) and rotates the cycle so top-left (minimum x + y, tie-broken
+    by minimum y then x) is first. Unlike independent argmin/argmax of sum and
+    difference, this always returns all 4 distinct vertices even for quads
+    tilted near 45 degrees.
 
     Args:
         pts: array-like of 4 (x, y) points.
@@ -167,14 +169,15 @@ def order_points(pts):
         np.ndarray (4, 2) float32 ordered [TL, TR, BR, BL].
     """
     pts = np.asarray(pts, dtype=np.float32).reshape(-1, 2)
-    rect = np.zeros((4, 2), dtype=np.float32)
-    s = pts.sum(axis=1)
-    rect[0] = pts[np.argmin(s)]       # TL: min(x + y)
-    rect[2] = pts[np.argmax(s)]       # BR: max(x + y)
-    d = np.diff(pts, axis=1)[:, 0]    # y - x
-    rect[1] = pts[np.argmin(d)]       # TR: min(y - x)
-    rect[3] = pts[np.argmax(d)]       # BL: max(y - x)
-    return rect
+    if len(pts) != 4:
+        return pts.copy()
+    pts64 = pts.astype(np.float64)
+    cx, cy = pts64.mean(axis=0)
+    angles = np.arctan2(pts64[:, 1] - cy, pts64[:, 0] - cx)
+    cw = pts[np.argsort(angles, kind='mergesort')]
+    tl_idx = min(range(4), key=lambda i: (float(cw[i, 0]) + float(cw[i, 1]),
+                                          float(cw[i, 1]), float(cw[i, 0])))
+    return np.roll(cw, -tl_idx, axis=0).astype(np.float32)
 
 
 def extract_quad(contour):

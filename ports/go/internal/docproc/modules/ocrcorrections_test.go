@@ -36,19 +36,18 @@ func TestCheckDdmmyyyyLeavesLowercaseOAlone(t *testing.T) {
 	}
 }
 
-// Both sex helpers are ASYMMETRIC: anything without the male letter becomes female,
-// including the empty string. That is behaviour, not an oversight -- the field is binary
-// and the box only fires on a sex field.
+// Both sex helpers keep empty/blank input empty and map non-empty text without the male
+// letter to female.
 func TestSexHelpersAreAsymmetric(t *testing.T) {
 	for _, c := range []struct{ in, want string }{
-		{"M", "M"}, {"m", "M"}, {".M.", "M"}, {"F", "F"}, {"X", "F"}, {"", "F"},
+		{"M", "M"}, {"m", "M"}, {".M.", "M"}, {"F", "F"}, {"X", "F"}, {"", ""}, {"...", ""}, {"  ", ""},
 	} {
 		if got := CheckEnSex(c.in); got != c.want {
 			t.Errorf("CheckEnSex(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 	for _, c := range []struct{ in, want string }{
-		{"М", "М"}, {"м", "М"}, {".М", "М"}, {"Ж", "Ж"}, {"Щ", "Ж"}, {"", "Ж"},
+		{"М", "М"}, {"м", "М"}, {".М", "М"}, {"Ж", "Ж"}, {"Щ", "Ж"}, {"", ""}, {"...", ""}, {"  ", ""},
 	} {
 		if got := CheckRusSex(c.in); got != c.want {
 			t.Errorf("CheckRusSex(%q) = %q, want %q", c.in, got, c.want)

@@ -616,4 +616,43 @@ public class FieldChecksTests
             Is.EqualTo(new[] { "AB", "CD", "EF", "GH", "IJ" }));
         Assert.That(MrzChecks.SplitLines(null), Is.Empty);
     }
+
+    [Test]
+    public void Wave3ValidationRules()
+    {
+        // Compound given name on EXTPASSPORT stays together.
+        string line1 = "P<RUSROGOVA<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<<<";
+        string zone = line1 + "\n" + ExtMrz.Split('\n')[1];
+        Assert.That(Statuses(With(ExtOcrConsistent, ("MRZ", zone), ("First_name_en", "ANNA-MARIA")), "EXTPASSPORTBIO_2007")["First_name_en"],
+            Is.EqualTo("verified"));
+
+        // Truncated line 1 only prefixes last non-empty segment, not surname.
+        string longGiven = string.Concat(Enumerable.Repeat("KONSTANTINOPOLSKAYA", 3));
+        string trunc1 = ("P<RUSROGOVA<<" + longGiven)[..44];
+        string tzone = trunc1 + "\n" + ExtMrz.Split('\n')[1];
+        var tgot = Statuses(With(ExtOcrConsistent, ("MRZ", tzone), ("Last_name_en", "ROGOVAEXTRA"), ("First_name_en", longGiven)), "EXTPASSPORTBIO_2007");
+        Assert.That(tgot["First_name_en"], Is.EqualTo("verified"));
+        Assert.That(tgot["Last_name_en"], Is.EqualTo("mismatch"));
+
+        // MRZ-7 rejects arbitrary words starting with М.
+        Assert.That(Statuses(With(IntOcr, ("Sex_ru", "МОСКВА")), "INTPASSPORT_2011")["Sex_ru"], Is.EqualTo("mismatch"));
+
+        // Three-line MRZ rejected.
+        string three = ExtMrz + "\nEXTRA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<";
+        Assert.That(MrzChecks.Validate(three).Ok, Is.False);
+        Assert.That(Statuses(With(ExtOcrConsistent, ("MRZ", three)), "EXTPASSPORTBIO_2007")["MRZ"], Is.EqualTo("mismatch"));
+
+        // MIGRATIONCARD rules including future-birth guard.
+        Assert.That(FieldChecks.Family("MIGRATIONCARD_ALL"), Is.EqualTo("MIGRATIONCARD"));
+        var mig = Ocr(("Card_series", "4501"), ("Card_number", "1234567"),
+            ("Birth_date", "15.05.1990"), ("Stay_from", "01.11.2026"), ("Stay_to", "30.01.2027"));
+        Assert.That(Statuses(mig, "MIGRATIONCARD_ALL").Values, Is.All.EqualTo("unchecked"));
+        Assert.That(Statuses(With(mig, ("Card_series", "45A1")), "MIGRATIONCARD_ALL")["Card_series"], Is.EqualTo("mismatch"));
+        var fut = Statuses(With(mig, ("Birth_date", "15.05.2076")), "MIGRATIONCARD_ALL");
+        Assert.That(fut["Birth_date"], Is.EqualTo("mismatch"));
+        Assert.That(fut["Stay_from"], Is.EqualTo("unchecked"));
+        var rev = Statuses(With(mig, ("Stay_from", "10.12.2026"), ("Stay_to", "01.12.2026")), "MIGRATIONCARD_ALL");
+        Assert.That(rev["Stay_from"], Is.EqualTo("mismatch"));
+        Assert.That(rev["Stay_to"], Is.EqualTo("mismatch"));
+    }
 }

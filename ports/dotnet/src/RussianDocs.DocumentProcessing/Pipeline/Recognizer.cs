@@ -949,7 +949,7 @@ public sealed class Recognizer : IDisposable
                     // reference (`if ocr and meta_results.get('OCR')`).
                     if (results.Ocr.Count > 0)
                     {
-                        results.FieldChecks = FieldChecks.Compute(results.Ocr, bareType);
+                        results.FieldChecks = FieldChecks.Compute(results.Ocr, meta.DocType);
                         options.Sink.Emit("checks", FieldChecks.ToPayload(results.FieldChecks));
                     }
 

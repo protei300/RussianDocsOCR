@@ -48,6 +48,7 @@ FIELD_DISPLAY = {
     'date': 'Date', 'region': 'Region', 'district': 'District', 'locality': 'Locality',
     'street': 'Street', 'house': 'House', 'building': 'Building', 'structure': 'Structure',
     'flat': 'Flat', 'code': 'Department code', 'addr_line': 'Address line', 'korp': 'Building',
+    'issuer_line': 'Issuing authority line',
 }
 
 
@@ -244,9 +245,12 @@ class RegistrationReader:
                               'quad': _round_quad(to_photo(b['quad']))})
             fields = [{'name': f, 'display': FIELD_DISPLAY[f], 'value': res['fields'][f]}
                       for f in FIELDS if res['fields'].get(f)]
-            stamps.append({'index': st['n'], 'page': st['page'], 'kind': st['kind'],
-                           'conf': round(st['conf'], 4), 'quad': st['quad'],
-                           'fields': fields, 'ocr': dict(res['fields']), 'boxes': boxes})
+            entry = {'index': st['n'], 'page': st['page'], 'kind': st['kind'],
+                     'conf': round(st['conf'], 4), 'quad': st['quad'],
+                     'fields': fields, 'ocr': dict(res['fields']), 'boxes': boxes}
+            if 'parsed' in res:
+                entry['parsed'] = res['parsed']
+            stamps.append(entry)
         order_by = self._order_and_links(stamps)
         notes = []
         q = cut['quality']
@@ -283,7 +287,7 @@ class RegistrationReader:
         by_pos = sorted(stamps, key=lambda s: s['index'])
         keys = []
         for s in by_pos:
-            v = canonical_date('Issue_date', s['ocr'].get('date', ''))
+            v = (s.get('parsed') or {}).get('date') or canonical_date('Issue_date', s['ocr'].get('date', ''))
             keys.append(tuple(reversed(v.split('.'))) if v else None)
         order_by = 'date' if all(keys) else 'position'
         chrono = ([s for _, s in sorted(zip(keys, by_pos), key=lambda t: (t[0], t[1]['index']))]

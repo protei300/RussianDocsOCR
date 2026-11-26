@@ -118,6 +118,9 @@ func TestToDdmmyyyyQuoteLettersElsewhereStillRefuse(t *testing.T) {
 		"ИЗ 10 ЯНВАРЯ 2013", // a word, not a single letter
 		"10 ЯНВАРЯ И 2013",  // the letter is next to the year, not the day
 		"И 10 ЯНВАРЯ",       // quote dropped, but there is still no year
+		"2020-05-12",        // pure numeric ISO YYYY-MM-DD
+		"12.05.2020 99",     // stray numeric token
+		"123.05.2020",       // out-of-range numeric token
 	} {
 		if got := ToDdmmyyyy(text); got != "" {
 			t.Errorf("ToDdmmyyyy(%q) = %q, want a refusal", text, got)

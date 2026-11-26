@@ -20,6 +20,7 @@ without evidence are pinned to zero by a weak prior. The correction is applied
 only if it is small and actually reduces the residual - otherwise the page is
 left alone. No template, no weights, deterministic.
 """
+import threading
 from typing import List, Optional, Tuple
 
 import cv2
@@ -51,14 +52,15 @@ BLOB_MAX_FRAC = 0.2           # ink components taller (bands) / wider (strips) t
                               # fraction of the region are not text: dropped from the profile
 N_BANDS = 5                   # overlapping bands / strips, each a third of the page
 
-_LSD = None
+_LSD_LOCAL = threading.local()
 
 
 def _lsd():
-    global _LSD
-    if _LSD is None:
-        _LSD = cv2.createLineSegmentDetector(cv2.LSD_REFINE_STD)
-    return _LSD
+    lsd = getattr(_LSD_LOCAL, 'detector', None)
+    if lsd is None:
+        lsd = cv2.createLineSegmentDetector(cv2.LSD_REFINE_STD)
+        _LSD_LOCAL.detector = lsd
+    return lsd
 
 
 def _segments(gray: np.ndarray, min_len: float) -> np.ndarray:
@@ -248,15 +250,15 @@ def refine_by_lines(gray: np.ndarray, inset: int = 0,
         return None, info
     before = np.abs(_angles_after(np.eye(3), meas))
     info['before'] = round(_wmedian(before, meas[:, 5]), 2)
+    if info['before'] < min_residual_deg:
+        info['reason'] = 'already straight'
+        return None, info
     x = _fit(meas, W, H)
     Hm = _model(x, W, H)
     after = np.abs(_angles_after(Hm, meas))
     info['after'] = round(_wmedian(after, meas[:, 5]), 2)
     info['params'] = {'rot_deg': round(float(np.degrees(x[0])), 2), 'shear': round(float(x[1]), 4),
                       'p1': round(float(x[2]), 4), 'p2': round(float(x[3]), 4)}
-    if info['before'] < min_residual_deg:
-        info['reason'] = 'already straight'
-        return None, info
     if info['after'] > (1.0 - MIN_GAIN) * info['before']:
         info['reason'] = 'no gain'
         return None, info

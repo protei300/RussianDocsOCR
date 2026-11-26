@@ -27,6 +27,7 @@ wants (one flat directory, see RDOCS_MODELS_URL in fetch_models.py). A manifest
 without `release` fields (v7 and older) stages everything, as before.
 """
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -36,6 +37,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = REPO_ROOT / 'document_processing' / 'models.lock.json'
 MODELS_DIR = REPO_ROOT / 'document_processing' / 'models'
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open('rb') as f:
+        for chunk in iter(lambda: f.read(1 << 20), b''):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def main():
@@ -61,16 +70,24 @@ def main():
         kept = len(manifest['files']) - len(chosen)
         print(f'{kept} file(s) already published in earlier releases - not staged')
 
+    models_root = MODELS_DIR.resolve()
+    out_root = out.resolve()
     seen, total = set(), 0
     for entry in chosen:
-        src = MODELS_DIR / entry['path']
+        src = (models_root / entry['path']).resolve()
+        if not src.is_relative_to(models_root):
+            sys.exit(f'manifest path outside models directory: {entry["path"]!r}')
         if not src.exists():
             sys.exit(f'missing: {src}')
+        if src.stat().st_size != entry['size'] or _sha256(src) != entry['sha256']:
+            sys.exit(f'checksum/size mismatch on disk for {entry["path"]!r} - rebuild manifest first')
         if entry['asset'] in seen:
             sys.exit(f'duplicate asset name {entry["asset"]!r} - the flattening collided')
         seen.add(entry['asset'])
 
-        dst = out / entry['asset']
+        dst = (out_root / entry['asset']).resolve()
+        if not dst.is_relative_to(out_root):
+            sys.exit(f'asset path outside staging directory: {entry["asset"]!r}')
         dst.unlink(missing_ok=True)
         try:
             os.link(src, dst)

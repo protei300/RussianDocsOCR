@@ -83,7 +83,7 @@ public object MrzChecks {
     /** EXT-4: verify every check digit of the zone. `ok` is false for a malformed zone: lost characters are a finding. */
     public fun validateMrz(mrzText: String?): Validation {
         val lines = splitLines(mrzText)
-        if (lines.size < 2) {
+        if (lines.size != 2) {
             return Validation(false, emptyMap(), lines.size, "expected 2 lines")
         }
         val line2 = lines[1]
@@ -118,14 +118,14 @@ public object MrzChecks {
      * past — a two-digit year later than the current one belongs to the previous century; an expiry date is
      * always 20xx. The current year is read from the clock, as the reference's `date.today()`.
      */
-    internal fun mrzDate(raw: String, future: Boolean): String? {
+    internal fun mrzDate(raw: String, future: Boolean, today: LocalDate = LocalDate.now()): String? {
         if (raw.length != 6 || !raw.all { it in '0'..'9' }) {
             return null
         }
         val yy = raw.substring(0, 2).toInt()
         val mm = raw.substring(2, 4).toInt()
         val dd = raw.substring(4, 6).toInt()
-        val century = if (future) 2000 else if (yy <= LocalDate.now().year % 100) 2000 else 1900
+        val century = if (future) 2000 else if (yy <= today.year % 100) 2000 else 1900
         return try {
             val d = LocalDate.of(century + yy, mm, dd)
             "%02d.%02d.%04d".format(java.util.Locale.ROOT, d.dayOfMonth, d.monthValue, d.year)
@@ -163,7 +163,7 @@ public object MrzChecks {
      * optional data holds three printed fields; null takes it from the zone's own type characters — a caller
      * that knows the type from the classifier should pass it, because those two characters can be misread.
      */
-    public fun parseMrz(mrzText: String?, internal: Boolean? = null): Parsed {
+    public fun parseMrz(mrzText: String?, internal: Boolean? = null, today: LocalDate = LocalDate.now()): Parsed {
         val lines = splitLines(mrzText)
         var documentType: String? = null
         var issuingState: String? = null
@@ -193,9 +193,9 @@ public object MrzChecks {
             val line2 = lines[1]
             documentNumber = line2.substring(0, 9).replace(FILLER.toString(), "").ifEmpty { null }
             nationality = line2.substring(10, 13).ifEmpty { null }
-            birthDate = mrzDate(line2.substring(13, 19), future = false)
+            birthDate = mrzDate(line2.substring(13, 19), future = false, today = today)
             sex = line2[20].toString().takeIf { it == "M" || it == "F" }
-            expiryDate = mrzDate(line2.substring(21, 27), future = true)
+            expiryDate = mrzDate(line2.substring(21, 27), future = true, today = today)
             personalNumber = line2.substring(28, 42).replace(FILLER.toString(), "").ifEmpty { null }
             val isInternal = internal ?: (documentType == INTERNAL_TYPE)
             if (isInternal) {
@@ -205,7 +205,7 @@ public object MrzChecks {
                 val digit = slice(optional, 0, 1)
                 val code = slice(optional, 7, 13)
                 seriesLastDigit = digit.takeIf { it.isNotEmpty() && it[0] in '0'..'9' }
-                issueDate = mrzDate(slice(optional, 1, 7), future = false)
+                issueDate = mrzDate(slice(optional, 1, 7), future = false, today = today)
                 subdivisionCode = code.takeIf { it.length == 6 && it.all { c -> c in '0'..'9' } }
             }
         }

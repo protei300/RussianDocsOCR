@@ -62,10 +62,17 @@ class DocumentsStage:
     DOCUMENT_CROP_MARGIN = 0.03
 
     def _start_document(self, image_path: Optional[str] = None):
-        """Fresh results for one document. The MRZ self-check state is per image too
-        (see _note_mrz_zone), reset for the same reason self.results is."""
+        """Fresh results for one document. Per-document scratch state is reset
+        alongside ``self.results`` so nothing leaks across calls."""
+        from .options import OCROptionsClass
         self.results = PipelineResults()
         self._mrz_zone = None
+        self._date_lines = {}
+        self._field_lines = {}
+        self._address_line_obboxes = []
+        self._doc_year = None
+        self._input_frame_shape = None
+        self.ocr_options = OCROptionsClass()
         if image_path:
             self.results._meta_results['image_path'] = image_path
 
@@ -79,9 +86,14 @@ class DocumentsStage:
         """
         if self.document_detector is None:
             return []
+        if img_size <= 0:
+            raise ValueError(f"img_size must be positive, got {img_size}")
         h, w = frame.shape[:2]
+        if h <= 0 or w <= 0:
+            return []
         ratio = max(max(h, w) / img_size, 1)
-        small = cv2.resize(frame, dsize=(int(w // ratio), int(h // ratio)), interpolation=cv2.INTER_LINEAR)
+        small = cv2.resize(frame, dsize=(max(1, int(w // ratio)), max(1, int(h // ratio))),
+                           interpolation=cv2.INTER_LINEAR)
         sx, sy = w / small.shape[1], h / small.shape[0]
         documents = self._model_call(self._document_detector, small)
         for doc in documents:
@@ -96,16 +108,22 @@ class DocumentsStage:
     def _document_detector(self, img):
         return self.document_detector.predict(img)[self.document_detector.model_name]['documents']
 
-    def _document_crop(self, frame: np.ndarray, document: dict) -> tuple:
-        """(x0, y0, x1, y1) on the input image: the document box plus its margin."""
+    def _document_crop(self, frame: np.ndarray, document: dict) -> Optional[tuple]:
+        """(x0, y0, x1, y1) on the input image: the document box plus its margin, or None if degenerate."""
         h, w = frame.shape[:2]
         x1, y1, x2, y2 = document['box']
-        m = self.DOCUMENT_CROP_MARGIN * max(x2 - x1, y2 - y1)
-        return (int(max(0, np.floor(x1 - m))), int(max(0, np.floor(y1 - m))),
-                int(min(w, np.ceil(x2 + m))), int(min(h, np.ceil(y2 + m))))
+        m = self.DOCUMENT_CROP_MARGIN * max(x2 - x1, y2 - y1, 0.0)
+        x0 = int(max(0, np.floor(x1 - m)))
+        y0 = int(max(0, np.floor(y1 - m)))
+        x1_i = int(min(w, np.ceil(x2 + m)))
+        y1_i = int(min(h, np.ceil(y2 + m)))
+        if x1_i <= x0 or y1_i <= y0:
+            return None
+        return (x0, y0, x1_i, y1_i)
 
     def _read_document(self, frame, documents, index, img_size, options) -> PipelineResults:
         """Prepare the crop of documents[index] (the whole frame when index is None) and read it."""
+        self._input_frame_shape = (int(frame.shape[0]), int(frame.shape[1]))
         crop = self._document_crop(frame, documents[index]) if index is not None else None
         img = self._prepare_image(frame, img_size=img_size, crop=crop)
         self.results._meta_results['Documents'] = documents

@@ -146,6 +146,11 @@ func ToDdmmyyyy(text string) string {
 	if len(tokens) == 0 {
 		return ""
 	}
+	// Reject pure numeric ISO YYYY-MM-DD rather than swapping day and month.
+	if len(tokens) == 3 && isDigits(tokens[0]) && len(tokens[0]) == 4 &&
+		isDigits(tokens[1]) && isDigits(tokens[2]) {
+		return ""
+	}
 
 	day, month, year := -1, -1, -1
 	for _, token := range tokens {
@@ -164,6 +169,9 @@ func ToDdmmyyyy(text string) string {
 			case year < 0 && len(token) <= 2:
 				// A two-digit year is ambiguous (26 -> 1926 or 2026?) and this module
 				// does not guess, so it is left unresolved.
+				return ""
+			default:
+				// Stray numeric token (extra digits / second date / out-of-range).
 				return ""
 			}
 			continue

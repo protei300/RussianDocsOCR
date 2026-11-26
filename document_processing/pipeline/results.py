@@ -173,20 +173,41 @@ class PipelineResults:
         return deepcopy(self._meta_results['Quality'])
 
     @property
-    def rotated_image(self) -> np.ndarray:
+    def quality_scores(self) -> dict:
+        """Raw numeric coefficients from the quality models (e.g. ``Blur``, ``Glare``).
+
+        Kept separate from ``quality`` so the cross-port ``stages/quality.json``
+        contract remains unchanged.
+        """
+        return deepcopy(self._meta_results.get('QualityScores') or {})
+
+    @property
+    def quality_gate(self) -> Optional[dict]:
+        """Layer B document suitability verdict, or None when skipped/not reached.
+
+        Separate accessor (like ``field_checks``) so ``full_report`` and
+        conformance goldens remain unchanged across ports.
+        """
+        gate = self._meta_results.get('QualityGate')
+        return deepcopy(gate) if gate is not None else None
+
+    @property
+    def rotated_image(self) -> Optional[np.ndarray]:
         """Gets image rotated by the Angle90 stage."""
-        return self._meta_results['Angle90']['warped_img']
+        angle_meta = self._meta_results.get('Angle90')
+        return angle_meta.get('warped_img') if angle_meta else None
 
     @property
     def angle(self):
         """Gets image angle by the Angle90 stage."""
-        return self._meta_results['Angle90']['angle']
+        angle_meta = self._meta_results.get('Angle90')
+        return angle_meta.get('angle') if angle_meta else None
 
     @property
-    def img_with_fixed_perspective(self) -> Union[list, None]:
+    def img_with_fixed_perspective(self) -> Optional[np.ndarray]:
         """Get result from doc detection net"""
         if self._meta_results.get('DocDetector'):
-            return self._meta_results['DocDetector']['warped_img']
+            return self._meta_results['DocDetector'].get('warped_img')
         else:
             return self.rotated_image
 

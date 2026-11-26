@@ -23,8 +23,11 @@ FILENAME = "Ivanov_passport_scan.jpg"     # what the client calls the file — s
 
 
 def _jpeg(w: int = 320, h: int = 200, noise: bool = False) -> bytes:
-    img = (np.random.default_rng(0).integers(0, 255, (h, w, 3), dtype=np.uint8) if noise
-           else np.full((h, w, 3), 200, np.uint8))
+    if noise:
+        img = np.random.default_rng(0).integers(0, 255, (h, w, 3), dtype=np.uint8)
+    else:
+        img = np.full((h, w, 3), 220, np.uint8)
+        img[h // 4: 3 * h // 4, w // 4: 3 * w // 4] = 40
     ok, buf = cv2.imencode(".png" if noise else ".jpg", img)
     return buf.tobytes()
 
@@ -47,9 +50,11 @@ def fake(monkeypatch):
 
     seen: dict = {"arrays": []}
 
-    def recognise_image(rgb, *, docconf, img_size, with_canvas, lease_timeout):
+    def recognise_image(rgb, *, docconf, img_size, with_canvas, lease_timeout,
+                        quality_gate="warn"):
         seen["arrays"].append(rgb)
         seen["lease_timeout"] = lease_timeout
+        seen["quality_gate"] = quality_gate
         if seen.get("raise"):
             raise seen["raise"]
         payload = {

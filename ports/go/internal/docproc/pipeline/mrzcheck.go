@@ -140,7 +140,7 @@ type MrzDigits struct {
 func ValidateMrz(text string) MrzDigits {
 	res := MrzDigits{Parts: map[string]string{}}
 	lines := mrzSplitLines(text)
-	if len(lines) < 2 {
+	if len(lines) != 2 {
 		return res
 	}
 	line2 := lines[1]
@@ -200,7 +200,7 @@ func verdictOf(ok bool) string {
 // belongs to the previous century. An expiry date is in the future and is always 20xx -
 // reading it by the birth-date rule turns a passport valid until 2029 into one that expired
 // in 1929.
-func mrzDate(raw []rune, future bool) string {
+func mrzDate(raw []rune, future bool, refYear int) string {
 	if len(raw) != 6 {
 		return ""
 	}
@@ -213,7 +213,7 @@ func mrzDate(raw []rune, future bool) string {
 	mm, _ := strconv.Atoi(string(raw[2:4]))
 	dd, _ := strconv.Atoi(string(raw[4:6]))
 	century := 2000
-	if !future && yy > clock().Year()%100 {
+	if !future && yy > refYear%100 {
 		century = 1900
 	}
 	year := century + yy
@@ -243,6 +243,10 @@ type MrzFields struct {
 // characters can be misread like any other. (The reference's `None` - take it from the zone's
 // own type characters - is not ported: fields.py never asks for it.)
 func ParseMrz(text string, internal bool) MrzFields {
+	return parseMrzAt(text, internal, dateOf(clock()))
+}
+
+func parseMrzAt(text string, internal bool, today calDate) MrzFields {
 	var f MrzFields
 	lines := mrzSplitLines(text)
 	if len(lines) > 0 {
@@ -260,11 +264,11 @@ func ParseMrz(text string, internal bool) MrzFields {
 	if len(lines) > 1 && len(lines[1]) == mrzLineLen {
 		line2 := lines[1]
 		f.DocumentNumber = strings.ReplaceAll(string(line2[0:9]), "<", "")
-		f.BirthDate = mrzDate(line2[13:19], false)
+		f.BirthDate = mrzDate(line2[13:19], false, today.y)
 		if line2[20] == 'M' || line2[20] == 'F' {
 			f.Sex = string(line2[20])
 		}
-		f.ExpiryDate = mrzDate(line2[21:27], true)
+		f.ExpiryDate = mrzDate(line2[21:27], true, today.y)
 		f.PersonalNumber = strings.ReplaceAll(string(line2[28:42]), "<", "")
 		if internal {
 			optional := line2[28:42]
@@ -275,7 +279,7 @@ func ParseMrz(text string, internal bool) MrzFields {
 			if d := optional[0]; d >= '0' && d <= '9' {
 				f.SeriesLastDigit = string(d)
 			}
-			f.IssueDate = mrzDate(optional[1:7], false)
+			f.IssueDate = mrzDate(optional[1:7], false, today.y)
 			code := optional[7:13]
 			if len(code) == 6 && isDigits(string(code)) {
 				f.SubdivisionCode = string(code)

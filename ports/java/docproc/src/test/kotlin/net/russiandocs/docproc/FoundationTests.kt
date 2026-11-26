@@ -192,6 +192,12 @@ class FoundationTests {
         assertEquals(Pt(90.0, 10.0), ordered[1], "top-right")
         assertEquals(Pt(90.0, 90.0), ordered[2], "bottom-right")
         assertEquals(Pt(10.0, 90.0), ordered[3], "bottom-left")
+
+        // 45-degree diamond keeps all four distinct vertices clockwise from (10,0).
+        val diamond = listOf(Pt(10.0, 0.0), Pt(20.0, 10.0), Pt(10.0, 20.0), Pt(0.0, 10.0))
+        val dOrdered = Geometry.orderPoints(diamond)!!
+        assertEquals(4, dOrdered.toSet().size)
+        assertEquals(diamond, dOrdered)
     }
 
     /** The margin is 0.01 and applies to EACH edge, so the quad grows by 1 + 2*margin. */

@@ -121,9 +121,19 @@ class Homography(Geometry):
         matrix = np.asarray(self.matrix, dtype=np.float64)
         if matrix.shape == (2, 3):
             matrix = np.vstack([matrix, [0.0, 0.0, 1.0]])
+        try:
+            inv = np.linalg.inv(matrix)
+        except np.linalg.LinAlgError:
+            return None
         shifted = _points(points) - 0.5
-        mapped = np.hstack([shifted, np.ones((len(shifted), 1))]) @ np.linalg.inv(matrix).T
-        return mapped[:, :2] / mapped[:, 2:3] + 0.5
+        if len(shifted) == 0:
+            return shifted.copy()
+        mapped = np.hstack([shifted, np.ones((len(shifted), 1))]) @ inv.T
+        w = mapped[:, 2:3]
+        if not np.all(np.isfinite(mapped)) or np.any(np.abs(w) < 1e-12):
+            return None
+        out = mapped[:, :2] / w + 0.5
+        return out if np.all(np.isfinite(out)) else None
 
 
 @dataclass(frozen=True, eq=False)
@@ -198,7 +208,11 @@ class Pieces(Geometry):
     pieces: Tuple[Tuple[Tuple[float, float, float, float], Geometry], ...]
 
     def to_input(self, points) -> Optional[np.ndarray]:
+        if not self.pieces:
+            return None
         points = _points(points)
+        if len(points) == 0:
+            return points.copy()
         cx, cy = points.mean(axis=0)
 
         def distance(piece) -> float:

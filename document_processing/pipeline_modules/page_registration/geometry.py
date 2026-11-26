@@ -61,14 +61,13 @@ class PageGeometry:
     def quads(self, segments, image_shape, aspect_h_over_w: Optional[float] = None):
         out, infos = [], []
         for s in segments or []:
-            q, info = fit_quad_lines(s, image_shape, aspect_h_over_w, extrapolate=aspect_h_over_w is not None)
-            if q is None:
-                continue
-            if not self.line_quads:
+            if self.line_quads:
+                q, info = fit_quad_lines(s, image_shape, aspect_h_over_w, extrapolate=aspect_h_over_w is not None)
+            else:
                 from ..doc_detector.image_transformation import extract_quad
                 q, info = extract_quad(s), {'method': 'polygon'}
-                if q is None:
-                    continue
+            if q is None:
+                continue
             out.append(order_points(q).astype(np.float32))
             infos.append(info)
         return out, infos

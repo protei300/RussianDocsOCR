@@ -463,6 +463,7 @@ def lease_pipeline(timeout: float = LEASE_TIMEOUT_SEC) -> Iterator[Any]:
 
 def recognise(image_path: str | Path, *, include_debug: bool = False,
               docconf: float = 0.5, img_size: int = 1500,
+              quality_gate: str = "warn",
               lease_timeout: float = LEASE_TIMEOUT_SEC) -> tuple[dict[str, Any], Any]:
     """Recognise one document. The whole public surface of this package.
 
@@ -480,10 +481,12 @@ def recognise(image_path: str | Path, *, include_debug: bool = False,
                 ocr=True, get_doc_borders=True, find_text_fields=True,
                 check_quality=True, low_quality=True,
                 docconf=docconf, img_size=img_size,
+                quality_gate=quality_gate,
             )
         # Inside the lease, deliberately — see rule 3.
         payload = transform.build_viewmodel(results, device=pipeline.device,
-                                            include_debug=include_debug)
+                                            include_debug=include_debug,
+                                            include_quality_gate=True)
         try:
             canvas = results.img_with_fixed_perspective
         except (KeyError, AttributeError):
@@ -539,6 +542,7 @@ def _discarded_stdout() -> Iterator[None]:
 
 def recognise_image(rgb: Any, *, docconf: float = 0.5, img_size: int = 1500,
                     with_canvas: bool = False,
+                    quality_gate: str = "warn",
                     lease_timeout: float = LEASE_TIMEOUT_SEC) -> tuple[dict[str, Any], bytearray | None]:
     """Recognise an already-decoded RGB image without touching the disk.
 
@@ -554,9 +558,11 @@ def recognise_image(rgb: Any, *, docconf: float = 0.5, img_size: int = 1500,
                     rgb, ocr=True, get_doc_borders=True, find_text_fields=True,
                     check_quality=True, low_quality=True,
                     docconf=docconf, img_size=img_size,
+                    quality_gate=quality_gate,
                 )
             payload = transform.build_viewmodel(results, device=pipeline.device,
-                                                include_debug=False)
+                                                include_debug=False,
+                                                include_quality_gate=True)
             png = None
             if with_canvas:
                 try:

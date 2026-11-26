@@ -70,9 +70,20 @@ def save_original(db: FileStore, doc_id: int, data: bytes, ext: str) -> Path:
 def decode_dimensions(data: bytes) -> tuple[int, int] | None:
     """``(width, height)`` of the upload, or ``None`` if it cannot be decoded.
 
-    Done synchronously at upload time so an undecodable file becomes an
-    immediate, actionable 422 instead of a mysterious failed job minutes later.
+    Checks header dimensions first so decompression bombs are rejected without
+    full pixel allocation.
     """
+    from service.core import image_guard
+
+    try:
+        dims = image_guard.probe_header_dimensions(data)
+        if dims is not None:
+            w, h = dims
+            if w <= 0 or h <= 0 or max(w, h) > image_guard.DEFAULT_MAX_SIDE or (w * h) > image_guard.DEFAULT_MAX_PIXELS:
+                return None
+    except image_guard.ImageGuardError:
+        return None
+
     array = np.frombuffer(data, dtype=np.uint8)
     image = cv2.imdecode(array, cv2.IMREAD_COLOR)
     if image is None:

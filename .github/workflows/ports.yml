@@ -34,10 +34,9 @@
 # already knew, instead of calling it. Prefer `ports/<lang>/…` scripts over inline commands here.
 name: ports
 
+# Decoupled from weekly cron (decision #229): ports run on demand via workflow_dispatch
+# and are scheduled to move to a dedicated public RussianDocsPorts repository after v4.12.0.
 on:
-  schedule:
-    # Weekly, Monday 03:00 UTC. Cheap to move; the point is that it runs without anyone asking.
-    - cron: '0 3 * * 1'
   workflow_dispatch:
     inputs:
       port:

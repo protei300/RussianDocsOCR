@@ -272,6 +272,19 @@ public class AddressTests
         List<RegistrationStamp> alone = [Stamp("deregistered")];
         Stamps.TieCancellations(alone);
         Assert.That(alone[0].Cancels, Is.Null);
+
+        // Cancelling the freshest registration must not promote an older superseded one.
+        List<RegistrationStamp> cancelledNewest = [Stamp("deregistered"), Stamp("registered"), Stamp("registered")];
+        Stamps.TieCancellations(cancelledNewest);
+        Assert.That(cancelledNewest[0].Cancels, Is.EqualTo(1));
+        Assert.That(cancelledNewest.Any(s => s.Current), Is.False);
+
+        // Two deregistered stamps must cancel distinct registrations.
+        List<RegistrationStamp> twoDereg = [Stamp("deregistered"), Stamp("deregistered"), Stamp("registered"), Stamp("registered")];
+        Stamps.TieCancellations(twoDereg);
+        Assert.That(twoDereg[0].Cancels, Is.EqualTo(2));
+        Assert.That(twoDereg[1].Cancels, Is.EqualTo(3));
+        Assert.That(twoDereg.Any(s => s.Current), Is.False);
     }
 
     [Test]

@@ -54,18 +54,20 @@ public object OcrCorrections {
     }
 
     /**
-     * Latin sex: anything containing M is male, everything else is female.
-     *
-     * Note the asymmetry — it is not "F means female". An unreadable crop therefore becomes F rather than
-     * empty, which is the reference's behaviour and not obviously the right one; reproduced because the
-     * goldens encode it.
+     * Latin sex: empty/blank input stays empty; non-empty input containing M is male, else female.
      */
-    public fun checkEnSex(sex: String): String =
-        if (sex.trimStart('.').uppercase().replace(".", "").contains('M')) "M" else "F"
+    public fun checkEnSex(sex: String): String {
+        val toCheck = sex.trimStart('.').uppercase().replace(".", "").trim()
+        if (toCheck.isEmpty()) return ""
+        return if (toCheck.contains('M')) "M" else "F"
+    }
 
-    /** Cyrillic sex, with the same asymmetry. The М here is CYRILLIC U+041C. */
-    public fun checkRusSex(sex: String): String =
-        if (sex.trimStart('.').uppercase().replace(".", "").contains('М')) "М" else "Ж"
+    /** Cyrillic sex, with the same rules. The М here is CYRILLIC U+041C. */
+    public fun checkRusSex(sex: String): String {
+        val toCheck = sex.trimStart('.').uppercase().replace(".", "").trim()
+        if (toCheck.isEmpty()) return ""
+        return if (toCheck.contains('М')) "М" else "Ж"
+    }
 
     /** Keeps only the characters a licence class can contain. */
     public fun checkDriverClass(driverClass: String): String {

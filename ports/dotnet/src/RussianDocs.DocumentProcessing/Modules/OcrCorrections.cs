@@ -77,20 +77,28 @@ public static class OcrCorrections
     }
 
     /// <summary>
-    /// Latin sex: anything containing M is male, everything else is female.
-    ///
-    /// <para>
-    /// Note the asymmetry — it is not "F means female". An unreadable crop therefore becomes F rather
-    /// than empty, which is the reference's behaviour and not obviously the right one; reproduced
-    /// because the goldens encode it.
-    /// </para>
+    /// Latin sex: empty/blank input stays empty; non-empty input containing M is male, else female.
     /// </summary>
-    public static string CheckEnSex(string sex) =>
-        sex.TrimStart('.').ToUpperInvariant().Replace(".", "").Contains('M') ? "M" : "F";
+    public static string CheckEnSex(string sex)
+    {
+        string toCheck = sex.TrimStart('.').ToUpperInvariant().Replace(".", "").Trim();
+        if (toCheck.Length == 0)
+        {
+            return "";
+        }
+        return toCheck.Contains('M') ? "M" : "F";
+    }
 
-    /// <summary>Cyrillic sex, with the same asymmetry. The М here is CYRILLIC U+041C.</summary>
-    public static string CheckRusSex(string sex) =>
-        sex.TrimStart('.').ToUpperInvariant().Replace(".", "").Contains('М') ? "М" : "Ж";
+    /// <summary>Cyrillic sex, with the same rules. The М here is CYRILLIC U+041C.</summary>
+    public static string CheckRusSex(string sex)
+    {
+        string toCheck = sex.TrimStart('.').ToUpperInvariant().Replace(".", "").Trim();
+        if (toCheck.Length == 0)
+        {
+            return "";
+        }
+        return toCheck.Contains('М') ? "М" : "Ж";
+    }
 
     /// <summary>Keeps only the characters a licence class can contain.</summary>
     public static string CheckDriverClass(string driverClass)

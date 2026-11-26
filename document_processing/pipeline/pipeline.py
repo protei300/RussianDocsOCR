@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from time import perf_counter
 from typing import List, Optional, Union
@@ -5,7 +6,7 @@ from typing import List, Optional, Union
 import cv2
 import numpy as np
 
-from ..config import DEFAULT_CFG
+from ..config import DEFAULT_CFG, resolve_model_dir
 from ..geometry import Chain, Offset, QuarterTurns, Scale
 from ..pipeline_modules import (AddressLinesDetector, AddressTextKindClassifier, Blur,
                                 DocDeskewer, DocDetector, DocTypeAngles, DocumentDetector,
@@ -20,9 +21,12 @@ from ..validation.fields import field_checks
 from .date_fields import DateFieldsStage
 from .documents import DocumentsStage, pair_sides
 from .fields import FieldsStage
+from .input_guard import validate_encoded_header, validate_image_array
 from .mrz_reading import MrzReadingStage
 from .pages import PagesStage, _segments_payload
 from .quality import QualityStage
+from .quality_gate import (DEFAULT_QUALITY_GATE_MODE, evaluate_quality_gate,
+                           normalize_quality_gate_mode)
 from .reading import ReadingStage
 from .stamps import StampsStage
 # The options, the results and pair_sides used to live in this module, and the
@@ -30,7 +34,8 @@ from .stamps import StampsStage
 from .documents import PAIRED_SIDES  # noqa: F401
 from .options import (OCROptionsBIRTHCERT, OCROptionsClass, OCROptionsDL,  # noqa: F401
                       OCROptionsEXTPassport, OCROptionsINTPASSPORTADDR,
-                      OCROptionsINTPassport, OCROptionsSNILS, OCROptionsSTS)
+                      OCROptionsINTPassport, OCROptionsMigrationCard,
+                      OCROptionsSNILS, OCROptionsSTS)
 from .results import PipelineResults
 
 
@@ -181,11 +186,16 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         else:
             artifact, runtime = model_format, None
 
-        candidate = Path(migration_models) if migration_models is not None else None
-        if candidate is None and artifact == 'ONNX':
-            installed = Path(DEFAULT_CFG['MigrationPipeline'])
-            if installed.is_dir():
-                candidate = installed
+        if migration_models is False:
+            candidate = None
+        elif migration_models is not None:
+            candidate = Path(migration_models)
+        elif artifact == 'ONNX':
+            installed = resolve_model_dir('MigrationPipeline')
+            has_bundle = (installed / 'DocTypeAngles' / artifact / 'model.json').is_file()
+            candidate = installed if has_bundle else None
+        else:
+            candidate = None
 
         def config_for(name, *, required=False):
             if candidate is None:
@@ -285,6 +295,33 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         # port of this library first diverges. See pipeline/probe.py; when None
         # every emission site costs a single attribute test.
         self.probe = None
+        self._pool: Optional[ThreadPoolExecutor] = None
+
+    def _executor(self) -> ThreadPoolExecutor:
+        pool = getattr(self, '_pool', None)
+        if pool is None:
+            pool = ThreadPoolExecutor(max_workers=8)
+            self._pool = pool
+        return pool
+
+    def close(self) -> None:
+        """Release the reusable worker thread pool."""
+        pool = getattr(self, '_pool', None)
+        if pool is not None:
+            self._pool = None
+            pool.shutdown(wait=True)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+    def __del__(self):
+        pool = getattr(self, '_pool', None)
+        if pool is not None:
+            self._pool = None
+            pool.shutdown(wait=False)
 
     def _emit(self, name: str, payload) -> None:
         """Hand one intermediate value to the probe, if one is attached.
@@ -327,10 +364,17 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         """
         if img_path is None:
             img_path = np.full((900, 1400, 3), 200, dtype=np.uint8)
+        elif isinstance(img_path, (Path, str)) and not Path(img_path).exists():
+            raise FileNotFoundError(img_path)
+        saved_probe = self.probe
+        self.probe = None
         try:
             self.process_img(img_path)
         except Exception as e:
             print(f"[!] Pipeline.warmup() encountered an error (non-fatal): {e!r}")
+        finally:
+            self.probe = saved_probe
+            self._start_document()
 
     def process_img(
             self,
@@ -342,6 +386,7 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
             low_quality=True,
             docconf=0.5,
             img_size=1500,
+            quality_gate: str = DEFAULT_QUALITY_GATE_MODE,
 
         ) -> PipelineResults:
         """
@@ -356,6 +401,10 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
             low_quality: Whether to process low quality images.
             docconf: Minimum doc confidence threshold.
             img_size: Resize image to this size for processing.
+            quality_gate: Layer B suitability gate mode: ``'warn'`` (default,
+                attaches ``results.quality_gate`` and continues through OCR),
+                ``'reject'`` (stops before Fields/OCR when ``status == 'reject'``),
+                or ``'off'`` (skipped).
 
         Returns:
             PipelineResults with extracted information. With documents found in
@@ -363,8 +412,10 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
             all of them, ``results.document_index`` is the one read); use
             ``process_frame`` to read every document.
         """
+        quality_gate = normalize_quality_gate_mode(quality_gate)
         options = dict(ocr=ocr, get_doc_borders=get_doc_borders, find_text_fields=find_text_fields,
-                       check_quality=check_quality, low_quality=low_quality, docconf=docconf)
+                       check_quality=check_quality, low_quality=low_quality, docconf=docconf,
+                       quality_gate=quality_gate)
         self._start_document()
         frame = self._load_image(img_path)
         documents = self._find_documents(frame, img_size)
@@ -380,6 +431,7 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
             low_quality=True,
             docconf=0.5,
             img_size=1500,
+            quality_gate: str = DEFAULT_QUALITY_GATE_MODE,
     ) -> List[PipelineResults]:
         """Read EVERY document in the frame (issue #26), not only the largest.
 
@@ -394,8 +446,10 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         valid after the call - but the pipeline is still not thread-safe (see
         PipelineResults.meta_results).
         """
+        quality_gate = normalize_quality_gate_mode(quality_gate)
         options = dict(ocr=ocr, get_doc_borders=get_doc_borders, find_text_fields=find_text_fields,
-                       check_quality=check_quality, low_quality=low_quality, docconf=docconf)
+                       check_quality=check_quality, low_quality=low_quality, docconf=docconf,
+                       quality_gate=quality_gate)
         self._start_document()
         frame = self._load_image(img_path)
         documents = self._find_documents(frame, img_size)
@@ -410,7 +464,8 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         return out
 
     def _process_document(self, img, ocr=True, get_doc_borders=True, find_text_fields=True,
-                          check_quality=True, low_quality=True, docconf=0.5) -> PipelineResults:
+                          check_quality=True, low_quality=True, docconf=0.5,
+                          quality_gate: str = DEFAULT_QUALITY_GATE_MODE) -> PipelineResults:
         """Everything after the image is prepared: type, borders, fields, reading."""
         self._emit('prepare', img)
 
@@ -489,6 +544,7 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         # low_quality=False, the quality verdict decides whether to run
         # (skip) the heavier border detector at all, so that early-exit
         # optimization requires the original sequential order.
+        pre_borders_geom = self.results._meta_results.get('Geometry')
         if check_quality and get_doc_borders and low_quality:
             self._quality_and_borders_parallel(img)
             if self.page_registrar is not None:
@@ -541,6 +597,23 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
                 self._canvas(self._borders_geometry())
                 self._emit('deskew.canvas', img)
 
+        # Layer B document suitability gate (calibrated on real docs + degradations)
+        quality_gate = normalize_quality_gate_mode(quality_gate)
+        if quality_gate != 'off':
+            gate_result = evaluate_quality_gate(
+                doc_img=img,
+                frame_shape=getattr(self, '_input_frame_shape', None),
+                document_box=self.results.document_box,
+                segm=(self.results._meta_results.get('DocDetector') or {}).get('segm'),
+                pre_borders_geom=pre_borders_geom,
+                doc_conf=self.results._meta_results.get('Quality', {}).get('DocConf'),
+                quality_scores=self.results._meta_results.get('QualityScores') or {},
+                mode=quality_gate,
+            )
+            self.results._meta_results['QualityGate'] = gate_result
+            if gate_result['stopped']:
+                return self.results
+
         # detecting fields
         if find_text_fields:
             #Intpassport has licence number rotated 90 deg
@@ -592,7 +665,7 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         # fields must get their (unchecked) entries too.
         if ocr and self.results._meta_results.get('OCR'):
             self.results._meta_results['FieldChecks'] = field_checks(
-                self.results._meta_results['OCR'], doc_type)
+                self.results._meta_results['OCR'], self.results.doctype or doc_type)
             self._emit('checks', self.results._meta_results['FieldChecks'])
 
         return self.results
@@ -605,18 +678,31 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         return result
 
     def _load_image(self, img_path: Union[Path, str, np.ndarray]) -> np.ndarray:
-        """Decode the input (a path, or an RGB array passed as is) at its full size."""
+        """Decode the input (a path, or an RGB array passed as is) at its full size.
+
+        Applies a minimal protective guard against empty/degenerate arrays and
+        huge rasters / decompression bombs (checked from the file header before
+        ``cv2.imdecode`` when loading from disk). Stricter API-level guards
+        (blank/solid frames, micro-resolution ``< 150`` px, extreme aspect
+        ratios ``> 10:1``) live in ``service/core/image_guard.py`` so that
+        ``Pipeline.warmup()`` (uniform grey ``900x1400`` array) and low-level
+        synthetic library tests remain unaffected.
+        """
         if isinstance(img_path, (Path, str)):
             p = Path(img_path)
-            img = cv2.imdecode(np.frombuffer(p.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+            raw = p.read_bytes()
+            validate_encoded_header(raw, source=str(p))
+            img = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
             if img is None:
                 raise ValueError(f"Could not decode image: {p}")
+            validate_image_array(img, source=str(p))
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             self.results._meta_results['image_path'] = p.as_posix()
             return img
         if isinstance(img_path, np.ndarray):
+            validate_image_array(img_path)
             return img_path
-        raise Exception("Unsupported image type")
+        raise TypeError(f"Unsupported image type: {type(img_path).__name__}")
 
     def _prepare_image(self, img_path: Union[Path, str, np.ndarray], img_size: int = 1500,
                        crop: Optional[tuple] = None):
@@ -632,6 +718,8 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
         Returns:
             np.ndarray: Loaded and resized image.
         """
+        if img_size <= 0:
+            raise ValueError(f"img_size must be positive, got {img_size}")
         img = self._load_image(img_path)
         maps = ()
         if crop is not None:
@@ -641,8 +729,10 @@ class Pipeline(DocumentsStage, QualityStage, PagesStage, FieldsStage, MrzReading
 
         # check size of image, and resize if above 1500
         h, w = img.shape[:2]
+        if h <= 0 or w <= 0:
+            raise ValueError(f"Empty image after crop: shape={img.shape}")
         ratio = max(max(h, w) / img_size, 1)
-        new_h, new_w = int(h // ratio), int(w // ratio)
+        new_h, new_w = max(1, int(h // ratio)), max(1, int(w // ratio))
         img = cv2.resize(img, dsize=(new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
         self.results._meta_results['original_img'] = img

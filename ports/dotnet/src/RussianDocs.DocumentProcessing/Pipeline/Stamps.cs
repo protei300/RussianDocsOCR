@@ -154,7 +154,7 @@ public static class Stamps
             int? j = null;
             for (int next = k + 1; next < stamps.Count; next++)
             {
-                if (stamps[next].Kind == "registered")
+                if (stamps[next].Kind == "registered" && !cancelled.Contains(next))
                 {
                     j = next;
                     break;
@@ -168,9 +168,12 @@ public static class Stamps
         }
         for (int k = 0; k < stamps.Count; k++)
         {
-            if (stamps[k].Kind == "registered" && !cancelled.Contains(k))
+            if (stamps[k].Kind == "registered")
             {
-                stamps[k].Current = true;
+                if (!cancelled.Contains(k))
+                {
+                    stamps[k].Current = true;
+                }
                 break;
             }
         }

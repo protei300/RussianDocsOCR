@@ -559,22 +559,63 @@ func TestInternalZoneHasNoExpiryDate(t *testing.T) {
 }
 
 func TestMrzDateCenturyFollowsTheClock(t *testing.T) {
-	defer func(f func() time.Time) { clock = f }(clock)
-	clock = func() time.Time { return testToday }
 	// a birth date is in the past (26 -> 2026 only because it is not later than the year),
 	// an expiry date is always 20xx
-	if got := mrzDate([]rune("261001"), false); got != "01.10.2026" {
+	if got := mrzDate([]rune("261001"), false, testToday.Year()); got != "01.10.2026" {
 		t.Errorf("past 26: %s", got)
 	}
-	if got := mrzDate([]rune("271001"), false); got != "01.10.1927" {
+	if got := mrzDate([]rune("271001"), false, testToday.Year()); got != "01.10.1927" {
 		t.Errorf("past 27: %s", got)
 	}
-	if got := mrzDate([]rune("991001"), true); got != "01.10.2099" {
+	if got := mrzDate([]rune("991001"), true, testToday.Year()); got != "01.10.2099" {
 		t.Errorf("future 99: %s", got)
 	}
-	if got := mrzDate([]rune("261301"), false); got != "" {
+	if got := mrzDate([]rune("261301"), false, testToday.Year()); got != "" {
 		t.Errorf("month 13: %q", got)
 	}
+}
+
+func TestWave3ValidationRules(t *testing.T) {
+	// Compound given name on EXTPASSPORT stays together.
+	line1 := "P<RUSROGOVA<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<<<"
+	zone := line1 + "\n" + strings.Split(extMrz, "\n")[1]
+	got := statuses(with(extOcrConsistent(), "MRZ", zone, "First_name_en", "ANNA-MARIA"), "EXTPASSPORTBIO_2007")
+	wantStatus(t, got, "First_name_en", FieldVerified)
+
+	// Truncated line 1 only prefixes the last non-empty segment, not surname.
+	longGiven := strings.Repeat("KONSTANTINOPOLSKAYA", 3)
+	trunc1 := ("P<RUSROGOVA<<" + longGiven)[:44]
+	tzone := trunc1 + "\n" + strings.Split(extMrz, "\n")[1]
+	tgot := statuses(with(extOcrConsistent(), "MRZ", tzone, "Last_name_en", "ROGOVAEXTRA", "First_name_en", longGiven), "EXTPASSPORTBIO_2007")
+	wantStatus(t, tgot, "First_name_en", FieldVerified)
+	wantStatus(t, tgot, "Last_name_en", FieldMismatch)
+
+	// MRZ-7 rejects arbitrary words starting with М.
+	wantStatus(t, statuses(with(intOcr(), "Sex_ru", "МОСКВА"), "INTPASSPORT_2011"), "Sex_ru", FieldMismatch)
+
+	// Three-line MRZ rejected.
+	three := extMrz + "\nEXTRA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+	if ValidateMrz(three).OK {
+		t.Error("three-line MRZ must fail ValidateMrz")
+	}
+	wantStatus(t, statuses(with(extOcrConsistent(), "MRZ", three), "EXTPASSPORTBIO_2007"), "MRZ", FieldMismatch)
+
+	// MIGRATIONCARD rules including future-birth guard.
+	if FieldFamily("MIGRATIONCARD_ALL") != "MIGRATIONCARD" {
+		t.Errorf("FieldFamily(MIGRATIONCARD_ALL) = %q", FieldFamily("MIGRATIONCARD_ALL"))
+	}
+	mig := ocrMap{
+		"Card_series": "4501", "Card_number": "1234567",
+		"Birth_date": "15.05.1990", "Stay_from": "01.11.2026", "Stay_to": "30.01.2027",
+	}
+	allStatuses(t, statuses(mig, "MIGRATIONCARD_ALL"), FieldUnchecked)
+	wantStatus(t, statuses(with(mig, "Card_series", "45A1"), "MIGRATIONCARD_ALL"), "Card_series", FieldMismatch)
+	fut := statuses(with(mig, "Birth_date", "15.05.2076"), "MIGRATIONCARD_ALL")
+	wantStatus(t, fut, "Birth_date", FieldMismatch)
+	wantStatus(t, fut, "Stay_from", FieldUnchecked)
+	rev := statuses(with(mig, "Stay_from", "10.12.2026", "Stay_to", "01.12.2026"), "MIGRATIONCARD_ALL")
+	wantStatus(t, rev, "Stay_from", FieldMismatch)
+	wantStatus(t, rev, "Stay_to", FieldMismatch)
 }
 
 func TestPythonWhitespaceRules(t *testing.T) {

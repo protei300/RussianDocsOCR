@@ -18,7 +18,7 @@ stays as a thin path-loading wrapper because the Docker model stage and CI call
 it before any dependencies are installed - it must not import the package.
 
 Only files whose checksum does not match are transferred, so a release that
-changed one model.json costs a kilobyte rather than 215 MB.
+changed one model.json costs a kilobyte rather than ~390 MB.
 
 Where each file lives. Since models-v8 a weight set does not re-publish the
 networks that did not change: every entry names the release it lives in
@@ -40,11 +40,14 @@ and inside the Docker model stage, neither of which has boto3 or requests.
 """
 import argparse
 import hashlib
+import http.client
 import json
 import os
-import shutil
 import sys
+import tempfile
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -97,31 +100,78 @@ def entry_url(manifest: dict, entry: dict, override: str = '') -> str:
     return (base if base.endswith('/') else base + '/') + entry['asset']
 
 
-def download(url: str, dest: Path, expected_sha: str) -> None:
+ALLOWED_SCHEMES = frozenset({'http', 'https', 'file'})
+
+
+def _safe_dest(target: Path, rel_path: str) -> Path:
+    """Resolve ``rel_path`` under ``target`` and reject traversal outside it."""
+    if not rel_path or Path(rel_path).is_absolute():
+        raise ValueError(f'unsafe manifest path: {rel_path!r}')
+    root = target.resolve()
+    dest = (root / rel_path).resolve()
+    if not dest.is_relative_to(root):
+        raise ValueError(f'manifest path escapes target directory: {rel_path!r}')
+    return dest
+
+
+def _replace_with_retry(src: Path, dest: Path) -> None:
+    """Atomically replace ``dest`` with ``src``, tolerating brief Windows file locks."""
+    for attempt in range(4):
+        try:
+            src.replace(dest)
+            return
+        except PermissionError:
+            if attempt == 3:
+                raise
+            time.sleep(0.2 * (attempt + 1))
+
+
+def download(url: str, dest: Path, expected_sha: str, expected_size: int | None = None) -> None:
     """Fetch to a temporary neighbour, verify, then move into place.
 
     Never writes a partial file to the final name: a half-downloaded model
     surfaces as a baffling inference error rather than an obvious failure.
     """
+    scheme = urllib.parse.urlparse(url).scheme.lower()
+    if scheme not in ALLOWED_SCHEMES:
+        raise ValueError(f'unsupported URL scheme {scheme!r} in {url!r}')
     dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(dest.suffix + '.part')
     last = None
     for attempt in range(1, RETRIES + 1):
+        fd, tmp_name = tempfile.mkstemp(prefix=f'{dest.name}.', suffix='.part', dir=dest.parent)
+        tmp = Path(tmp_name)
         try:
             request = urllib.request.Request(url, headers={'User-Agent': 'rdocs-fetch-models'})
-            with urllib.request.urlopen(request, timeout=TIMEOUT) as response, \
-                    tmp.open('wb') as out:
-                shutil.copyfileobj(response, out, 1 << 20)
-            got = sha256(tmp)
+            h = hashlib.sha256()
+            written = 0
+            with urllib.request.urlopen(request, timeout=TIMEOUT) as response, os.fdopen(fd, 'wb') as out:
+                fd = -1
+                while True:
+                    chunk = response.read(1 << 20)
+                    if not chunk:
+                        break
+                    written += len(chunk)
+                    if expected_size is not None and written > expected_size:
+                        raise ValueError(f'response exceeded expected size ({written} > {expected_size})')
+                    h.update(chunk)
+                    out.write(chunk)
+            if expected_size is not None and written != expected_size:
+                raise ValueError(f'size mismatch: expected {expected_size}, got {written}')
+            got = h.hexdigest()
             if got != expected_sha:
                 raise ValueError(f'checksum mismatch: expected {expected_sha[:12]}, got {got[:12]}')
-            tmp.replace(dest)
+            _replace_with_retry(tmp, dest)
             return
-        except (urllib.error.URLError, ValueError, TimeoutError, OSError) as exc:
+        except (urllib.error.URLError, http.client.HTTPException, ValueError, TimeoutError, OSError) as exc:
+            if fd >= 0:
+                os.close(fd)
             last = exc
             tmp.unlink(missing_ok=True)
+            if isinstance(exc, urllib.error.HTTPError) and 400 <= exc.code < 500 and exc.code not in (408, 429):
+                break
             if attempt < RETRIES:
-                print(f'    retry {attempt}/{RETRIES - 1} after {exc}', flush=True)
+                print(f'    retry {attempt}/{RETRIES - 1} [{dest.name}] after {exc}', flush=True)
+                time.sleep(min(2.0, 0.5 * attempt))
     raise RuntimeError(f'{url}: {last}')
 
 
@@ -155,7 +205,7 @@ def main():
 
     todo, ok = [], 0
     for entry in manifest['files']:
-        dest = target / entry['path']
+        dest = _safe_dest(target, entry['path'])
         state = 'forced' if args.force else state_of(entry, dest)
         if state == 'ok':
             ok += 1
@@ -181,7 +231,7 @@ def main():
     def fetch(item):
         entry, dest, _ = item
         try:
-            download(entry_url(manifest, entry, override), dest, entry['sha256'])
+            download(entry_url(manifest, entry, override), dest, entry['sha256'], entry.get('size'))
             print(f'  ok  {entry["path"]}', flush=True)
         except Exception as exc:  # noqa: BLE001 - reported below, not swallowed
             failures.append((entry['path'], exc))

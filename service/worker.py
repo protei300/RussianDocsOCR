@@ -152,10 +152,12 @@ def _process_sync(doc_id: int) -> tuple[dict[str, Any], Any, int]:
 
     docconf = settings_repo.get_value(db, "docconf", 0.5)
     img_size = settings_repo.get_value(db, "img_size", 1500)
+    quality_gate = settings_repo.get_value(db, "quality_gate_mode", "warn")
 
     started = time.perf_counter()
     payload, canvas = runtime.recognise(path, docconf=float(docconf),
-                                        img_size=int(img_size))
+                                        img_size=int(img_size),
+                                        quality_gate=str(quality_gate))
     return payload, canvas, int((time.perf_counter() - started) * 1000)
 
 

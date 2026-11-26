@@ -166,15 +166,24 @@ func trimToMrzAlphabet(text string) string {
 // invents a line: it only re-reads a box the detector found.
 func readMrz(zone *MrzZone, lat *modules.OcrEngine, lineIndex int, text string) (string, error) {
 	text = trimToMrzAlphabet(text)
-	if utf8.RuneCountInString(text) == MrzLineLen {
+	if utf8.RuneCountInString(text) >= MrzLineLen {
 		return text, nil
 	}
 	if zone == nil || lineIndex >= len(zone.Boxes) {
 		return text, nil
 	}
-	width := zone.Canvas.Width()
+	height, width := zone.Canvas.Height(), zone.Canvas.Width()
 	b := zone.Boxes[lineIndex]
 	x1, y1, x2, y2 := b[0], b[1], b[2], b[3]
+	if y1 < 0 {
+		y1 = 0
+	}
+	if y2 > height {
+		y2 = height
+	}
+	if y2 <= y1 {
+		return text, nil
+	}
 	best := text
 	for _, growth := range mrzRetryGrowth {
 		left, right := x1, x2

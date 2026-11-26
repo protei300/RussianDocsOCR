@@ -90,10 +90,17 @@ func TestADeregisteredStampThatOpensTheCanvasCancelsNothing(t *testing.T) {
 }
 
 func TestACancelledRegistrationIsNotCurrent(t *testing.T) {
+	// Cancelling the freshest registration must NOT promote an older superseded one.
 	stamps := []Stamp{{Kind: "deregistered"}, {Kind: "registered"}, {Kind: "registered"}}
 	tieCancellations(stamps)
-	if stamps[1].Current || !stamps[2].Current {
-		t.Fatalf("current: %v %v", stamps[1].Current, stamps[2].Current)
+	if stamps[1].Current || stamps[2].Current {
+		t.Fatalf("current: %v %v (want both false)", stamps[1].Current, stamps[2].Current)
+	}
+	// Two deregistered stamps before two registrations must cancel distinct ones.
+	two := []Stamp{{Kind: "deregistered"}, {Kind: "deregistered"}, {Kind: "registered"}, {Kind: "registered"}}
+	tieCancellations(two)
+	if two[0].Cancels == nil || *two[0].Cancels != 2 || two[1].Cancels == nil || *two[1].Cancels != 3 {
+		t.Fatalf("cancels: %v %v", two[0].Cancels, two[1].Cancels)
 	}
 }
 

@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from .preprocessing import BasePreprocessing, ClassificationPreprocessing, YoloPreprocessing, OCRPreprocessing, OBBPreprocessing, OCRv2Preprocessing
+from .preprocessing import BasePreprocessing, ClassificationPreprocessing, YoloPreprocessing, OBBPreprocessing, OCRv2Preprocessing
 from .postprocessing import *
 from .inference import ModelInference
 from ..config.alphabets import allowed_charset
@@ -76,15 +76,6 @@ class ModelLoader:
                     verbose=self.verbose
                 )
 
-            case 'OCR':
-                return OCRPreprocessing(
-                    image_size=input_info['Shape'],
-                    padding_size=input_info['PaddingSize'],
-                    padding_color=input_info['PaddingColor'],
-                    normalization=input_info['Normalization'],
-                    verbose=self.verbose
-                )
-
             case 'OCRv2':
                 return OCRv2Preprocessing(
                     height=input_info.get('Height', 32),
@@ -92,6 +83,8 @@ class ModelLoader:
                     dtype=input_info.get('Dtype', 'uint8'),
                     verbose=self.verbose,
                 )
+            case _:
+                raise ValueError(f"Unknown input preprocessing type: {input_type!r}")
 
     def __load_postprocess(self, output_info:dict):
         output_type = output_info['Type']
@@ -152,16 +145,6 @@ class ModelLoader:
                     verbose=self.verbose,
                 )
 
-            case "OCR":
-                return OCRPostprocessing(
-                    lang=output_info['Lang'],
-                    verbose=self.verbose,
-                )
-            case "OCRFV":
-                return OCRFVPostprocessing(
-                    verbose=self.verbose,
-                )
-
             case "OCRProbs":
                 # Full alphabet lives in the model.json; the allowed mask is
                 # resolved from the vendored per-country config using the output's
@@ -172,6 +155,8 @@ class ModelLoader:
                     blank_index=output_info.get('BlankIndex', 0),
                     verbose=self.verbose,
                 )
+            case _:
+                raise ValueError(f"Unknown output postprocessing type: {output_type!r}")
 
 
 
@@ -180,7 +165,8 @@ class ModelLoader:
         for input_info in self.json_file['Inputs']:
             preprocessings.append(self.__load_preprocess(input_info))
 
-        model_inference = ModelInference(self.working_dir.joinpath(self.json_file['File']),
+        model_file = str(self.json_file['File']).replace('\\', os.sep)
+        model_inference = ModelInference(self.working_dir.joinpath(model_file),
                                          device=self.device,
                                          verbose=self.verbose,
                                          runtime=self.runtime)

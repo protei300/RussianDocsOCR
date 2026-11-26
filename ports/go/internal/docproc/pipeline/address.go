@@ -398,7 +398,7 @@ func tieCancellations(stamps []Stamp) {
 			continue
 		}
 		for j := k + 1; j < len(stamps); j++ {
-			if stamps[j].Kind == "registered" {
+			if stamps[j].Kind == "registered" && !cancelled[j] {
 				jj := j
 				stamps[k].Cancels = &jj
 				cancelled[j] = true
@@ -407,8 +407,10 @@ func tieCancellations(stamps []Stamp) {
 		}
 	}
 	for k := range stamps {
-		if stamps[k].Kind == "registered" && !cancelled[k] {
-			stamps[k].Current = true
+		if stamps[k].Kind == "registered" {
+			if !cancelled[k] {
+				stamps[k].Current = true
+			}
 			break
 		}
 	}

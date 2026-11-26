@@ -50,7 +50,7 @@ import cv2
 import numpy as np
 
 from ...geometry import Chain, Homography, VerticalRemap
-from ..doc_detector.image_transformation import extract_quad
+from ..doc_detector.image_transformation import extract_quad, order_points as _order_points
 from .line_dewarp import apply_dewarp, dewarp_by_lines
 from .line_refine import apply_refinement, refine_by_lines
 from .quad_fit import fit_quad_lines
@@ -82,18 +82,6 @@ ECC_ITERS = 30
 # second line on samples/ (measured), which the Borders path avoided only by
 # its own 1% margin. 3% keeps every edge-printed element whole.
 PAGE_MARGIN_FRAC = 0.03
-
-
-def _order_points(pts):
-    pts = np.asarray(pts, dtype=np.float32).reshape(-1, 2)
-    rect = np.zeros((4, 2), dtype=np.float32)
-    s = pts.sum(axis=1)
-    rect[0] = pts[np.argmin(s)]
-    rect[2] = pts[np.argmax(s)]
-    d = np.diff(pts, axis=1)[:, 0]
-    rect[1] = pts[np.argmin(d)]
-    rect[3] = pts[np.argmax(d)]
-    return rect
 
 
 def _gradient(gray: np.ndarray) -> np.ndarray:
@@ -145,14 +133,24 @@ class PageTemplate:
         self.mask = (mask > 127).astype(np.uint8)
         self.kp, self.desc = detect_features(sift, self.gray, self.mask * 255, budget)
         self.pts = np.float32([k.pt for k in self.kp])
-        self.grad = _gradient(self.gray)
+        self._grad = None
         self.corners = np.float32([[0, 0], [self.width, 0],
                                    [self.width, self.height], [0, self.height]])
 
-    def quad_in_image(self, H_img_to_page: np.ndarray) -> np.ndarray:
-        """Page corners mapped back into the photo (4, 2)."""
-        Hinv = np.linalg.inv(H_img_to_page)
-        return cv2.perspectiveTransform(self.corners.reshape(1, -1, 2), Hinv).reshape(4, 2)
+    @property
+    def grad(self) -> np.ndarray:
+        if self._grad is None:
+            self._grad = _gradient(self.gray)
+        return self._grad
+
+    def quad_in_image(self, H_img_to_page: np.ndarray) -> Optional[np.ndarray]:
+        """Page corners mapped back into the photo (4, 2), or None if H is singular."""
+        try:
+            Hinv = np.linalg.inv(H_img_to_page)
+        except np.linalg.LinAlgError:
+            return None
+        quad = cv2.perspectiveTransform(self.corners.reshape(1, -1, 2), Hinv).reshape(4, 2)
+        return quad if np.all(np.isfinite(quad)) else None
 
 
 class PageRegistration:
@@ -294,6 +292,8 @@ class PageRegistrar:
         return H, int(m.sum()), dst[m]
 
     def _features_in_quad(self, kp, desc, quad, shape):
+        if not kp or desc is None:
+            return [], None
         c = quad.mean(axis=0)
         grown = c + (quad - c) * (1 + 2 * QUAD_DILATE_FRAC)
         poly = np.round(grown).astype(np.int32)
@@ -355,7 +355,10 @@ class PageRegistrar:
         S = np.diag([ECC_SCALE, ECC_SCALE, 1.0]).astype(np.float64)
         Si = np.diag([1 / ECC_SCALE, 1 / ECC_SCALE, 1.0]).astype(np.float64)
         warp_full = Si @ warp.astype(np.float64) @ S      # page -> current warp
-        return np.linalg.inv(warp_full), float(cc)
+        try:
+            return np.linalg.inv(warp_full), float(cc)
+        except np.linalg.LinAlgError:
+            return None, 0.0
 
     # ---------------------------------------------------------------- validation
     def _sane_quad(self, quad, shape, ref_area=None):

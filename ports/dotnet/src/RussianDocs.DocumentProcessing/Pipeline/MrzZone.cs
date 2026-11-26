@@ -128,7 +128,7 @@ public sealed class MrzZone
     public static string Read(MrzZone? zone, OcrEngine latin, int lineIndex, string text)
     {
         text = TrimToAlphabet(text);
-        if (text.Length == LineLength)
+        if (text.Length >= LineLength)
         {
             return text;
         }
@@ -137,8 +137,15 @@ public sealed class MrzZone
             return text;
         }
 
+        int height = zone._canvas.Height;
         int width = zone._canvas.Width;
         int[] box = zone._boxes[lineIndex];
+        int y1 = Math.Clamp(box[1], 0, height);
+        int y2 = Math.Clamp(box[3], 0, height);
+        if (y2 <= y1)
+        {
+            return text;
+        }
         string best = text;
         foreach (double growth in RetryGrowth)
         {
@@ -146,7 +153,7 @@ public sealed class MrzZone
             // int(round(...)): Python's round is half-to-even.
             int step = PyNum.RoundHalfEvenToInt((right - left) * growth);
             using Image crop = Crop.ClampedCrop(zone._canvas,
-                Math.Max(0, left - step), box[1], Math.Min(width, right + step), box[3]);
+                Math.Max(0, left - step), y1, Math.Min(width, right + step), y2);
             if (crop.Width == 0 || crop.Height == 0)
             {
                 continue;

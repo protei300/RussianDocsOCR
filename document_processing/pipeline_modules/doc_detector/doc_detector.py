@@ -27,23 +27,36 @@ BLANK_INK = 8.0
 INK_SCALE_PX = 400
 
 
-def segment_ink(gray: np.ndarray, contour) -> float:
-    """Mean gradient magnitude inside ``contour`` (eroded so the segment's own
-    edge does not count), on the image downscaled to INK_SCALE_PX."""
+def _ink_grad_map(gray: np.ndarray):
     h, w = gray.shape[:2]
+    if h <= 0 or w <= 0:
+        return None, 0.0
     s = INK_SCALE_PX / float(max(h, w))
     small = cv2.resize(gray, (max(1, int(w * s)), max(1, int(h * s))), interpolation=cv2.INTER_AREA)
+    gx = cv2.Sobel(small, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(small, cv2.CV_32F, 0, 1, ksize=3)
+    return np.hypot(gx, gy), s
+
+
+def _contour_ink(grad: np.ndarray, scale: float, contour) -> float:
     pts = np.asarray(contour, dtype=np.float32).reshape(-1, 2)
     if len(pts) < 3:
         return 0.0
-    m = np.zeros(small.shape, np.uint8)
-    cv2.fillPoly(m, [np.int32(np.round(pts * s))], 255)
+    m = np.zeros(grad.shape, np.uint8)
+    cv2.fillPoly(m, [np.int32(np.round(pts * scale))], 255)
     m = cv2.erode(m, np.ones((5, 5), np.uint8))
     if not m.any():
         return 0.0
-    gx = cv2.Sobel(small, cv2.CV_32F, 1, 0, ksize=3)
-    gy = cv2.Sobel(small, cv2.CV_32F, 0, 1, ksize=3)
-    return float(np.hypot(gx, gy)[m > 0].mean())
+    return float(grad[m > 0].mean())
+
+
+def segment_ink(gray: np.ndarray, contour) -> float:
+    """Mean gradient magnitude inside ``contour`` (eroded so the segment's own
+    edge does not count), on the image downscaled to INK_SCALE_PX."""
+    grad, s = _ink_grad_map(gray)
+    if grad is None:
+        return 0.0
+    return _contour_ink(grad, s, contour)
 
 
 def drop_blank_segments(img: np.ndarray, segm):
@@ -51,7 +64,11 @@ def drop_blank_segments(img: np.ndarray, segm):
     dropped when at least one inked segment exists. Returns the kept
     indices and the per-segment ink values."""
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) if img.ndim == 3 else img
-    ink = [segment_ink(gray, s) if s is not None else 0.0 for s in segm]
+    grad, s = _ink_grad_map(gray)
+    if grad is None:
+        ink = [0.0 for _ in segm]
+    else:
+        ink = [_contour_ink(grad, s, c) if c is not None else 0.0 for c in segm]
     if any(v >= BLANK_INK for v in ink):
         keep = [i for i, v in enumerate(ink) if v >= BLANK_INK]
     else:

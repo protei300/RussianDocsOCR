@@ -78,25 +78,27 @@ func validDate(day, month, year int) bool {
 	return day <= limit
 }
 
-// CheckEnSex standardises Latin sex text to M or F.
-//
-// Note the asymmetry, which is behaviour and not a bug: anything WITHOUT an 'M' becomes
-// 'F', including an empty string. The field is binary and the detector only fires on a
-// sex box, so guessing F is better than emitting noise.
+// CheckEnSex standardises Latin sex text to M or F; empty/blank input stays empty.
 func CheckEnSex(sex string) string {
-	toCheck := strings.ReplaceAll(strings.ToUpper(strings.TrimLeft(sex, ".")), ".", "")
+	toCheck := strings.TrimSpace(strings.ReplaceAll(strings.ToUpper(strings.TrimLeft(sex, ".")), ".", ""))
+	if toCheck == "" {
+		return ""
+	}
 	if strings.Contains(toCheck, "M") {
 		return "M"
 	}
 	return "F"
 }
 
-// CheckRusSex standardises Cyrillic sex text to М or Ж. Same asymmetry as CheckEnSex.
+// CheckRusSex standardises Cyrillic sex text to М or Ж; empty/blank input stays empty.
 //
 // The letters here are CYRILLIC М (U+041C) and Ж (U+0416), not Latin M. They look
 // identical in most fonts and a Latin M would silently fail every comparison downstream.
 func CheckRusSex(sex string) string {
-	toCheck := strings.ReplaceAll(strings.ToUpper(strings.TrimLeft(sex, ".")), ".", "")
+	toCheck := strings.TrimSpace(strings.ReplaceAll(strings.ToUpper(strings.TrimLeft(sex, ".")), ".", ""))
+	if toCheck == "" {
+		return ""
+	}
 	if strings.ContainsRune(toCheck, 'М') {
 		return "М"
 	}

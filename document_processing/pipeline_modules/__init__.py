@@ -6,7 +6,6 @@ from .textfields_detector import TextFieldsDetector
 from .address_lines_detector import AddressLinesDetector
 from .address_textkind_classifier import AddressTextKindClassifier
 from .registration_stamps import RegistrationStamps
-from .blur_detector import Blur
 from .lcd_spoofing_detector import LCDSpoofing
 from .print_spoofing_detector import PrintSpoofing
 from .words_detector import WordsDetector

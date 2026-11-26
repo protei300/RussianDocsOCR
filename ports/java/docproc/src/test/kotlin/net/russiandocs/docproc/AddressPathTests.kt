@@ -61,13 +61,26 @@ class AddressPathTests {
     @Test
     fun aDeregisteredStampCancelsTheNearestEarlierRegistration() {
         // freshest first: «снят», registered, «снят», registered, registered
+        // Cancelling the freshest registration (1) must NOT promote an older registration (4).
         val stamps = listOf("deregistered", "registered", "deregistered", "registered", "registered").map(::stamp)
         Stamps.tieCancellations(stamps)
         assertEquals(1, stamps[0].cancels)
         assertEquals(3, stamps[2].cancels)
         assertNull(stamps[1].cancels)
-        // the registrations 1 and 3 are cancelled; 4 is the freshest one nothing cancels
-        assertEquals(listOf(false, false, false, false, true), stamps.map { it.current })
+        assertEquals(listOf(false, false, false, false, false), stamps.map { it.current })
+
+        // Two deregistered stamps before two registrations cancel distinct registrations.
+        val two = listOf("deregistered", "deregistered", "registered", "registered").map(::stamp)
+        Stamps.tieCancellations(two)
+        assertEquals(2, two[0].cancels)
+        assertEquals(3, two[1].cancels)
+        assertTrue(two.none { it.current })
+
+        // Active newest registration with an older cancelled one stays current.
+        val active = listOf("registered", "deregistered", "registered").map(::stamp)
+        Stamps.tieCancellations(active)
+        assertEquals(2, active[1].cancels)
+        assertEquals(listOf(true, false, false), active.map { it.current })
     }
 
     @Test

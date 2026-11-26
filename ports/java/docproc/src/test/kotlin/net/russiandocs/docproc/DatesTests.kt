@@ -84,5 +84,8 @@ class DatesTests {
         assertNull(Dates.toDdMmYyyy("ИЗ 10 ЯНВАРЯ 2013"))   // a word, not a single letter
         assertNull(Dates.toDdMmYyyy("10 ЯНВАРЯ И 2013"))   // the letter is at the year, not the day
         assertNull(Dates.toDdMmYyyy("И 10 ЯНВАРЯ"))        // the quote is dropped, but there is no year
+        assertNull(Dates.toDdMmYyyy("2020-05-12"))         // pure numeric ISO YYYY-MM-DD
+        assertNull(Dates.toDdMmYyyy("12.05.2020 99"))      // stray numeric token
+        assertNull(Dates.toDdMmYyyy("123.05.2020"))        // out-of-range numeric token
     }
 }

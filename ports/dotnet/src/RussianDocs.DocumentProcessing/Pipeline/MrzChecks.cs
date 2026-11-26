@@ -192,7 +192,7 @@ public static class MrzChecks
     {
         List<string> lines = SplitLines(mrzText);
         var checks = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (lines.Count < 2)
+        if (lines.Count != 2)
         {
             return new Validation(false, checks);
         }

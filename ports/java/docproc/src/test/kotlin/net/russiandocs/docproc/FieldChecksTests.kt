@@ -463,4 +463,49 @@ class FieldChecksTests {
             FieldChecks.toJson(checks(mapOf("Sex_ru" to ""), "DL_2011")).getValue("Sex_ru").toString(),
         )
     }
+
+    @Test
+    fun wave3ValidationRules() {
+        // Compound given name on EXTPASSPORT stays together.
+        val line1 = "P<RUSROGOVA<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<<<"
+        val zone = line1 + "\n" + extMrz.lines()[1]
+        assertEquals(
+            VERIFIED,
+            statuses(extOcrConsistent + mapOf("MRZ" to zone, "First_name_en" to "ANNA-MARIA"), "EXTPASSPORTBIO_2007")["First_name_en"],
+        )
+
+        // Truncated line 1 only prefixes last non-empty segment, not surname.
+        val longGiven = "KONSTANTINOPOLSKAYA".repeat(3)
+        val trunc1 = ("P<RUSROGOVA<<" + longGiven).substring(0, 44)
+        val tzone = trunc1 + "\n" + extMrz.lines()[1]
+        val tgot = statuses(
+            extOcrConsistent + mapOf("MRZ" to tzone, "Last_name_en" to "ROGOVAEXTRA", "First_name_en" to longGiven),
+            "EXTPASSPORTBIO_2007",
+        )
+        assertEquals(VERIFIED, tgot["First_name_en"])
+        assertEquals(MISMATCH, tgot["Last_name_en"])
+
+        // MRZ-7 rejects arbitrary words starting with М.
+        assertEquals(MISMATCH, statuses(intOcr + ("Sex_ru" to "МОСКВА"), "INTPASSPORT_2011")["Sex_ru"])
+
+        // Three-line MRZ rejected.
+        val three = extMrz + "\nEXTRA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        assertTrue(!MrzChecks.validateMrz(three).ok)
+        assertEquals(MISMATCH, statuses(extOcrConsistent + ("MRZ" to three), "EXTPASSPORTBIO_2007")["MRZ"])
+
+        // MIGRATIONCARD rules including future-birth guard.
+        assertEquals("MIGRATIONCARD", FieldChecks.family("MIGRATIONCARD_ALL"))
+        val mig = mapOf(
+            "Card_series" to "4501", "Card_number" to "1234567",
+            "Birth_date" to "15.05.1990", "Stay_from" to "01.11.2026", "Stay_to" to "30.01.2027",
+        )
+        assertEquals(setOf(UNCHECKED), statuses(mig, "MIGRATIONCARD_ALL").values.toSet())
+        assertEquals(MISMATCH, statuses(mig + ("Card_series" to "45A1"), "MIGRATIONCARD_ALL")["Card_series"])
+        val fut = statuses(mig + ("Birth_date" to "15.05.2076"), "MIGRATIONCARD_ALL")
+        assertEquals(MISMATCH, fut["Birth_date"])
+        assertEquals(UNCHECKED, fut["Stay_from"])
+        val rev = statuses(mig + mapOf("Stay_from" to "10.12.2026", "Stay_to" to "01.12.2026"), "MIGRATIONCARD_ALL")
+        assertEquals(MISMATCH, rev["Stay_from"])
+        assertEquals(MISMATCH, rev["Stay_to"])
+    }
 }

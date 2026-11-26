@@ -99,21 +99,25 @@ class MrzReadingStage:
         "read in" a missing line would turn a real miss into a plausible string.
         """
         text = self._trim_to_mrz_alphabet(text)
-        if len(text) == self.MRZ_LINE_LEN:
+        if len(text) >= self.MRZ_LINE_LEN:
             return text
         zone = self._mrz_zone
         if not zone or line_index >= len(zone['boxes']):
             return text
 
         canvas = zone['canvas']
-        width = canvas.shape[1]
+        height, width = canvas.shape[:2]
         x1, y1, x2, y2 = zone['boxes'][line_index]
+        y1 = max(0, min(height, int(y1)))
+        y2 = max(0, min(height, int(y2)))
+        if y2 <= y1:
+            return text
         span = zone['span']
         best = text
         for growth in self.MRZ_RETRY_GROWTH:
             left, right = (span if span else (x1, x2))
             step = int(round((right - left) * growth))
-            crop = canvas[y1:y2, max(0, left - step):min(width, right + step)]
+            crop = canvas[y1:y2, max(0, int(left) - step):min(width, int(right) + step)]
             if crop.size == 0:
                 continue
             candidate = self.ocr_lat.predict(crop)[self.ocr_lat.model_name]['ocr_output']

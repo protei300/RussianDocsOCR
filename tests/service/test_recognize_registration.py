@@ -23,7 +23,9 @@ SECRET_TEXT = "ЛЕНИНА"
 
 
 def _jpeg(w: int = 320, h: int = 200) -> bytes:
-    return cv2.imencode(".jpg", np.full((h, w, 3), 200, np.uint8))[1].tobytes()
+    img = np.full((h, w, 3), 220, np.uint8)
+    img[h // 4: 3 * h // 4, w // 4: 3 * w // 4] = 40
+    return cv2.imencode(".jpg", img)[1].tobytes()
 
 
 def _files_under(root: Path) -> set[str]:

@@ -248,8 +248,45 @@ def _build_fields(doc_type: str | None, ocr: dict[str, str],
     return fields
 
 
+def _build_quality_gate(results: Any) -> dict[str, Any] | None:
+    """JSON-safe projection of ``PipelineResults.quality_gate``, or ``None``."""
+    gate = getattr(results, "quality_gate", None)
+    if not isinstance(gate, dict):
+        return None
+    reasons = []
+    for item in gate.get("reasons") or []:
+        if not isinstance(item, dict):
+            continue
+        raw_val = item.get("value")
+        raw_thr = item.get("threshold")
+        reasons.append({
+            "code": _str(item.get("code")) or "",
+            "severity": _str(item.get("severity")) or "",
+            "value": _int(raw_val) if isinstance(raw_val, (int, np.integer)) and not isinstance(raw_val, bool) else _num(raw_val),
+            "threshold": _int(raw_thr) if isinstance(raw_thr, (int, np.integer)) and not isinstance(raw_thr, bool) else _num(raw_thr),
+        })
+    metrics: dict[str, Any] = {}
+    for k, v in (gate.get("metrics") or {}).items():
+        if v is None:
+            metrics[str(k)] = None
+        elif isinstance(v, (int, np.integer)) and not isinstance(v, bool):
+            metrics[str(k)] = int(v)
+        elif isinstance(v, (float, np.floating)):
+            metrics[str(k)] = _num(v)
+        else:
+            metrics[str(k)] = _str(v)
+    return {
+        "status": _str(gate.get("status")) or "pass",
+        "mode": _str(gate.get("mode")) or "warn",
+        "stopped": bool(gate.get("stopped", False)),
+        "reasons": reasons,
+        "metrics": metrics,
+    }
+
+
 def build_viewmodel(results: Any, *, device: str | None = None,
-                    include_debug: bool = False) -> dict[str, Any]:
+                    include_debug: bool = False,
+                    include_quality_gate: bool = False) -> dict[str, Any]:
     """``PipelineResults`` -> the dict the service stores and serves.
 
     Must be called inside the pipeline lease (see module docstring).
@@ -319,6 +356,9 @@ def build_viewmodel(results: Any, *, device: str | None = None,
         "timings": timings,
         "address": _build_address(meta_results),
     }
+
+    if include_quality_gate:
+        payload["quality_gate"] = _build_quality_gate(results)
 
     if include_debug:
         segm = (meta_results.get("DocDetector") or {}).get("segm")

@@ -114,12 +114,14 @@ class FieldsStage:
         bboxes = text_fields.get('bbox') or []
         if not margins or not bboxes:
             return
-        height = img.shape[0]
+        height, width = img.shape[:2]
         for i, box in enumerate(bboxes):
             share = margins.get(box[-1])
             if not share:
                 continue
             x1, y1, x2, y2 = (int(v) for v in box[:4])
+            x1 = max(0, min(width, x1))
+            x2 = max(x1, min(width, x2))
             pad = int(round((y2 - y1) * share))
             top, bottom = max(0, y1 - pad), min(height, y2 + pad)
             for j, other in enumerate(bboxes):
@@ -129,7 +131,7 @@ class FieldsStage:
                     top = max(top, (int(other[3]) + y1 + 1) // 2)
                 elif other[1] >= y2:                          # a line below
                     bottom = min(bottom, (y2 + int(other[1])) // 2)
-            if (top, bottom) == (y1, y2):
+            if (top, bottom) == (y1, y2) or bottom <= top or x2 <= x1:
                 continue
             text_fields['warped_img'][i] = img[top:bottom, x1:x2]
             frames[i] = Offset(-float(x1), -float(top))
@@ -296,13 +298,22 @@ class FieldsStage:
         words_by_idx = {}
         word_bbox_by_idx = {}
         if split_idxs:
-            with ThreadPoolExecutor(max_workers=min(8, len(split_idxs))) as ex:
+            ex = self._executor() if hasattr(self, '_executor') else None
+            if ex is not None:
                 futures = {i: ex.submit(self.words_detector.predict_transform, patches[i])
-                          for i in split_idxs}
+                           for i in split_idxs}
                 for i, fut in futures.items():
                     detected = fut.result()[self.words_detector.model_name]
                     words_by_idx[i] = detected['warped_img']
                     word_bbox_by_idx[i] = detected['bbox']
+            else:
+                with ThreadPoolExecutor(max_workers=min(8, len(split_idxs))) as local_ex:
+                    futures = {i: local_ex.submit(self.words_detector.predict_transform, patches[i])
+                               for i in split_idxs}
+                    for i, fut in futures.items():
+                        detected = fut.result()[self.words_detector.model_name]
+                        words_by_idx[i] = detected['warped_img']
+                        word_bbox_by_idx[i] = detected['bbox']
 
         # Gap guard. A hole on the line wider than a few typical words means the
         # split dropped a word - measured twice: a 9 px crop where the detector

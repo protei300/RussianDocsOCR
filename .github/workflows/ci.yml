@@ -20,7 +20,23 @@ name: CI
 on:
   push:
     branches: [main, dev, Service]
+    paths-ignore:
+      - 'Melnikov/**'
+      - 'Valuev/**'
+      - 'docs/**'
+      - '**.md'
+      - '.agents/**'
+      - '.claude/**'
+      - '.codex/**'
   pull_request:
+    paths-ignore:
+      - 'Melnikov/**'
+      - 'Valuev/**'
+      - 'docs/**'
+      - '**.md'
+      - '.agents/**'
+      - '.claude/**'
+      - '.codex/**'
   workflow_dispatch:
 
 # A newer push supersedes an in-flight run on the same ref: these jobs are minutes long and nobody
@@ -30,15 +46,85 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Fast path router: on push to dev/Service run only affected suites; on main/PR/manual run everything.
+  changes:
+    name: detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      library: ${{ steps.filter.outputs.library }}
+      service: ${{ steps.filter.outputs.service }}
+      web: ${{ steps.filter.outputs.web }}
+      conformance: ${{ steps.filter.outputs.conformance }}
+      python_versions: ${{ steps.filter.outputs.python_versions }}
+    steps:
+      - name: Full suite on main, PR, or manual dispatch
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" != "push" ] || [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "full=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "full=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.mode.outputs.full != 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: filter
+        run: |
+          if [ "${{ steps.mode.outputs.full }}" = "true" ]; then
+            echo "library=true" >> "$GITHUB_OUTPUT"
+            echo "service=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "conformance=true" >> "$GITHUB_OUTPUT"
+            echo 'python_versions=["3.10","3.12"]' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'python_versions=["3.12"]' >> "$GITHUB_OUTPUT"
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            FILES=$(git diff-tree --no-commit-id --name-only -r HEAD)
+          else
+            FILES=$(git diff --name-only "$BEFORE" "${{ github.sha }}")
+          fi
+          echo "Changed files:"
+          echo "$FILES"
+          has() { echo "$FILES" | grep -Eq "$1"; }
+          if has '^(document_processing/|requirements\.txt|pyproject\.toml|scripts/fetch_models\.py|\.github/)'; then
+            echo "library=true" >> "$GITHUB_OUTPUT"
+          elif echo "$FILES" | grep -Ev '^tests/service/' | grep -Eq '^tests/'; then
+            echo "library=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "library=false" >> "$GITHUB_OUTPUT"
+          fi
+          if has '^(service/|ocr_postprocessing/|document_processing/|tests/service/|requirements\.txt|requirements-service\.txt|Dockerfile|\.github/)'; then
+            echo "service=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "service=false" >> "$GITHUB_OUTPUT"
+          fi
+          if has '^(web/|\.github/)'; then
+            echo "web=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "web=false" >> "$GITHUB_OUTPUT"
+          fi
+          if has '^(document_processing/|conformance/|ports/|scripts/fetch_models\.py|\.github/)'; then
+            echo "conformance=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "conformance=false" >> "$GITHUB_OUTPUT"
+          fi
+
   library:
     name: library tests (Python ${{ matrix.python }})
+    needs: changes
+    if: ${{ needs.changes.outputs.library == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # The supported range from the project spec. 3.13 is deliberately absent: numpy 2.2 and
-        # onnxruntime 1.21 are pinned, and that pin set is what produced the goldens.
-        python: ['3.10', '3.12']
+        # The supported range from the project spec (3.12 on dev pushes; 3.10+3.12 on main/PR/manual).
+        python: ${{ fromJSON(needs.changes.outputs.python_versions) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -95,6 +181,8 @@ jobs:
   # PipelineResults and never construct a Pipeline.
   service:
     name: service tests
+    needs: changes
+    if: ${{ needs.changes.outputs.service == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -130,6 +218,8 @@ jobs:
   # type-check; `vue-tsc` does, and caught it in seconds. Both run here now.
   web:
     name: web — type check and build
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -154,6 +244,8 @@ jobs:
 
   conformance:
     name: conformance — the reference against its own goldens
+    needs: changes
+    if: ${{ needs.changes.outputs.conformance == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

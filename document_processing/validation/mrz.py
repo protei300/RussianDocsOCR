@@ -24,6 +24,8 @@ actually print a Latin name in the visual zone.
 import re
 from datetime import date
 
+from ..pipeline.dates import canonical_date
+
 FILLER = '<'
 LINE_LEN = 44
 
@@ -53,7 +55,7 @@ def check_digit(payload: str):
     for i, ch in enumerate(payload):
         if ch == FILLER:
             value = 0
-        elif ch.isdigit():
+        elif '0' <= ch <= '9':
             value = int(ch)
         elif 'A' <= ch <= 'Z':
             value = ord(ch) - 55
@@ -78,7 +80,7 @@ def _is_empty_field(payload: str, digit: str) -> bool:
     return payload == FILLER * len(payload) and digit == FILLER
 
 
-def validate_mrz(mrz_text: str) -> dict:
+def validate_mrz(mrz_text: str, today: date = None) -> dict:
     """EXT-4: verify every check digit of the MRZ.
 
     Returns a dict with a per-field verdict (``ok`` / ``failed`` /
@@ -89,7 +91,7 @@ def validate_mrz(mrz_text: str) -> dict:
     lines = split_lines(mrz_text)
     result = {'ok': False, 'checks': {}, 'lines': len(lines)}
 
-    if len(lines) < 2:
+    if len(lines) != 2:
         result['error'] = 'expected 2 lines'
         return result
     line2 = lines[1]
@@ -112,11 +114,11 @@ def validate_mrz(mrz_text: str) -> dict:
                            and str(expected) == line2[_COMPOSITE_POS] else 'failed')
 
     result['ok'] = all(v != 'failed' for v in checks.values())
-    result['fields'] = parse_mrz(mrz_text)
+    result['fields'] = parse_mrz(mrz_text, today=today)
     return result
 
 
-def _mrz_date(raw: str, kind: str = 'past'):
+def _mrz_date(raw: str, kind: str = 'past', today: date = None):
     """YYMMDD -> ``dd.mm.yyyy``, or None if it is not a real calendar date.
 
     The MRZ carries no century, so it has to come from what the field means -
@@ -126,20 +128,21 @@ def _mrz_date(raw: str, kind: str = 'past'):
     birth-date rule turns a passport valid until 2029 into one that expired in
     1929.
     """
-    if len(raw) != 6 or not raw.isdigit():
+    if len(raw) != 6 or not (raw.isascii() and raw.isdigit()):
         return None
     yy, mm, dd = int(raw[0:2]), int(raw[2:4]), int(raw[4:6])
     if kind == 'future':
         century = 2000
     else:
-        century = 2000 if yy <= date.today().year % 100 else 1900
+        ref_today = today or date.today()
+        century = 2000 if yy <= ref_today.year % 100 else 1900
     try:
         return date(century + yy, mm, dd).strftime('%d.%m.%Y')
     except ValueError:
         return None
 
 
-def parse_mrz(mrz_text: str, internal: bool = None) -> dict:
+def parse_mrz(mrz_text: str, internal: bool = None, today: date = None) -> dict:
     """Field values carried by the zone. Missing/malformed parts come back None.
 
     ``internal`` says whether this is an internal passport's zone, whose
@@ -162,14 +165,14 @@ def parse_mrz(mrz_text: str, internal: bool = None) -> dict:
         line2 = lines[1]
         fields['document_number'] = line2[0:9].replace(FILLER, '') or None
         fields['nationality'] = line2[10:13] or None
-        fields['birth_date'] = _mrz_date(line2[13:19], 'past')
+        fields['birth_date'] = _mrz_date(line2[13:19], 'past', today=today)
         fields['sex'] = line2[20] if line2[20] in ('M', 'F') else None
-        fields['expiry_date'] = _mrz_date(line2[21:27], 'future')
+        fields['expiry_date'] = _mrz_date(line2[21:27], 'future', today=today)
         fields['personal_number'] = line2[28:42].replace(FILLER, '') or None
         if internal is None:
             internal = fields.get('document_type') == INTERNAL_TYPE
         if internal:
-            fields.update(_internal_optional_data(line2[28:42]))
+            fields.update(_internal_optional_data(line2[28:42], today=today))
     return fields
 
 
@@ -177,7 +180,7 @@ def parse_mrz(mrz_text: str, internal: bool = None) -> dict:
 INTERNAL_TYPE = 'PN'
 
 
-def _internal_optional_data(optional: str) -> dict:
+def _internal_optional_data(optional: str, today: date = None) -> dict:
     """The internal passport's optional data: three printed fields in one run.
 
     FMS order No. 279 (2011-06-30), table 2, positions 29-42: the LAST digit of
@@ -189,9 +192,9 @@ def _internal_optional_data(optional: str) -> dict:
     digit = optional[0:1]
     code = optional[7:13]
     return {
-        'series_last_digit': digit if digit.isdigit() else None,
-        'issue_date': _mrz_date(optional[1:7], 'past'),
-        'subdivision_code': code if len(code) == 6 and code.isdigit() else None,
+        'series_last_digit': digit if digit.isascii() and digit.isdigit() else None,
+        'issue_date': _mrz_date(optional[1:7], 'past', today=today),
+        'subdivision_code': code if len(code) == 6 and code.isascii() and code.isdigit() else None,
     }
 
 
@@ -233,10 +236,18 @@ def numbers_agree(zone_number: str, page_digits: str) -> bool:
 
 
 def _digits(text):
-    return re.sub(r'\D', '', text or '')
+    if not isinstance(text, str):
+        return ''
+    return re.sub(r'\D', '', text, flags=re.ASCII)
 
 
-def cross_check(mrz_text: str, ocr: dict) -> dict:
+_SEX_TOKENS = {
+    'М': 'M', 'Ж': 'F', 'M': 'M', 'F': 'F',
+    'МУЖ': 'M', 'МУЖ.': 'M', 'ЖЕН': 'F', 'ЖЕН.': 'F',
+}
+
+
+def cross_check(mrz_text: str, ocr: dict, internal: bool = None, today: date = None) -> dict:
     """EXT-5: MRZ against the visually printed fields of the same document.
 
     Only fields present on both sides are compared; anything missing is
@@ -251,28 +262,35 @@ def cross_check(mrz_text: str, ocr: dict) -> dict:
     (``printed_number``), and its issue date and subdivision code - which only
     that zone carries - are compared too.
     """
-    fields = parse_mrz(mrz_text)
+    fields = parse_mrz(mrz_text, internal=internal, today=today)
     ocr = ocr or {}
     checks = {}
 
     def compare(name, mrz_value, ocr_value, normalize=lambda v: v):
-        if not mrz_value or not ocr_value:
+        if not mrz_value or not isinstance(ocr_value, str) or not ocr_value.strip():
             return
         checks[name] = 'ok' if normalize(mrz_value) == normalize(ocr_value) else 'mismatch'
 
+    def norm_date(field_name):
+        def _inner(v):
+            return _digits(canonical_date(field_name, v) or v)
+        return _inner
+
     # The visual zone prints the number with a space ("76 4820154"); the MRZ
     # does not. Compare digits only.
-    zone_number = printed_number(fields)
+    zone_number = printed_number(fields, internal=internal)
     page_number = _digits(ocr.get('Licence_number'))
     if zone_number and page_number:
         checks['document_number'] = ('ok' if numbers_agree(zone_number, page_number)
                                      else 'mismatch')
-    compare('birth_date', fields.get('birth_date'), ocr.get('Birth_date'), _digits)
-    compare('issue_date', fields.get('issue_date'), ocr.get('Issue_date'), _digits)
+    compare('birth_date', fields.get('birth_date'), ocr.get('Birth_date'), norm_date('Birth_date'))
+    compare('issue_date', fields.get('issue_date'), ocr.get('Issue_date'), norm_date('Issue_date'))
     compare('subdivision_code', fields.get('subdivision_code'),
             ocr.get('Issue_organisation_code'), _digits)
-    compare('expiry_date', fields.get('expiry_date'), ocr.get('Expiration_date'), _digits)
-    compare('sex', fields.get('sex'), ocr.get('Sex_en'), lambda v: v.strip().upper())
+    compare('expiry_date', fields.get('expiry_date'), ocr.get('Expiration_date'),
+            norm_date('Expiration_date'))
+    sex_visual = ocr.get('Sex_en') if isinstance(ocr.get('Sex_en'), str) and ocr.get('Sex_en').strip() else ocr.get('Sex_ru')
+    compare('sex', fields.get('sex'), sex_visual, lambda v: _SEX_TOKENS.get(v.strip().upper()))
     compare('surname', fields.get('surname'), ocr.get('Last_name_en'),
             lambda v: v.replace(' ', '').upper())
     compare('given_names', fields.get('given_names'), ocr.get('First_name_en'),
@@ -282,10 +300,10 @@ def cross_check(mrz_text: str, ocr: dict) -> dict:
             'checks': checks}
 
 
-def validate(ocr: dict) -> dict:
+def validate(ocr: dict, today: date = None) -> dict:
     """Both MRZ checks for one document's OCR dict; empty when it carries no MRZ."""
     mrz_text = (ocr or {}).get('MRZ')
     if not mrz_text:
         return {}
-    return {'mrz_checksum': validate_mrz(mrz_text),
-            'mrz_vs_visual': cross_check(mrz_text, ocr)}
+    return {'mrz_checksum': validate_mrz(mrz_text, today=today),
+            'mrz_vs_visual': cross_check(mrz_text, ocr, today=today)}

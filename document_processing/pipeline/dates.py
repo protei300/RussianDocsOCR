@@ -105,9 +105,17 @@ def to_ddmmyyyy(text: str):
     if not tokens:
         return None
 
+    # Reject pure numeric ISO YYYY-MM-DD (three digit tokens starting with a
+    # 4-digit year) rather than silently transposing month and day.
+    if (len(tokens) == 3 and all(t.isascii() and t.isdigit() for t in tokens)
+            and len(tokens[0]) == 4):
+        return None
+
     day = month = year = None
     for token in tokens:
         if token.isdigit():
+            if not token.isascii():
+                return None
             value = int(token)
             if len(token) == 4 and year is None:
                 year = value
@@ -118,6 +126,9 @@ def to_ddmmyyyy(text: str):
             elif year is None and len(token) <= 2:
                 # a two-digit year is ambiguous (26 -> 1926 or 2026?) and this
                 # module does not guess, so it is left unresolved
+                return None
+            else:
+                # stray numeric token (extra digits / second date / out-of-range)
                 return None
         else:
             resolved = _MONTHS.get(token)

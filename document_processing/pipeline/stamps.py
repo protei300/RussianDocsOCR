@@ -104,14 +104,14 @@ class StampsStage:
             if stamp['kind'] != 'deregistered':
                 continue
             j = next((j for j in range(k + 1, len(stamps))
-                      if stamps[j]['kind'] == 'registered'), None)
+                      if stamps[j]['kind'] == 'registered' and j not in cancelled), None)
             stamp['cancels'] = j
             if j is not None:
                 cancelled.add(j)
-        current = next((k for k, stamp in enumerate(stamps)
-                        if stamp['kind'] == 'registered' and k not in cancelled), None)
-        if current is not None:
-            stamps[current]['current'] = True
+        first_reg = next((k for k, stamp in enumerate(stamps)
+                          if stamp['kind'] == 'registered'), None)
+        if first_reg is not None and first_reg not in cancelled:
+            stamps[first_reg]['current'] = True
 
     @staticmethod
     def _obbox_quad(obbox) -> np.ndarray:

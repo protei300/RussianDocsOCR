@@ -47,35 +47,53 @@ class QualityChecker(object):
         self.tested_image = cv2.cvtColor(cv2.resize(image, canvas_in_pixels), cv2.COLOR_BGR2RGB)
         # self.tested_image = cv2.resize(image, canvas_in_pixels)
 
+        tiles = []
+        coords = []
         for x_step in range(self.canvas_size[0]):
             for y_step in range(self.canvas_size[1]):
                 x = self.window_size * x_step
                 y = self.window_size * y_step
-                frame_image = self.tested_image[y:y + self.window_size, x:x + self.window_size]
-                result = self.model.predict(frame_image)[0]
-                # print(result)
-                result_class = result[0]
-                confidence = result[1]
-                # class, coordinates, confidence
-                self.quality_result_list.append((result_class, ((x, y), (x + self.window_size, y + self.window_size)),
-                                                 confidence))
+                tiles.append(self.tested_image[y:y + self.window_size, x:x + self.window_size])
+                coords.append(((x, y), (x + self.window_size, y + self.window_size)))
 
-        # print(self.quality_result_list)
+        can_batch = (
+            hasattr(self.model, 'inference_model')
+            and hasattr(self.model, 'postprocessings')
+            and bool(self.model.postprocessings)
+            and hasattr(self.model, 'preprocessings')
+            and bool(self.model.preprocessings)
+            and tuple(self.model.preprocessings[0].image_size[:2]) == (self.window_size, self.window_size)
+            and tuple(self.model.preprocessings[0].padding_size) == (0, 0)
+        )
+        if can_batch:
+            batch = np.ascontiguousarray(np.stack(tiles, axis=0))
+            raw = self.model.inference_model.predict([batch])[0]
+            post = self.model.postprocessings[0]
+            for idx, box_coords in enumerate(coords):
+                result_class, confidence = post(raw[idx:idx + 1])
+                self.quality_result_list.append((result_class, box_coords, confidence))
+        else:
+            for frame_image, box_coords in zip(tiles, coords):
+                result = self.model.predict(frame_image)[0]
+                self.quality_result_list.append((result[0], box_coords, result[1]))
+
         self.tested_image = cv2.cvtColor(self.tested_image, cv2.COLOR_RGB2BGR)
         return True
 
-    def annotate_image(self, image):
+    def annotate_image(self, image, *, reuse: bool = False):
         """Annotates image with blur detection results.
 
         Draws bounding boxes and labels on blurred regions.
 
         Args:
            image: Input document image
+           reuse: Skip re-running inference when ``perform_image`` already ran
 
         Returns:
            Annotated version of image
         """
-        self.perform_image(image)
+        if not reuse or not self.quality_result_list:
+            self.perform_image(image)
 
         for block in self.quality_result_list:
 

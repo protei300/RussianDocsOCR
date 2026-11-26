@@ -14,24 +14,28 @@ class QualityStage:
         """Check for glare quality"""
         qual, coef = self.glare.predict(img)[self.glare.model_name]
         self.results._meta_results['Quality']['Glare'] = qual
+        self.results._meta_results.setdefault('QualityScores', {})['Glare'] = float(coef)
         return qual
 
     def _blur(self, img):
         """Check for blur quality."""
         qual, coef = self.blur.predict(img)[self.blur.model_name]
         self.results._meta_results['Quality']['Blur'] = qual
+        self.results._meta_results.setdefault('QualityScores', {})['Blur'] = float(coef)
         return qual
 
     def _print_spoofing(self, img):
         """Check for print spoofing."""
         qual, coef = self.print_spoofing.predict(img)[self.print_spoofing.model_name]
         self.results._meta_results['Quality']['PrintSpoofing'] = qual
+        self.results._meta_results.setdefault('QualityScores', {})['PrintSpoofing'] = float(coef)
         return qual
 
     def _lcd_spoofing(self, img):
         """Check for LCD spoofing."""
         qual, coef = self.lcd_spoofing.predict(img)[self.lcd_spoofing.model_name]
         self.results._meta_results['Quality']['LCDSpoofing'] = qual
+        self.results._meta_results.setdefault('QualityScores', {})['LCDSpoofing'] = float(coef)
         return qual
 
     def _quality_and_borders_parallel(self, img):
@@ -60,7 +64,8 @@ class QualityStage:
             return r, round(perf_counter() - t0, 4)
 
         group_start = perf_counter()
-        with ThreadPoolExecutor(max_workers=5) as ex:
+        ex = self._executor() if hasattr(self, '_executor') else None
+        if ex is not None:
             f_glare = ex.submit(timed, self.glare.predict, img)
             f_blur = ex.submit(timed, self.blur.predict, img)
             f_print = ex.submit(timed, self.print_spoofing.predict, img)
@@ -73,12 +78,31 @@ class QualityStage:
             print_res, t_print = f_print.result()
             lcd_res, t_lcd = f_lcd.result()
             det_res, t_det = f_det.result()
+        else:
+            with ThreadPoolExecutor(max_workers=5) as local_ex:
+                f_glare = local_ex.submit(timed, self.glare.predict, img)
+                f_blur = local_ex.submit(timed, self.blur.predict, img)
+                f_print = local_ex.submit(timed, self.print_spoofing.predict, img)
+                f_lcd = local_ex.submit(timed, self.lcd_spoofing.predict, img)
+                f_det = local_ex.submit(timed, self.doc_detector.predict_transform, img,
+                                        stack='auto', max_pages=max_pages)
+
+                glare_res, t_glare = f_glare.result()
+                blur_res, t_blur = f_blur.result()
+                print_res, t_print = f_print.result()
+                lcd_res, t_lcd = f_lcd.result()
+                det_res, t_det = f_det.result()
         group_elapsed = perf_counter() - group_start
 
         self.results._meta_results['Quality']['Glare'] = glare_res[self.glare.model_name][0]
         self.results._meta_results['Quality']['Blur'] = blur_res[self.blur.model_name][0]
         self.results._meta_results['Quality']['PrintSpoofing'] = print_res[self.print_spoofing.model_name][0]
         self.results._meta_results['Quality']['LCDSpoofing'] = lcd_res[self.lcd_spoofing.model_name][0]
+        scores = self.results._meta_results.setdefault('QualityScores', {})
+        scores['Glare'] = float(glare_res[self.glare.model_name][1])
+        scores['Blur'] = float(blur_res[self.blur.model_name][1])
+        scores['PrintSpoofing'] = float(print_res[self.print_spoofing.model_name][1])
+        scores['LCDSpoofing'] = float(lcd_res[self.lcd_spoofing.model_name][1])
         self.results._meta_results = self.results._meta_results | det_res
 
         # these five overlap in time, so only the group's own elapsed time may

@@ -2,7 +2,7 @@
 #
 #   * импорт — `from document_processing import Pipeline` (пакет верхнего
 #     уровня; обёртки `russian_docs_ocr.` больше нет);
-#   * веса моделей в дистрибутив НЕ входят (они не в git и весят ~215 МБ) —
+#   * веса моделей в дистрибутив НЕ входят (они не в git и весят ~390 МБ) —
 #     после установки один раз выполните `rdocs-fetch-models`: веса скачаются
 #     в установленный пакет (site-packages/document_processing/models) и
 #     проверятся по SHA-256 из models.lock.json.
@@ -42,7 +42,7 @@ dependencies = [
     "opencv-python-headless==4.12.0.88",
     "PyYAML==6.0.2",
     "scikit-learn==1.7.0",
-    "Pillow==12.3.0",
+    "scipy>=1.14.0,<2",
 ]
 
 [project.optional-dependencies]
@@ -50,7 +50,7 @@ dependencies = [
 # один и тот же пакет под разными именами, extras не умеют заменять зависимость.
 # Рецепт (см. README, раздел GPU): pip uninstall onnxruntime && pip install onnxruntime-gpu==1.21.1
 openvino = ["openvino>=2023.1"]
-dev = ["pytest==9.0.3"]
+dev = ["pytest==9.0.3", "Pillow==12.3.0"]
 
 [project.urls]
 Documentation = "https://github.com/protei300/RussianDocsOCR"
@@ -64,7 +64,7 @@ rdocs-fetch-models = "document_processing.fetch_models:main"
 path = "document_processing/__init__.py"
 
 # Веса исключаются из обоих дистрибутивов: локальная сборка из чекаута, где
-# они уже скачаны, иначе даст колесо на ~300 МБ. models.lock.json — НЕ под
+# они уже скачаны, иначе даст колесо на ~390 МБ. models.lock.json — НЕ под
 # models/, он остаётся в пакете (по нему rdocs-fetch-models качает и проверяет).
 [tool.hatch.build.targets.wheel]
 packages = ["document_processing"]
