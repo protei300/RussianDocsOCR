@@ -6,7 +6,7 @@
 документа. В интерфейсе видно только, *что* что-то разбиралось, — провалиться внутрь
 нельзя, потому что внутри ничего нет.
 
-Нормативный контракт для портов (Go, .NET, Kotlin) — [`ports/MEMORY.md`](../ports/MEMORY.md),
+Нормативный контракт для портов (Go, .NET, Kotlin) — [`MEMORY.md`](https://github.com/protei300/RussianDocsOCR-ports/blob/main/MEMORY.md) в [`RussianDocsOCR-ports`](https://github.com/protei300/RussianDocsOCR-ports),
 проверка чёрным ящиком — [`conformance/memory_contract.py`](../conformance/memory_contract.py).
 
 ## Как включить

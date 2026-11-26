@@ -250,7 +250,7 @@ multipart `file`; `?images=1` — вернуть канвас). Документ
 режиме — ничего не добавляет в хранилище. Опечатка в значении означает `memory`.
 
 Подробно — что очищается и чего обещать нельзя — [`docs/in-memory.md`](../docs/in-memory.md);
-контракт для портов — [`ports/MEMORY.md`](../ports/MEMORY.md).
+контракт для портов — [`MEMORY.md`](https://github.com/protei300/RussianDocsOCR-ports/blob/main/MEMORY.md) в [`RussianDocsOCR-ports`](https://github.com/protei300/RussianDocsOCR-ports).
 
 ## Страница регистрации
 
@@ -262,11 +262,10 @@ multipart `file`; `?images=1` — вернуть канвас). Документ
 Как разбирается:
 - Библиотека решает, что на кадре, выпрямляет страницы, находит и вырезает штампы. Её модуль
   `document_processing/` не меняется.
-- Каждый штамп читает пакет `service/ml/registration/`: общий детектор печатных и
-  рукописных полей YOLO11s-OBB (пять классов) и OCR штампа v3.
-  Результат сохраняет прочитанный текст без подстановок из справочника.
-- Для ONNX подтверждено совпадение всех 215 рамок PyTorch на 49 проверочных штампах
-  (минимальный IoU 0,9995). Это проверка экспорта, не точность OCR и не новый независимый набор.
+- Каждый штамп читает пакет `service/ml/registration/`: 7-классовый детектор печатных и
+  рукописных полей `StampFields` (YOLO26s-OBB P2–P5) и OCR штампа `OCR/stamp_v4` с
+  постобработкой по справочникам ФИАС/КЛАДР и кодов ФМС (`ocr_postprocessing/` и
+  `RegistrationRefs/`).
 
 Ответ:
 
@@ -275,32 +274,31 @@ multipart `file`; `?images=1` — вернуть канвас). Документ
 | `decision` | `registration`; `stamp_fragment` — прислан вырезанный штамп; `not_registration` — другой документ (`doc_type`); `multiple_documents` — документы разных типов на кадре; `no_document` |
 | `notes` | `not_registration_page`, `one_document_expected`, `no_document`, `page_cut`, `quality_low` |
 | `pages[]` | `index`, `decision` (`registration` / `not_registration` / `cut`), `decided_by` (`classifier`, `stamps` — на странице есть уверенный штамп; `cut`, `stamp_fragment`), `page_type`, `page_conf`, `best_stamp_conf`, `quad` |
-| `stamps[]` | **сначала самый свежий**: `index` — номер по месту (левая страница, затем правая, сверху вниз), `page`, `kind` (`registered` / `deregistered` / `unclear`), `conf`, `quad`, `fields[]` (`name`, `display`, `value`), `ocr` {поле: значение}, `boxes[]` (`id`, `label`, `conf`, `quad`, `text`), `cancels` (`index` снятой регистрации), `current` |
+| `stamps[]` | **сначала самый свежий**: `index` — номер по месту (левая страница, затем правая, сверху вниз), `page`, `kind` (`registered` / `deregistered` / `unclear`), `conf`, `quad`, `fields[]` (`name`, `display`, `value`), `ocr` {поле: значение}, `parsed` (`date`, `region`, `district`, `locality`, `street`, `house`, `building`, `flat`, `code`), `boxes[]` (`id`, `label`, `conf`, `quad`, `text`), `cancels` (`index` снятой регистрации), `current` |
 | `order_by` | `date` — у всех штампов есть дата; иначе `position` |
 | `coord_space` | `input`: все `quad` даны в пикселях присланной картинки |
 
-Поля штампа: `date`, `addr_line`, `house`, `korp`, `flat`. Адресные строки одного штампа
-объединяются переводом строки; регион, улица и другие части адреса не угадываются.
-Текст даты сохраняется как прочитан. Для порядка штампов используется её календарное
-преобразование, если оно удалось у всех штампов; иначе сохраняется порядок по месту.
+Поля штампа: `date`, `addr_line`, `house`, `korp`, `flat`, `code`, `issuer_line`.
+Адресные строки одного штампа объединяются переводом строки; структурированный адрес и код
+подразделения возвращаются в `parsed`, у текстовых дат убирается хвостовое «г.». Для порядка
+штампов используется календарное преобразование даты, если оно удалось у всех штампов; иначе
+сохраняется порядок по месту.
 
-**Веса входят в `models-v13`** и скачиваются `python scripts/fetch_models.py`.
-Детектор — `StampFields/ONNX`, OCR Дмитрия — `OCR/stamp_v3/ONNX` внутри
-`document_processing/models`. Это исходный OCR v3, без экспериментальной правки весов.
-Справочники для этого пути не нужны. Пути можно переопределить:
+**Веса и справочники входят в `models-v14`** и скачиваются `python scripts/fetch_models.py`:
+детектор `StampFields/ONNX`, OCR `OCR/stamp_v4/ONNX` и справочники `RegistrationRefs/` внутри
+`document_processing/models`. Пути можно переопределить:
 
 | переменная | что |
 |---|---|
-| `RDOCS_STAMP_FIELDS_MODEL` | наш пяти-классовый `StampFields/ONNX/model.onnx` |
-| `RDOCS_STAMP_OCR` | папка OCR штампа v3: `model.onnx` + `model.json` |
-| `RDOCS_MODELS_ROOT` | каталог, содержащий `document_processing/models`, для обеих сетей |
+| `RDOCS_STAMP_FIELDS_MODEL` | `StampFields/ONNX/model.onnx` (классы и размер берутся из соседнего `model.json`) |
+| `RDOCS_STAMP_OCR` | папка OCR штампа `OCR/stamp_v4/ONNX`: `model.onnx` + `model.json` |
+| `RDOCS_MODELS_ROOT` | каталог, содержащий `document_processing/models`, для сетей и справочников |
 
 Если какого-то файла нет, маршрут отвечает **503** и перечисляет недостающие переменные.
 Остальной сервис при этом работает.
 
 Библиотека занята только на поиске и вырезке штампов; сами штампы читаются уже после того,
-как конвейер освобождён. Прежние числа скорости и точности семиклассового детектора
-к этому пути не относятся. Для подготовки лоскутов OCR есть отдельная локальная команда:
+как конвейер освобождён. Для подготовки лоскутов OCR есть отдельная локальная команда:
 [нарезка и текстовые эталоны](../docs/stamp-ocr-contributions.md).
 
 ---

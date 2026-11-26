@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+## [4.12.1] - 2026-11-27
+
+Выделение портов Go, .NET 8 и Kotlin/JVM в отдельный публичный репозиторий [protei300/RussianDocsOCR-ports](https://github.com/protei300/RussianDocsOCR-ports) с сохранением истории коммитов.
+
+### Добавлено
+
+- **Внешний реестр портов в `conformance/`:** `conformance/runner` принимает `--ports-file <path>` и плейсхолдер `{ports_root}` (по умолчанию `{repo}/ports`), а `conformance/auth_contract.py` и `conformance/memory_contract.py` — `--ports-root` (`RDOCS_PORTS_ROOT`). Это позволяет запускать штатный сверочный харнесс из отдельного репозитория портов без его дублирования.
+
+### Изменено
+
+- **Порты вынесены в [`RussianDocsOCR-ports`](https://github.com/protei300/RussianDocsOCR-ports):** каталоги `ports/` и `.github/workflows/ports.yml` удалены из основного репозитория после подтверждения полностью зелёного CI (`hygiene`, `go`, `dotnet`, `java`) в новом репозитории. В `RussianDocsOCR-ports` перенесена полная публичная история `ports/`, подключён git submodule `reference/` на `RussianDocsOCR`, обновлены Dockerfiles и CI.
+- В `conformance/ports.json` оставлена эталонная запись `python`; `ci.yml`, `.dockerignore`, `.gitignore`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `NOTICE` и ссылки в `docs/` переведены на `RussianDocsOCR-ports`.
+
 ## [4.12.0] - 2026-11-27
 
 Обновлённый стек чтения штампов регистрации (`models-v14`: 7 классов + OCR v4 + постобработка со справочниками) и двухслойная проверка пригодности входных снимков.

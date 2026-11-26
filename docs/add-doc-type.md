@@ -94,9 +94,9 @@ BIRTHCERT_1998 и BIRTHCERT_2018.
 | реализация | файл | функция |
 |---|---|---|
 | эталон (Python) | `document_processing/pipeline/options.py` | `OCROptionsClass.make_options` + класс `OCROptions<ТИП>` |
-| Go | `ports/go/internal/docproc/pipeline/ocroptions.go` | `MakeOcrOptions` |
-| .NET | `ports/dotnet/src/RussianDocs.DocumentProcessing/Pipeline/OcrOptions.cs` | `OcrOptions.For` |
-| Kotlin | `ports/java/docproc/src/main/kotlin/net/russiandocs/docproc/pipeline/OcrOptions.kt` | `forDocType` |
+| Go ([`RussianDocsOCR-ports`](https://github.com/protei300/RussianDocsOCR-ports)) | `go/internal/docproc/pipeline/ocroptions.go` | `MakeOcrOptions` |
+| .NET ([`RussianDocsOCR-ports`](https://github.com/protei300/RussianDocsOCR-ports)) | `dotnet/src/RussianDocs.DocumentProcessing/Pipeline/OcrOptions.cs` | `OcrOptions.For` |
+| Kotlin ([`RussianDocsOCR-ports`](https://github.com/protei300/RussianDocsOCR-ports)) | `java/docproc/src/main/kotlin/net/russiandocs/docproc/pipeline/OcrOptions.kt` | `forDocType` |
 
 Правила, одинаковые для всех четырёх:
 
@@ -179,18 +179,16 @@ python -m conformance.runner run --port python   # обязано быть 0 р�
 надо детерминированность значения (как чистка ruler-артефактов в 4.2.0),
 а не подгонять голден под одну из сред.
 
-### 6. Прогнать conformance всех портов
+### 6. Прогнать conformance всех портов (в [`RussianDocsOCR-ports`](https://github.com/protei300/RussianDocsOCR-ports))
 
 ```bash
-python -m conformance.runner run --port go
-python -m conformance.runner run --port dotnet
-python -m conformance.runner run --port java
+PYTHONPATH=reference python -m conformance.runner run --port go --ports-file ports.json
+PYTHONPATH=reference python -m conformance.runner run --port dotnet --ports-file ports.json
+PYTHONPATH=reference python -m conformance.runner run --port java --ports-file ports.json
 ```
 
-Исполняемые файлы портов регистрируются в `conformance/ports.json`; как собрать
-каждый порт (и как прогнать Go-порт на машине без Go-тулчейна — через его же
-Docker-образ, в котором conformance-CLI лежит рядом с сервисным бинарём) —
-в [`ports/README.md`](../ports/README.md). Красный прогон здесь — это и есть
+Исполняемые файлы портов регистрируются в `ports.json` репозитория `RussianDocsOCR-ports`; как собрать
+каждый порт — в [`RussianDocsOCR-ports/README.md`](https://github.com/protei300/RussianDocsOCR-ports#readme). Красный прогон здесь — это и есть
 сработавшая защита от аварии шага 2: порт без ветки нового типа теперь падает,
 а не зеленеет.
 

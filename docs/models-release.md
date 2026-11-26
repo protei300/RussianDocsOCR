@@ -162,7 +162,7 @@ CI на пуше сам скачает набор по манифесту и п�
 | `RDOCS_MODELS_ROOT` | каталог, **содержащий** `document_processing/models`. Та же переменная, по которой веса находят порты на Go, .NET и Kotlin |
 | `RDOCS_MODELS_URL` | подменить адрес. Это и есть путь для закрытого контура: `python scripts/stage_release_assets.py --all --out <папка>` раскладывает ВСЕ файлы набора в одну плоскую папку, её и отдаёте, адрес — сюда; код не меняется. Имена внутри манифеста уникальны, а файлы, выложенные с v9, несут сумму в имени, поэтому несколько наборов уживаются в одном зеркале |
 
-**Докер:** `ports/base/Dockerfile.models` качает веса на этапе сборки, и в этот
+**Докер:** [`base/Dockerfile.models`](https://github.com/protei300/RussianDocsOCR-ports/blob/main/base/Dockerfile.models) в `RussianDocsOCR-ports` качает веса на этапе сборки, и в этот
 слой входят только манифест с загрузчиком — правки в остальном репозитории его
 не инвалидируют. Для закрытого контура:
 `--build-arg RDOCS_MODELS_URL=https://зеркало.внутри/rdocs/models/`.

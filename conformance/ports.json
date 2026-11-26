@@ -3,27 +3,15 @@
     "Registered implementations. Each entry's `cmd` is the executable the checker",
     "drives through the contract in spec/cli.md.",
     "Placeholders: {python} becomes the interpreter running the checker, {repo}",
-    "the repository root. Both exist so this file needs no absolute paths and",
-    "works unchanged on Windows, Linux and in CI.",
+    "the repository root, and {ports_root} the directory of an external ports.json",
+    "(passed via --ports-file; defaults to {repo}/ports).",
     "`python` is the REFERENCE: grading it against its own goldens must report",
     "exactly zero differences, which is how the harness proves it can pass.",
-    "Ports appear here as they gain a binary; until then the checker simply",
-    "reports them as unknown."
+    "The Go, .NET 8 and Kotlin/JVM ports live in https://github.com/protei300/RussianDocsOCR-ports",
+    "and carry their own ports.json driven with --ports-file."
   ],
   "python": {
     "cmd": ["{python}", "-m", "conformance.refcli"],
     "note": "the reference implementation"
-  },
-  "go": {
-    "cmd": ["{repo}/ports/go/bin/rdocs-conform"],
-    "note": "complete on cpu: every stage of the 15 cases incl. checks, verdict DECLARED (2026-10-20)"
-  },
-  "dotnet": {
-    "cmd": ["{repo}/ports/dotnet/src/RussianDocs.Conform/bin/Release/net8.0/rdocs-conform"],
-    "note": "complete on cpu: every stage of the 15 cases incl. checks, verdict DECLARED (2026-10-20)"
-  },
-  "java": {
-    "cmd": ["java", "-jar", "{repo}/ports/java/conform/build/dist/rdocs-conform.jar"],
-    "note": "Complete on cpu: every stage of the 15 cases incl. checks, verdict DECLARED (2026-10-20). Needs RDOCS_OPENCV_HOME, and on Windows RDOCS_TOOLCHAIN_BIN plus a JDK whose bundled C runtime is current — see ports/java/DEVIATIONS.md J-01 and J-16"
   }
 }

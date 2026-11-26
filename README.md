@@ -43,18 +43,19 @@
 > заказчика, а в репозитории лежат только обезличенные образцы
 > ([`samples/README.md`](samples/README.md)).
 
-> **Пишете не на Python?** Ядро библиотеки и сервис есть в **четырёх реализациях**: Python, Go,
-> .NET и Kotlin/JVM. Каждый шаг базового конвейера в портах сверяется с Python до последней цифры
-> на контрольных документах (порты развиваются в собственном ритме, актуальны на уровне ядра 4.11;
-> новые возможности сервиса вроде `ocr_postprocessing` и `quality_gate` сначала выходят в Python).
-> Обзор и сравнение — [`ports/README.md`](ports/README.md).
+> **Пишете не на Python?** Порты библиотеки и сервиса на **Go**, **.NET 8** и **Kotlin/JVM**
+> вынесены в отдельный открытый репозиторий
+> **[RussianDocsOCR-ports](https://github.com/protei300/RussianDocsOCR-ports)** (лицензия MIT).
+> Каждый шаг базового конвейера в портах сверяется с Python до последней цифры на контрольных
+> документах (порты развиваются в собственном ритме, актуальны на уровне ядра 4.11; новые
+> возможности сервиса вроде `ocr_postprocessing` и `quality_gate` сначала выходят в Python).
 
 | Реализация | Как подключить | Порт сервиса | Совпадение с Python |
 |---|---|---|---|
 | **Python** (эталон) | [«Быстрая интеграция»](#быстрая-интеграция-для-claude) | 8002 | по нему сверяются остальные |
-| **Go** | [`ports/go/README.md`](ports/go/README.md) | 8003 | все шаги, процессор и видеокарта |
-| **.NET 8** | [`ports/dotnet/README.md`](ports/dotnet/README.md) | 8004 | все шаги, процессор и видеокарта |
-| **Kotlin/JVM** | [`ports/java/README.md`](ports/java/README.md) | 8005 | все шаги, процессор и видеокарта |
+| **Go** | [`RussianDocsOCR-ports/go`](https://github.com/protei300/RussianDocsOCR-ports/tree/main/go) | 8003 | все шаги, процессор и видеокарта |
+| **.NET 8** | [`RussianDocsOCR-ports/dotnet`](https://github.com/protei300/RussianDocsOCR-ports/tree/main/dotnet) | 8004 | все шаги, процессор и видеокарта |
+| **Kotlin/JVM** | [`RussianDocsOCR-ports/java`](https://github.com/protei300/RussianDocsOCR-ports/tree/main/java) | 8005 | все шаги, процессор и видеокарта |
 
 Все четыре сервиса отдают одинаковый REST-интерфейс и одну и ту же веб-страницу (`web/`), так что
 для клиента они неотличимы. Для браузера и Node есть готовый клиент без зависимостей —
@@ -163,8 +164,8 @@ rdocs-fetch-models   # скачает модели (около 418 МБ) в ус
 ```
 
 Импорт — `from document_processing import Pipeline`. Обёртки `russian_docs_ocr.` из версий 3.x
-больше нет. В пакет входит только библиотека; сервис, порты на другие языки и сверка портов
-живут в репозитории. Для видеокарты после установки:
+больше нет. В пакет входит только библиотека; сервис и сверка живут в этом репозитории,
+а порты на Go, .NET и Kotlin — в [RussianDocsOCR-ports](https://github.com/protei300/RussianDocsOCR-ports). Для видеокарты после установки:
 `pip uninstall onnxruntime -y && pip install onnxruntime-gpu==1.21.1`.
 
 ### Из копии репозитория (разработка, сервис, тесты)

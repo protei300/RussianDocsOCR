@@ -43,23 +43,3 @@ web/dist/
 # контейнера; локально — каталог из DATA_DIR.
 /data/
 service/data/
-
-# ---- .NET build output ------------------------------------------------------
-# NOT merely noise: obj/ holds NuGet restore artifacts (project.assets.json,
-# *.nuget.g.props) that record the FULL URL of whichever feed restored them. On a
-# machine configured with a private mirror that is an internal hostname, and this
-# repository is public. Verified before the first commit of ports/dotnet — the
-# files did contain it.
-[Bb]in/
-[Oo]bj/
-*.user
-
-# ---- JVM / Gradle build output ----------------------------------------------
-# Same reasoning as obj/ above, plus one of its own: a fat jar under
-# ports/java/conform/build/dist is 534 MB (the GPU ONNX Runtime artefact is 468 MB
-# of it), and no port may carry binaries. ports/java/gradle/wrapper/ IS committed —
-# the wrapper jar is 47 KB and is what lets somebody build without installing
-# Gradle first.
-ports/java/**/build/
-ports/java/.gradle/
-ports/java/.kotlin/

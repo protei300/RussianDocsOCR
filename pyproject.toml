@@ -7,8 +7,9 @@
 #     в установленный пакет (site-packages/document_processing/models) и
 #     проверятся по SHA-256 из models.lock.json.
 #
-# Сервис (service/), порты (ports/) и conformance-харнесс в пакет не входят —
-# это репозиторные артефакты; пакет — только библиотека распознавания.
+# Сервис (service/) и conformance-харнесс в пакет не входят — это репозиторные
+# артефакты (порты живут отдельно в protei300/RussianDocsOCR-ports); пакет —
+# только библиотека распознавания.
 
 [build-system]
 requires = ["hatchling"]
