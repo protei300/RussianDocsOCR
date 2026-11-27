@@ -23,7 +23,6 @@ scipy>=1.14.0,<2                    # нужен page_registration/line_refine.p
 
 # ── Тесты ─────────────────────────────────────────────────────────────────────
 pytest==9.0.3                        # >=9.0.3: закрывает GHSA-алерт Dependabot
-Pillow==13.0.0                      # используется тестами (PIL.Image); >=13.0.0 закрывает алерты Dependabot (CVE-2026-*)
 
 # ── Скрипты (scripts/: benchmark, process_img, process_video) ─────────────────
 pandas==2.3.1                       # benchmark.py — вывод CSV

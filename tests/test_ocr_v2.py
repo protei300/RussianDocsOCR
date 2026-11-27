@@ -3,9 +3,9 @@
 greedy CTC decode + per-step alphabet masking, the alphabet/mask resolver, and
 the v2 preprocessing shape. Patches live in ``images/OCRv2/`` (fed as RGB, as the
 pipeline does)."""
+import cv2
 import numpy as np
 import pytest
-from PIL import Image
 
 from document_processing.pipeline_modules import OCRLatin, OCRCyrillic
 from document_processing.config.alphabets import allowed_charset, default_country
@@ -29,7 +29,9 @@ CYRILLIC_CASES = [
 
 
 def _rgb(name):
-    return np.array(Image.open(f'{PATCHES}/{name}').convert('RGB'))
+    bgr = cv2.imread(f'{PATCHES}/{name}', cv2.IMREAD_COLOR)
+    assert bgr is not None, f'missing patch {PATCHES}/{name}'
+    return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
 
 @pytest.fixture(scope='module')
