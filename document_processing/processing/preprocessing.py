@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from pathlib import Path
-from typing import Union, Tuple
+from typing import Union
 
 
 class BasePreprocessing(object):

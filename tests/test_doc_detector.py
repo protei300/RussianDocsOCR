@@ -1,8 +1,7 @@
 import pytest
 import numpy as np
 from pathlib import Path
-from document_processing.pipeline_modules import *
-from document_processing.processing.models import ModelLoader
+from document_processing.pipeline_modules import DocDetector
 
 
 @pytest.fixture(scope='module')

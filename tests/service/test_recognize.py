@@ -9,7 +9,6 @@ pipeline is exercised by the --runslow test at the bottom.
 from __future__ import annotations
 
 import base64
-import logging
 from pathlib import Path
 
 import cv2

@@ -17,7 +17,7 @@ from ocr_postprocessing import rules
 from ocr_postprocessing.crop import CropImprover
 from ocr_postprocessing.ctc import CTCAlphabet, MatrixJoiner, as_matrix, greedy, join
 from ocr_postprocessing.decode import best_number, code_candidates, code_scores, street_choice
-from ocr_postprocessing.dictionaries import AddressBook, DepartmentCodes, Place, best as fuzzy_best
+from ocr_postprocessing.dictionaries import AddressBook, DepartmentCodes, best as fuzzy_best
 from ocr_postprocessing.postprocess import (
     OCRPostprocessor,
     References,

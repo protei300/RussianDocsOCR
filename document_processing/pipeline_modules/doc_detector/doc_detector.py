@@ -1,5 +1,5 @@
 from ..base_module import BaseModule
-from .image_transformation import fix_perspective, rectify_pages, stitch_pages, stitched_geometry
+from .image_transformation import rectify_pages, stitch_pages, stitched_geometry
 from ...geometry import Chain
 from typing import Union
 from pathlib import Path

@@ -65,7 +65,7 @@ jobs:
             echo "full=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.mode.outputs.full != 'true'
         with:
           fetch-depth: 0
@@ -114,6 +114,24 @@ jobs:
             echo "conformance=false" >> "$GITHUB_OUTPUT"
           fi
 
+  lint:
+    name: lint (ruff)
+    needs: changes
+    if: ${{ needs.changes.outputs.library == 'true' || needs.changes.outputs.service == 'true' || needs.changes.outputs.conformance == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install ruff
+        run: pip install ruff==0.17.6
+
+      - name: Check Python code
+        run: ruff check document_processing service ocr_postprocessing tests
+
   library:
     name: library tests (Python ${{ matrix.python }})
     needs: changes
@@ -125,9 +143,9 @@ jobs:
         # The supported range from the project spec (3.12 on dev pushes; 3.10+3.12 on main/PR/manual).
         python: ${{ fromJSON(needs.changes.outputs.python_versions) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
           cache: pip
@@ -184,9 +202,9 @@ jobs:
     if: ${{ needs.changes.outputs.service == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -224,11 +242,11 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -247,9 +265,9 @@ jobs:
     if: ${{ needs.changes.outputs.conformance == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip

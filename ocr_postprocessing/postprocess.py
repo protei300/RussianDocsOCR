@@ -171,27 +171,27 @@ def address_pieces(text: str) -> list[tuple[str, str]]:
             continue
         cur_kind, cur = None, []
 
-        def flush():
-            if cur:
-                out.append((cur_kind or 'place', ' '.join(cur)))
+        def flush(kind, items):
+            if items:
+                out.append((kind or 'place', ' '.join(items)))
         for i, t in enumerate(toks):
             nxt = toks[i + 1] if i + 1 < len(toks) else ''
             if t in NUM_WORDS and (re.match(r'[\dОЗБ]', nxt) or t not in ('Д', 'К')):
-                flush()
+                flush(cur_kind, cur)
                 cur_kind, cur = NUM_WORDS[t], []          # «Д. 58», «КВ. 495»; «Д. ИВАНОВКА» is a village
                 continue
             if t in rules.STREET_T and cur_kind not in ('street',):
-                flush()
+                flush(cur_kind, cur)
                 cur_kind, cur = 'street', [t]
                 continue
             if cur_kind in NUM_WORDS.values() and cur:     # «Д. 5 КВ 7»: a number takes one token
-                flush()
+                flush(cur_kind, cur)
                 cur_kind, cur = None, []
             if t in rules.REGION_T | rules.DISTRICT_T | rules.LOCALITY_T and cur_kind == 'street':
-                flush()
+                flush(cur_kind, cur)
                 cur_kind, cur = None, []
             cur.append(t)
-        flush()
+        flush(cur_kind, cur)
     return out
 
 

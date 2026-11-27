@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from document_processing.pipeline_modules import *
+from document_processing.pipeline_modules import AddressTextKindClassifier
 
 
 @pytest.fixture(scope='module')

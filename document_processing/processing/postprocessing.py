@@ -340,7 +340,7 @@ class YOLODetectorPostprocessing(BasePostprocessing):
                 obj_detected[5] = int(obj_detected[5])
                 try:
                     obj_detected.append(self.labels[obj_detected[5]])
-                except:
+                except (IndexError, KeyError, TypeError):
                     obj_detected.append("Unsupported class")
 
                 detection_result.append(obj_detected)

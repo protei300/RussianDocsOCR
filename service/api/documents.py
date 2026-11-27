@@ -123,7 +123,7 @@ async def upload_document(
 
     data = await file.read(limit + 1)
     if len(data) > limit:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE,
                             detail=f"File exceeds the {settings.max_upload_mb} MB limit")
     if not data:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Empty upload")
@@ -147,7 +147,7 @@ async def upload_document(
         dimensions = image_guard.validate_image_bytes(data)
     except image_guard.ImageGuardError as exc:
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={"detail": exc.detail, "error_code": exc.code},
         )
 

@@ -51,7 +51,7 @@ dependencies = [
 # один и тот же пакет под разными именами, extras не умеют заменять зависимость.
 # Рецепт (см. README, раздел GPU): pip uninstall onnxruntime && pip install onnxruntime-gpu==1.21.1
 openvino = ["openvino>=2023.1"]
-dev = ["pytest==9.0.3", "Pillow==12.3.0"]
+dev = ["pytest==9.0.3", "Pillow==13.0.0"]
 
 [project.urls]
 Documentation = "https://github.com/protei300/RussianDocsOCR"
@@ -74,3 +74,13 @@ exclude = ["document_processing/models/**"]
 [tool.hatch.build.targets.sdist]
 include = ["document_processing", "README.md", "LICENSE", "NOTICE"]
 exclude = ["document_processing/models/**"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+# High-signal correctness & dead-code rules only (no formatting churn).
+select = ["E9", "F", "E722", "W605", "B023"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]

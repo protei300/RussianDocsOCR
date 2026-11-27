@@ -1,6 +1,5 @@
 """Five-class field decoding, raw OCR and numeric crop orientation."""
 import json
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np

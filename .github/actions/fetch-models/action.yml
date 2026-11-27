@@ -24,7 +24,7 @@ runs:
   using: composite
   steps:
     - name: Cache model weights
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: document_processing/models
         key: models-${{ hashFiles('document_processing/models.lock.json') }}

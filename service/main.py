@@ -296,13 +296,13 @@ def health() -> dict:
 _web_root = (_BASE_DIR / "web" / "dist").resolve()
 
 _UNBUILT_HINT = "Frontend not built. Run `npm run build` in web/."
-_UNBUILT_PAGE = f"""<!doctype html>
+_UNBUILT_PAGE = """<!doctype html>
 <meta charset="utf-8">
 <title>RussianDocs — frontend not built</title>
 <style>
-  body {{ font: 16px/1.6 system-ui, sans-serif; max-width: 42rem;
-         margin: 4rem auto; padding: 0 1.5rem; }}
-  code {{ background: #f4f4f5; padding: .15em .4em; border-radius: .25rem; }}
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 42rem;
+         margin: 4rem auto; padding: 0 1.5rem; }
+  code { background: #f4f4f5; padding: .15em .4em; border-radius: .25rem; }
 </style>
 <h1>The web interface is not built</h1>
 <p>The API is running and fully usable — this page is only about the UI.</p>

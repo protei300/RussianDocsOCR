@@ -90,13 +90,13 @@ async def _read_body(request: Request, limit: int) -> bytearray:
     """The whole request body into one bytearray, refusing more than ``limit`` bytes."""
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > limit + 64 * 1024:
-        raise _Refused(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Image exceeds the upload limit")
+        raise _Refused(status.HTTP_413_CONTENT_TOO_LARGE, "Image exceeds the upload limit")
     body = bytearray()
     async for chunk in request.stream():
         body += chunk
         if len(body) > limit + 64 * 1024:          # multipart framing is a few hundred bytes
             _wipe(body)
-            raise _Refused(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Image exceeds the upload limit")
+            raise _Refused(status.HTTP_413_CONTENT_TOO_LARGE, "Image exceeds the upload limit")
     return body
 
 
@@ -148,7 +148,7 @@ def _recognise_sync(image: bytearray, docconf: float, img_size: int,
         try:
             bgr = image_guard.decode_and_validate_bgr(image)
         except image_guard.ImageGuardError as exc:
-            raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise _Refused(status.HTTP_422_UNPROCESSABLE_CONTENT,
                            exc.detail, error_code=exc.code) from None
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         bgr.fill(0)
@@ -240,7 +240,7 @@ async def recognize(
         if not image:
             raise _Refused(status.HTTP_400_BAD_REQUEST, "Empty upload")
         if len(image) > limit:
-            raise _Refused(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            raise _Refused(status.HTTP_413_CONTENT_TOO_LARGE,
                            f"File exceeds the {settings.max_upload_mb} MB limit")
         if artifacts.is_pdf(image):
             raise _Refused(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -251,7 +251,7 @@ async def recognize(
         try:
             image_guard.validate_image_header(image)
         except image_guard.ImageGuardError as exc:
-            raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise _Refused(status.HTTP_422_UNPROCESSABLE_CONTENT,
                            exc.detail, error_code=exc.code) from None
 
         docconf = float(settings_repo.get_value(db, "docconf", 0.5))
@@ -315,7 +315,7 @@ def _registration_sync(image: bytearray, docconf: float, img_size: int) -> dict[
         try:
             bgr = image_guard.decode_and_validate_bgr(image)
         except image_guard.ImageGuardError as exc:
-            raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise _Refused(status.HTTP_422_UNPROCESSABLE_CONTENT,
                            exc.detail, error_code=exc.code) from None
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         bgr.fill(0)
@@ -360,7 +360,7 @@ async def recognize_registration(
         if not image:
             raise _Refused(status.HTTP_400_BAD_REQUEST, "Empty upload")
         if len(image) > limit:
-            raise _Refused(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            raise _Refused(status.HTTP_413_CONTENT_TOO_LARGE,
                            f"File exceeds the {settings.max_upload_mb} MB limit")
         if artifacts.is_pdf(image):
             raise _Refused(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -371,7 +371,7 @@ async def recognize_registration(
         try:
             image_guard.validate_image_header(image)
         except image_guard.ImageGuardError as exc:
-            raise _Refused(status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise _Refused(status.HTTP_422_UNPROCESSABLE_CONTENT,
                            exc.detail, error_code=exc.code) from None
 
         docconf = float(settings_repo.get_value(db, "docconf", 0.5))

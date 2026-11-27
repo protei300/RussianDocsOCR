@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from pathlib import Path
-from document_processing.pipeline_modules import *
+from document_processing.pipeline_modules import AddressLinesDetector
 
 
 @pytest.fixture(scope='module')

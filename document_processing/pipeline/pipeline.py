@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 import cv2
 import numpy as np
 
-from ..config import DEFAULT_CFG, resolve_model_dir
+from ..config import resolve_model_dir
 from ..geometry import Chain, Offset, QuarterTurns, Scale
 from ..pipeline_modules import (AddressLinesDetector, AddressTextKindClassifier, Blur,
                                 DocDeskewer, DocDetector, DocTypeAngles, DocumentDetector,

@@ -16,7 +16,6 @@ import secrets
 from typing import Any
 
 from service.core import auth
-from service.core.config import get_settings
 from service.core.database import FileStore
 from service.core.models import ApiKey, utcnow
 

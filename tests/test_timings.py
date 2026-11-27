@@ -10,9 +10,7 @@ group once, by the group's own elapsed time.
 Paths are relative to tests/ (see conftest.py, which chdirs there).
 """
 from pathlib import Path
-from time import time
 
-import pytest
 
 from document_processing import Pipeline
 from document_processing.pipeline.pipeline import PipelineResults

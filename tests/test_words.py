@@ -1,6 +1,5 @@
 import pytest
-from document_processing.pipeline_modules import *
-from document_processing.processing.models import ModelLoader
+from document_processing.pipeline_modules import WordsDetector
 from pathlib import Path
 from document_processing.pipeline_modules.doc_detector.image_transformation import xywh2xyxy, iou
 import numpy as np

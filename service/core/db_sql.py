@@ -21,7 +21,7 @@ from typing import Any
 
 from sqlalchemy import (Boolean, DateTime, Float, Integer, String, Text, create_engine,
                         func, select)
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from service.core.models import ApiKey, DocumentRecord, utcnow
 from service.core.store import SORT_COLUMNS
