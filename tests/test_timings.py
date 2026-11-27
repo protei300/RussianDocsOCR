@@ -69,19 +69,44 @@ class TestTimingAccounting:
 
 
 def test_total_does_not_exceed_wall_clock():
-    """End-to-end: reported total must stay within measured wall time."""
-    images = sorted(SAMPLES_DIR.joinpath('DL_2011').glob('*.jpg'))
-    if not images:
-        pytest.skip('No DL_2011 sample available')
+    """Concurrent quality+borders stage must report group elapsed time, not the sum."""
+    from time import perf_counter, sleep
 
-    pipeline = Pipeline(model_format='ONNX', device='cpu')
-    pipeline.process_img(images[0], img_size=1500)  # warm caches
+    class _SlowQuality:
+        def __init__(self, name, label):
+            self.model_name = name
+            self._label = label
 
-    start = time()
-    result = pipeline.process_img(images[0], img_size=1500)
-    wall = time() - start
+        def predict(self, img):
+            sleep(0.04)
+            return {self.model_name: (self._label, 0.99)}
 
-    total = result.timings['total']
-    assert total <= wall, f'reported total {total:.3f}s exceeds wall clock {wall:.3f}s'
-    stages = {k: v for k, v in result.timings.items() if k != 'total'}
-    assert total >= max(stages.values()), 'total must cover at least the slowest stage'
+    class _SlowBorders:
+        def predict_transform(self, img, **_kw):
+            sleep(0.04)
+            return {'Borders': {'bbox': [], 'warped_img': img}}
+
+    pipe = object.__new__(Pipeline)
+    pipe.results = PipelineResults()
+    pipe.results._meta_results['DocTypeAngles'] = {'doc_type': 'DL_2011'}
+    pipe.glare = _SlowQuality('Glare', 'good')
+    pipe.blur = _SlowQuality('Blur', 'good')
+    pipe.print_spoofing = _SlowQuality('PrintSpoofing', 'REAL')
+    pipe.lcd_spoofing = _SlowQuality('LCDSpoofing', 'REAL')
+    pipe.doc_detector = _SlowBorders()
+
+    start = perf_counter()
+    pipe._quality_and_borders_parallel(None)
+    wall = perf_counter() - start
+
+    timings = pipe.results.timings
+    total = timings['total']
+    members = ('_glare', '_blur', '_print_spoofing', '_lcd_spoofing', '_doc_detector')
+    member_sum = sum(timings[k] for k in members)
+
+    assert '_quality_and_borders' in timings
+    assert total <= wall + 0.005, f'reported total {total:.3f}s exceeds wall clock {wall:.3f}s'
+    assert total >= max(timings[k] for k in members) - 0.005
+    assert total < member_sum * 0.75, (
+        f'parallel group total {total:.3f}s looks like a serial sum ({member_sum:.3f}s)'
+    )

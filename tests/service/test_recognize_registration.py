@@ -9,7 +9,6 @@ reader (order and links). The real reader runs in the --runslow test at the end.
 from __future__ import annotations
 
 import json
-import os
 from collections import deque
 from pathlib import Path
 
@@ -116,10 +115,31 @@ def test_not_an_image_is_415(app_factory, fake):
 
 
 def test_needs_a_role(app_factory, fake):
-    with TestClient(app_factory("pin")) as client:
-        resp = client.post(f"{P}/recognize/registration", content=_jpeg(),
+    from test_auth_security import _account, _admin
+
+    with TestClient(app_factory("users")) as client:
+        # Anonymous is refused with 401.
+        anon = client.post(f"{P}/recognize/registration", content=_jpeg(),
                            headers={"Content-Type": "image/jpeg"})
-        assert resp.status_code == 401
+        assert anon.status_code == 401
+
+        admin = _admin(client)
+        viewer = _account(client, admin, "regviewer", "viewer")
+        operator = _account(client, admin, "regop", "operator")
+        key = client.post(f"{P}/api-keys", headers=admin, json={"label": "reg-test"}).json()["key"]
+
+        # Viewer cannot invoke recognition (403); operator and API key can (200).
+        as_viewer = client.post(f"{P}/recognize/registration", content=_jpeg(),
+                                headers={**viewer, "Content-Type": "image/jpeg"})
+        assert as_viewer.status_code == 403
+
+        as_operator = client.post(f"{P}/recognize/registration", content=_jpeg(),
+                                  headers={**operator, "Content-Type": "image/jpeg"})
+        assert as_operator.status_code == 200, as_operator.text
+
+        as_key = client.post(f"{P}/recognize/registration", content=_jpeg(),
+                             headers={"X-API-Key": key, "Content-Type": "image/jpeg"})
+        assert as_key.status_code == 200, as_key.text
 
 
 # --------------------------------------------------------------------------- order and links
@@ -144,6 +164,99 @@ def test_order_by_place_when_a_date_is_missing():
     assert RegistrationReader._order_and_links(st) == "position"
     by = {s["index"]: s for s in st}
     assert by[2]["cancels"] == 1 and not any(s["current"] for s in st)
+
+
+def test_order_and_links_edge_cases():
+    from service.ml.registration.page import RegistrationReader
+
+    # Empty list -> None
+    empty: list[dict] = []
+    assert RegistrationReader._order_and_links(empty) is None
+
+    # parsed['date'] takes precedence over raw ocr['date']; orphan deregistered & unclear handled
+    st = [
+        {"index": 1, "kind": "deregistered", "ocr": {"date": "01.01.2010"}},
+        {"index": 2, "kind": "unclear", "ocr": {"date": "02.02.2012"}},
+        {"index": 3, "kind": "registered", "ocr": {"date": "bad"}, "parsed": {"date": "03.03.2015"}},
+    ]
+    assert RegistrationReader._order_and_links(st) == "date"
+    assert [s["index"] for s in st] == [3, 2, 1]
+    by = {s["index"]: s for s in st}
+    assert by[1]["cancels"] is None and by[2]["cancels"] is None
+    assert by[3]["current"] is True
+
+
+def test_registration_reader_cut_decisions_and_notes():
+    from types import SimpleNamespace
+    from service.ml.registration.config import RegistrationConfig
+    from service.ml.registration.page import ADDR, RegistrationReader
+
+    reader = RegistrationReader(RegistrationConfig())
+    rgb = np.full((200, 300, 3), 220, np.uint8)
+
+    def _res(doctype, quality=None):
+        return SimpleNamespace(
+            doctype=doctype,
+            quality=quality or {"DocConf": 0.9, "Blur": "good", "Glare": "good"},
+            geometry=None,
+            img_with_fixed_perspective=rgb,
+            _meta_results={},
+            to_input=lambda pts: pts,
+        )
+
+    def _pipe(results, best_stamp_conf=0.0):
+        obbs = [[150.0, 100.0, 80.0, 50.0, 0.0, best_stamp_conf, 0, "registered"]] if best_stamp_conf else []
+        det = SimpleNamespace(
+            model_name="RegistrationStamps",
+            KINDS={"registered": "registered"},
+            predict=lambda img: {"RegistrationStamps": {"obbox": obbs}},
+        )
+        cls = SimpleNamespace(
+            model_name="DocTypeAngles",
+            predict=lambda img: {"DocTypeAngles": {"doc_type": "NONE", "doc_type_confidence": 0.1}},
+        )
+        return SimpleNamespace(
+            process_frame=lambda *a, **kw: results,
+            registration_stamps=det,
+            doctype_angles=cls,
+        )
+
+    # 1) Multiple different document types -> multiple_documents + note
+    cut_multi = reader.cut(_pipe([_res(ADDR), _res("DL_2020")]), rgb)
+    assert cut_multi["decision"] == "multiple_documents" and cut_multi["stamps"] == []
+    ans_multi = reader.read_stamps(cut_multi)
+    assert "one_document_expected" in ans_multi["notes"] and ans_multi["recognised"] is False
+
+    # 2) Non-registration document -> not_registration + note
+    cut_other = reader.cut(_pipe([_res("INTPASSPORT_2011", {"DocConf": 0.95, "Blur": "bad"})]), rgb)
+    assert cut_other["decision"] == "not_registration"
+    ans_other = reader.read_stamps(cut_other)
+    assert set(ans_other["notes"]) >= {"not_registration_page", "quality_low"}
+
+    # 3) NONE with weak stamp -> no_document
+    cut_none = reader.cut(_pipe([_res("NONE")], best_stamp_conf=0.1), rgb)
+    assert cut_none["decision"] == "no_document"
+    assert "no_document" in reader.read_stamps(cut_none)["notes"]
+
+    # 4) NONE with confident stamp -> stamp_fragment
+    cut_frag = reader.cut(_pipe([_res("NONE")], best_stamp_conf=0.92), rgb)
+    assert cut_frag["decision"] == "stamp_fragment" and len(cut_frag["stamps"]) == 1
+
+    # 5) _pages splits a wide spread into 2 pages & detects cut page outside frame
+    wide = np.full((100, 260, 3), 220, np.uint8)
+    spread_res = SimpleNamespace(
+        img_with_fixed_perspective=wide,
+        _meta_results={},
+        to_input=lambda pts: pts,
+    )
+    pages = reader._pages(spread_res, wide)
+    assert len(pages) == 2 and pages[0]["x0"] == 0.0 and pages[1]["x0"] == 130.0
+
+    # 6) _page_kind trusts confident stamp detector (>= stamp_conf_fallback=0.92) over NONE classifier
+    kind_low, _, _ = reader._page_kind(_pipe([_res("NONE")], best_stamp_conf=0.90), rgb)
+    assert kind_low == "not_registration"
+    kind_hi, t, _ = reader._page_kind(_pipe([_res("NONE")], best_stamp_conf=0.95), rgb)
+    assert kind_hi == "registration" and t == "NONE"
 
 
 # --------------------------------------------------------------------------- the real reader
@@ -188,7 +301,7 @@ def test_real_reader_end_to_end(app_factory):
     repo = Path(__file__).resolve().parents[2]
     spread = repo / "conformance/material/INTPASSPORTADDR_ALL/synth_01_INTPASSPORTADDR_ALL.jpg"
     passport = sorted((repo / "samples/INTPASSPORT_2011").glob("*.jpg"))[0]
-    with TestClient(app_factory("pin", PROCESSING_MODE="memory")) as client:
+    with TestClient(app_factory("pin", load_runtime=True, PROCESSING_MODE="memory")) as client:
         h = _pin(client)
         deadline = time.time() + 300
         while not runtime.is_ready() and time.time() < deadline:

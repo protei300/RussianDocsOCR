@@ -25,28 +25,21 @@ import os
 import numpy as np
 import pytest
 
+from document_processing.pipeline.pipeline import Pipeline
 from document_processing.pipeline.probe import (DirectoryStageSink, NullStageSink,
                                                 RecordingStageSink, StageSink)
 
 
-class _FakeHost:
-    """Minimal stand-in for Pipeline, exercising _emit's guard without models."""
-
-    probe = None
-
-    def _emit(self, name, payload):
-        if self.probe is not None:
-            self.probe.emit(name, payload)
-
-
 def test_emit_is_a_noop_without_a_probe():
-    host = _FakeHost()
-    # Must not raise and must not touch the payload.
-    host._emit('prepare', object())
+    host = object.__new__(Pipeline)
+    host.probe = None
+    # Calls the real Pipeline._emit: must not raise and must not touch the payload.
+    sentinel = object()
+    host._emit('prepare', sentinel)
 
 
 def test_emit_reaches_an_attached_sink():
-    host = _FakeHost()
+    host = object.__new__(Pipeline)
     sink = RecordingStageSink()
     host.probe = sink
     host._emit('prepare', 1)

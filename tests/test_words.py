@@ -6,14 +6,14 @@ from document_processing.pipeline_modules.doc_detector.image_transformation impo
 import numpy as np
 import cv2
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def module():
     return WordsDetector(model_format='ONNX', device='cpu')
 
-@pytest.fixture
-def model():
-    model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/Words/ONNX/model.json'), device='cpu')
+
+@pytest.fixture(scope='module')
+def model(module):
+    return module.model
 
 
 @pytest.fixture
@@ -78,16 +78,15 @@ class TestWordsDetector:
 
 
     def test_module(self, module, load_imgs):
-        '''
-        Testing predict_transform function
-        '''
-
-        img_file, lbl_file = next(iter(load_imgs))
+        """predict_transform() returns non-empty boxes and matching image patches."""
+        img_file, _ = next(iter(load_imgs))
         result = module.predict_transform(img_file)
 
-        #check if result dict has field equal to module name
-        assert module.model_name in result.keys(), 'No key field!'
-        #check if bbox field exists in result dict
-        assert 'bbox' in result[module.model_name].keys(), 'No key field bbox!'
-        assert 'warped_img' in result[module.model_name].keys(), 'No warped_img field in results'
+        assert module.model_name in result, 'No key field!'
+        inner = result[module.model_name]
+        assert 'bbox' in inner and len(inner['bbox']) > 0, 'Expected detected word boxes'
+        assert 'warped_img' in inner, 'No warped_img field in results'
+        assert len(inner['warped_img']) == len(inner['bbox'])
+        for patch in inner['warped_img']:
+            assert isinstance(patch, np.ndarray) and patch.ndim == 3 and patch.size > 0
 

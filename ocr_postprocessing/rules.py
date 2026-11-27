@@ -594,7 +594,7 @@ def stamp_fields(reads: dict, d: Dicts, date: str | None = None, nums: dict | No
 
 
 #: «В КИРОВСКОМ РАЙОНЕ» -> КИРОВСКИЙ: the locative of an adjective back to the nominative
-_LOC_ADJ = ((r'(СК|ЦК)ОМ$', r'ИЙ'), (r'НОМ$', 'НЫЙ'), (r'ВОМ$', 'ВЫЙ'), (r'ОМ$', 'ЫЙ'))
+_LOC_ADJ = ((r'(СК|ЦК)ОМ$', r'\1ИЙ'), (r'НОМ$', 'НЫЙ'), (r'ВОМ$', 'ВЫЙ'), (r'ОМ$', 'ЫЙ'))
 
 
 def _nom_adj(w: str) -> str:
@@ -619,7 +619,7 @@ def fms_fill(out: dict, pl: dict, d: Dicts) -> None:
         for n in names:
             for m in re.finditer(r'ПО РАЙОНУ ([А-Я]+(?:-[А-Я]+)*)', n):
                 cs[m.group(1)] += 1
-            for m in re.finditer(r'В ([А-Я]+(?:-[А-Я]+)*(?:СКОМ|ЦКОМ|НОМ|ВОМ)) (?:РАЙОНЕ|Р-НЕ)', n):
+            for m in re.finditer(r'\bВ ([А-Я]+(?:-[А-Я]+)*(?:СКОМ|ЦКОМ|НОМ|ВОМ)) (?:РАЙОНЕ|Р-НЕ)', n):
                 cs[_nom_adj(m.group(1))] += 1
         if cs:
             top = cs.most_common(2)
@@ -632,7 +632,7 @@ def fms_fill(out: dict, pl: dict, d: Dicts) -> None:
             locs = d.locs(region.key)
             cs = Counter()
             for n in names:
-                for m in re.finditer(r'В (?:Г\.|ГОР\.|ГОРОДЕ) ?([А-Я]+(?:-[А-Я]+)*)', n):
+                for m in re.finditer(r'\bВ (?:Г\.|ГОР\.|ГОРОДЕ) ?([А-Я]+(?:-[А-Я]+)*)', n):
                     k = _key(m.group(1))
                     p, sc = Dicts.match(k, [x for x in locs if x.type in ('ГОРОД', 'Г')], 85)
                     if p is not None:

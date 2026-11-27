@@ -208,7 +208,7 @@ jobs:
       # conftest drops the directory and pytest exits 5 ("no tests ran"), failing this job. With
       # `-m service` it would collect nothing and report success — a job that cannot fail.
       - name: Tests
-        run: python -m pytest tests/service -q
+        run: python -m pytest tests/service ocr_postprocessing/tests -q
 
   # The frontend had no CI at all — not a build, not a type check — so nothing
   # stopped a component used with the wrong props from shipping. That is not

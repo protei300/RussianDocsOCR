@@ -8,8 +8,12 @@ the series split between the number and the optional data, Cyrillic-only
 letters written as digits). The tie to what the pipeline actually produces is
 kept by the conformance cases and tests/test_quality.py, not by these strings.
 """
+from datetime import date
+
 from document_processing.validation import (check_digit, cross_check, parse_mrz,
                                             validate, validate_mrz)
+
+TODAY = date(2026, 11, 24)
 
 # A fictitious biometric passport - full TD3.
 EXT_MRZ = ('P<RUSROGOVA<<IRINA<<<<<<<<<<<<<<<<<<<<<<<<<<\n'
@@ -98,7 +102,7 @@ def test_missing_second_line():
 
 
 def test_parse_external_passport_fields():
-    fields = parse_mrz(EXT_MRZ)
+    fields = parse_mrz(EXT_MRZ, today=TODAY)
     assert fields['document_type'] == 'P'
     assert fields['issuing_state'] == 'RUS'
     assert fields['surname'] == 'ROGOVA'
@@ -113,9 +117,39 @@ def test_expiry_date_is_read_into_this_century():
     """An expiry year above the current one is future, not 19xx."""
     mrz = ('P<RUSBELOV<<OLEG<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n'
            '7654321097RUS8904034M2910024<<<<<<<<<<<<<<02')
-    fields = parse_mrz(mrz)
+    fields = parse_mrz(mrz, today=TODAY)
     assert fields['expiry_date'] == '02.10.2029'
     assert fields['birth_date'] == '03.04.1989'
+
+
+def test_parse_mrz_respects_today_parameter():
+    # Birth year '25': in 2024 it is 1925, in 2026 it is 2025.
+    line2 = EXT_MRZ.splitlines()[1].replace('RUS8803148', 'RUS2503140')
+    zone = EXT_MRZ.splitlines()[0] + '\n' + line2
+    assert parse_mrz(zone, today=date(2024, 1, 1))['birth_date'] == '14.03.1925'
+    assert parse_mrz(zone, today=date(2026, 1, 1))['birth_date'] == '14.03.2025'
+
+
+def test_three_line_mrz_is_rejected():
+    three_lines = EXT_MRZ + '\nEXTRA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
+    v = validate_mrz(three_lines, today=TODAY)
+    assert not v['ok']
+    assert v['error'] == 'expected 2 lines'
+
+
+def test_cross_check_handles_non_string_and_russian_month():
+    ocr = {
+        'MRZ': INT_MRZ,
+        'Birth_date': '23 АПРЕЛЯ 1987',
+        'Issue_date': None,
+        'Licence_number': 123,
+        'Sex_ru': 'МУЖ.',
+    }
+    res = cross_check(INT_MRZ, ocr, internal=True, today=TODAY)
+    assert res['checks']['birth_date'] == 'ok'
+    assert res['checks']['sex'] == 'ok'
+    assert 'issue_date' not in res['checks']
+    assert 'document_number' not in res['checks']
 
 
 def test_impossible_calendar_date_is_rejected():

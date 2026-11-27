@@ -84,16 +84,37 @@ def _reset_auth_process_state():
 
 
 @pytest.fixture
-def app_factory(monkeypatch):
+def app_factory(monkeypatch, tmp_path):
     """Build the app with a given AUTH_MODE and a throwaway data directory.
 
-    Extra environment can be passed as keyword arguments; ``None`` unsets.
+    By default ``load_runtime=False`` stubs out background ONNX model loading
+    so auth/HTTP tests do not spend ~6 s loading 215 MB of weights per test.
+    Pass ``load_runtime=True`` in ``@pytest.mark.slow`` tests that need real
+    inference. Extra environment can be passed as keyword arguments; ``None``
+    unsets.
     """
     import importlib
-    import tempfile
+    from collections import deque
+    from itertools import count
 
-    def build(mode: str | None, **env: str | None):
-        base = {"DATA_DIR": tempfile.mkdtemp(), "JWT_SECRET": "test-secret",
+    seq = count(1)
+
+    def build(mode: str | None, *, load_runtime: bool = False, **env: str | None):
+        from service.core import logging as service_logging
+        monkeypatch.setattr(service_logging, "_buffer",
+                            deque(maxlen=service_logging._buffer.maxlen))
+        if not load_runtime:
+            from service import worker
+
+            async def _noop_init(*_a, **_kw):
+                return None
+
+            monkeypatch.setattr(worker, "_init_runtime_bg", _noop_init)
+
+        data_dir = tmp_path / f"app-{next(seq)}"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        base = {"DATA_DIR": str(data_dir),
+                "JWT_SECRET": "test-secret-for-service-unit-tests-32b",
                 "SEED_SAMPLES": "-1", "WARMUP_IMAGE": "", "COMPUTE_DEVICE": "cpu",
                 "AUTH_MODE": mode}
         base.update(env)

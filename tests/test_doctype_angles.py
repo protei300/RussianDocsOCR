@@ -1,52 +1,21 @@
+import numpy as np
 import pytest
 from pathlib import Path
-from document_processing.pipeline_modules import *
-from document_processing.processing.models import ModelLoader
+from document_processing.pipeline_modules import DocTypeAngles
 
 SAMPLES_DIR = Path('../samples')
 
 #: The bound for test_module_accuracy is the class list OF THE MODEL, read from
 #: its own centroids - not the set of directories that happen to sit in samples/.
-#: The difference is not arithmetic. Folder names say how many types we were
-#: given; the model's labels say how many it is supposed to tell apart. A test
-#: built on the first number checks "what we were handed" and calls it coverage -
-#: the very disease this test was fixed for, one level up.
 #:
-#: A class the model knows and the material does not cover therefore FAILS here.
-#: That is deliberate: missing material is a gap in what we can claim, and it has
-#: to be visible as a refusal rather than as a quiet "checked what there was".
-
-
 #: Classes the model knows that samples/ does not cover. The two classes that
 #: are uncovered in the closed tree - the registration page and the 2019 SNILS -
 #: have their material here: `samples/INTPASSPORTADDR_ALL/` (one image) and
-#: `samples/SNILS_2019/` (two). A second registration-page image was removed
-#: with weight set v7: a 330x376 frame, half of it a wooden table, with only the
-#: bottom edge of the page and one stamp in view - not a registration page a
-#: user would submit, and the classifiers of v4..v9 put it on either side of the
-#: threshold (held-out registration pages score 185-196 of 200 across them).
-#: The sample sets of the two repositories are not the same set, so this line
-#: is read off THIS one; copying the closed tree's value would declare a gap
-#: that does not exist here and would hide a real one behind it.
+#: `samples/SNILS_2019/` (two).
 #:
-#: Compared for EQUALITY, not membership, and that is the whole point. An
-#: xfail-style "this is expected to fail" would swallow a NEW gap: the test is
-#: already failing, so losing the material for a tenth class would change nothing
-#: in the report. Equality separates the two - a new gap makes the set bigger and
-#: turns the test red, and filling a known gap makes it smaller and ALSO turns it
-#: red, demanding that the entry be struck from here. Self-cleaning in both
-#: directions, and a known gap stays distinguishable from fresh breakage.
-#:
-#: The four vehicle registration certificate classes (STS_*, weight set v7) are
-#: the one gap here: no anonymised independent certificate exists yet. The only
-#: real ones behind this work are personal documents, and the synthetic renders
-#: come from the generator the classifier was trained on - measuring the model on
-#: them would measure it against its own mirror. An anonymised independent sample
-#: closes the gap and turns this test red until the entry is struck.
-#:
-#: The licence back side (DLBACK_ALL) joins for the same reason: its training
-#: material is real documents from a client's set that may not be shown, and there
-#: is no anonymised back side to put into samples/ yet.
+#: The four vehicle registration certificate classes (STS_*, weight set v7) and
+#: the licence back side (DLBACK_ALL) remain uncovered until anonymised
+#: independent samples arrive.
 KNOWN_UNCOVERED_DOC_TYPES = frozenset({'STS_1996', 'STSBACK_1996', 'STS_2019', 'STSBACK_2019',
                                        'DLBACK_ALL'})
 
@@ -57,15 +26,14 @@ def required_doc_types(module):
     return frozenset(str(x) for x in labels)
 
 
-@pytest.fixture
-def model():
-    model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/DocTypeAngles/ONNX/model.json'), device='cpu')
-
-
-@pytest.fixture
+@pytest.fixture(scope='module')
 def module():
     return DocTypeAngles(model_format='ONNX', device='cpu')
+
+
+@pytest.fixture(scope='module')
+def model(module):
+    return module.model
 
 
 class TestDocTypeAngles:
@@ -83,8 +51,6 @@ class TestDocTypeAngles:
                 assert isinstance(doc_type, str), f'doc_type must be a string, got {type(doc_type)}'
                 assert angle in (0, 90, 180, 270), f'Unexpected angle value: {angle}'
                 assert 0.0 <= conf <= 1.0, f'Angle confidence out of range: {conf}'
-        # Nothing above runs when samples/ is empty, and a test that predicted
-        # nothing must not report success.
         assert checked, 'no sample images found under samples/'
 
     def test_module(self, module):
@@ -99,13 +65,7 @@ class TestDocTypeAngles:
         assert 'warped_img' not in meta, 'predict() must not return warped_img'
 
     def test_module_accuracy(self, module):
-        """Predicted doc type matches samples directory name, over every type.
-
-        The loop alone would pass on whatever the directory happens to hold - it
-        takes "however many were given" for "as many as are needed", and a set
-        shrunk to one type would still report success. The set check below is the
-        lower bound, and it is a set rather than a count on purpose.
-        """
+        """Predicted doc type matches samples directory name, over every type."""
         required = required_doc_types(module)
         seen_types = set()
         for doc_dir in sorted(SAMPLES_DIR.iterdir()):
@@ -133,7 +93,7 @@ class TestDocTypeAngles:
         ])
 
     def test_module_transform(self, module):
-        """predict_transform() adds the upright image to the payload."""
+        """predict_transform() adds a valid upright RGB image to the payload."""
         doc_dir = next(d for d in sorted(SAMPLES_DIR.iterdir()) if d.is_dir())
         img_file = next(doc_dir.glob('*.jpg'))
         result = module.predict_transform(img_file)
@@ -142,3 +102,7 @@ class TestDocTypeAngles:
         for key in ('doc_type', 'doc_type_confidence', 'angle', 'angle_confidence',
                     'warped_img'):
             assert key in meta, f'Missing {key} in payload'
+        assert meta['doc_type'] == doc_dir.name
+        assert meta['angle'] in (0, 90, 180, 270)
+        warped = meta['warped_img']
+        assert isinstance(warped, np.ndarray) and warped.ndim == 3 and min(warped.shape[:2]) > 50

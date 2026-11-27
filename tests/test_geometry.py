@@ -223,3 +223,35 @@ def test_a_straightened_and_unbent_page_chains_both_maps():
     geometry = Chain((Homography(Hm), VerticalRemap(v)))
 
     assert_lands([geometry.to_input(point)[0] for point in marks(page)], [(300.5, 260.5)], atol=1.0)
+
+
+def test_geometry_handles_singular_homography_and_empty_pieces():
+    singular = np.zeros((3, 3), dtype=np.float64)
+    assert Homography(singular).to_input([[10, 20]]) is None
+
+    vanishing = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 1.0]])
+    assert Homography(vanishing).to_input([[-0.5, 0.5]]) is None
+
+    assert Pieces(()).to_input([[1.0, 2.0]]) is None
+    empty_pts = Pieces((((0, 0, 10, 10), Homography(np.eye(3))),)).to_input(np.zeros((0, 2)))
+    assert empty_pts is not None and empty_pts.shape == (0, 2)
+
+
+def test_deskewer_zero_range_and_single_row_image():
+    d = DocDeskewer(angle_range=0.0, angle_steps=1)
+    assert d._fine_count == 1
+    row = np.zeros((1, 50, 3), dtype=np.uint8)
+    out, geom = d.deskew_with_geometry(row, n_segments=2)
+    assert out is row and geom is None
+
+
+def test_order_points_preserves_four_distinct_vertices_at_45_deg():
+    from document_processing.pipeline_modules.doc_detector.image_transformation import order_points
+
+    diamond = np.array([[10, 0], [20, 10], [10, 20], [0, 10]], dtype=np.float32)
+    ordered = order_points(diamond)
+    assert ordered.shape == (4, 2)
+    assert len({tuple(p) for p in ordered.tolist()}) == 4
+    assert ordered.tolist() == [[10.0, 0.0], [20.0, 10.0], [10.0, 20.0], [0.0, 10.0]]
+    rect = np.array([[100, 200], [10, 20], [100, 20], [10, 200]], dtype=np.float32)
+    assert order_points(rect).tolist() == [[10.0, 20.0], [100.0, 20.0], [100.0, 200.0], [10.0, 200.0]]

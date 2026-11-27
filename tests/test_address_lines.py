@@ -4,7 +4,7 @@ from pathlib import Path
 from document_processing.pipeline_modules import *
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def module():
     return AddressLinesDetector(model_format='ONNX', device='cpu')
 

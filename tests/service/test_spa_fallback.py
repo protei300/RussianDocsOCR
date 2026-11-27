@@ -93,3 +93,26 @@ def test_only_the_build_output_is_ever_served():
         f"Dockerfile copies it there, and in development vite serves the SPA "
         f"itself."
     )
+
+
+def test_index_sets_no_cache_and_static_asset_is_served_without_traversal(client, tmp_path, monkeypatch):
+    dist = tmp_path / "dist"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "index.html").write_text("<p>BUILT</p>", encoding="utf-8")
+    (dist / "assets" / "app.js").write_text("console.log('ok');", encoding="utf-8")
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP_SECRET", encoding="utf-8")
+    monkeypatch.setattr(main, "_web_root", dist)
+
+    idx = client.get("/")
+    assert idx.status_code == 200
+    assert idx.headers.get("cache-control") == "no-cache, must-revalidate"
+
+    asset = client.get("/assets/app.js")
+    assert asset.status_code == 200 and "console.log" in asset.text
+
+    # Path traversal outside dist/ must never serve parent files
+    trav = client.get("/../secret.txt")
+    assert "TOP_SECRET" not in trav.text
+    trav_enc = client.get("/%2e%2e/secret.txt")
+    assert "TOP_SECRET" not in trav_enc.text

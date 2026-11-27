@@ -8,7 +8,6 @@ import pytest
 from PIL import Image
 
 from document_processing.pipeline_modules import OCRLatin, OCRCyrillic
-from document_processing.pipeline_modules.ocr_latin import OCRLatin as OCRLatinCls
 from document_processing.config.alphabets import allowed_charset, default_country
 from document_processing.processing.preprocessing import OCRv2Preprocessing
 from document_processing.processing.postprocessing import OCRProbsPostprocessing
@@ -33,16 +32,21 @@ def _rgb(name):
     return np.array(Image.open(f'{PATCHES}/{name}').convert('RGB'))
 
 
+@pytest.fixture(scope='module')
+def accurate_engines():
+    return OCRCyrillic(tier='accurate', device='cpu'), OCRLatin(tier='accurate', device='cpu')
+
+
 @pytest.mark.parametrize('tier', ['accurate', 'fast'])
 class TestOCRv2Engines:
-    def test_latin(self, tier):
-        eng = OCRLatin(tier=tier, device='cpu')
+    def test_latin(self, tier, accurate_engines):
+        eng = accurate_engines[1] if tier == 'accurate' else OCRLatin(tier=tier, device='cpu')
         for name, gt in LATIN_CASES:
             pred = eng.predict(_rgb(name))[eng.model_name]['ocr_output']
             assert pred == gt, f'latin/{tier} {name}: {pred!r} != {gt!r}'
 
-    def test_cyrillic(self, tier):
-        eng = OCRCyrillic(tier=tier, device='cpu')
+    def test_cyrillic(self, tier, accurate_engines):
+        eng = accurate_engines[0] if tier == 'accurate' else OCRCyrillic(tier=tier, device='cpu')
         for name, gt in CYRILLIC_CASES:
             pred = eng.predict(_rgb(name))[eng.model_name]['ocr_output']
             assert pred == gt, f'cyrillic/{tier} {name}: {pred!r} != {gt!r}'
@@ -109,27 +113,23 @@ class TestDateNormalization:
     spells its months out, and for a while that route silently lost the repair.
     """
 
-    @pytest.fixture(scope='class')
-    def engines(self):
-        return OCRCyrillic(tier='accurate', device='cpu'), OCRLatin(tier='accurate', device='cpu')
-
-    def test_both_engines_normalize_a_digit_date(self, engines):
-        for eng in engines:
+    def test_both_engines_normalize_a_digit_date(self, accurate_engines):
+        for eng in accurate_engines:
             assert eng.fix_errors(field_type='Birth_date', text='22/06/2010') == '22.06.2010'
 
-    def test_a_worded_date_is_left_alone(self, engines):
+    def test_a_worded_date_is_left_alone(self, accurate_engines):
         """Fewer than eight digits, so nothing is rewritten - which is what lets
         one rule serve both birth-certificate blanks and SNILS."""
-        cyr = engines[0]
+        cyr = accurate_engines[0]
         assert cyr.fix_errors(field_type='Birth_date', text='15 ОКТЯБРЯ 2020 Г.') == '15 ОКТЯБРЯ 2020 Г.'
         assert cyr.fix_errors(field_type='Issue_date', text='28 ИЮЛЯ 2010') == '28 ИЮЛЯ 2010'
         # SNILS reaches fix_errors one word at a time (the parity routing rule)
         for word in ('26', 'СЕНТЯБРЯ', '1997', 'ГОДА'):
             assert cyr.fix_errors(field_type='Birth_date', text=word) == word
 
-    def test_the_rule_is_keyed_on_the_FIELD_not_on_the_digits(self, engines):
+    def test_the_rule_is_keyed_on_the_FIELD_not_on_the_digits(self, accurate_engines):
         """A series or a document number can hold eight digits too. Reformatting
         one as a date would be silent and wrong, so membership is by field name."""
-        cyr = engines[0]
+        cyr = accurate_engines[0]
         assert cyr.fix_errors(field_type='Licence_number', text='II-МЮ 715330') == 'II-МЮ 715330'
         assert cyr.fix_errors(field_type='Act_number', text='11020277') == '11020277'

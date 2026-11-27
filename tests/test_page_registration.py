@@ -1,11 +1,4 @@
-"""Template-based page registration (internal passport).
-
-Covers: the shipped templates load with usable static-print features; a page
-under a known homography is recovered to within a few pixels; a non-passport
-image registers nothing (so the pipeline keeps the Borders path); and the
-default Pipeline(page_registration=True) yields the fixed-size two-page canvas
-with the same document type as the plain Borders path (page_registration=False).
-"""
+"""Template-based page registration (internal passport)."""
 from pathlib import Path
 
 import cv2
@@ -18,15 +11,6 @@ from document_processing.pipeline_modules.page_registration import page_registra
 SAMPLE = Path('../samples/INTPASSPORT_2011/6_CR_INTPASSPORT_2011.jpg')
 NEGATIVE = Path('../samples/DL_2011/1_CR_DL_2010.jpg')
 
-#: PARTLY OUT OF SERVICE IN THE PUBLIC REPOSITORY since 2026-09-21. The sample
-#: under SAMPLE is a single anonymised personal page (the two-page spread that
-#: carried this name left the public tree on 2026-08-25 with the rest of the
-#: real-document material), and a one-page photo cannot exercise the two-page
-#: registration these tests lock down: no page 2, no chain prior, no spread
-#: canvas. Kept as skipping tests rather than deleted, so the gap shows up in
-#: every run; they return with a synthetic two-page spread. What still runs here:
-#: the shipped templates, the negative (non-passport) case and the default/opt-out
-#: switch, none of which needs a spread.
 SPREAD_WITHDRAWN = pytest.mark.skip(
     reason='needs a two-page passport spread; the public sample under this name is a '
            'single page (the spread was withdrawn on 2026-08-25). Runs in the closed '
@@ -40,7 +24,6 @@ def registrar():
 
 @pytest.fixture(scope='module')
 def spread_rgb():
-    """A frontal internal-passport spread, upright, at pipeline scale."""
     bgr = cv2.imread(str(SAMPLE))
     assert bgr is not None, SAMPLE
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
@@ -58,8 +41,6 @@ class TestTemplates:
             for tpl in refs:
                 assert (tpl.width, tpl.height) == (1000, 704)
                 assert len(tpl.kp) >= 300, f'{name}: too few static-print features'
-                # personal zones are erased: the feature mask must not cover the
-                # photo box of page 3 nor the stamp/signature area of page 2
                 if name == 'page3':
                     assert tpl.mask[200:560, 60:320].sum() == 0
                 else:
@@ -72,26 +53,12 @@ class TestRegister:
         regs = registrar.register(spread_rgb)
         assert [r.ok for r in regs] == [True, True]
         assert regs[0].inliers >= pr.MIN_REFINED_INLIERS
-        # page 2 sits above page 3 in the photo
         assert regs[0].quad[:, 1].mean() < regs[1].quad[:, 1].mean()
         page = registrar.warp_page(spread_rgb, regs[1])
         assert page.shape == (registrar.out_h, registrar.out_w, 3) == (764, 1060, 3)
 
     @SPREAD_WITHDRAWN
     def test_known_homography_is_recovered(self, registrar, spread_rgb):
-        """Warp the photo with a known perspective; the recovered pages must
-        land where the untouched photo's pages map to. The template fit is a
-        page LOCATOR (the pipeline takes the geometry from the agreeing
-        Borders quad): with a few dozen inliers its corners can be off by a
-        few percent of the page, so the tolerance is the page centre within
-        2.5% of the page width and every corner within 8%.
-
-        8%, not 6%: the corner error of this locator is a draw of MAGSAC's
-        samples. Over eight perspectives of this spread (2026-10-08) it averaged
-        2.3% with the keypoints in OpenCV's order and 2.6% in the platform-free
-        order (detect_features), each with one outlier near 30%, on different
-        perspectives; on this test's perspective 4.0% and 6.5%. 6% was one lucky
-        draw, not a property of the locator."""
         base = registrar.register(spread_rgb)
         assert all(r.ok for r in base)
         h, w = spread_rgb.shape[:2]
@@ -125,31 +92,47 @@ class TestRegister:
 
 
 class TestPipeline:
-    @SPREAD_WITHDRAWN
-    def test_pipeline_canvas(self):
+    @pytest.fixture(scope='class')
+    def pipe(self):
         from document_processing import Pipeline
-        pipe = Pipeline(model_format='ONNX', device='cpu', verbose=False, page_registration=True)
+        return Pipeline(model_format='ONNX', device='cpu', verbose=False)
+
+    @SPREAD_WITHDRAWN
+    def test_pipeline_canvas(self, pipe):
+        assert pipe.page_registrar is not None, 'page_registration must be enabled by default'
         r = pipe.process_img(str(SAMPLE), ocr=False, find_text_fields=False, check_quality=False)
         assert r.doctype == 'INTPASSPORT_2011'
         meta = r.meta_results['PageRegistration']
-        # both pages found by the registrar; geometry from the agreeing Borders
-        # quad where there is one, else from the template homography
         assert all(p['ok'] for p in meta['pages'])
         assert all(src in ('borders', 'template') for src in meta['sources'])
         pw, ph = meta['page_size']
         assert 0.25 < meta['scale'] <= 1.0
         assert (pw, ph) == (round(1060 * meta['scale']), round(764 * meta['scale']))
         assert r.img_with_fixed_perspective.shape == (2 * ph, pw, 3)
-        # the per-page projection deskew is skipped on registered pages (line_refine did it)
-        assert meta['deskewed'] is False   # line_refine straightened the pages; deskew skipped
+        assert meta['deskewed'] is False
 
-    def test_pipeline_default_registers_and_opt_out_does_not(self):
+    def test_pipeline_default_registers_and_opt_out_does_not(self, pipe, monkeypatch):
         """Registration is the default since 2026-09-17; page_registration=False
         gives the plain Borders canvas with no registration evidence."""
+        import inspect
         from document_processing import Pipeline
-        pipe = Pipeline(model_format='ONNX', device='cpu', verbose=False)
+
+        assert inspect.signature(Pipeline.__init__).parameters['page_registration'].default is True
         r = pipe.process_img(str(SAMPLE), ocr=False, find_text_fields=False, check_quality=False)
         assert 'PageRegistration' in r.meta_results
-        plain = Pipeline(model_format='ONNX', device='cpu', verbose=False, page_registration=False)
-        r = plain.process_img(str(SAMPLE), ocr=False, find_text_fields=False, check_quality=False)
+        monkeypatch.setattr(pipe, 'page_registrar', None)
+        r = pipe.process_img(str(SAMPLE), ocr=False, find_text_fields=False, check_quality=False)
         assert 'PageRegistration' not in r.meta_results
+
+
+def test_page_registration_handles_zero_sift_keypoints_and_singular_H():
+    from document_processing.pipeline_modules.page_registration.page_registration import PageTemplate
+
+    reg = object.__new__(PageRegistrar)
+    quad = np.array([[10, 10], [100, 10], [100, 100], [10, 100]], dtype=np.float32)
+    kp, desc = reg._features_in_quad([], None, quad, (200, 200))
+    assert kp == [] and desc is None
+
+    tpl = object.__new__(PageTemplate)
+    tpl.corners = np.float32([[0, 0], [100, 0], [100, 100], [0, 100]])
+    assert tpl.quad_in_image(np.zeros((3, 3), dtype=np.float64)) is None

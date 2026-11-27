@@ -68,18 +68,42 @@ def test_deployed_models_match_manifest(manifest):
     )
 
 
+def _find_stray_model_jsons(models_dir: Path, manifest: dict) -> list[Path]:
+    pinned = {(models_dir / e['path']).resolve() for e in manifest['files']}
+    return sorted(p for p in models_dir.rglob('model.json') if p.resolve() not in pinned)
+
+
 def test_no_untracked_model_artifacts_shadow_the_set(manifest):
     """A model directory the manifest does not know about is a deployment risk.
 
-    Local A/B folders (Borders/ONNX_old, TextFields/ONNX_legacy_backup, threshold
-    sweeps) are legitimate and gitignored, so this only warns about ones holding a
-    model.json that the loader could be pointed at by model_format=.
+    In CI (or when STRICT_MODELS_MANIFEST=1) any stray model.json is a hard failure
+    so a stale or unpinned artifact can never slip past release checks. Locally,
+    developers may keep untracked A/B folders alongside the pinned set; those are
+    surfaced as a warning rather than silently skipped.
     """
-    pinned = {(MODELS_DIR / e['path']).resolve() for e in manifest['files']}
-    strays = [p for p in MODELS_DIR.rglob('model.json') if p.resolve() not in pinned]
+    import os
+    import warnings
+
+    strays = _find_stray_model_jsons(MODELS_DIR, manifest)
     if strays:
-        names = ', '.join(str(p.relative_to(MODELS_DIR)) for p in sorted(strays))
-        pytest.skip(f'local model variants present (not published): {names}')
+        names = ', '.join(str(p.relative_to(MODELS_DIR)) for p in strays)
+        if os.environ.get('CI') or os.environ.get('STRICT_MODELS_MANIFEST') == '1':
+            pytest.fail(f'untracked model.json files outside models.lock.json: {names}')
+        warnings.warn(f'local untracked model.json present (strictly forbidden in CI): {names}',
+                      UserWarning, stacklevel=1)
+
+
+def test_stray_model_json_detector_catches_unpinned_artifact(tmp_path):
+    """Negative control: proves the stray-artifact detector actually flags unpinned models."""
+    pinned_cfg = tmp_path / 'Blur' / 'ONNX' / 'model.json'
+    pinned_cfg.parent.mkdir(parents=True)
+    pinned_cfg.write_text('{}', encoding='utf-8')
+    stray_cfg = tmp_path / 'OCR' / 'stale_v0' / 'ONNX' / 'model.json'
+    stray_cfg.parent.mkdir(parents=True)
+    stray_cfg.write_text('{}', encoding='utf-8')
+
+    fake_manifest = {'files': [{'path': 'Blur/ONNX/model.json'}]}
+    assert _find_stray_model_jsons(tmp_path, fake_manifest) == [stray_cfg]
 
 
 # --- per-release layout (since models-v8) -------------------------------------
@@ -154,3 +178,61 @@ def test_converting_an_old_manifest_finds_each_file_in_its_first_release():
     history = lambda: {('A/ONNX/model.onnx', 'a' * 64): ('models-v5', 'A__ONNX__model.onnx')}
     builder.place_entries(entries, previous, 'v8', flatten=True, history=history)
     assert entries[0]['release'] == 'models-v5'
+
+
+def test_fetch_models_safe_dest_and_http_exception_retry(tmp_path, monkeypatch):
+    import http.client
+    import urllib.error
+    from document_processing import fetch_models
+
+    with pytest.raises(ValueError, match='escapes'):
+        fetch_models._safe_dest(tmp_path, '../outside.onnx')
+    with pytest.raises(ValueError, match='unsafe'):
+        fetch_models._safe_dest(tmp_path, str(tmp_path / 'abs.onnx'))
+    with pytest.raises(ValueError, match='unsupported URL scheme'):
+        fetch_models.download('ftp://example.com/a.onnx', tmp_path / 'a.onnx', '0' * 64)
+
+    payload = b'hello-model'
+    expected_sha = hashlib.sha256(payload).hexdigest()
+    attempts = {'n': 0}
+
+    class FakeResp:
+        def __init__(self, fail_mid: bool):
+            self._fail = fail_mid
+            self._done = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self, _n=-1):
+            if self._fail:
+                raise http.client.IncompleteRead(b'hel', len(payload) - 3)
+            if self._done:
+                return b''
+            self._done = True
+            return payload
+
+    def fake_urlopen(req, timeout=60):
+        attempts['n'] += 1
+        return FakeResp(fail_mid=(attempts['n'] == 1))
+
+    monkeypatch.setattr(fetch_models.urllib.request, 'urlopen', fake_urlopen)
+    monkeypatch.setattr(fetch_models.time, 'sleep', lambda _: None)
+    dest = tmp_path / 'ok.onnx'
+    fetch_models.download('https://example.com/ok.onnx', dest, expected_sha, expected_size=len(payload))
+    assert attempts['n'] == 2
+    assert dest.read_bytes() == payload
+
+    calls_404 = {'n': 0}
+
+    def fake_404(req, timeout=60):
+        calls_404['n'] += 1
+        raise urllib.error.HTTPError(req.full_url, 404, 'Not Found', {}, None)
+
+    monkeypatch.setattr(fetch_models.urllib.request, 'urlopen', fake_404)
+    with pytest.raises(RuntimeError):
+        fetch_models.download('https://example.com/missing.onnx', tmp_path / 'missing.onnx', expected_sha)
+    assert calls_404['n'] == 1

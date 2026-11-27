@@ -195,6 +195,26 @@ def test_busy_pipeline_is_503_with_retry_after(app_factory, fake):
         assert client.get(f"{P}/recognitions", headers=h).json()["items"][0]["outcome"] == "busy"
 
 
+def test_runtime_not_ready_is_503_and_timeout_is_504(app_factory, fake):
+    import asyncio
+    from service.ml.errors import RuntimeNotReady
+
+    with TestClient(app_factory("pin")) as client:
+        h = _pin(client)
+
+        fake["raise"] = RuntimeNotReady("loading models")
+        r_ready = client.post(f"{P}/recognize", content=_jpeg(),
+                              headers={**h, "Content-Type": "image/jpeg"})
+        assert r_ready.status_code == 503 and r_ready.headers.get("retry-after") == "10"
+
+        fake["raise"] = asyncio.TimeoutError()
+        r_to = client.post(f"{P}/recognize", content=_jpeg(),
+                           headers={**h, "Content-Type": "image/jpeg"})
+        assert r_to.status_code == 504
+        items = client.get(f"{P}/recognitions", headers=h).json()["items"]
+        assert items[0]["outcome"] == "error" and items[0]["status_code"] == 504
+
+
 def test_unexpected_error_is_500_and_logs_only_the_type(app_factory, fake):
     fake["raise"] = ValueError(f"failed while reading {SECRET_TEXT}")
     with TestClient(app_factory("pin", LOG_LEVEL="DEBUG")) as client:
@@ -360,7 +380,7 @@ def test_real_pipeline_in_memory_mode(app_factory, monkeypatch):
     from service.ml import runtime
 
     sample = sorted(Path(__file__).resolve().parents[2].joinpath("samples").rglob("*.jpg"))[0]
-    with TestClient(app_factory("pin", PROCESSING_MODE="memory")) as client:
+    with TestClient(app_factory("pin", load_runtime=True, PROCESSING_MODE="memory")) as client:
         h = _pin(client)
         deadline = time.time() + 300
         while not runtime.is_ready() and time.time() < deadline:

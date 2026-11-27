@@ -1,13 +1,9 @@
-"""Tests for Layer B document suitability quality gate (library + service API).
+"""Tests for Layer B document suitability quality gate (library only).
 
-All fixtures are 100% synthetic (zero PII).
+Service-side viewmodel, settings schema, and HTTP tests live in
+``tests/service/test_quality_gate_api.py``. All fixtures are 100% synthetic.
 """
 from __future__ import annotations
-
-import json
-import sys
-from pathlib import Path
-from types import SimpleNamespace
 
 import cv2
 import numpy as np
@@ -16,11 +12,9 @@ import pytest
 from document_processing.geometry import Chain, Scale
 from document_processing.pipeline.pipeline import Pipeline
 from document_processing.pipeline.quality_gate import (
-    DEFAULT_THRESHOLDS,
     evaluate_quality_gate,
     normalize_quality_gate_mode,
 )
-from document_processing.pipeline.results import PipelineResults
 
 
 # ---------------------------------------------------------------------------
@@ -419,164 +413,3 @@ def test_pipeline_quality_gate_warn_reject_off_and_contract_preservation():
     res_off = pipe_off.process_img(frame, quality_gate="off")
     assert res_off.quality_gate is None
     assert calls_off["fields"] == 1
-
-
-# ---------------------------------------------------------------------------
-# Service layer tests: transform, settings schema, /recognize, /documents/{id}
-# ---------------------------------------------------------------------------
-
-def test_build_viewmodel_preserves_14_keys_by_default_and_adds_quality_gate_when_requested():
-    from service.ml import transform
-
-    res = PipelineResults()
-    res._meta_results["DocType"] = "DL_2020"
-    res._meta_results["Quality"] = {
-        "DocConf": 0.98, "Glare": "good", "Blur": "good",
-        "PrintSpoofing": "REAL", "LCDSpoofing": "REAL",
-    }
-    res._meta_results["QualityGate"] = {
-        "status": "warn",
-        "mode": "warn",
-        "stopped": False,
-        "reasons": [{"code": "glare", "severity": "warn", "value": np.float64(0.1071428), "threshold": 0.07}],
-        "metrics": {"glare_coef": np.float64(0.1071428), "quad_clipped_edges": np.int64(0)},
-    }
-
-    vm_default = transform.build_viewmodel(res, device="cpu")
-    assert "quality_gate" not in vm_default
-    assert len(vm_default) == 14
-
-    vm_with_gate = transform.build_viewmodel(res, device="cpu", include_quality_gate=True)
-    assert "quality_gate" in vm_with_gate
-    gate = vm_with_gate["quality_gate"]
-    assert gate["status"] == "warn"
-    assert gate["reasons"][0]["value"] == 0.1071
-    assert gate["metrics"]["quad_clipped_edges"] == 0
-    # Must be plain JSON-serialisable
-    json.dumps(vm_with_gate)
-
-
-def test_settings_schema_includes_quality_gate_mode():
-    from service.core.settings_schema import SCHEMA_BY_KEY, SettingValidationError, coerce
-
-    assert "quality_gate_mode" in SCHEMA_BY_KEY
-    assert SCHEMA_BY_KEY["quality_gate_mode"].default == "warn"
-    assert coerce("quality_gate_mode", "reject") == "reject"
-    assert coerce("quality_gate_mode", "off") == "off"
-    with pytest.raises(SettingValidationError):
-        coerce("quality_gate_mode", "invalid")
-
-
-@pytest.mark.service
-def test_recognize_and_documents_endpoints_surface_quality_gate(tmp_path, monkeypatch):
-    from collections import deque
-    import importlib
-    from fastapi.testclient import TestClient
-    from service.core import auth as auth_core
-    from service.core import config
-    from service.core import logging as service_logging
-    from service.ml import runtime
-    from service.repositories import documents as doc_repo
-    from service.repositories import recognitions
-    from service import worker
-
-    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
-    monkeypatch.setenv("AUTH_MODE", "pin")
-    monkeypatch.setenv("AUTH_PIN", "1234")
-    monkeypatch.setenv("JWT_SECRET", "test-secret-for-quality-gate-endpoint")
-    monkeypatch.setenv("PROCESSING_MODE", "stored")
-    monkeypatch.setenv("SEED_SAMPLES", "-1")
-    monkeypatch.setenv("WARMUP_IMAGE", "")
-    monkeypatch.setenv("COMPUTE_DEVICE", "cpu")
-    config.get_settings.cache_clear()
-    auth_core._attempts.clear()
-    auth_core._process_secret = None
-    monkeypatch.setattr(service_logging, "_buffer", deque(maxlen=service_logging._buffer.maxlen))
-
-    async def no_runtime():
-        return None
-    monkeypatch.setattr(worker, "_init_runtime_bg", no_runtime)
-    recognitions.reset_for_tests()
-
-    seen = {}
-
-    def fake_recognise_image(rgb, *, docconf, img_size, with_canvas, lease_timeout, quality_gate="warn"):
-        seen["quality_gate"] = quality_gate
-        return {
-            "doc_type": "DL_2020", "doc_type_base": "DL", "doc_type_era": "2020",
-            "recognised": True, "device": "cpu",
-            "canvas": {"width": 900, "height": 600, "is_fallback": False},
-            "coord_space": "canvas", "coord_space_note": "",
-            "boxes": [], "fields": [], "ocr": {},
-            "quality": {"DocConf": 0.96, "Blur": "good", "Glare": "good"},
-            "quality_gate": {
-                "status": "reject", "mode": quality_gate,
-                "stopped": quality_gate == "reject",
-                "reasons": [{"code": "blur", "severity": "reject", "value": 0.08, "threshold": 0.2}],
-                "metrics": {"blur_coef": 0.08},
-            },
-            "timings": {}, "address": None,
-        }, None
-
-    monkeypatch.setattr(runtime, "recognise_image", fake_recognise_image)
-
-    import service.main as main
-    importlib.reload(main)
-    app = main.app
-    ok, enc = cv2.imencode(".jpg", cv2.cvtColor(_sharp_doc_rgb(400, 300), cv2.COLOR_RGB2BGR))
-    assert ok
-    img_bytes = enc.tobytes()
-
-    with TestClient(app) as client:
-        token = client.post("/api/v1/auth/pin-login", json={"pin": "1234"}).json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-
-        # Default mode comes from settings ('warn')
-        r_warn = client.post("/api/v1/recognize", content=img_bytes,
-                             headers={**headers, "Content-Type": "image/jpeg"})
-        assert r_warn.status_code == 200
-        assert seen["quality_gate"] == "warn"
-        body_warn = r_warn.json()
-        assert body_warn["quality_gate"]["status"] == "reject"
-        assert body_warn["quality_gate"]["stopped"] is False
-
-        # Explicit query param override (?quality_gate=reject)
-        r_rej = client.post("/api/v1/recognize?quality_gate=reject", content=img_bytes,
-                            headers={**headers, "Content-Type": "image/jpeg"})
-        assert r_rej.status_code == 200
-        assert seen["quality_gate"] == "reject"
-        assert r_rej.json()["quality_gate"]["stopped"] is True
-
-        # Invalid mode rejected with 400
-        r_bad = client.post("/api/v1/recognize?quality_gate=bogus", content=img_bytes,
-                            headers={**headers, "Content-Type": "image/jpeg"})
-        assert r_bad.status_code == 400
-
-        # Stored document detail returns quality_gate from record.result
-        from service.core.database import get_store
-        db = get_store()
-        doc_id = doc_repo.reserve_id(db)
-        rec = doc_repo.create(
-            db, doc_id=doc_id, filename="synthetic.jpg",
-            content_type="image/jpeg", size_bytes=len(img_bytes),
-            original_ext=".jpg", original_w=400, original_h=300,
-            search_text="synthetic.jpg",
-        )
-        doc_repo.save_result(
-            db, rec,
-            payload={
-                "doc_type": "DL_2020", "recognised": True,
-                "ocr": {}, "fields": [], "quality": {"DocConf": 0.96, "Blur": "good"},
-                "quality_gate": {"status": "pass", "mode": "warn", "stopped": False, "reasons": [], "metrics": {}},
-                "canvas": {"width": 400, "height": 300, "is_fallback": False},
-            },
-            search_text="synthetic.jpg dl_2020",
-            processing_ms=42,
-        )
-        r_doc = client.get(f"/api/v1/documents/{rec.id}", headers=headers)
-        assert r_doc.status_code == 200
-        assert r_doc.json()["quality_gate"]["status"] == "pass"
-
-    auth_core._attempts.clear()
-    auth_core._process_secret = None
-    config.get_settings.cache_clear()

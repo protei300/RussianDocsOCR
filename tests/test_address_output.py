@@ -29,18 +29,26 @@ def pipeline():
 
 
 @pytest.mark.parametrize('ocr_path', ['_ocr_serial', '_ocr_batched'])
-def test_ocr_does_not_clobber_address(pipeline, ocr_path):
+def test_ocr_does_not_clobber_address(ocr_path):
     """Whatever _address_lines already wrote must survive the OCR stage."""
-    pipeline.results = PipelineResults()
+    from types import SimpleNamespace
+    from document_processing.pipeline.options import OCROptionsClass
+
+    stub = object.__new__(Pipeline)
+    stub.results = PipelineResults()
+    stub.ocr_options = OCROptionsClass()
+    stub.probe = None
+    stub.ocr_cyr = SimpleNamespace(predict_batch=lambda xs: [])
+    stub.ocr_lat = SimpleNamespace(predict_batch=lambda xs: [])
     # Through the private attribute deliberately: this line stands in for what
     # ``_address_lines`` wrote from inside the pipeline, and ``meta_results``
     # now hands out a copy - writing there would land in a discarded dict and
     # this test would fail for a reason unrelated to what it checks.
-    pipeline.results._meta_results['OCR'] = {'Address': 'Г. МОСКВА УЛ. ЛЕНИНА Д. 1'}
+    stub.results._meta_results['OCR'] = {'Address': 'Г. МОСКВА УЛ. ЛЕНИНА Д. 1'}
 
-    getattr(pipeline, ocr_path)({}, 'INTPASSPORTADDR')
+    getattr(stub, ocr_path)({}, 'INTPASSPORTADDR')
 
-    assert pipeline.results.meta_results['OCR'].get('Address') == 'Г. МОСКВА УЛ. ЛЕНИНА Д. 1'
+    assert stub.results.meta_results['OCR'].get('Address') == 'Г. МОСКВА УЛ. ЛЕНИНА Д. 1'
 
 
 def test_address_output_is_console_encodable(pipeline):

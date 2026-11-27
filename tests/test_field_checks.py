@@ -372,3 +372,80 @@ def test_results_expose_the_verdicts_outside_the_full_report():
 
 def test_results_without_reading_have_no_verdicts():
     assert PipelineResults().field_checks == {}
+
+
+# --- compound names, truncation, sex tokens, 3-line MRZ, migration card ------
+
+def test_extpassport_compound_given_name_is_verified():
+    line1 = ('P<RUSROGOVA<<ANNA<MARIA').ljust(44, '<')
+    zone = line1 + '\n' + EXT_MRZ.splitlines()[1]
+    ocr = dict(EXT_OCR_CONSISTENT, MRZ=zone, First_name_en='ANNA-MARIA')
+    res = statuses(ocr, 'EXTPASSPORTBIO_2007')
+    assert res['First_name_en'] == VERIFIED
+    assert res['MRZ'] == VERIFIED
+
+
+def test_truncated_line1_only_prefixes_last_non_empty_segment():
+    long_given = 'KONSTANTINOPOLSKAYA' * 3
+    line1 = ('P<RUSROGOVA<<' + long_given)[:44]
+    assert not line1.endswith('<')
+    zone = line1 + '\n' + EXT_MRZ.splitlines()[1]
+    ocr = dict(EXT_OCR_CONSISTENT, MRZ=zone, Last_name_en='ROGOVAEXTRA', First_name_en=long_given)
+    res = statuses(ocr, 'EXTPASSPORTBIO_2007')
+    assert res['First_name_en'] == VERIFIED
+    assert res['Last_name_en'] == MISMATCH
+
+
+def test_mrz7_sex_requires_exact_token():
+    assert statuses(dict(INT_OCR, Sex_ru='МОСКВА'), 'INTPASSPORT_2011')['Sex_ru'] == MISMATCH
+    assert statuses(dict(EXT_OCR_CONSISTENT, Sex_en='FEMALE'), 'EXTPASSPORTBIO_2007')['Sex_en'] == MISMATCH
+    for valid in ('М', 'МУЖ', 'МУЖ.'):
+        assert statuses(dict(INT_OCR, Sex_ru=valid), 'INTPASSPORT_2011')['Sex_ru'] == VERIFIED
+    for valid in ('F', 'Ж', 'ЖЕН', 'ЖЕН.'):
+        assert statuses(dict(EXT_OCR_CONSISTENT, Sex_en=valid), 'EXTPASSPORTBIO_2007')['Sex_en'] == VERIFIED
+
+
+def test_three_line_mrz_is_mismatch_in_field_checks():
+    three_lines = EXT_MRZ + '\nEXTRA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
+    res = field_checks(dict(EXT_OCR_CONSISTENT, MRZ=three_lines), 'EXTPASSPORTBIO_2007', today=TODAY)
+    assert res['MRZ']['status'] == MISMATCH
+    ids = check_ids(res['MRZ'])
+    assert ('MRZ-1', MISMATCH) in ids
+    assert ('MRZ-9', MISMATCH) in ids
+
+
+MIG_OCR = {
+    'Card_series': '4501',
+    'Card_number': '1234567',
+    'Birth_date': '15.05.1990',
+    'Stay_from': '01.10.2026',
+    'Stay_to': '30.01.2027',
+}
+
+
+def test_migration_card_family_and_valid_card():
+    assert family('MIGRATIONCARD_ALL') == 'MIGRATIONCARD'
+    res = field_checks(MIG_OCR, 'MIGRATIONCARD_ALL', today=TODAY)
+    for key in MIG_OCR:
+        assert res[key]['status'] == UNCHECKED
+        assert all(c['result'] == 'ok' for c in res[key]['checks'])
+    assert {c['id'] for c in res['Card_series']['checks']} == {'MIG-1'}
+    assert {c['id'] for c in res['Card_number']['checks']} == {'MIG-2'}
+    assert {c['id'] for c in res['Stay_to']['checks']} == {'GEN-1', 'MIG-3'}
+    spaced = dict(MIG_OCR, Card_series='45 01', Card_number='123 4567',
+                  Stay_from='01102026', Stay_to='30012027')
+    assert set(statuses(spaced, 'MIGRATIONCARD_ALL').values()) == {UNCHECKED}
+
+
+def test_migration_card_negative_controls():
+    assert statuses(dict(MIG_OCR, Card_series='450'), 'MIGRATIONCARD_ALL')['Card_series'] == MISMATCH
+    assert statuses(dict(MIG_OCR, Card_series='45A1'), 'MIGRATIONCARD_ALL')['Card_series'] == MISMATCH
+    assert statuses(dict(MIG_OCR, Card_number='123456'), 'MIGRATIONCARD_ALL')['Card_number'] == MISMATCH
+    assert statuses(dict(MIG_OCR, Birth_date='31.02.1990'), 'MIGRATIONCARD_ALL')['Birth_date'] == MISMATCH
+    rev = statuses(dict(MIG_OCR, Stay_from='10.12.2026', Stay_to='01.12.2026'), 'MIGRATIONCARD_ALL')
+    assert rev['Stay_from'] == MISMATCH and rev['Stay_to'] == MISMATCH
+    fut = statuses(dict(MIG_OCR, Birth_date='15.05.2076'), 'MIGRATIONCARD_ALL')
+    assert fut['Birth_date'] == MISMATCH and fut['Stay_from'] == UNCHECKED
+    bad_order = statuses(dict(MIG_OCR, Birth_date='01.01.2025', Stay_from='01.01.2024', Stay_to='01.03.2024'),
+                         'MIGRATIONCARD_ALL')
+    assert bad_order['Birth_date'] == MISMATCH and bad_order['Stay_from'] == MISMATCH

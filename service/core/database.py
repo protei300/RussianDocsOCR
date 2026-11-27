@@ -434,10 +434,13 @@ class FileStore:
         total = len(rows)
         column = sort_by if sort_by in SORT_COLUMNS else "created_at"
         # None last in both directions, matching the SQL backend: a queued
-        # document has no doc_conf and must not lead an ascending sort.
-        rows.sort(key=lambda r: (getattr(r, column) is None,
-                                 getattr(r, column) or (r.created_at if column == "created_at" else 0)),
-                  reverse=(sort_dir != "asc"))
+        # document has no doc_conf and must not lead an ascending or descending sort.
+        present = [r for r in rows if getattr(r, column) is not None]
+        missing = [r for r in rows if getattr(r, column) is None]
+        present.sort(key=lambda r: (getattr(r, column), r.id),
+                     reverse=(sort_dir != "asc"))
+        missing.sort(key=lambda r: r.id, reverse=True)
+        rows = present + missing
         offset = max(0, (page - 1) * page_size)
         return rows[offset:offset + page_size], total
 

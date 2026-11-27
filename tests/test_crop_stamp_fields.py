@@ -11,7 +11,7 @@ import pytest
 
 @pytest.mark.parametrize('with_ocr', [False, True])
 def test_export_is_local_and_blind_by_default(tmp_path, monkeypatch, with_ocr):
-    path = Path(__file__).resolve().parents[2] / 'scripts/crop_stamp_fields.py'
+    path = Path(__file__).resolve().parents[1] / 'scripts/crop_stamp_fields.py'
     spec = importlib.util.spec_from_file_location('crop_stamp_fields', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -25,10 +25,12 @@ def test_export_is_local_and_blind_by_default(tmp_path, monkeypatch, with_ocr):
            'quad': np.array([[5, 5], [90, 5], [90, 20], [5, 20]], np.float64)}
     monkeypatch.setattr(module, 'FieldsDetector', lambda *a, **kw: SimpleNamespace(predict=lambda _: [box]))
     calls = []
+
     def make_ocr(*a, **kw):
         calls.append(1)
         return SimpleNamespace(probs=lambda _: np.array([[0, 1]], np.float32),
                                abc=SimpleNamespace(alphabet='А'))
+
     monkeypatch.setattr(module, 'StampOCR', make_ocr)
     cfg = SimpleNamespace(fields_model=weight, ocr_dir=tmp_path, fields_conf=.4)
     destination = tmp_path / 'export'

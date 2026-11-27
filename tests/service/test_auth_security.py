@@ -137,13 +137,17 @@ def test_the_published_default_secret_cannot_sign_a_token(app_factory):
     and token_version starts at 1 — a forged token is therefore a guess, not an
     attack, unless the default is never actually used to sign anything.
     """
+    import warnings
+    from jwt.warnings import InsecureKeyLengthWarning
     from service.core.auth import DEFAULT_JWT_SECRET
 
     with TestClient(app_factory("users", JWT_SECRET=DEFAULT_JWT_SECRET)) as client:
-        forged = jwt.encode(
-            {"sub": "admin", "uid": 1, "tv": 1, "role": "admin",
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
-            DEFAULT_JWT_SECRET, algorithm="HS256")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", InsecureKeyLengthWarning)
+            forged = jwt.encode(
+                {"sub": "admin", "uid": 1, "tv": 1, "role": "admin",
+                 "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+                DEFAULT_JWT_SECRET, algorithm="HS256")
         assert client.get(f"{P}/auth/me", headers=_headers(forged)).status_code == 401
         # And the service still works — it signs with its own random secret.
         assert client.post(f"{P}/auth/login",
@@ -233,7 +237,7 @@ def test_concurrent_demotions_cannot_remove_every_administrator(store, monkeypat
     def count_then_wait_for_the_other(db, **kwargs):
         result = real_count(db, **kwargs)
         try:
-            counted.wait(timeout=0.5)
+            counted.wait(timeout=0.15)
         except threading.BrokenBarrierError:
             pass                      # the lock kept the other thread out: correct
         return result
@@ -312,19 +316,69 @@ def test_rotating_usernames_does_not_escape_the_lockout(app_factory):
         assert 429 in codes, sorted(set(codes))
 
 
-@pytest.mark.parametrize("name", [
-    "аdmin",            # Cyrillic а — looks identical to "admin"
-    "admin ",           # stripped to "admin", so fine... see below
-    "ad min",
-    "admin​",      # zero-width space
-    "../etc",
-    "",
-])
-def test_usernames_that_could_impersonate_are_refused(app_factory, name):
+def test_usernames_that_could_impersonate_are_refused(app_factory):
+    bad_names = [
+        "аdmin",            # Cyrillic а — looks identical to "admin"
+        "admin ",           # stripped to "admin" -> refused as duplicate
+        "ad min",
+        "admin\u200b",      # zero-width space
+        "../etc",
+        "",
+    ]
     with TestClient(app_factory("users")) as client:
         admin = _admin(client)
-        response = client.post(f"{P}/users", headers=admin,
-                               json={"username": name, "password": START, "role": "viewer"})
-        # "admin " strips to the existing "admin" — refused as a duplicate, which
-        # is the same answer for the same reason: it would be the same identity.
-        assert response.status_code in (400, 422), (name, response.status_code)
+        for name in bad_names:
+            response = client.post(f"{P}/users", headers=admin,
+                                   json={"username": name, "password": START, "role": "viewer"})
+            # "admin " strips to the existing "admin" — refused as a duplicate, which
+            # is the same answer for the same reason: it would be the same identity.
+            assert response.status_code in (400, 422), (name, response.status_code)
+
+
+# --- password hashing fail-closed & storage mode safety -----------------------
+
+def test_passwords_fail_closed_and_support_cyrillic():
+    from service.core import passwords
+
+    hashed = passwords.hash_password("Пароль123")
+    assert hashed.startswith("$argon2id$")
+    assert passwords.verify_password(hashed, "Пароль123") is True
+    assert passwords.verify_password(hashed, "Wrong123") is False
+    # Corrupt, non-ASCII, and None hashes must return False (never crash with 500)
+    assert passwords.verify_password("not-a-valid-phc-hash", "Pass1234") is False
+    assert passwords.verify_password("$argon2id$не-аски", "Pass1234") is False
+    assert passwords.verify_password(None, "Pass1234") is False  # type: ignore[arg-type]
+
+    assert passwords.validate_password("Пароль123") is None
+    assert passwords.validate_password("пароль123") is not None   # missing uppercase
+    assert passwords.validate_password("ПарольБезЦифр") is not None
+    assert passwords.validate_password("П1а") is not None         # too short
+    ui_rules = passwords.rules_for_ui()
+    assert {r["code"] for r in ui_rules} == {"length", "digit", "letter", "upper"}
+
+
+def test_storage_mode_uses_sql_without_wiping_and_never_silently_downgrades(tmp_path, monkeypatch):
+    from service.core import config, storage_mode
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    marker = data_dir / "keep.txt"
+    marker.write_text("persist", encoding="utf-8")
+
+    monkeypatch.setenv("DATA_DIR", str(data_dir))
+    monkeypatch.setenv("RUSSIANDOCS_DATABASE_CONNECTIONSTRING", f"sqlite:///{tmp_path / 'prod.db'}")
+    monkeypatch.setenv("DATA_WIPE_ON_START", "1")
+    config.get_settings.cache_clear()
+    store, mode = storage_mode.build_store()
+    try:
+        assert mode.backend == "sql" and mode.ephemeral is False and mode.wipe_on_start is False
+        assert marker.exists(), "SQL mode must never wipe DATA_DIR even when DATA_WIPE_ON_START=1"
+    finally:
+        store.dispose()
+
+    # Invalid connection string must raise, never fall back silently to FileStore
+    monkeypatch.setenv("RUSSIANDOCS_DATABASE_CONNECTIONSTRING", "not-a-valid-url://??")
+    config.get_settings.cache_clear()
+    with pytest.raises(Exception):
+        storage_mode.build_store()
+    config.get_settings.cache_clear()

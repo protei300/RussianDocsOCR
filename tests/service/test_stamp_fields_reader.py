@@ -228,3 +228,41 @@ def test_stamp_reader_strips_trailing_g_from_date_fields():
     assert result['fields']['date'] == '18.09.2018'
     assert result['boxes'][0]['text'] == '18.09.2018'
     assert result['fields']['addr_line'] == 'Г.'  # non-date fields untouched
+
+
+def test_stamp_ocr_probs_resizes_to_32px_and_join_inserts_space(tmp_path, monkeypatch):
+    import onnxruntime
+    from service.ml.registration.ocr import StampOCR, greedy
+
+    (tmp_path / 'model.json').write_text(json.dumps({'Outputs': [{'Alphabet': 'АБ '}]}), encoding='utf-8')
+    seen_shapes = []
+    fake_out = np.array([[[0.0, 1.0, 0.0, 0.0]]], np.float32)
+    session = SimpleNamespace(
+        get_inputs=lambda: [SimpleNamespace(name='img')],
+        run=lambda _, feed: seen_shapes.append(feed['img'].shape) or [fake_out],
+    )
+    monkeypatch.setattr(onnxruntime, 'InferenceSession', lambda *a, **kw: session)
+
+    ocr = StampOCR(tmp_path)
+    out = ocr.probs(np.full((64, 128, 3), 180, np.uint8))
+    assert seen_shapes == [(1, 32, 64, 3)]
+    assert out.shape == (1, 4)
+
+    # Wide patch is capped at width 1024
+    ocr.probs(np.full((16, 2000, 3), 180, np.uint8))
+    assert seen_shapes[-1] == (1, 32, 1024, 3)
+
+    m1 = np.array([[0, 1, 0, 0]], np.float32)
+    m2 = np.array([[0, 0, 1, 0]], np.float32)
+    assert ocr.join([m1]) is m1
+    assert greedy(ocr.join([m1, m2]), ocr.abc) == 'А Б'
+
+
+def test_postprocess_env_disable_returns_none(monkeypatch):
+    from service.ml.registration.config import RegistrationConfig
+    from service.ml.registration.stamp import _load_postprocessor
+
+    monkeypatch.setenv('RDOCS_STAMP_POSTPROCESS', '0')
+    cfg = RegistrationConfig()
+    assert cfg.postprocess is False
+    assert _load_postprocessor(cfg) is None

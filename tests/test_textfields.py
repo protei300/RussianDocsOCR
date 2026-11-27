@@ -1,18 +1,17 @@
+import numpy as np
 import pytest
 from pathlib import Path
-from document_processing.pipeline_modules import *
-from document_processing.processing.models import ModelLoader
+from document_processing.pipeline_modules import TextFieldsDetector
 
 
-@pytest.fixture
-def model():
-    model_loader = ModelLoader()
-    return model_loader(Path('../document_processing/models/TextFields/ONNX/model.json'), device='cpu')
-
-
-@pytest.fixture
+@pytest.fixture(scope='module')
 def module():
     return TextFieldsDetector(model_format='ONNX', device='cpu')
+
+
+@pytest.fixture(scope='module')
+def model(module):
+    return module.model
 
 
 @pytest.fixture
@@ -28,29 +27,33 @@ def sample_images():
 
 class TestTextFieldsDetector:
     def test_model(self, model, sample_images):
-        """Raw model returns a list of bounding boxes."""
+        """Raw model returns a non-empty list of bounding boxes on DL_2011 samples."""
         for img_file in sample_images:
             result = model.predict(img_file)
             assert isinstance(result, list), f'Model must return a list of bboxes, got {type(result)}'
+            assert len(result) > 0, f'No text fields detected in {img_file.name}'
+            assert len(result[0]) >= 6, f'Expected [x1,y1,x2,y2,conf,cls,...], got {result[0]}'
 
     def test_module(self, module, sample_images):
-        """Module predict() returns correct dict structure."""
+        """Module predict() returns non-empty bbox list under module.model_name."""
         img_file = sample_images[0]
         result = module.predict(img_file)
         assert module.model_name in result, f'Key {module.model_name!r} missing'
         inner = result[module.model_name]
         assert 'bbox' in inner, 'Missing bbox field'
-        assert isinstance(inner['bbox'], list), 'bbox must be a list'
+        assert isinstance(inner['bbox'], list) and len(inner['bbox']) > 0, 'Expected detected bboxes'
 
     def test_module_transform(self, module, sample_images):
-        """predict_transform() returns bbox list and warped_img patches."""
+        """predict_transform() returns non-empty bbox list and valid warped_img patches."""
         img_file = sample_images[0]
         result = module.predict_transform(img_file)
         assert module.model_name in result, f'Key {module.model_name!r} missing'
         inner = result[module.model_name]
         assert 'bbox' in inner, 'Missing bbox field'
         assert 'warped_img' in inner, 'Missing warped_img field'
-        assert isinstance(inner['warped_img'], list), 'warped_img must be a list of image patches'
+        assert isinstance(inner['warped_img'], list) and len(inner['bbox']) > 0
         assert len(inner['warped_img']) == len(inner['bbox']), (
             'Number of patches must match number of bboxes'
         )
+        for patch in inner['warped_img']:
+            assert isinstance(patch, np.ndarray) and patch.ndim == 3 and patch.size > 0

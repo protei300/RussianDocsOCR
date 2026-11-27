@@ -140,3 +140,32 @@ def test_record_date_still_refuses_rather_than_guesses(text):
 def test_only_the_record_date_gets_the_lenient_reading():
     ocr = {'Act_date': '2015ГОДАИЮНЯИЕСЯЦА16', 'Issue_date': '2015ГОДАИЮНЯИЕСЯЦА16'}
     assert canonical_dates(ocr, ['Act_date', 'Issue_date']) == {'Act_date': '16.06.2015'}
+
+
+def test_to_ddmmyyyy_rejects_stray_numbers_and_iso():
+    assert to_ddmmyyyy('2020-05-12') is None
+    assert to_ddmmyyyy('12.05.2020 99') is None
+    assert to_ddmmyyyy('01.02.1990 15.03.2015') is None
+    assert to_ddmmyyyy('123.05.2020') is None
+    assert to_ddmmyyyy('12.05.2020') == '12.05.2020'
+    assert to_ddmmyyyy('2010 ГОДА ИЮНЯ МЕСЯЦА 15 ЧИСЛА') == '15.06.2010'
+
+
+@pytest.mark.parametrize('word, expected', [
+    ('28,', '28'), ('28.', '28'), ('5,', '5'),
+    ('28', '28'), ('ИЮЛЯ', 'ИЮЛЯ'), ('2010', '2010'), ('Г.', 'Г.'),
+    ('22.06.2010', '22.06.2010'),
+    ('2010,', '2010,'),
+    ('28,,', '28,,'), (',', ','), ('', ''),
+])
+def test_only_a_day_with_one_mark_loses_it(word, expected):
+    from document_processing.pipeline_modules.ocr_corrections import strip_day_quote
+    assert strip_day_quote(word) == expected
+
+
+def test_cyrillic_engine_applies_day_quote_strip_to_date_fields_only():
+    from document_processing.pipeline_modules.ocr_cyrillic.ocr_cyrillic import OCRCyrillic
+    fix = OCRCyrillic.fix_errors
+    assert fix(None, 'Issue_date', '28,') == '28'
+    assert fix(None, 'Birth_date', '22.06.2010') == '22.06.2010'
+    assert fix(None, 'Last_name_ru', '28,') == '28,'
